@@ -1,0 +1,96 @@
+.address-list {
+  min-height: 100vh;
+  background: #F7F8FA;
+  padding-bottom: 120rpx;
+
+  .content {
+    padding: 20rpx 30rpx;
+  }
+
+  .address-item {
+    background: #fff;
+    border-radius: 16rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+    transition: all 0.2s;
+
+    &:active {
+      transform: scale(0.98);
+      background: #F7F8FA;
+    }
+
+    .address-info {
+      .address-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16rpx;
+
+        .contact-name {
+          font-size: 32rpx;
+          font-weight: bold;
+          color: #323233;
+          margin-right: 20rpx;
+        }
+
+        .phone {
+          font-size: 28rpx;
+          color: #646566;
+        }
+
+        .default-tag {
+          margin-left: auto;
+          padding: 4rpx 16rpx;
+          background: #FF6034;
+          color: #fff;
+          font-size: 22rpx;
+          border-radius: 4rpx;
+        }
+      }
+
+      .address-detail {
+        font-size: 26rpx;
+        color: #969799;
+        line-height: 1.6;
+      }
+    }
+
+    .address-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24rpx;
+      padding-top: 24rpx;
+      border-top: 1rpx solid #EBEDF0;
+
+      .action-btn {
+        padding: 12rpx 24rpx;
+        border: 1rpx solid #EBEDF0;
+        border-radius: 40rpx;
+        font-size: 24rpx;
+        color: #646566;
+        margin-left: 20rpx;
+
+        &.delete {
+          color: #FF6034;
+          border-color: #FF6034;
+        }
+      }
+    }
+  }
+
+  .add-btn {
+    position: fixed;
+    bottom: 40rpx;
+    left: 30rpx;
+    right: 30rpx;
+    height: 88rpx;
+    background: #1989FA;
+    color: #fff;
+    font-size: 32rpx;
+    font-weight: bold;
+    border-radius: 44rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4rpx 12rpx rgba(25, 137, 250, 0.3);
+  }
+}

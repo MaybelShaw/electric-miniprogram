@@ -1,0 +1,240 @@
+.order-confirm {
+  min-height: 100vh;
+  background: #F5F5F5;
+  display: flex;
+  flex-direction: column;
+
+  &.loading {
+    justify-content: center;
+    align-items: center;
+
+    .loading-text {
+      font-size: 28rpx;
+      color: #969799;
+    }
+  }
+
+  .content {
+    flex: 1;
+    padding-bottom: 200rpx;
+  }
+
+  // 收货地址卡片
+  .address-card {
+    background: #fff;
+    margin: 20rpx 24rpx;
+    padding: 32rpx 24rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: flex-start;
+    gap: 20rpx;
+
+    .address-icon {
+      font-size: 40rpx;
+      line-height: 1;
+    }
+
+    .address-content {
+      flex: 1;
+
+      .address-header {
+        display: flex;
+        align-items: center;
+        gap: 20rpx;
+        margin-bottom: 12rpx;
+
+        .contact-name {
+          font-size: 32rpx;
+          font-weight: 600;
+          color: #323233;
+        }
+
+        .phone {
+          font-size: 28rpx;
+          color: #646566;
+        }
+      }
+
+      .address-detail {
+        font-size: 26rpx;
+        color: #646566;
+        line-height: 1.6;
+      }
+
+      .no-address-text {
+        font-size: 28rpx;
+        color: #969799;
+        padding: 8rpx 0;
+      }
+    }
+
+    .arrow-right {
+      font-size: 40rpx;
+      color: #C8C9CC;
+      line-height: 1;
+    }
+  }
+
+  // 商品卡片
+  .product-card {
+    background: #fff;
+    margin: 20rpx 24rpx;
+    border-radius: 16rpx;
+    overflow: hidden;
+
+    .product-item {
+      padding: 24rpx;
+      display: flex;
+      gap: 20rpx;
+
+      .product-image {
+        width: 160rpx;
+        height: 160rpx;
+        border-radius: 12rpx;
+        background: #F7F8FA;
+        flex-shrink: 0;
+      }
+
+      .product-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+
+        .product-name {
+          font-size: 28rpx;
+          color: #323233;
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+          overflow: hidden;
+        }
+
+        .product-spec {
+          font-size: 24rpx;
+          color: #969799;
+          margin-top: 8rpx;
+        }
+
+        .product-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-top: 12rpx;
+
+          .product-price {
+            display: flex;
+            align-items: baseline;
+            gap: 4rpx;
+
+            .price-symbol {
+              font-size: 24rpx;
+              color: #FF6034;
+              font-weight: 600;
+            }
+
+            .price-value {
+              font-size: 36rpx;
+              color: #FF6034;
+              font-weight: 600;
+            }
+          }
+
+          .quantity-text {
+            font-size: 28rpx;
+            color: #969799;
+          }
+        }
+      }
+    }
+
+  }
+
+  // 备注卡片
+  .note-card {
+    background: #fff;
+    margin: 20rpx 24rpx;
+    padding: 24rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    gap: 20rpx;
+
+    .note-label {
+      font-size: 28rpx;
+      color: #646566;
+      width: 80rpx;
+      flex-shrink: 0;
+    }
+
+    .note-input {
+      flex: 1;
+      font-size: 28rpx;
+      color: #323233;
+    }
+
+    .arrow-right {
+      font-size: 40rpx;
+      color: #C8C9CC;
+    }
+  }
+
+  .bottom-placeholder {
+    height: 40rpx;
+  }
+
+  // 底部提交栏
+  .footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    padding: 16rpx 24rpx;
+    padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+    box-shadow: 0 -4rpx 12rpx rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20rpx;
+    z-index: 100;
+
+    .footer-left {
+      flex: 1;
+
+      .total-info {
+        display: flex;
+        align-items: baseline;
+        gap: 8rpx;
+
+        .total-label {
+          font-size: 28rpx;
+          color: #323233;
+        }
+
+        .total-price {
+          font-size: 36rpx;
+          font-weight: 600;
+          color: #FF6034;
+        }
+      }
+    }
+
+    .submit-btn {
+      padding: 24rpx 60rpx;
+      background: linear-gradient(135deg, #FF6034 0%, #EE0A24 100%);
+      color: #fff;
+      font-size: 32rpx;
+      font-weight: 600;
+      border-radius: 48rpx;
+      white-space: nowrap;
+      box-shadow: 0 4rpx 12rpx rgba(255, 96, 52, 0.3);
+
+      &:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+      }
+    }
+  }
+}
