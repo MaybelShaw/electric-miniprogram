@@ -5,6 +5,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
+import { normalizeImageList } from '@/utils/image';
 
 export default function Products() {
   const actionRef = useRef<ActionType>();
@@ -251,7 +252,7 @@ export default function Products() {
     if (!skipDbUpdate) {
       try {
         const updateData: any = {};
-        updateData[fieldName] = urls;
+        updateData[fieldName] = normalizeImageList(urls);
         
         await updateProduct(productId, updateData);
         
@@ -413,11 +414,17 @@ export default function Products() {
               finalData.detail_images = values.detail_images || [];
             }
             
+            const payload = {
+              ...finalData,
+              main_images: normalizeImageList(finalData.main_images),
+              detail_images: normalizeImageList(finalData.detail_images),
+            };
+            
             if (editingRecord) {
-              await updateProduct(editingRecord.id, finalData);
+              await updateProduct(editingRecord.id, payload);
               message.success('更新成功');
             } else {
-              await createProduct(finalData);
+              await createProduct(payload);
               message.success('创建成功');
             }
             

@@ -129,9 +129,9 @@ export default function ImageUpload({
       return false;
     }
     
-    const isLt2M = file.size / 1024 / 1024 < 2;
-    if (!isLt2M) {
-      message.error('图片大小不能超过 2MB！');
+    const isLt20M = file.size / 1024 / 1024 < 20;
+    if (!isLt20M) {
+      message.error('图片大小不能超过 20MB！');
       return false;
     }
     
