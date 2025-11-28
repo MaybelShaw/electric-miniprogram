@@ -152,18 +152,6 @@ export default function Home() {
           ))}
         </Swiper>
 
-        {/* 品类导航 */}
-        <View className='category-nav'>
-          <ScrollView scrollX className='category-scroll'>
-            {categories.map(cat => (
-              <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
-                <View className='category-icon'>{cat.name.charAt(0)}</View>
-                <View className='category-name'>{cat.name}</View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
         {/* 品牌专区 */}
         {brands.length > 0 && (
           <View className='brand-section'>
@@ -177,6 +165,18 @@ export default function Home() {
             </ScrollView>
           </View>
         )}
+
+        {/* 品类导航 */}
+        <View className='category-nav'>
+          <ScrollView scrollX className='category-scroll'>
+            {categories.map(cat => (
+              <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
+                <View className='category-icon'>{cat.name.charAt(0)}</View>
+                <View className='category-name'>{cat.name}</View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* 商品列表 */}
         <View className='product-section'>
