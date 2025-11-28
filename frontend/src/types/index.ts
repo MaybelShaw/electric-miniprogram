@@ -5,8 +5,7 @@ export interface User {
   avatar_url: string
   phone: string
   email: string
-  user_type: 'wechat' | 'admin'
-  role: 'individual' | 'dealer'
+  role: 'individual' | 'dealer' | 'admin'
   last_login_at?: string
   orders_count?: number
   has_company_info?: boolean

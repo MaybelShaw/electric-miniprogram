@@ -18,7 +18,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, openid=None, username=None, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
-        extra_fields.setdefault("user_type", "admin")
+        extra_fields.setdefault("role", "admin")
         return self.create_user(openid, username, password, **extra_fields)
 
 
@@ -50,22 +50,11 @@ class User(AbstractUser, PermissionsMixin):
     )
     email = models.EmailField(blank=True, null=True, verbose_name="电子邮箱")
     
-    # New fields for dual authentication
-    USER_TYPE_CHOICES = [
-        ('wechat', '微信用户'),
-        ('admin', '管理员'),
-    ]
-    user_type = models.CharField(
-        max_length=20,
-        choices=USER_TYPE_CHOICES,
-        default='wechat',
-        verbose_name='用户类型'
-    )
-    
-    # User role: individual or dealer
+    # Unified role field: individual, dealer, or admin
     ROLE_CHOICES = [
         ('individual', '个人用户'),
         ('dealer', '经销商'),
+        ('admin', '管理员'),
     ]
     role = models.CharField(
         max_length=20,

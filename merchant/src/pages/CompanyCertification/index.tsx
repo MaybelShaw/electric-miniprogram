@@ -74,13 +74,6 @@ const CompanyCertification = () => {
 
   const columns: ProColumns<CompanyInfo>[] = [
     {
-      title: 'ID',
-      dataIndex: 'id',
-      width: 60,
-      search: false,
-      fixed: 'left'
-    },
-    {
       title: '公司名称',
       dataIndex: 'company_name',
       width: 200,

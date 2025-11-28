@@ -3,15 +3,15 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .models import User
 
 def get_or_create_wechat_user(openid):
-    return User.objects.get_or_create(openid=openid, defaults={'user_type': 'wechat'})
+    return User.objects.get_or_create(openid=openid, defaults={'role': 'individual'})
 
 def grant_admin_on_debug_code(code, user, debug):
     granted = False
     if debug and isinstance(code, str) and code.startswith('admin') and not user.is_staff:
         user.is_staff = True
         user.is_superuser = True
-        user.user_type = 'admin'
-        user.save(update_fields=['is_staff', 'is_superuser'])
+        user.role = 'admin'
+        user.save(update_fields=['is_staff', 'is_superuser', 'role'])
         granted = True
     return granted
 
@@ -37,9 +37,8 @@ def bootstrap_or_init_admin(username, password):
             is_staff=True,
             is_superuser=True,
             is_active=True,
+            role='admin',
         )
-        user.user_type = 'admin'
-        user.save(update_fields=['user_type'])
         return user
     if user and (not user.has_usable_password()) and admin_qs.count() == 1:
         user.set_password(password)

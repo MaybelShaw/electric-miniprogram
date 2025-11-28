@@ -215,10 +215,15 @@ class PasswordLoginView(APIView):
             if not admin_exists:
                 user.is_staff = True
                 user.is_superuser = True
-                user.user_type = 'admin'
+                user.role = 'admin'
                 user.save()
             else:
                 return Response({"error": "无管理员权限"}, status=status.HTTP_403_FORBIDDEN)
+        
+        # 确保管理员用户的 role 字段正确
+        if user.is_staff and user.role != 'admin':
+            user.role = 'admin'
+            user.save(update_fields=['role'])
 
         update_last_login(user)
 
@@ -447,6 +452,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         user.is_staff = True
         user.is_superuser = True
+        user.role = 'admin'
         user.save()
         return Response(UserSerializer(user).data)
 
@@ -455,6 +461,9 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         user.is_staff = False
         user.is_superuser = False
+        # When removing admin privileges, reset to individual unless they are a dealer
+        if user.role == 'admin':
+            user.role = 'dealer' if hasattr(user, 'company_info') and user.company_info.status == 'approved' else 'individual'
         user.save()
         return Response(UserSerializer(user).data)
 

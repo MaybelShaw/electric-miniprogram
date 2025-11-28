@@ -33,26 +33,25 @@ export default function Users() {
       dataIndex: 'phone',
     },
     {
-      title: '用户类型',
-      dataIndex: 'user_type',
-      hideInSearch: true,
-      width: 100,
-      render: (type: string) => (
-        <Tag color={type === 'admin' ? 'red' : 'blue'}>
-          {type === 'admin' ? '管理员' : type === 'wechat' ? '微信' : '其他'}
-        </Tag>
-      ),
-    },
-    {
       title: '用户角色',
       dataIndex: 'role',
       hideInSearch: true,
       width: 100,
-      render: (role: string) => (
-        <Tag color={role === 'dealer' ? 'green' : 'default'}>
-          {role === 'dealer' ? '经销商' : '个人用户'}
-        </Tag>
-      ),
+      valueType: 'select',
+      valueEnum: {
+        individual: { text: '个人用户', status: 'Default' },
+        dealer: { text: '经销商', status: 'Success' },
+        admin: { text: '管理员', status: 'Error' }
+      },
+      render: (role: string) => {
+        const roleMap = {
+          individual: { text: '个人用户', color: 'default' },
+          dealer: { text: '经销商', color: 'green' },
+          admin: { text: '管理员', color: 'red' }
+        }
+        const roleInfo = roleMap[role] || { text: role, color: 'default' }
+        return <Tag color={roleInfo.color}>{roleInfo.text}</Tag>
+      },
     },
     {
       title: '管理员',

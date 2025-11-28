@@ -7,9 +7,9 @@ from .models import User, Address, CompanyInfo
 class UserAdmin(admin.ModelAdmin):
     list_display = ("username", "openid", "role", "is_superuser")
     search_fields = ("openid", "username")
-    list_filter = ("is_staff", "is_superuser", "is_active", "role", "user_type")
+    list_filter = ("is_staff", "is_superuser", "is_active", "role")
 
-    fields = ("username", "avatar_url", "openid", "role", "user_type", "is_staff", "is_superuser", "is_active", "date_joined", "last_login")
+    fields = ("username", "avatar_url", "openid", "role", "is_staff", "is_superuser", "is_active", "date_joined", "last_login")
     readonly_fields = ("openid", "date_joined", "last_login")
 
 
