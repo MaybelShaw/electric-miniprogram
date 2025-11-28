@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from django.conf import settings
-from .models import User, Address
-from .serializers import UserSerializer, UserProfileSerializer, AddressSerializer
+from .models import User, Address, CompanyInfo
+from .serializers import UserSerializer, UserProfileSerializer, AddressSerializer, CompanyInfoSerializer
 from django.db.models import Q
 from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.throttles import LoginRateThrottle
@@ -457,3 +457,166 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.is_superuser = False
         user.save()
         return Response(UserSerializer(user).data)
+
+
+@extend_schema(tags=['Company Info'])
+class CompanyInfoViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for company information management.
+    
+    User endpoints:
+    - POST: Submit company info for dealer certification
+    - GET: View own company info
+    - PATCH: Update company info (only if pending or rejected)
+    
+    Admin endpoints:
+    - GET list: View all company info submissions
+    - approve: Approve company info and upgrade user to dealer
+    - reject: Reject company info submission
+    """
+    queryset = CompanyInfo.objects.all().order_by('-created_at')
+    serializer_class = CompanyInfoSerializer
+    
+    def get_permissions(self):
+        """
+        Override to allow different permissions for different actions
+        """
+        if self.action in ['approve', 'reject']:
+            # Admin-only actions
+            return [IsAuthenticated(), IsAdmin()]
+        # Regular authenticated users can create/view/update their own
+        return [IsAuthenticated()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return CompanyInfo.objects.none()
+        
+        if user.is_staff:
+            # Admin can see all
+            qs = super().get_queryset()
+            # Filter by status
+            status_filter = self.request.query_params.get('status')
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            return qs
+        else:
+            # Regular users can only see their own
+            return CompanyInfo.objects.filter(user=user)
+    
+    def list(self, request, *args, **kwargs):
+        """List company info - admin sees all, users see their own"""
+        if not request.user.is_staff:
+            # For regular users, return their company info or empty
+            try:
+                company_info = CompanyInfo.objects.get(user=request.user)
+                serializer = self.get_serializer(company_info)
+                return Response(serializer.data)
+            except CompanyInfo.DoesNotExist:
+                return Response(None, status=status.HTTP_404_NOT_FOUND)
+        
+        # Admin gets paginated list
+        return super().list(request, *args, **kwargs)
+    
+    def create(self, request, *args, **kwargs):
+        """Submit company info for certification"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f'创建公司信息请求: user={request.user}, is_authenticated={request.user.is_authenticated}')
+        
+        # Check if user already has company info
+        if hasattr(request.user, 'company_info'):
+            logger.warning(f'用户已有公司信息: user_id={request.user.id}')
+            return Response(
+                {"error": "您已提交公司信息，请勿重复提交"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        logger.info(f'创建公司信息: user_id={request.user.id}, data={request.data}')
+        return super().create(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        """Update company info - only allowed if pending or rejected"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        instance = self.get_object()
+        
+        # Only owner or admin can update
+        if instance.user != request.user and not request.user.is_staff:
+            logger.warning(f'无权限修改公司信息: user_id={request.user.id}, company_info_id={instance.id}')
+            return Response(
+                {"error": "无权限修改"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Users can only update if pending or rejected
+        if not request.user.is_staff and instance.status == 'approved':
+            logger.warning(f'已审核通过的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
+            return Response(
+                {"error": "已审核通过的信息不可修改"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If user is updating rejected info, reset status to pending
+        if not request.user.is_staff and instance.status == 'rejected':
+            logger.info(f'用户重新提交被拒绝的公司信息: user_id={request.user.id}, company_info_id={instance.id}')
+            instance.status = 'pending'
+            instance.approved_at = None
+        
+        response = super().update(request, *args, **kwargs)
+        
+        # Save status change if it was modified
+        if not request.user.is_staff and instance.status == 'pending':
+            instance.save()
+        
+        return response
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve company info and upgrade user to dealer"""
+        from django.utils import timezone
+        
+        company_info = self.get_object()
+        
+        if company_info.status == 'approved':
+            return Response(
+                {"error": "该公司信息已审核通过"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update company info status
+        company_info.status = 'approved'
+        company_info.approved_at = timezone.now()
+        company_info.save()
+        
+        # Upgrade user to dealer
+        user = company_info.user
+        user.role = 'dealer'
+        user.save()
+        
+        return Response({
+            "message": "审核通过，用户已升级为经销商",
+            "company_info": CompanyInfoSerializer(company_info).data,
+            "user": UserSerializer(user).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject company info submission"""
+        company_info = self.get_object()
+        
+        if company_info.status == 'approved':
+            return Response(
+                {"error": "已审核通过的信息不可拒绝"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        company_info.status = 'rejected'
+        company_info.save()
+        
+        return Response({
+            "message": "已拒绝该公司信息",
+            "company_info": CompanyInfoSerializer(company_info).data
+        })

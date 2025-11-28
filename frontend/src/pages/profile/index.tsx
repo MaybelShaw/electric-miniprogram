@@ -89,6 +89,14 @@ export default function Profile() {
     Taro.navigateTo({ url: '/pages/profile-edit/index' })
   }
 
+  const goToCertification = () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    Taro.navigateTo({ url: '/pages/company-certification/index' })
+  }
+
   return (
     <View className='profile'>
       {/* 用户信息区域 */}
@@ -96,7 +104,15 @@ export default function Profile() {
         {user ? (
           <View className='user-info' onClick={goToProfileEdit}>
             <Image className='avatar' src={user.avatar_url || '/assets/default-avatar.png'} />
-            <View className='username'>{user.username || '未设置昵称'}</View>
+            <View className='user-details'>
+              <View className='username'>{user.username || '未设置昵称'}</View>
+              {user.company_name && user.role === 'dealer' && (
+                <View className='company-name'>
+                  <Text className='company-icon'>🏢</Text>
+                  <Text className='company-text'>{user.company_name}</Text>
+                </View>
+              )}
+            </View>
           </View>
         ) : (
           <View className='login-section'>
@@ -151,6 +167,20 @@ export default function Profile() {
           <View className='menu-left'>
             <Text className='menu-icon'>📍</Text>
             <Text className='menu-text'>收货地址</Text>
+          </View>
+          <Text className='arrow'>›</Text>
+        </View>
+        
+        <View className='menu-item' onClick={goToCertification}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>🏢</Text>
+            <Text className='menu-text'>经销商认证</Text>
+            {user?.role === 'dealer' && (
+              <View className='badge success'>已认证</View>
+            )}
+            {user?.has_company_info && user?.company_status === 'pending' && (
+              <View className='badge warning'>审核中</View>
+            )}
           </View>
           <Text className='arrow'>›</Text>
         </View>

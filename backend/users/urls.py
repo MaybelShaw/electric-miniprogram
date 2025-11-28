@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import WeChatLoginView, PasswordLoginView, AddressViewSet, user_profile, user_statistics, AdminUserViewSet
+from .views import WeChatLoginView, PasswordLoginView, AddressViewSet, user_profile, user_statistics, AdminUserViewSet, CompanyInfoViewSet
 
 router = SimpleRouter()
 router.register(r'addresses', AddressViewSet, basename='address')
 router.register(r'users', AdminUserViewSet, basename='users')
+router.register(r'company-info', CompanyInfoViewSet, basename='company-info')
 
 urlpatterns = [
     path('login/', WeChatLoginView.as_view(), name='wechat-login'),

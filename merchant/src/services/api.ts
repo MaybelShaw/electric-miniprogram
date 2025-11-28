@@ -63,3 +63,9 @@ export const getDiscounts = (params?: any) => request.get('/discounts/', { param
 export const createDiscount = (data: any) => request.post('/discounts/', data);
 export const updateDiscount = (id: number, data: any) => request.patch(`/discounts/${id}/`, data);
 export const deleteDiscount = (id: number) => request.delete(`/discounts/${id}/`);
+
+// 公司认证管理
+export const getCompanyInfoList = (params?: any) => request.get('/company-info/', { params });
+export const getCompanyInfo = (id: number) => request.get(`/company-info/${id}/`);
+export const approveCompanyInfo = (id: number) => request.post(`/company-info/${id}/approve/`);
+export const rejectCompanyInfo = (id: number) => request.post(`/company-info/${id}/reject/`);

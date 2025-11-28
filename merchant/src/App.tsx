@@ -7,6 +7,7 @@ import Categories from './pages/Categories';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
 import Discounts from './pages/Discounts';
+import CompanyCertification from './pages/CompanyCertification';
 import { getToken } from './utils/auth';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -31,6 +32,7 @@ function App() {
                   <Route path="/products" element={<Products />} />
                   <Route path="/orders" element={<Orders />} />
                   <Route path="/discounts" element={<Discounts />} />
+                  <Route path="/company-certification" element={<CompanyCertification />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

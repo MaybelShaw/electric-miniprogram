@@ -6,8 +6,12 @@ export interface User {
   phone: string
   email: string
   user_type: 'wechat' | 'admin'
+  role: 'individual' | 'dealer'
   last_login_at?: string
   orders_count?: number
+  has_company_info?: boolean
+  company_status?: 'pending' | 'approved' | 'rejected'
+  company_name?: string
 }
 
 export interface LoginResponse {

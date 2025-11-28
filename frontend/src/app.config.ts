@@ -12,7 +12,8 @@ export default defineAppConfig({
     'pages/address-edit/index',
     'pages/profile-edit/index',
     'pages/search/index',
-    'pages/brand/index'
+    'pages/brand/index',
+    'pages/company-certification/index'
   ],
   window: {
     backgroundTextStyle: 'light',

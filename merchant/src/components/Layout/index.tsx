@@ -6,6 +6,7 @@ import {
   ShoppingOutlined,
   ShoppingCartOutlined,
   PercentageOutlined,
+  SafetyCertificateOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -16,6 +17,7 @@ const { Header, Sider, Content } = AntLayout;
 
 const menuItems = [
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+  { key: '/company-certification', icon: <SafetyCertificateOutlined />, label: '认证审核' },
   { key: '/brands', icon: <TagOutlined />, label: '品牌管理' },
   { key: '/categories', icon: <AppstoreOutlined />, label: '品类管理' },
   { key: '/products', icon: <ShoppingOutlined />, label: '产品管理' },

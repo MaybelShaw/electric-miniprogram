@@ -44,6 +44,17 @@ export default function Users() {
       ),
     },
     {
+      title: '用户角色',
+      dataIndex: 'role',
+      hideInSearch: true,
+      width: 100,
+      render: (role: string) => (
+        <Tag color={role === 'dealer' ? 'green' : 'default'}>
+          {role === 'dealer' ? '经销商' : '个人用户'}
+        </Tag>
+      ),
+    },
+    {
       title: '管理员',
       dataIndex: 'is_staff',
       width: 100,
