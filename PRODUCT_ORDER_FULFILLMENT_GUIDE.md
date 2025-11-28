@@ -19,12 +19,12 @@
 ## 产品类型说明
 
 ### 非海尔产品
-- **定义**：`product_code` 字段为空（NULL）的商品
+- **定义**：`source='local'` 的商品
 - **特点**：自营商品，库存和发货由平台自行管理
 - **示例**：普通家电、配件、自有品牌商品
 
 ### 海尔产品
-- **定义**：`product_code` 字段有值的商品
+- **定义**：`source='haier'` 的商品（同时要求 `product_code` 有值）
 - **特点**：海尔供应链商品，需要对接海尔/易理货系统
 - **示例**：海尔冰箱、洗衣机、空调等
 
@@ -58,10 +58,12 @@
 ```sql
 INSERT INTO catalog_product (
     name, category_id, brand_id, price, stock,
-    product_code,  -- NULL (非海尔产品)
+    source,           -- 'local' (非海尔产品)
+    product_code,     -- NULL (非海尔产品)
     is_active, created_at
 ) VALUES (
     '普通冰箱', 1, 1, 2999.00, 100,
+    'local',
     NULL,
     TRUE, NOW()
 );
@@ -578,13 +580,14 @@ cancelled         haier_status更新
 
 ### Product 表（商品）
 
-| 字段 | 非海尔产品 | 海尔产品 | 说明 |
-|------|-----------|---------|------|
-| product_code | NULL | 有值 | 海尔产品编码（关键字段） |
-| product_model | - | 有值 | 产品型号 |
-| supply_price | - | 有值 | 供价 |
-| market_price | 可选 | 有值 | 市场价 |
-| is_sales | - | '1'/'0' | 是否可采 |
+| 字段        | 非海尔产品     | 海尔产品              | 说明                     |
+|-------------|----------------|-----------------------|--------------------------|
+| source      | 'local'        | 'haier'               | 商品来源（关键区分字段） |
+| product_code| NULL           | 有值                  | 海尔产品编码（必填）     |
+| product_model | -            | 有值                  | 产品型号                 |
+| supply_price  | -            | 有值                  | 供价                     |
+| market_price  | 可选         | 有值                  | 市场价                   |
+| is_sales      | -            | '1'/'0'               | 是否可采                 |
 
 ### Order 表（订单）
 
@@ -708,7 +711,7 @@ YLH_CLIENT_SECRET=12345678
 4. 可以重新推送
 
 ### Q4: 非海尔产品可以推送吗？
-**A**: 不可以，系统会检查 `product_code`，非海尔产品没有推送按钮。
+**A**: 不可以，系统会检查商品 `source` 是否为 `haier`，非海尔产品（`source='local'`）没有推送按钮。
 
 ### Q5: 物流信息多久更新一次？
 **A**: 需要手动点击"查询物流"按钮查询，系统不会自动更新。

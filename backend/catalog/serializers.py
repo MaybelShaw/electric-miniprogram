@@ -63,15 +63,25 @@ class ProductSerializer(serializers.ModelSerializer):
     # Use secure fields for text input
     name = SecureCharField(max_length=200)
     description = SecureCharField(required=False, allow_blank=True)
+    product_model = SecureCharField(max_length=100, required=False, allow_blank=True)
+    product_group = SecureCharField(max_length=100, required=False, allow_blank=True)
+    warehouse_code = SecureCharField(max_length=50, required=False, allow_blank=True)
+    no_sales_reason = SecureCharField(max_length=200, required=False, allow_blank=True)
     
     # Use specialized fields for numeric input
     price = PriceField(max_digits=10, decimal_places=2)
     stock = StockField()
+    supply_price = PriceField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    invoice_price = PriceField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    market_price = PriceField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    stock_rebate = PriceField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    rebate_money = PriceField(max_digits=10, decimal_places=2, required=False, allow_null=True)
 
     class Meta:
         model = Product
         fields = "__all__"
         extra_fields = ['discounted_price', 'originalPrice', 'category_id', 'brand_id', 'is_haier_product', 'haier_info']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'last_sync_at', 'view_count', 'sales_count']
 
     def validate_main_images(self, value):
         return self._normalize_images(value)
@@ -169,11 +179,13 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_is_haier_product(self, obj: Product):
         """判断是否为海尔产品"""
-        return bool(obj.product_code)
+        # 只根据 source 字段判断
+        return getattr(obj, 'source', None) == getattr(obj, 'SOURCE_HAIER', 'haier')
     
     def get_haier_info(self, obj: Product):
         """获取海尔产品信息"""
-        if not obj.product_code:
+        # 只有标记为海尔商品并且有 product_code 才返回详细信息
+        if not self.get_is_haier_product(obj) or not obj.product_code:
             return None
         
         return {

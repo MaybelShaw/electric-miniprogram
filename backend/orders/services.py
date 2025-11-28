@@ -237,8 +237,8 @@ def create_order(user, product_id, address_id, quantity, note=''):
     product = Product.objects.get(id=product_id)
     address = Address.objects.get(id=address_id, user=user)
 
-    # 检查是否为海尔产品
-    is_haier_product = bool(product.product_code and product.product_code.strip())
+    # 检查是否为海尔产品：只根据 source 字段判断
+    is_haier_product = getattr(product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier')
     
     # 如果是海尔产品，先检查海尔库存
     if is_haier_product:

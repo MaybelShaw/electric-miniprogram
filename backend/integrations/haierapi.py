@@ -69,7 +69,7 @@ class HaierAPI:
         return True
 
     def _auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'{self.token_type} {self.access_token}', 'Content-Type': 'application/json'}
+        return {'Authorization': f'{self.access_token}', 'Content-Type': 'application/json'}
 
     def get_products(self, product_codes: Optional[List[str]] = None) -> Optional[List[Dict[str, Any]]]:
         if not self._ensure_authenticated():
@@ -187,25 +187,25 @@ class HaierAPI:
 
 if __name__ == '__main__':
     test_config = {
-        'client_id': 'your_client_id',
-        'client_secret': 'your_client_secret',
+        'client_id': '7RKuo0yBew5yRAq9oSwZw8PseXkNHpLb',
+        'client_secret': 'y8Dt0YYDoQSY3DphKa79XkfpWoDqPnGp',
         'token_url': 'https://openplat-test.haier.net/oauth2/auth',
         'base_url': 'https://openplat-test.haier.net',
-        'customer_code': '8800633175',
-        'send_to_code': '8800633175',
+        'customer_code': '8800627808',
+        'send_to_code': '8800627808',
         'supplier_code': '1001',
-        'password': 'your_password',
-        'seller_password': 'your_password',
+        'password': 'Test,123',
+        'seller_password': 'Test,123',
     }
     api = HaierAPI(test_config)
     ok = api.authenticate()
     print('auth:', ok)
     if ok:
-        prods = api.get_products(product_codes=['GA0SZC00U'])
+        prods = api.get_products(product_codes=['NQ0054000'])
         print('products sample:', str(prods)[:200])
-        prices = api.get_product_prices(['GA0SZC00U'])
+        prices = api.get_product_prices(['NQ0054000'])
         print('prices sample:', str(prices)[:200])
-        stock = api.check_stock('GA0SZC00U', '110101')
+        stock = api.check_stock('NQ0054000', '110101')
         print('stock sample:', str(stock)[:200])
         logistics = api.get_logistics_info('SO.20190106.000003', 'SO.20190106.000003.F1', 12345)
         print('logistics sample:', str(logistics)[:200])

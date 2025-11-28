@@ -64,15 +64,15 @@ class OrderSerializer(serializers.ModelSerializer):
         """判断是否为海尔订单"""
         if not obj.product:
             return False
-        # 检查 product_code 是否存在且不为空字符串
-        return bool(obj.product.product_code and obj.product.product_code.strip())
+        # 只根据商品来源(source)判断
+        return getattr(obj.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier')
     
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""
         if not obj.product:
             return None
-        # 检查 product_code 是否存在且不为空字符串
-        if not obj.product.product_code or not obj.product.product_code.strip():
+        # 只有海尔订单且存在 product_code 时才返回
+        if not self.get_is_haier_order(obj) or not obj.product.product_code:
             return None
         
         return {

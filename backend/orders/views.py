@@ -385,8 +385,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         order = self.get_object()
         
-        # 检查是否为海尔订单
-        if not order.product or not order.product.product_code:
+        # 检查是否为海尔订单：只根据 product.source 判断
+        product = order.product
+        from catalog.models import Product as CatalogProduct
+        is_haier_product = bool(
+            product and getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
+        )
+        if not is_haier_product:
             return Response(
                 {'detail': '该订单不是海尔产品订单，无需推送'},
                 status=status.HTTP_400_BAD_REQUEST

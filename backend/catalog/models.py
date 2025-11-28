@@ -47,6 +47,21 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', verbose_name='类别')
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products', verbose_name='品牌')
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='价格')
+    
+    # 商品来源（用于区分本地商品 / 海尔商品等）
+    SOURCE_LOCAL = 'local'
+    SOURCE_HAIER = 'haier'
+    SOURCE_CHOICES = [
+        (SOURCE_LOCAL, '本地商品'),
+        (SOURCE_HAIER, '海尔商品'),
+    ]
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_LOCAL,
+        verbose_name='商品来源',
+        help_text='local=本地维护商品; haier=来自海尔API的商品',
+    )
     stock = models.PositiveIntegerField(default=0, verbose_name='库存数量')
     
     # 海尔API相关字段
@@ -127,6 +142,7 @@ class Product(models.Model):
                 'category': category or Category.objects.first(),
                 'brand': brand or Brand.objects.first(),
                 'price': 0,
+                'source': cls.SOURCE_HAIER,
             }
         )
         
@@ -155,6 +171,8 @@ class Product(models.Model):
             brand_obj, _ = Brand.objects.get_or_create(name=brand_name)
             product.brand = brand_obj
         
+        # 确保来源标记为海尔商品（兼容旧数据）
+        product.source = cls.SOURCE_HAIER
         product.last_sync_at = timezone.now()
         product.save()
         

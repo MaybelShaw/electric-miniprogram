@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea } from '@ant-design/pro-components';
-import { Tag, Image, Button, Popconfirm, message, Form } from 'antd';
+import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea, ProFormGroup } from '@ant-design/pro-components';
+import { Tag, Image, Button, Popconfirm, message, Form, Alert, Descriptions } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
@@ -77,6 +77,21 @@ export default function Products() {
       dataIndex: 'category',
       hideInSearch: true,
       width: 120,
+    },
+    { 
+      title: '来源',
+      dataIndex: 'source',
+      width: 100,
+      valueType: 'select',
+      valueEnum: {
+        local: { text: '本地', status: 'Default' },
+        haier: { text: '海尔', status: 'Processing' },
+      },
+      render: (_: any, record: any) => (
+        <Tag color={record.source === 'haier' ? 'blue' : 'default'}>
+          {record.source === 'haier' ? '海尔' : '本地'}
+        </Tag>
+      ),
     },
     { 
       title: '分类筛选',
@@ -210,6 +225,19 @@ export default function Products() {
           main_images: res.main_images || [],
           detail_images: res.detail_images || [],
           is_active: res.is_active,
+          source: res.source || 'local',
+          product_code: res.product_code || '',
+          product_model: res.product_model || '',
+          product_group: res.product_group || '',
+          supply_price: res.supply_price,
+          invoice_price: res.invoice_price,
+          market_price: res.market_price,
+          stock_rebate: res.stock_rebate,
+          rebate_money: res.rebate_money,
+          warehouse_code: res.warehouse_code || '',
+          warehouse_grade: res.warehouse_grade || '',
+          is_sales: res.is_sales || '1',
+          no_sales_reason: res.no_sales_reason || '',
         });
       }, 100);
     } catch (error) {
@@ -235,6 +263,8 @@ export default function Products() {
       stock: 0,
       main_images: [],
       detail_images: [],
+      source: 'local',
+      is_sales: '1',
     });
     setModalVisible(true);
   };
@@ -391,7 +421,7 @@ export default function Products() {
             setEditingRecord(null);
           }
         }}
-        width={800}
+        width={900}
         onFinish={async (values) => {
           try {
             // 如果是编辑模式，先从后端获取最新的图片数据
@@ -439,6 +469,18 @@ export default function Products() {
           message.error('请检查表单填写是否正确');
         }}
       >
+        {/* 海尔产品提示 */}
+        {editingRecord?.source === 'haier' && (
+          <Alert
+            message="海尔产品"
+            description="此产品来源于海尔API，部分字段为只读或自动同步"
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {/* 基本信息 */}
         <ProFormText
           name="name"
           label="产品名称"
@@ -446,39 +488,60 @@ export default function Products() {
           placeholder="请输入产品名称"
         />
         
+        <ProFormGroup>
+          <ProFormSelect
+            name="brand_id"
+            label="品牌"
+            rules={[{ required: true, message: '请选择品牌' }]}
+            options={brands.map(item => ({ label: item.name, value: item.id }))}
+            placeholder="请选择品牌"
+            showSearch
+            width="md"
+          />
+          
+          <ProFormSelect
+            name="category_id"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+            options={categories.map(item => ({ label: item.name, value: item.id }))}
+            placeholder="请选择分类"
+            showSearch
+            width="md"
+          />
+        </ProFormGroup>
+
         <ProFormSelect
-          name="brand_id"
-          label="品牌"
-          rules={[{ required: true, message: '请选择品牌' }]}
-          options={brands.map(item => ({ label: item.name, value: item.id }))}
-          placeholder="请选择品牌"
-          showSearch
+          name="source"
+          label="商品来源"
+          options={[
+            { label: '本地商品', value: 'local' },
+            { label: '海尔商品', value: 'haier' },
+          ]}
+          placeholder="请选择商品来源"
+          width="md"
+          readonly={editingRecord?.source === 'haier'}
+          tooltip="海尔商品来源不可修改"
         />
         
-        <ProFormSelect
-          name="category_id"
-          label="分类"
-          rules={[{ required: true, message: '请选择分类' }]}
-          options={categories.map(item => ({ label: item.name, value: item.id }))}
-          placeholder="请选择分类"
-          showSearch
-        />
-        
-        <ProFormDigit
-          name="price"
-          label="价格"
-          rules={[{ required: true, message: '请输入价格' }]}
-          fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
-          placeholder="请输入价格"
-        />
-        
-        <ProFormDigit
-          name="stock"
-          label="库存"
-          rules={[{ required: true, message: '请输入库存' }]}
-          fieldProps={{ min: 0, precision: 0 }}
-          placeholder="请输入库存数量"
-        />
+        <ProFormGroup>
+          <ProFormDigit
+            name="price"
+            label="价格"
+            rules={[{ required: true, message: '请输入价格' }]}
+            fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+            placeholder="请输入价格"
+            width="md"
+          />
+          
+          <ProFormDigit
+            name="stock"
+            label="库存"
+            rules={[{ required: true, message: '请输入库存' }]}
+            fieldProps={{ min: 0, precision: 0 }}
+            placeholder="请输入库存数量"
+            width="md"
+          />
+        </ProFormGroup>
         
         <ProFormTextArea
           name="description"
@@ -486,6 +549,138 @@ export default function Products() {
           placeholder="请输入产品描述"
           fieldProps={{ rows: 4 }}
         />
+
+        {/* 海尔相关字段 */}
+        <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.source !== currentValues.source}>
+          {({ getFieldValue }) => {
+            const source = getFieldValue('source');
+            if (source === 'haier') {
+              return (
+                <>
+                  <ProFormGroup title="海尔产品信息">
+                    <ProFormText
+                      name="product_code"
+                      label="产品编码"
+                      placeholder="海尔产品编码"
+                      width="md"
+                      readonly={editingRecord?.source === 'haier'}
+                      tooltip="海尔产品编码，同步时自动填充"
+                    />
+                    
+                    <ProFormText
+                      name="product_model"
+                      label="产品型号"
+                      placeholder="海尔产品型号"
+                      width="md"
+                      readonly
+                    />
+                  </ProFormGroup>
+
+                  <ProFormGroup>
+                    <ProFormText
+                      name="product_group"
+                      label="产品组"
+                      placeholder="海尔产品组"
+                      width="md"
+                      readonly
+                    />
+                    
+                    <ProFormSelect
+                      name="is_sales"
+                      label="是否可采"
+                      options={[
+                        { label: '可采', value: '1' },
+                        { label: '不可采', value: '0' },
+                      ]}
+                      width="md"
+                      readonly
+                      tooltip="海尔同步自动更新"
+                    />
+                  </ProFormGroup>
+
+                  <ProFormTextArea
+                    name="no_sales_reason"
+                    label="不可采原因"
+                    placeholder="不可采原因"
+                    readonly
+                    fieldProps={{ rows: 2 }}
+                  />
+
+                  <ProFormGroup title="价格信息">
+                    <ProFormDigit
+                      name="supply_price"
+                      label="普通供价"
+                      fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+                      placeholder="海尔普通供价"
+                      width="md"
+                      readonly
+                    />
+                    
+                    <ProFormDigit
+                      name="invoice_price"
+                      label="开票价"
+                      fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+                      placeholder="海尔开票价"
+                      width="md"
+                      readonly
+                    />
+                  </ProFormGroup>
+
+                  <ProFormGroup>
+                    <ProFormDigit
+                      name="market_price"
+                      label="市场价"
+                      fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+                      placeholder="海尔市场价"
+                      width="md"
+                      readonly
+                    />
+                    
+                    <ProFormDigit
+                      name="stock_rebate"
+                      label="直扣"
+                      fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+                      placeholder="海尔直扣"
+                      width="md"
+                      readonly
+                    />
+                  </ProFormGroup>
+
+                  <ProFormGroup>
+                    <ProFormDigit
+                      name="rebate_money"
+                      label="台返"
+                      fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+                      placeholder="海尔台返"
+                      width="md"
+                      readonly
+                    />
+
+                    <ProFormText
+                      name="warehouse_code"
+                      label="库位编码"
+                      placeholder="海尔库位编码"
+                      width="md"
+                      readonly
+                    />
+                  </ProFormGroup>
+
+                  <ProFormSelect
+                    name="warehouse_grade"
+                    label="仓库等级"
+                    options={[
+                      { label: '本级仓', value: '0' },
+                      { label: '上级仓', value: '1' },
+                    ]}
+                    width="md"
+                    readonly
+                  />
+                </>
+              );
+            }
+            return null;
+          }}
+        </Form.Item>
         
         <Form.Item
           name="main_images"
