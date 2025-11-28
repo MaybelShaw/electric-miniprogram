@@ -45,6 +45,9 @@ urlpatterns = [
     path('api/', include('orders.urls')),
     path('api/', include('users.urls')),
     path('api/haier/', include('integrations.urls')),
+    
+    # YLH callback endpoint (direct path for external callback)
+    path('api/', include('integrations.urls')),
 ]
 
 if settings.DEBUG:

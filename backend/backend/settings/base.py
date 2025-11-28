@@ -255,6 +255,10 @@ YLH_PASSWORD = EnvironmentConfig.get_env('YLH_PASSWORD', '')
 YLH_CLIENT_ID = EnvironmentConfig.get_env('YLH_CLIENT_ID', 'open_api_erp')
 YLH_CLIENT_SECRET = EnvironmentConfig.get_env('YLH_CLIENT_SECRET', '12345678')
 
+# YLH Callback Configuration (for receiving Haier platform callbacks)
+YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '85f46119-e920-4f01-9624-66326c013217')
+YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '8e17bb88a087400bac9ab67e67b138ef')
+
 # ============================================================================
 # Haier API Mock Data Configuration
 # ============================================================================
