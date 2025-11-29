@@ -69,3 +69,28 @@ export const getCompanyInfoList = (params?: any) => request.get('/company-info/'
 export const getCompanyInfo = (id: number) => request.get(`/company-info/${id}/`);
 export const approveCompanyInfo = (id: number) => request.post(`/company-info/${id}/approve/`);
 export const rejectCompanyInfo = (id: number) => request.post(`/company-info/${id}/reject/`);
+
+// 信用账户管理
+export const getCreditAccounts = (params?: any) => request.get('/credit-accounts/', { params });
+export const getCreditAccount = (id: number) => request.get(`/credit-accounts/${id}/`);
+export const createCreditAccount = (data: any) => request.post('/credit-accounts/', data);
+export const updateCreditAccount = (id: number, data: any) => request.patch(`/credit-accounts/${id}/`, data);
+
+// 对账单管理
+export const getAccountStatements = (params?: any) => request.get('/account-statements/', { params });
+export const getAccountStatement = (id: number) => request.get(`/account-statements/${id}/`);
+export const createAccountStatement = (data: any) => request.post('/account-statements/', data);
+export const confirmAccountStatement = (id: number) => request.post(`/account-statements/${id}/confirm/`);
+export const settleAccountStatement = (id: number) => request.post(`/account-statements/${id}/settle/`);
+export const exportAccountStatement = (id: number) => {
+  return request.get(`/account-statements/${id}/export/`, { responseType: 'blob' });
+};
+
+// 交易记录管理
+export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
+
+// 发票管理
+export const getInvoices = (params?: any) => request.get('/invoices/', { params });
+export const getInvoice = (id: number) => request.get(`/invoices/${id}/`);
+export const issueInvoice = (id: number, data: any) => request.post(`/invoices/${id}/issue/`, data);
+export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cancel/`);

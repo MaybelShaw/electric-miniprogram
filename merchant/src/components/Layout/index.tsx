@@ -7,7 +7,10 @@ import {
   ShoppingCartOutlined,
   PercentageOutlined,
   SafetyCertificateOutlined,
+  AccountBookOutlined,
+  CreditCardOutlined,
   LogoutOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { removeToken } from '@/utils/auth';
@@ -18,10 +21,14 @@ const { Header, Sider, Content } = AntLayout;
 const menuItems = [
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
   { key: '/company-certification', icon: <SafetyCertificateOutlined />, label: '认证审核' },
+  { key: '/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
+  { key: '/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
+  { key: '/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
   { key: '/brands', icon: <TagOutlined />, label: '品牌管理' },
   { key: '/categories', icon: <AppstoreOutlined />, label: '品类管理' },
   { key: '/products', icon: <ShoppingOutlined />, label: '产品管理' },
   { key: '/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
+  { key: '/invoices', icon: <FileTextOutlined />, label: '发票管理' },
   { key: '/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
 ];
 

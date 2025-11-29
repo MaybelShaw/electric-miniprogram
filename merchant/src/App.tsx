@@ -6,8 +6,12 @@ import Brands from './pages/Brands';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
 import Orders from './pages/Orders';
+import Invoices from './pages/Invoices';
 import Discounts from './pages/Discounts';
 import CompanyCertification from './pages/CompanyCertification';
+import CreditAccounts from './pages/CreditAccounts';
+import AccountStatements from './pages/AccountStatements';
+import AccountTransactions from './pages/AccountTransactions';
 import { getToken } from './utils/auth';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -31,8 +35,12 @@ function App() {
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/products" element={<Products />} />
                   <Route path="/orders" element={<Orders />} />
+                  <Route path="/invoices" element={<Invoices />} />
                   <Route path="/discounts" element={<Discounts />} />
                   <Route path="/company-certification" element={<CompanyCertification />} />
+                  <Route path="/credit-accounts" element={<CreditAccounts />} />
+                  <Route path="/account-statements" element={<AccountStatements />} />
+                  <Route path="/account-transactions" element={<AccountTransactions />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

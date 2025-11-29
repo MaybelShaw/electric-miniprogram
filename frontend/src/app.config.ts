@@ -13,7 +13,13 @@ export default defineAppConfig({
     'pages/profile-edit/index',
     'pages/search/index',
     'pages/brand/index',
-    'pages/company-certification/index'
+    'pages/company-certification/index',
+    'pages/credit-account/index',
+    'pages/account-statements/index',
+    'pages/statement-detail/index',
+    'pages/account-transactions/index',
+    'pages/debt-reconciliation/index',
+    'pages/invoice-request/index'
   ],
   window: {
     backgroundTextStyle: 'light',

@@ -4,7 +4,9 @@ import Taro from '@tarojs/taro'
 import { addressService } from '../../services/address'
 import { productService } from '../../services/product'
 import { orderService } from '../../services/order'
-import { Address, Product } from '../../types'
+import { userService } from '../../services/user'
+import { creditService } from '../../services/credit'
+import { Address, Product, User } from '../../types'
 import './index.scss'
 
 interface OrderItem {
@@ -19,6 +21,9 @@ export default function OrderConfirm() {
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [fromCart, setFromCart] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'credit'>('online')
+  const [creditAccount, setCreditAccount] = useState<any>(null)
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -45,6 +50,7 @@ export default function OrderConfirm() {
     }
     
     loadDefaultAddress()
+    loadUserInfo()
 
     // 监听地址选择事件
     const handleAddressSelected = (selectedAddress: Address) => {
@@ -57,6 +63,25 @@ export default function OrderConfirm() {
       Taro.eventCenter.off('addressSelected', handleAddressSelected)
     }
   }, [])
+
+  const loadUserInfo = async () => {
+    try {
+      const userData = await userService.getProfile()
+      setUser(userData)
+      
+      // 如果是经销商，加载信用账户
+      if (userData.role === 'dealer') {
+        try {
+          const account = await creditService.getMyAccount()
+          setCreditAccount(account)
+        } catch (error) {
+          // 没有信用账户，静默失败
+        }
+      }
+    } catch (error) {
+      // 静默失败
+    }
+  }
 
   const loadMultipleProducts = async (orderItems: OrderItem[]) => {
     try {
@@ -104,6 +129,19 @@ export default function OrderConfirm() {
 
     if (submitting) return
 
+    // 如果使用信用支付，检查额度
+    if (paymentMethod === 'credit') {
+      if (!creditAccount) {
+        Taro.showToast({ title: '您还没有信用账户', icon: 'none' })
+        return
+      }
+      const availableCredit = parseFloat(creditAccount.available_credit)
+      if (availableCredit < finalAmount) {
+        Taro.showToast({ title: `信用额度不足，可用额度: ¥${availableCredit.toFixed(2)}`, icon: 'none' })
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       // 使用批量创建订单API
@@ -113,10 +151,16 @@ export default function OrderConfirm() {
           quantity: item.quantity
         })),
         address_id: address.id,
-        note
+        note,
+        payment_method: paymentMethod
       })
 
       Taro.showToast({ title: '订单创建成功', icon: 'success' })
+      
+      // 如果使用信用支付，触发信用账户更新事件
+      if (paymentMethod === 'credit') {
+        Taro.eventCenter.trigger('creditAccountUpdated')
+      }
       
       // 如果是从购物车来的，清空购物车中对应的商品
       if (fromCart) {
@@ -205,6 +249,38 @@ export default function OrderConfirm() {
             </View>
           ))}
         </View>
+
+        {/* 支付方式 - 仅经销商显示 */}
+        {user?.role === 'dealer' && creditAccount && (
+          <View className='payment-card'>
+            <Text className='payment-label'>支付方式</Text>
+            <View className='payment-options'>
+              <View 
+                className={`payment-option ${paymentMethod === 'online' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('online')}
+              >
+                <View className='option-radio'>
+                  {paymentMethod === 'online' && <View className='radio-dot' />}
+                </View>
+                <Text className='option-text'>在线支付</Text>
+              </View>
+              <View 
+                className={`payment-option ${paymentMethod === 'credit' ? 'active' : ''}`}
+                onClick={() => setPaymentMethod('credit')}
+              >
+                <View className='option-radio'>
+                  {paymentMethod === 'credit' && <View className='radio-dot' />}
+                </View>
+                <View className='option-content'>
+                  <Text className='option-text'>信用支付</Text>
+                  <Text className='option-hint'>
+                    可用额度: ¥{parseFloat(creditAccount.available_credit).toLocaleString()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* 备注 */}
         <View className='note-card'>

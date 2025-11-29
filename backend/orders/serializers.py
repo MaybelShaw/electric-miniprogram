@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget
+from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget, Invoice
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer
@@ -12,6 +12,7 @@ class OrderSerializer(serializers.ModelSerializer):
     is_haier_order = serializers.SerializerMethodField()
     haier_order_info = serializers.SerializerMethodField()
     logistics_info = serializers.SerializerMethodField()
+    invoice_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -40,6 +41,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "is_haier_order",
             "haier_order_info",
             "logistics_info",
+            "invoice_info",
             "distribution_time",
             "install_time",
             "is_delivery_install",
@@ -95,12 +97,31 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_images': obj.delivery_images,
         }
 
+    def get_invoice_info(self, obj: Order):
+        """获取发票信息"""
+        if hasattr(obj, 'invoice'):
+            return {
+                'id': obj.invoice.id,
+                'status': obj.invoice.status,
+                'status_display': obj.invoice.get_status_display(),
+                'file_url': obj.invoice.file_url,
+                'invoice_number': obj.invoice.invoice_number,
+            }
+        return None
+
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     product_id = serializers.IntegerField(write_only=True)
     address_id = serializers.IntegerField(write_only=True)
     quantity = serializers.IntegerField(write_only=True, required=False, min_value=1, default=1)
     note = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=500, default='')
+    payment_method = serializers.ChoiceField(
+        choices=['online', 'credit'],
+        write_only=True,
+        required=False,
+        default='online',
+        help_text='支付方式: online-在线支付, credit-信用支付'
+    )
 
     def validate_product_id(self, value):
         try:
@@ -123,6 +144,17 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("数量必须为正整数")
         return value
 
+    def validate_payment_method(self, value):
+        if value == 'credit':
+            user = self.context["request"].user
+            if user.role != 'dealer':
+                raise serializers.ValidationError("只有经销商可以使用信用支付")
+            if not hasattr(user, 'credit_account'):
+                raise serializers.ValidationError("您还没有信用账户")
+            if not user.credit_account.is_active:
+                raise serializers.ValidationError("您的信用账户已停用")
+        return value
+
     class Meta:
         model = Order
         fields = [
@@ -130,6 +162,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             "address_id",
             "quantity",
             "note",
+            "payment_method",
         ]
 
 
@@ -164,6 +197,68 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order', 'amount', 'method', 'status', 'created_at', 'updated_at', 'expires_at', 'logs'
         ]
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+    product_name = serializers.CharField(source='order.product.name', read_only=True)
+    username = serializers.CharField(source='user.username', read_only=True)
+    status_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'id', 'order', 'order_number', 'product_name', 'user', 'username', 'title', 'taxpayer_id', 'email', 'phone',
+            'address', 'bank_account', 'invoice_type', 'amount', 'tax_rate', 'tax_amount', 'status',
+            'status_label', 'invoice_number', 'file_url', 'requested_at', 'issued_at', 'updated_at'
+        ]
+
+    def get_status_label(self, obj: Invoice) -> str:
+        mapping = {
+            'requested': '已申请',
+            'issued': '已开具',
+            'cancelled': '已取消',
+        }
+        return mapping.get(obj.status, obj.status)
+
+
+class InvoiceCreateSerializer(serializers.ModelSerializer):
+    invoice_type = serializers.ChoiceField(choices=['normal', 'special'], required=False, default='normal')
+    tax_rate = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, default=0)
+
+    class Meta:
+        model = Invoice
+        fields = [
+            'title', 'taxpayer_id', 'email', 'phone', 'address', 'bank_account', 'invoice_type', 'tax_rate'
+        ]
+
+    def validate(self, attrs):
+        order: Order = self.context.get('order')
+        request = self.context.get('request')
+        if not order or not request:
+            raise serializers.ValidationError('缺少订单或请求上下文')
+        if order.status != 'completed':
+            raise serializers.ValidationError('仅已完成的订单可以申请发票')
+        if hasattr(order, 'invoice') and order.invoice and order.invoice.status != 'cancelled':
+            raise serializers.ValidationError('该订单已申请或已开具发票')
+        return attrs
+
+    def create(self, validated_data):
+        order: Order = self.context['order']
+        user = self.context['request'].user
+        amount = order.actual_amount
+        tax_rate = validated_data.pop('tax_rate', 0) or 0
+        tax_amount = (amount * tax_rate) / 100 if tax_rate else 0
+        inv = Invoice.objects.create(
+            order=order,
+            user=user,
+            amount=amount,
+            tax_rate=tax_rate,
+            tax_amount=tax_amount,
+            status='requested',
+            **validated_data
+        )
+        return inv
 
 
 class DiscountTargetSerializer(serializers.ModelSerializer):

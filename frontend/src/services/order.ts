@@ -42,5 +42,10 @@ export const orderService = {
   // 取消订单
   async cancelOrder(id: number): Promise<Order> {
     return http.patch<Order>(`/orders/${id}/cancel/`)
+  },
+
+  // 申请发票
+  async requestInvoice(id: number, data: any): Promise<any> {
+    return http.post(`/orders/${id}/request_invoice/`, data)
   }
 }

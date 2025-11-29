@@ -1,0 +1,219 @@
+.statement-detail-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 20rpx;
+
+  .loading,
+  .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100rpx 20rpx;
+    text-align: center;
+    font-size: 32rpx;
+    color: #999;
+  }
+
+  .detail-section {
+    background-color: #fff;
+    border-radius: 12rpx;
+    padding: 24rpx;
+    margin-bottom: 20rpx;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+    padding-bottom: 16rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+  }
+
+  .section-title {
+    font-size: 32rpx;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .section-count {
+    font-size: 24rpx;
+    color: #999;
+  }
+
+  .status-tag {
+    padding: 6rpx 16rpx;
+    border-radius: 16rpx;
+    font-size: 24rpx;
+
+    &.draft {
+      background-color: #f0f0f0;
+      color: #666;
+    }
+
+    &.confirmed {
+      background-color: #e6f7ff;
+      color: #1890ff;
+    }
+
+    &.settled {
+      background-color: #f6ffed;
+      color: #52c41a;
+    }
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12rpx 0;
+    border-bottom: 1rpx solid #f5f5f5;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .info-label {
+    font-size: 28rpx;
+    color: #999;
+  }
+
+  .info-value {
+    font-size: 28rpx;
+    color: #333;
+    text-align: right;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20rpx;
+    margin-bottom: 20rpx;
+  }
+
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .summary-label {
+    font-size: 24rpx;
+    color: #999;
+    margin-bottom: 8rpx;
+  }
+
+  .summary-value {
+    font-size: 32rpx;
+    font-weight: 500;
+    color: #333;
+
+    &.paid {
+      color: #52c41a;
+    }
+
+    &.debt {
+      color: #ff4d4f;
+    }
+
+    &.overdue {
+      color: #ff7a45;
+    }
+  }
+
+  .summary-highlight {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12rpx;
+    padding: 24rpx;
+    margin-bottom: 20rpx;
+  }
+
+  .highlight-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .highlight-label {
+    font-size: 28rpx;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 10rpx;
+  }
+
+  .highlight-value {
+    font-size: 48rpx;
+    font-weight: bold;
+    color: #fff;
+
+    &.debt {
+      color: #ffd666;
+    }
+  }
+
+  .transaction-item {
+    background-color: #fafafa;
+    border-radius: 8rpx;
+    padding: 20rpx;
+    margin-bottom: 16rpx;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .transaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16rpx;
+    padding-bottom: 12rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+  }
+
+  .transaction-type {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .transaction-amount {
+    font-size: 32rpx;
+    font-weight: bold;
+    color: #1890ff;
+  }
+
+  .transaction-info {
+    .info-row {
+      padding: 8rpx 0;
+    }
+
+    .info-label {
+      font-size: 24rpx;
+    }
+
+    .info-value {
+      font-size: 24rpx;
+    }
+  }
+
+  .payment-status {
+    padding: 4rpx 12rpx;
+    border-radius: 12rpx;
+    font-size: 24rpx;
+
+    &.unpaid {
+      background-color: #fff7e6;
+      color: #fa8c16;
+    }
+
+    &.paid {
+      background-color: #f6ffed;
+      color: #52c41a;
+    }
+
+    &.overdue {
+      background-color: #fff1f0;
+      color: #ff4d4f;
+    }
+  }
+}

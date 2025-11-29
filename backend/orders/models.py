@@ -320,3 +320,66 @@ class OrderStatusHistory(models.Model):
 
     def __str__(self):
         return f'订单#{self.order_id} {self.from_status} -> {self.to_status}'
+
+
+class Invoice(models.Model):
+    """
+    订单发票模型
+
+    用于记录用户对已完成订单的开票申请以及开具结果。
+    支持普通发票与专用发票，保存必要的抬头与纳税信息。
+    """
+    INVOICE_TYPE_CHOICES = [
+        ('normal', '普通发票'),
+        ('special', '专用发票'),
+    ]
+    STATUS_CHOICES = [
+        ('requested', '已申请'),
+        ('issued', '已开具'),
+        ('cancelled', '已取消'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='invoice',
+        verbose_name='订单'
+    )
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='invoices',
+        verbose_name='用户'
+    )
+
+    title = models.CharField(max_length=200, verbose_name='发票抬头')
+    taxpayer_id = models.CharField(max_length=50, blank=True, default='', verbose_name='纳税人识别号')
+    email = models.EmailField(blank=True, default='', verbose_name='接收邮箱')
+    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='联系电话')
+    address = models.CharField(max_length=200, blank=True, default='', verbose_name='公司地址')
+    bank_account = models.CharField(max_length=100, blank=True, default='', verbose_name='开户行及账号')
+
+    invoice_type = models.CharField(max_length=20, choices=INVOICE_TYPE_CHOICES, default='normal', verbose_name='发票类型')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='开票金额')
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name='税率(%)')
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='税额')
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested', verbose_name='状态')
+    invoice_number = models.CharField(max_length=100, blank=True, default='', verbose_name='发票号码')
+    file_url = models.URLField(blank=True, default='', verbose_name='发票文件URL')
+
+    requested_at = models.DateTimeField(auto_now_add=True, verbose_name='申请时间')
+    issued_at = models.DateTimeField(null=True, blank=True, verbose_name='开具时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '订单发票'
+        verbose_name_plural = '订单发票'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['user', 'requested_at']),
+        ]
+
+    def __str__(self):
+        return f'发票#{self.id} 订单:{self.order_id} 状态:{self.status}'

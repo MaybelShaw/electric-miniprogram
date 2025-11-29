@@ -114,6 +114,13 @@ export interface Order {
   snapshot_address: string
   created_at: string
   updated_at: string
+  invoice_info?: {
+    id: number
+    status: string
+    status_display: string
+    file_url: string
+    invoice_number: string
+  }
 }
 
 export interface Payment {

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Address, CompanyInfo
+from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction
 from django.core.cache import cache
 
 
@@ -10,9 +10,11 @@ class UserSerializer(serializers.ModelSerializer):
     Includes computed fields for user statistics:
     - orders_count: Total number of orders
     - completed_orders_count: Number of completed orders
+    - company_info: Company information for dealers
     """
     orders_count = serializers.SerializerMethodField()
     completed_orders_count = serializers.SerializerMethodField()
+    company_info = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -39,6 +41,15 @@ class UserSerializer(serializers.ModelSerializer):
             cache.set(cache_key, count, 300)  # Cache for 5 minutes
         
         return count
+    
+    def get_company_info(self, obj):
+        """Get company info for dealers."""
+        if hasattr(obj, 'company_info'):
+            return {
+                'company_name': obj.company_info.company_name,
+                'status': obj.company_info.status,
+            }
+        return None
 
 class UserProfileSerializer(serializers.ModelSerializer):
     has_company_info = serializers.SerializerMethodField()
@@ -149,3 +160,114 @@ class AddressSerializer(serializers.ModelSerializer):
                 is_default=False
             )
         return super().update(instance, validated_data)
+
+
+class CreditAccountSerializer(serializers.ModelSerializer):
+    """信用账户序列化器"""
+    user_name = serializers.CharField(source='user.username', read_only=True)
+    company_name = serializers.CharField(source='user.company_info.company_name', read_only=True)
+    available_credit = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    
+    class Meta:
+        model = CreditAccount
+        fields = [
+            'id',
+            'user',
+            'user_name',
+            'company_name',
+            'credit_limit',
+            'payment_term_days',
+            'outstanding_debt',
+            'available_credit',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'outstanding_debt', 'created_at', 'updated_at']
+
+
+class AccountStatementSerializer(serializers.ModelSerializer):
+    """账务对账单序列化器"""
+    user_name = serializers.CharField(source='credit_account.user.username', read_only=True)
+    company_name = serializers.CharField(source='credit_account.user.company_info.company_name', read_only=True)
+    
+    class Meta:
+        model = AccountStatement
+        fields = [
+            'id',
+            'credit_account',
+            'user_name',
+            'company_name',
+            'period_start',
+            'period_end',
+            'previous_balance',
+            'current_purchases',
+            'current_payments',
+            'current_refunds',
+            'period_end_balance',
+            'due_within_term',
+            'paid_within_term',
+            'overdue_amount',
+            'status',
+            'created_at',
+            'updated_at',
+            'confirmed_at',
+            'settled_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class AccountTransactionSerializer(serializers.ModelSerializer):
+    """账务交易记录序列化器"""
+    user_name = serializers.CharField(source='credit_account.user.username', read_only=True)
+    transaction_type_display = serializers.CharField(source='get_transaction_type_display', read_only=True)
+    payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    order_info = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AccountTransaction
+        fields = [
+            'id',
+            'credit_account',
+            'user_name',
+            'statement',
+            'transaction_type',
+            'transaction_type_display',
+            'amount',
+            'balance_after',
+            'order_id',
+            'order_info',
+            'due_date',
+            'paid_date',
+            'payment_status',
+            'payment_status_display',
+            'description',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'balance_after', 'created_at']
+    
+    def get_order_info(self, obj):
+        """获取订单详细信息"""
+        if not obj.order_id:
+            return None
+        
+        try:
+            from orders.models import Order
+            order = Order.objects.select_related('product').get(id=obj.order_id)
+            return {
+                'order_number': order.order_number,
+                'product_name': order.product.name if order.product else None,
+                'quantity': order.quantity,
+                'status': order.status,
+                'status_display': order.get_status_display(),
+            }
+        except:
+            return None
+
+
+class AccountStatementDetailSerializer(AccountStatementSerializer):
+    """账务对账单详情序列化器（包含交易记录）"""
+    transactions = AccountTransactionSerializer(many=True, read_only=True)
+    
+    class Meta(AccountStatementSerializer.Meta):
+        fields = AccountStatementSerializer.Meta.fields + ['transactions']

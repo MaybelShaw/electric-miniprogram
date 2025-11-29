@@ -1,0 +1,128 @@
+# 商户管理端技术文档（Vite + React + Ant Design）
+
+## 概述
+- 基于 `React 18` 与 `Vite` 的商户后台，提供品牌/品类/商品/订单/折扣、公司认证、信用账户、对账单与交易管理等功能。
+
+## 技术栈
+- 框架：React、React Router
+- UI：Ant Design、ProComponents
+- 网络：Axios（统一 `/api` 代理）
+- 构建：Vite、TypeScript
+
+## 目录与架构
+- 目录：`merchant/src/`
+  - `pages/` 页面模块（用户、品牌、品类、商品、订单、折扣、公司认证、信用账户、对账单、交易）
+  - `components/` 布局与通用组件（如 `Layout`）
+  - `services/` 统一 API 封装 `merchant/src/services/api.ts:1`
+  - `utils/` 认证工具与通用方法
+  - `App.tsx`：路由与登录保护 `merchant/src/App.tsx:16`
+
+## 开发与构建
+- 启动开发：
+  ```bash
+  npm install
+  npm run dev
+  # http://localhost:5173
+  ```
+- 构建与预览：
+  ```bash
+  npm run build
+  npm run preview
+  ```
+
+## 环境变量
+- 后端代理地址：`VITE_BACKEND_ORIGIN`
+  - 在 `.env.development` 或 `.env.production` 指定，如：
+  - `VITE_BACKEND_ORIGIN=http://127.0.0.1:8000`
+- 说明与用法：`merchant/ENVIRONMENT.md:11`
+  - Vite 代理片段：`vite.config.ts` 中将 `/api` 代理到该 Origin
+
+## 路由结构
+- 登录保护：`merchant/src/App.tsx:16`
+- 主要路由：`merchant/src/App.tsx:31`
+  - `/users` 用户管理
+  - `/brands` 品牌管理
+  - `/categories` 品类管理
+  - `/products` 商品管理
+  - `/orders` 订单管理
+  - `/discounts` 折扣管理
+  - `/company-certification` 公司认证审核
+  - `/credit-accounts` 信用账户
+  - `/account-statements` 账务对账单
+  - `/account-transactions` 账务交易记录
+  - `/invoices` 发票管理
+
+## 页面与操作流程
+- 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
+- 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
+- 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
+- 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
+- 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`
+- 信用账户：列表与编辑（额度、账期、激活状态） `merchant/src/services/api.ts:74`
+- 对账单：
+  - 列表筛选与状态展示 `merchant/src/pages/AccountStatements/index.tsx:20`
+  - 创建对账单（账期选择 + 账户选择） `merchant/src/pages/AccountStatements/index.tsx:296`
+  - 确认/结清操作与刷新 `merchant/src/pages/AccountStatements/index.tsx:113`
+  - 导出为 Excel（Blob 下载） `merchant/src/pages/AccountStatements/index.tsx:147`
+  - 详情抽屉（基本信息 + 财务汇总 + 交易明细） `merchant/src/pages/AccountStatements/index.tsx:332`
+- 交易记录：列表与筛选（付款状态、日期范围） `merchant/src/services/api.ts:90`
+- 发票管理：
+  - 列表：展示发票请求，支持按状态/发票类型/抬头筛选
+  - 订单详情：点击订单号可快速查看关联订单的详细信息（商品、金额、收货信息等）
+  - 详情：查看发票详细信息（含订单号、用户信息、金额等）
+  - 开具：填写发票号码与文件链接，完成开票
+  - 取消：对已开具或请求中的发票进行作废/取消操作
+
+## 账务对账单页面
+- 列表、筛选、状态、操作与导出：`merchant/src/pages/AccountStatements/index.tsx:256`
+- 详情抽屉与财务汇总：`merchant/src/pages/AccountStatements/index.tsx:332`
+- 行为与接口：
+  - 创建：`createAccountStatement`
+  - 确认：`confirmAccountStatement`
+  - 结清：`settleAccountStatement`
+  - 导出：`exportAccountStatement`
+  - 获取详情：`getAccountStatement`
+- 对应后端路由：`backend/users/urls.py:22`（`account-statements`）
+
+## API 封装
+- 统一服务：`merchant/src/services/api.ts:74`
+  - `credit-accounts`、`account-statements`、`account-transactions` 等端点
+- Axios 基础：前端统一使用 `/api` 前缀，依赖 Vite 代理转发到后端
+
+### 端点映射示例
+- 对账单：
+  - 列表：`GET /account-statements/`
+  - 详情：`GET /account-statements/{id}/`
+  - 创建：`POST /account-statements/`
+  - 确认：`POST /account-statements/{id}/confirm/`
+  - 结清：`POST /account-statements/{id}/settle/`
+  - 导出：`GET /account-statements/{id}/export/`
+- 交易记录：
+  - 列表：`GET /account-transactions/`
+  - 我的交易：`GET /account-transactions/my_transactions/`（前端用户端）
+- 订单：
+  - 发货/完成/取消：`PATCH /orders/{id}/ship|complete|cancel/`
+  - 海尔推送：`POST /orders/{id}/push_to_haier/`
+  - 海尔物流：`GET /orders/{id}/haier_logistics/`
+
+## 权限与认证
+- 登录态判断：`merchant/src/App.tsx:16`
+- 登录接口：`/admin/login/`（密码登录，返回 JWT）
+- 请求头：`Authorization: Bearer <token>`
+
+## 安全与部署建议
+- 登录态校验与路由保护：`merchant/src/App.tsx:16`
+- 后端启用 HTTPS 与 CORS 限制；接口权限区分管理员与普通用户 `backend/common/permissions.py:70`
+ - 发票权限：普通用户仅访问自己的发票；管理员可开具与取消 `backend/orders/views.py:InvoiceViewSet`
+- 生产环境通过统一网关代理 `/api` 到后端服务，隔离跨域与证书配置
+
+## 目录结构
+- 源码根：`merchant/src/`
+  - `pages/` 各页面模块
+  - `components/` 布局与通用组件
+  - `services/` API 封装
+  - `utils/` 认证与工具
+
+## 部署建议
+- 生产构建使用 `npm run build`，将 `dist/` 产物发布到静态服务器或 CDN
+- 在网关层配置 `/api` 反向代理到后端服务，统一域名与 HTTPS

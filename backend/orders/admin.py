@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Order, Cart, CartItem, Discount, DiscountTarget
+from .models import Order, Cart, CartItem, Discount, DiscountTarget, Invoice
 
 # Register your models here.
 
@@ -39,3 +39,10 @@ class CartItemAdmin(admin.ModelAdmin):
 class DiscountTargetAdmin(admin.ModelAdmin):
     list_display = ("id", "discount", "user", "product")
     # 默认使用下拉选择（移除 raw_id_fields）
+
+
+@admin.register(Invoice)
+class InvoiceAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "user", "title", "amount", "status", "invoice_number", "requested_at", "issued_at")
+    list_filter = ("status", "invoice_type")
+    search_fields = ("order__order_number", "user__username", "invoice_number", "title")

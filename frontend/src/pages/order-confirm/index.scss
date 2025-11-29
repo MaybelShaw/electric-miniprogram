@@ -151,6 +151,81 @@
 
   }
 
+  // 支付方式卡片
+  .payment-card {
+    background: #fff;
+    margin: 20rpx 24rpx;
+    padding: 24rpx;
+    border-radius: 16rpx;
+
+    .payment-label {
+      font-size: 28rpx;
+      color: #646566;
+      display: block;
+      margin-bottom: 20rpx;
+    }
+
+    .payment-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+    }
+
+    .payment-option {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      padding: 20rpx;
+      border: 2rpx solid #EBEDF0;
+      border-radius: 12rpx;
+      transition: all 0.3s;
+
+      &.active {
+        border-color: #1989FA;
+        background: #F0F9FF;
+      }
+
+      .option-radio {
+        width: 36rpx;
+        height: 36rpx;
+        border: 2rpx solid #C8C9CC;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+
+        .radio-dot {
+          width: 20rpx;
+          height: 20rpx;
+          background: #1989FA;
+          border-radius: 50%;
+        }
+      }
+
+      &.active .option-radio {
+        border-color: #1989FA;
+      }
+
+      .option-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4rpx;
+      }
+
+      .option-text {
+        font-size: 28rpx;
+        color: #323233;
+      }
+
+      .option-hint {
+        font-size: 24rpx;
+        color: #969799;
+      }
+    }
+  }
+
   // 备注卡片
   .note-card {
     background: #fff;

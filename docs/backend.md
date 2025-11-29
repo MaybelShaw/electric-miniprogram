@@ -1,0 +1,170 @@
+# 后端技术文档（Django + DRF）
+
+## 概述
+- 基于 `Django 5` 与 `Django REST Framework` 的电商后端，提供商品、订单、支付、用户、信用账户等 API。
+- 使用 `SimpleJWT` 做认证，`drf-spectacular` 生成 OpenAPI 文档，依赖管理使用 `uv`。
+
+## 技术栈
+- 框架：Django、Django REST Framework
+- 认证：`djangorestframework-simplejwt`
+- 文档：`drf-spectacular`
+- 依赖管理：`uv`
+- 数据库：开发 `SQLite`，生产建议 `PostgreSQL`
+
+## 架构总览
+- 分层：`views`（控制器）→ `serializers`（数据转换）→ `models`（领域模型）→ `services`（业务服务）
+- 应用划分：
+  - `users/` 用户、地址、公司认证、信用账户与账务
+  - `catalog/` 商品、分类、品牌、媒体资源、搜索日志
+  - `orders/` 购物车、订单、支付、折扣、状态机与分析
+  - `integrations/` 海尔与易理货系统的对接
+  - `common/` 权限、分页、异常、限流、健康检查、日志配置
+
+## 目录结构
+- 主工程：`backend/backend/`（环境配置、入口、路由）
+- 模块：`catalog/`（商品）、`orders/`（订单与支付）、`users/`（用户与地址、信用账户）、`integrations/`（海尔/易理货对接）、`common/`（权限、分页、异常等）
+
+## 快速开始
+- 环境准备：Python 3.12+，建议安装 `uv`
+- 安装依赖：
+  ```bash
+  pip install uv
+  uv sync
+  ```
+- 数据库迁移：
+  ```bash
+  python manage.py makemigrations
+  python manage.py migrate
+  ```
+- 启动开发服务器：
+  ```bash
+  python manage.py runserver
+  # http://localhost:8000/
+  ```
+- API 文档：
+  - Swagger UI：`/api/docs/`
+  - ReDoc：`/api/redoc/`
+  - OpenAPI：`/api/schema/`
+
+## 环境变量
+- 开发：
+  ```env
+  DJANGO_ENV=development
+  SECRET_KEY=your-secret-key
+  DEBUG=True
+  ALLOWED_HOSTS=localhost,127.0.0.1
+  WECHAT_APPID=your-appid
+  WECHAT_SECRET=your-secret
+  ```
+- 生产：
+  ```env
+  DJANGO_ENV=production
+  SECRET_KEY=your-production-secret
+  DEBUG=False
+  ALLOWED_HOSTS=yourdomain.com
+  POSTGRES_DB=...
+  POSTGRES_USER=...
+  POSTGRES_PASSWORD=...
+  POSTGRES_HOST=...
+  POSTGRES_PORT=5432
+  CORS_ALLOWED_ORIGINS=https://yourdomain.com
+  WECHAT_APPID=...
+  WECHAT_SECRET=...
+  ```
+
+## 路由入口
+- 用户与认证：`backend/users/urls.py:25`
+- 订单与支付：`backend/orders/urls.py:1`
+- 商品与品牌：`backend/catalog/urls.py:5`
+- 集成与回调：`backend/integrations/urls.py:17`
+
+## 认证与权限
+- 所有需要认证的端点在 Header 携带：`Authorization: Bearer <token>`
+- 权限类：
+  - 所有者或管理员：`backend/common/permissions.py:12`
+  - 管理员或只读：`backend/common/permissions.py:70`
+  - 仅管理员：`backend/common/permissions.py:101`
+  - 环境感知权限：`backend/common/permissions.py:126`
+
+## 核心模块
+- 用户与地址（`users/`）：微信登录、密码登录、用户资料、地址管理、公司认证、信用账户与账务对账
+- 商品目录（`catalog/`）：商品/分类/品牌、搜索与筛选、媒体资源
+- 订单与支付（`orders/`）：购物车、订单创建、状态机、支付与回调、折扣系统、数据分析
+- 第三方集成（`integrations/`）：海尔 API、易理货 API，对接认证与调用
+
+## 主要 API 端点
+- 认证与用户（前缀 `/api/`）：
+  - `POST /auth/wechat/` 微信登录（开发支持模拟）`backend/users/views.py:54`
+  - `POST /auth/password/` 密码登录（管理员）`backend/users/urls.py:27`
+  - `POST /auth/refresh/` 刷新 Token `backend/users/urls.py:29`
+  - `GET/PATCH /user/profile/` 用户资料 `backend/users/urls.py:30`
+  - `GET /user/statistics/` 用户统计 `backend/users/urls.py:31`
+  - `GET/POST/... /addresses/` 地址 CRUD 与解析 `backend/users/urls.py:18`
+- 商品目录：
+  - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
+  - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
+  - `GET /products/by_brand/` 按品牌筛选 `backend/catalog/views.py`
+  - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
+  - `GET /brands/` 品牌列表 `backend/catalog/urls.py:9`
+  - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
+- 订单与支付：
+  - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
+  - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
+  - `POST /orders/create_order/` 创建订单 `backend/orders/views.py:136`
+  - `POST /orders/create_batch_orders/` 批量创建订单 `backend/orders/views.py:226`
+  - `PATCH /orders/{id}/cancel|ship|complete/` 状态流转 `backend/orders/views.py:313`
+  - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
+  - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
+  - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
+  - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
+  - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
+- 集成与回调：
+  - `GET/POST ... /integrations/haier/api/*` 海尔查询与操作 `backend/integrations/urls.py:18`
+  - `POST /integrations/ylh/orders/*` 易理货订单操作 `backend/integrations/urls.py:28`
+  - `POST /integrations/ylh/callback/` 易理货回调 `backend/integrations/urls.py:25`
+
+## 错误处理与统一异常
+- 统一异常处理：`backend/common/exceptions.py:251`
+- 业务异常类型：库存不足、订单状态非法、支付验证失败等 `backend/common/exceptions.py:59`
+- 响应结构：包含 `success/code/message/error_code`，开发环境包含详细错误 `backend/common/exceptions.py:295`
+
+## 限流策略
+- 登录限流：每分钟 5 次 `backend/common/throttles.py:11`
+- 支付限流：每分钟 10 次 `backend/common/throttles.py:32`
+- 在视图中通过 `throttle_classes` 应用，如支付视图 `backend/orders/views.py:795`
+
+## 日志与审计
+- 配置入口：`backend/common/logging_config.py:30`
+- 分环境日志级别与文件滚动，支付审计日志独立输出 `backend/common/logging_config.py:243`
+
+## 健康检查与监控
+- 健康检查端点：数据库与缓存连通性检测 `backend/common/health.py:23`
+- 不同组件的响应时间与总体状态 `backend/common/health.py:61`
+
+## 订单状态机
+- 状态枚举：`backend/orders/state_machine.py:14`
+- 合法转换检查：`backend/orders/state_machine.py:60`
+- 执行转换：`backend/orders/state_machine.py:97`
+- 转换后处理：`backend/orders/state_machine.py:178`
+
+## 测试与常用命令
+- 运行测试：
+  ```bash
+  python manage.py test
+  ```
+- 常用命令：数据库迁移、收集静态、清理会话、创建超级用户等（`manage.py` 系列）
+
+## 部署与安全
+- 生产务必设置 `DEBUG=False`，强随机 `SECRET_KEY`，限制 `ALLOWED_HOSTS`，启用 HTTPS。
+- 使用 `PostgreSQL`，按需配置缓存与限流，严格校验输入。
+ - 反向代理与 CORS：在 `ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS` 中配置网关域名，开启 HTTPS；按需启用 `django-cors-headers`。
+- 回调安全：海尔回调签名验证与错误处理 `backend/orders/views.py:585`
+
+## 发票功能说明
+- 申请条件：订单状态为 `completed`
+- 申请端点：`POST /api/orders/{id}/request_invoice/`
+- 管理端点：
+  - 列表与详情：`GET /api/invoices/`、`GET /api/invoices/{id}/`
+  - 开具：`POST /api/invoices/{id}/issue/`（需要 `invoice_number`，可选 `file_url`）
+  - 取消：`POST /api/invoices/{id}/cancel/`（已开具不可取消）
+- 数据字段：`title/taxpayer_id/email/phone/address/bank_account/invoice_type/amount/tax_rate/tax_amount/status/invoice_number/file_url/requested_at/issued_at`

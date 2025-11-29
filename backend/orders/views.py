@@ -1,7 +1,17 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
-from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget
-from .serializers import OrderSerializer, OrderCreateSerializer,CartItemSerializer,CartSerializer, PaymentSerializer, DiscountSerializer, DiscountTargetSerializer
+from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget, Invoice
+from .serializers import (
+    OrderSerializer,
+    OrderCreateSerializer,
+    CartItemSerializer,
+    CartSerializer,
+    PaymentSerializer,
+    DiscountSerializer,
+    DiscountTargetSerializer,
+    InvoiceSerializer,
+    InvoiceCreateSerializer,
+)
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -175,25 +185,31 @@ class OrderViewSet(viewsets.ModelViewSet):
         # 创建订单
         try:
             with transaction.atomic():
+                payment_method = serializer.validated_data.get("payment_method", "online")
+                
                 order = create_order(
                     user=target_user,
                     product_id=serializer.validated_data["product_id"],
                     address_id=serializer.validated_data["address_id"],
                     quantity=serializer.validated_data.get("quantity", 1),
                     note=serializer.validated_data.get("note", ""),
+                    payment_method=payment_method,
                 )
                 
-                logger.info(f'订单创建成功: order_id={order.id}, user_id={target_user.id}')
+                logger.info(f'订单创建成功: order_id={order.id}, user_id={target_user.id}, payment_method={payment_method}')
                 
-                # 创建支付记录
-                payment_method = request.data.get('method', 'wechat')
-                payment = Payment.create_for_order(
-                    order, 
-                    method=payment_method, 
-                    ttl_minutes=30
-                )
-                
-                logger.info(f'支付记录创建成功: payment_id={payment.id}, order_id={order.id}')
+                # 只有在线支付才创建支付记录
+                payment = None
+                if payment_method == 'online':
+                    payment_method_type = request.data.get('method', 'wechat')
+                    payment = Payment.create_for_order(
+                        order, 
+                        method=payment_method_type, 
+                        ttl_minutes=30
+                    )
+                    logger.info(f'支付记录创建成功: payment_id={payment.id}, order_id={order.id}')
+                else:
+                    logger.info(f'信用支付订单，无需创建支付记录: order_id={order.id}')
                 
         except ValueError as e:
             # 业务逻辑错误（如库存不足）
@@ -375,6 +391,44 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": f"完成订单失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def request_invoice(self, request, pk=None):
+        """
+        申请订单发票（仅订单所有者且订单状态为 completed）。
+
+        请求体：
+        {
+          "title": 发票抬头,
+          "taxpayer_id": 纳税人识别号(可选),
+          "email": 接收邮箱(可选),
+          "phone": 联系电话(可选),
+          "address": 公司地址(可选),
+          "bank_account": 开户行及账号(可选),
+          "invoice_type": "normal|special"(可选,默认normal),
+          "tax_rate": 税率(百分比, 可选, 默认0)
+        }
+
+        返回：创建的发票记录
+        """
+        order = self.get_object()
+        if not (request.user.is_staff or order.user_id == request.user.id):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = InvoiceCreateSerializer(data=request.data, context={'request': request, 'order': order})
+        serializer.is_valid(raise_exception=True)
+        inv = serializer.save()
+
+        try:
+            from common.audit_logger import payment_audit_logger
+            payment_audit_logger.info(
+                f'Invoice requested: order_id={order.id}, invoice_id={inv.id}, user_id={request.user.id}',
+                extra={'event': 'invoice_requested', 'order_id': order.id, 'invoice_id': inv.id, 'user_id': request.user.id}
+            )
+        except Exception:
+            pass
+
+        return Response(InvoiceSerializer(inv).data, status=status.HTTP_201_CREATED)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def push_to_haier(self, request, pk=None):
@@ -1101,33 +1155,44 @@ class DiscountViewSet(viewsets.ModelViewSet):
             if pid in result:
                 continue
             result[pid] = {'amount': float(dt.discount.amount), 'discount_id': dt.discount_id}
-        return Response(result)
 
-    @action(detail=True, methods=['post'])
-    def fail(self, request, pk=None):
-        payment = self.get_object()
-        payment.status = 'failed'
-        payment.logs.append({'t': str(payment.updated_at), 'event': 'failed'})
-        payment.save()
-        return Response(self.get_serializer(payment).data)
 
-    @action(detail=True, methods=['post'])
+@extend_schema(tags=['Invoices'])
+class InvoiceViewSet(viewsets.ModelViewSet):
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Invoice.objects.all() if user.is_staff else Invoice.objects.filter(user=user)
+        return qs.select_related('order', 'user', 'order__product').order_by('-requested_at')
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def issue(self, request, pk=None):
+        inv = self.get_object()
+        if inv.status == 'issued':
+            return Response({'detail': '发票已开具'}, status=status.HTTP_400_BAD_REQUEST)
+        invoice_number = str(request.data.get('invoice_number', '')).strip()
+        file_url = str(request.data.get('file_url', '')).strip()
+        if not invoice_number:
+            return Response({'detail': 'invoice_number 必填'}, status=status.HTTP_400_BAD_REQUEST)
+        inv.invoice_number = invoice_number
+        inv.file_url = file_url
+        inv.status = 'issued'
+        inv.issued_at = timezone.now()
+        inv.save()
+        return Response(self.get_serializer(inv).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def cancel(self, request, pk=None):
-        payment = self.get_object()
-        payment.status = 'cancelled'
-        payment.logs.append({'t': str(payment.updated_at), 'event': 'cancelled'})
-        payment.save()
-        return Response(self.get_serializer(payment).data)
+        inv = self.get_object()
+        if inv.status == 'issued':
+            return Response({'detail': '已开具发票不可取消'}, status=status.HTTP_400_BAD_REQUEST)
+        inv.status = 'cancelled'
+        inv.save(update_fields=['status', 'updated_at'])
+        return Response(self.get_serializer(inv).data)
 
-    @action(detail=True, methods=['post'])
-    def expire(self, request, pk=None):
-        payment = self.get_object()
-        payment.status = 'expired'
-        payment.order.status = 'cancelled'
-        payment.order.save()
-        payment.logs.append({'t': str(payment.updated_at), 'event': 'expired'})
-        payment.save()
-        return Response(self.get_serializer(payment).data)
 
 
 @extend_schema(tags=['Payments'])

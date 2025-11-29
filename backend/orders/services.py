@@ -216,7 +216,7 @@ def check_haier_stock(product, address, quantity):
         }
 
 
-def create_order(user, product_id, address_id, quantity, note=''):
+def create_order(user, product_id, address_id, quantity, note='', payment_method='online'):
     """创建订单并锁定库存
     
     Args:
@@ -225,12 +225,13 @@ def create_order(user, product_id, address_id, quantity, note=''):
         address_id: 地址ID
         quantity: 订单数量
         note: 订单备注（可选）
+        payment_method: 支付方式 ('online' 或 'credit')
         
     Returns:
         Order: 创建的订单对象
         
     Raises:
-        ValueError: 库存不足时抛出异常
+        ValueError: 库存不足或信用额度不足时抛出异常
         Product.DoesNotExist: 商品不存在时抛出异常
         Address.DoesNotExist: 地址不存在时抛出异常
     """
@@ -261,6 +262,18 @@ def create_order(user, product_id, address_id, quantity, note=''):
     unit_price = product.price - discount_amount
     total_amount = unit_price * quantity
 
+    # 如果使用信用支付，检查信用额度
+    if payment_method == 'credit':
+        if user.role != 'dealer':
+            raise ValueError('只有经销商可以使用信用支付')
+        
+        if not hasattr(user, 'credit_account'):
+            raise ValueError('您还没有信用账户')
+        
+        credit_account = user.credit_account
+        if not credit_account.can_place_order(total_amount):
+            raise ValueError(f'信用额度不足，可用额度: ¥{credit_account.available_credit}')
+
     # 在事务中创建订单并锁定库存
     with transaction.atomic():
         # 对于非海尔产品，锁定本地库存
@@ -288,6 +301,20 @@ def create_order(user, product_id, address_id, quantity, note=''):
             snapshot_district=address.district,
             note=note,
         )
+        
+        # 如果使用信用支付，记录采购交易
+        if payment_method == 'credit':
+            from users.credit_services import CreditAccountService
+            CreditAccountService.record_purchase(
+                credit_account=user.credit_account,
+                amount=total_amount,
+                order_id=order.id,
+                description=f'订单 #{order.order_number}'
+            )
+            # 信用支付的订单直接标记为已支付
+            order.status = 'paid'
+            order.save()
+        
         try:
             from .analytics import OrderAnalytics
             OrderAnalytics.on_order_created(order.id)

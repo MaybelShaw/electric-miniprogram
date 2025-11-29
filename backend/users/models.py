@@ -148,3 +148,242 @@ class Address(models.Model):
 
     def __str__(self):
         return f"{self.contact_name},{self.phone},{self.province}, {self.city}, {self.district},{self.detail}"
+
+
+class CreditAccount(models.Model):
+    """经销商信用账户"""
+    id = models.BigAutoField(primary_key=True)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="credit_account",
+        limit_choices_to={'role': 'dealer'},
+        verbose_name="经销商用户"
+    )
+    
+    # Credit settings
+    credit_limit = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="信用额度"
+    )
+    payment_term_days = models.IntegerField(
+        default=30,
+        verbose_name="账期（天）"
+    )
+    
+    # Current balance
+    outstanding_debt = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="未结清欠款"
+    )
+    
+    # Status
+    is_active = models.BooleanField(default=True, verbose_name="账户状态")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    
+    class Meta:
+        verbose_name = "信用账户"
+        verbose_name_plural = "信用账户"
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - 信用额度: {self.credit_limit}"
+    
+    @property
+    def available_credit(self):
+        """可用额度 = 信用额度 - 未结清欠款"""
+        return self.credit_limit - self.outstanding_debt
+    
+    def can_place_order(self, amount):
+        """检查是否可以赊账下单"""
+        return self.is_active and self.available_credit >= amount
+
+
+class AccountStatement(models.Model):
+    """账务对账单"""
+    id = models.BigAutoField(primary_key=True)
+    credit_account = models.ForeignKey(
+        CreditAccount,
+        on_delete=models.CASCADE,
+        related_name="statements",
+        verbose_name="信用账户"
+    )
+    
+    # Statement period
+    period_start = models.DateField(verbose_name="账期开始日期")
+    period_end = models.DateField(verbose_name="账期结束日期")
+    
+    # Financial summary
+    previous_balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="上期结余"
+    )
+    current_purchases = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="本期采购"
+    )
+    current_payments = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="本期付款"
+    )
+    current_refunds = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="本期退款"
+    )
+    period_end_balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="期末未付"
+    )
+    
+    # Due tracking
+    due_within_term = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="账期内应付"
+    )
+    paid_within_term = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="账期内已付"
+    )
+    overdue_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="往来余额（逾期）"
+    )
+    
+    # Statement status
+    STATUS_CHOICES = [
+        ('draft', '草稿'),
+        ('confirmed', '已确认'),
+        ('settled', '已结清'),
+    ]
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='draft',
+        verbose_name='对账单状态'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name="确认时间")
+    settled_at = models.DateTimeField(null=True, blank=True, verbose_name="结清时间")
+    
+    class Meta:
+        verbose_name = "账务对账单"
+        verbose_name_plural = "账务对账单"
+        ordering = ['-period_end', '-created_at']
+        indexes = [
+            models.Index(fields=['credit_account', 'period_start', 'period_end']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.credit_account.user.username} - {self.period_start} 至 {self.period_end}"
+
+
+class AccountTransaction(models.Model):
+    """账务交易记录"""
+    id = models.BigAutoField(primary_key=True)
+    credit_account = models.ForeignKey(
+        CreditAccount,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        verbose_name="信用账户"
+    )
+    statement = models.ForeignKey(
+        AccountStatement,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transactions",
+        verbose_name="关联对账单"
+    )
+    
+    # Transaction details
+    TRANSACTION_TYPE_CHOICES = [
+        ('purchase', '采购'),
+        ('payment', '付款'),
+        ('refund', '退款'),
+        ('adjustment', '调整'),
+    ]
+    transaction_type = models.CharField(
+        max_length=20,
+        choices=TRANSACTION_TYPE_CHOICES,
+        verbose_name='交易类型'
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="交易金额"
+    )
+    balance_after = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="交易后余额"
+    )
+    
+    # Related order (if applicable)
+    order_id = models.BigIntegerField(null=True, blank=True, verbose_name="关联订单ID")
+    
+    # Due date for purchases
+    due_date = models.DateField(null=True, blank=True, verbose_name="应付日期")
+    paid_date = models.DateField(null=True, blank=True, verbose_name="实付日期")
+    
+    # Payment status
+    PAYMENT_STATUS_CHOICES = [
+        ('unpaid', '未付款'),
+        ('paid', '已付款'),
+        ('overdue', '已逾期'),
+    ]
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='unpaid',
+        verbose_name='付款状态'
+    )
+    
+    # Description
+    description = models.CharField(max_length=200, blank=True, verbose_name="备注")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    
+    class Meta:
+        verbose_name = "账务交易记录"
+        verbose_name_plural = "账务交易记录"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['credit_account', 'created_at']),
+            models.Index(fields=['transaction_type']),
+            models.Index(fields=['payment_status']),
+            models.Index(fields=['due_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} - {self.amount} - {self.created_at.date()}"

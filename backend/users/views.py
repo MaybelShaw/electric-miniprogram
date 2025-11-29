@@ -7,8 +7,17 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from django.conf import settings
-from .models import User, Address, CompanyInfo
-from .serializers import UserSerializer, UserProfileSerializer, AddressSerializer, CompanyInfoSerializer
+from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction
+from .serializers import (
+    UserSerializer, 
+    UserProfileSerializer, 
+    AddressSerializer, 
+    CompanyInfoSerializer,
+    CreditAccountSerializer,
+    AccountStatementSerializer,
+    AccountStatementDetailSerializer,
+    AccountTransactionSerializer
+)
 from django.db.models import Q
 from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.throttles import LoginRateThrottle
@@ -423,6 +432,13 @@ class AdminUserViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(is_staff=parsed)
                 except Exception:
                     pass
+        # 角色筛选：支持按role字段筛选
+        role = self.request.query_params.get('role')
+        if role:
+            try:
+                qs = qs.filter(role=role)
+            except Exception:
+                pass
         return qs
 
     def create(self, request, *args, **kwargs):
@@ -586,6 +602,8 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
     def approve(self, request, pk=None):
         """Approve company info and upgrade user to dealer"""
         from django.utils import timezone
+        from decimal import Decimal
+        from .credit_services import CreditAccountService
         
         company_info = self.get_object()
         
@@ -604,11 +622,23 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         user = company_info.user
         user.role = 'dealer'
         user.save()
+        try:
+            if not hasattr(user, 'credit_account'):
+                CreditAccountService.create_credit_account(user, Decimal('0.00'), payment_term_days=30)
+        except Exception:
+            pass
+        credit_account_data = None
+        try:
+            account = CreditAccount.objects.get(user=user)
+            credit_account_data = CreditAccountSerializer(account).data
+        except CreditAccount.DoesNotExist:
+            credit_account_data = None
         
         return Response({
             "message": "审核通过，用户已升级为经销商",
             "company_info": CompanyInfoSerializer(company_info).data,
-            "user": UserSerializer(user).data
+            "user": UserSerializer(user).data,
+            "credit_account": credit_account_data
         })
     
     @action(detail=True, methods=['post'])
@@ -629,3 +659,477 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             "message": "已拒绝该公司信息",
             "company_info": CompanyInfoSerializer(company_info).data
         })
+
+
+@extend_schema(tags=['Credit Account'])
+class CreditAccountViewSet(viewsets.ModelViewSet):
+    """
+    信用账户管理
+    
+    Admin endpoints:
+    - GET list: 查看所有经销商信用账户
+    - POST: 为经销商创建信用账户
+    - PATCH: 更新信用额度和账期
+    - GET detail: 查看信用账户详情
+    
+    Dealer endpoints:
+    - GET my_account: 查看自己的信用账户
+    """
+    queryset = CreditAccount.objects.all().select_related('user', 'user__company_info').order_by('-created_at')
+    serializer_class = CreditAccountSerializer
+    
+    def get_permissions(self):
+        if self.action in ['my_account']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdmin()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return CreditAccount.objects.none()
+        
+        if user.is_staff:
+            # Admin can see all
+            qs = super().get_queryset()
+            # Filter by active status
+            is_active = self.request.query_params.get('is_active')
+            if is_active is not None:
+                parsed = to_bool(is_active)
+                if parsed is not None:
+                    qs = qs.filter(is_active=parsed)
+            return qs
+        else:
+            # Dealers can only see their own
+            return CreditAccount.objects.filter(user=user)
+    
+    @action(detail=False, methods=['get'])
+    def my_account(self, request):
+        """经销商查看自己的信用账户"""
+        try:
+            account = CreditAccount.objects.get(user=request.user)
+            serializer = self.get_serializer(account)
+            return Response(serializer.data)
+        except CreditAccount.DoesNotExist:
+            return Response(
+                {"error": "您还没有信用账户"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+@extend_schema(tags=['Account Statement'])
+class AccountStatementViewSet(viewsets.ModelViewSet):
+    """
+    账务对账单管理
+    
+    Admin endpoints:
+    - GET list: 查看所有对账单
+    - POST: 创建对账单
+    - GET detail: 查看对账单详情（包含交易记录）
+    - confirm: 确认对账单
+    - settle: 结清对账单
+    - export: 导出对账单为Excel
+    
+    Dealer endpoints:
+    - GET my_statements: 查看自己的对账单列表
+    - GET detail: 查看对账单详情
+    """
+    queryset = AccountStatement.objects.all().select_related(
+        'credit_account',
+        'credit_account__user',
+        'credit_account__user__company_info'
+    ).order_by('-period_end', '-created_at')
+    
+    def get_permissions(self):
+        if self.action in ['my_statements', 'retrieve', 'confirm']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdmin()]
+    
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return AccountStatementDetailSerializer
+        return AccountStatementSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return AccountStatement.objects.none()
+        
+        if user.is_staff:
+            # Admin can see all
+            qs = super().get_queryset()
+            
+            # Filter by status
+            status_filter = self.request.query_params.get('status')
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            
+            # Filter by credit account
+            credit_account_id = self.request.query_params.get('credit_account')
+            if credit_account_id:
+                qs = qs.filter(credit_account_id=credit_account_id)
+            
+            # Filter by date range
+            start_date = self.request.query_params.get('start_date')
+            end_date = self.request.query_params.get('end_date')
+            if start_date:
+                qs = qs.filter(period_start__gte=start_date)
+            if end_date:
+                qs = qs.filter(period_end__lte=end_date)
+            
+            return qs
+        else:
+            # Dealers can only see their own
+            try:
+                credit_account = CreditAccount.objects.get(user=user)
+                return AccountStatement.objects.filter(credit_account=credit_account)
+            except CreditAccount.DoesNotExist:
+                return AccountStatement.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        """管理员创建对账单：根据账期自动汇总交易生成对账单"""
+        from .credit_services import AccountStatementService
+        from datetime import date
+        try:
+            credit_account_id = request.data.get('credit_account')
+            period_start = request.data.get('period_start')
+            period_end = request.data.get('period_end')
+            if not credit_account_id or not period_start or not period_end:
+                return Response({"error": "credit_account、period_start、period_end 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+            # Parse dates
+            try:
+                ps = date.fromisoformat(str(period_start))
+                pe = date.fromisoformat(str(period_end))
+            except Exception:
+                return Response({"error": "账期日期格式错误，需使用YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+            if ps > pe:
+                return Response({"error": "账期开始不能晚于账期结束"}, status=status.HTTP_400_BAD_REQUEST)
+            # Load credit account
+            try:
+                credit_account = CreditAccount.objects.select_related('user').get(id=credit_account_id)
+            except CreditAccount.DoesNotExist:
+                return Response({"error": "信用账户不存在"}, status=status.HTTP_404_NOT_FOUND)
+            # Only allow for dealers
+            if credit_account.user.role != 'dealer':
+                return Response({"error": "仅支持为经销商创建对账单"}, status=status.HTTP_400_BAD_REQUEST)
+            # Prevent duplicate statement for exact period
+            existing = AccountStatement.objects.filter(
+                credit_account=credit_account,
+                period_start=ps,
+                period_end=pe,
+            ).exists()
+            if existing:
+                return Response({"error": "该账期的对账单已存在"}, status=status.HTTP_400_BAD_REQUEST)
+            # Generate statement via service
+            statement = AccountStatementService.generate_statement(credit_account, ps, pe)
+            serializer = self.get_serializer(statement)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['get'])
+    def my_statements(self, request):
+        """经销商查看自己的对账单列表"""
+        try:
+            credit_account = CreditAccount.objects.get(user=request.user)
+            statements = AccountStatement.objects.filter(
+                credit_account=credit_account
+            ).order_by('-period_end')
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            if start_date:
+                statements = statements.filter(period_start__gte=start_date)
+            if end_date:
+                statements = statements.filter(period_end__lte=end_date)
+            
+            # Apply pagination
+            page = self.paginate_queryset(statements)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(statements, many=True)
+            return Response(serializer.data)
+        except CreditAccount.DoesNotExist:
+            return Response(
+                {"error": "您还没有信用账户"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=['post'])
+    def confirm(self, request, pk=None):
+        """确认对账单"""
+        from django.utils import timezone
+        
+        statement = self.get_object()
+        
+        if statement.status != 'draft':
+            return Response(
+                {"error": "只能确认草稿状态的对账单"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        statement.status = 'confirmed'
+        statement.confirmed_at = timezone.now()
+        statement.save()
+        
+        return Response({
+            "message": "对账单已确认",
+            "statement": AccountStatementSerializer(statement).data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def settle(self, request, pk=None):
+        """结清对账单"""
+        from django.utils import timezone
+        
+        statement = self.get_object()
+        
+        if statement.status == 'settled':
+            return Response(
+                {"error": "对账单已结清"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        statement.status = 'settled'
+        statement.settled_at = timezone.now()
+        statement.save()
+        
+        # Update credit account outstanding debt
+        credit_account = statement.credit_account
+        credit_account.outstanding_debt -= statement.period_end_balance
+        if credit_account.outstanding_debt < 0:
+            credit_account.outstanding_debt = 0
+        credit_account.save()
+        
+        # Create payment transaction
+        AccountTransaction.objects.create(
+            credit_account=credit_account,
+            statement=statement,
+            transaction_type='payment',
+            amount=statement.period_end_balance,
+            balance_after=credit_account.outstanding_debt,
+            payment_status='paid',
+            paid_date=timezone.now().date(),
+            description=f'对账单结算: {statement.period_start} 至 {statement.period_end}'
+        )
+        
+        return Response({
+            "message": "对账单已结清",
+            "statement": AccountStatementSerializer(statement).data
+        })
+    
+    @action(detail=True, methods=['get'])
+    def export(self, request, pk=None):
+        """导出对账单为Excel"""
+        from django.http import HttpResponse
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        
+        statement = self.get_object()
+        
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "对账单"
+        
+        # Header style
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        
+        # Title
+        ws.merge_cells('A1:H1')
+        ws['A1'] = f"账务对账单 - {statement.credit_account.user.company_info.company_name}"
+        ws['A1'].font = Font(size=16, bold=True)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Statement info
+        ws['A3'] = "账期："
+        ws['B3'] = f"{statement.period_start} 至 {statement.period_end}"
+        ws['A4'] = "状态："
+        ws['B4'] = statement.get_status_display()
+        
+        # Financial summary
+        ws['A6'] = "财务汇总"
+        ws['A6'].font = Font(bold=True)
+        
+        summary_data = [
+            ["上期结余", statement.previous_balance],
+            ["本期采购", statement.current_purchases],
+            ["本期付款", statement.current_payments],
+            ["本期退款", statement.current_refunds],
+            ["期末未付", statement.period_end_balance],
+            ["账期内应付", statement.due_within_term],
+            ["账期内已付", statement.paid_within_term],
+            ["往来余额（逾期）", statement.overdue_amount],
+        ]
+        
+        for idx, (label, value) in enumerate(summary_data, start=7):
+            ws[f'A{idx}'] = label
+            ws[f'B{idx}'] = float(value)
+        
+        # Transaction details
+        ws[f'A{len(summary_data) + 9}'] = "交易明细"
+        ws[f'A{len(summary_data) + 9}'].font = Font(bold=True)
+        
+        # Transaction headers
+        headers = ["日期", "交易类型", "金额", "余额", "订单ID", "应付日期", "实付日期", "付款状态", "备注"]
+        header_row = len(summary_data) + 10
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=header_row, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Transaction data
+        transactions = statement.transactions.all().order_by('created_at')
+        for row_idx, transaction in enumerate(transactions, start=header_row + 1):
+            ws.cell(row=row_idx, column=1, value=transaction.created_at.strftime('%Y-%m-%d'))
+            ws.cell(row=row_idx, column=2, value=transaction.get_transaction_type_display())
+            ws.cell(row=row_idx, column=3, value=float(transaction.amount))
+            ws.cell(row=row_idx, column=4, value=float(transaction.balance_after))
+            ws.cell(row=row_idx, column=5, value=transaction.order_id or '')
+            ws.cell(row=row_idx, column=6, value=transaction.due_date.strftime('%Y-%m-%d') if transaction.due_date else '')
+            ws.cell(row=row_idx, column=7, value=transaction.paid_date.strftime('%Y-%m-%d') if transaction.paid_date else '')
+            ws.cell(row=row_idx, column=8, value=transaction.get_payment_status_display())
+            ws.cell(row=row_idx, column=9, value=transaction.description)
+        
+        # Adjust column widths
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column].width = adjusted_width
+        
+        # Save to response
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="statement_{statement.id}_{statement.period_start}_{statement.period_end}.xlsx"'
+        wb.save(response)
+        
+        return response
+
+
+@extend_schema(tags=['Account Transaction'])
+class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    账务交易记录查询
+    
+    Admin endpoints:
+    - GET list: 查看所有交易记录
+    - GET detail: 查看交易详情
+    
+    Dealer endpoints:
+    - GET my_transactions: 查看自己的交易记录
+    """
+    queryset = AccountTransaction.objects.all().select_related(
+        'credit_account',
+        'credit_account__user',
+        'statement'
+    ).order_by('-created_at')
+    serializer_class = AccountTransactionSerializer
+    
+    def get_permissions(self):
+        if self.action in ['my_transactions']:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdmin()]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if not user or not user.is_authenticated:
+            return AccountTransaction.objects.none()
+        
+        if user.is_staff:
+            # Admin can see all
+            qs = super().get_queryset()
+            
+            # Filter by credit account
+            credit_account_id = self.request.query_params.get('credit_account')
+            if credit_account_id:
+                qs = qs.filter(credit_account_id=credit_account_id)
+            
+            # Filter by transaction type
+            transaction_type = self.request.query_params.get('transaction_type')
+            if transaction_type:
+                qs = qs.filter(transaction_type=transaction_type)
+            
+            # Filter by payment status
+            payment_status = self.request.query_params.get('payment_status')
+            if payment_status:
+                qs = qs.filter(payment_status=payment_status)
+            
+            # Filter by date range
+            start_date = self.request.query_params.get('start_date')
+            end_date = self.request.query_params.get('end_date')
+            if start_date:
+                qs = qs.filter(created_at__gte=start_date)
+            if end_date:
+                # Handle end_date inclusive for DateTimeField
+                try:
+                    from datetime import datetime, timedelta
+                    ed = datetime.strptime(end_date, '%Y-%m-%d')
+                    ed_end = ed + timedelta(days=1)
+                    qs = qs.filter(created_at__lt=ed_end)
+                except (ValueError, TypeError):
+                    qs = qs.filter(created_at__lte=end_date)
+            
+            return qs
+        else:
+            # Dealers can only see their own
+            try:
+                credit_account = CreditAccount.objects.get(user=user)
+                return AccountTransaction.objects.filter(credit_account=credit_account)
+            except CreditAccount.DoesNotExist:
+                return AccountTransaction.objects.none()
+    
+    @action(detail=False, methods=['get'])
+    def my_transactions(self, request):
+        """经销商查看自己的交易记录"""
+        try:
+            credit_account = CreditAccount.objects.get(user=request.user)
+            transactions = AccountTransaction.objects.filter(
+                credit_account=credit_account
+            ).order_by('-created_at')
+            
+            transaction_type = request.query_params.get('transaction_type')
+            if transaction_type:
+                transactions = transactions.filter(transaction_type=transaction_type)
+            
+            payment_status = request.query_params.get('payment_status')
+            if payment_status:
+                transactions = transactions.filter(payment_status=payment_status)
+            
+            start_date = request.query_params.get('start_date')
+            end_date = request.query_params.get('end_date')
+            if start_date:
+                transactions = transactions.filter(created_at__gte=start_date)
+            if end_date:
+                # Handle end_date inclusive for DateTimeField
+                try:
+                    from datetime import datetime, timedelta
+                    ed = datetime.strptime(end_date, '%Y-%m-%d')
+                    ed_end = ed + timedelta(days=1)
+                    transactions = transactions.filter(created_at__lt=ed_end)
+                except (ValueError, TypeError):
+                    transactions = transactions.filter(created_at__lte=end_date)
+            
+            # Apply pagination
+            page = self.paginate_queryset(transactions)
+            if page is not None:
+                serializer = self.get_serializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            
+            serializer = self.get_serializer(transactions, many=True)
+            return Response(serializer.data)
+        except CreditAccount.DoesNotExist:
+            return Response(
+                {"error": "您还没有信用账户"},
+                status=status.HTTP_404_NOT_FOUND
+            )

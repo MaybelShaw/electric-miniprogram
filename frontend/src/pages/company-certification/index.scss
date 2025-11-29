@@ -1,24 +1,24 @@
 .company-certification {
   min-height: 100vh;
   background: #f7f8fa;
-  padding: 20px;
+  padding: 20rpx;
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 20rpx;
 
     .page-title {
-      font-size: 36px;
+      font-size: 36rpx;
       font-weight: bold;
       color: #323233;
     }
 
     .status-badge {
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 24px;
+      padding: 8rpx 16rpx;
+      border-radius: 8rpx;
+      font-size: 24rpx;
       font-weight: 500;
 
       &.status-pending {
@@ -39,71 +39,71 @@
   }
 
   .info-banner {
-    padding: 24px;
-    border-radius: 12px;
-    margin-bottom: 20px;
-    font-size: 28px;
+    padding: 24rpx;
+    border-radius: 12rpx;
+    margin-bottom: 20rpx;
+    font-size: 28rpx;
 
     &.success {
       background: #f6ffed;
       color: #52c41a;
-      border: 1px solid #b7eb8f;
+      border: 1rpx solid #b7eb8f;
     }
 
     &.error {
       background: #fff1f0;
       color: #ff4d4f;
-      border: 1px solid #ffa39e;
+      border: 1rpx solid #ffa39e;
     }
 
     &.warning {
       background: #fff7e6;
       color: #fa8c16;
-      border: 1px solid #ffd591;
+      border: 1rpx solid #ffd591;
     }
   }
 
   .form {
     .form-section {
       background: #fff;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
+      border-radius: 12rpx;
+      padding: 24rpx;
+      margin-bottom: 20rpx;
 
       .section-title {
-        font-size: 32px;
+        font-size: 32rpx;
         font-weight: bold;
         color: #323233;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid #ebedf0;
+        margin-bottom: 24rpx;
+        padding-bottom: 16rpx;
+        border-bottom: 1rpx solid #ebedf0;
       }
 
       .form-item {
-        margin-bottom: 24px;
+        margin-bottom: 24rpx;
 
         &:last-child {
           margin-bottom: 0;
         }
 
         .label {
-          font-size: 28px;
+          font-size: 28rpx;
           color: #646566;
-          margin-bottom: 12px;
+          margin-bottom: 12rpx;
 
           &.required::before {
             content: '*';
             color: #ee0a24;
-            margin-right: 4px;
+            margin-right: 4rpx;
           }
         }
 
         .input {
           width: 100%;
-          padding: 20px;
-          font-size: 28px;
-          border: 1px solid #ebedf0;
-          border-radius: 8px;
+          padding: 20rpx;
+          font-size: 28rpx;
+          border: 1rpx solid #ebedf0;
+          border-radius: 8rpx;
           background: #fff;
 
           &:disabled {
@@ -112,21 +112,21 @@
           }
 
           &.textarea {
-            min-height: 120px;
+            min-height: 120rpx;
           }
         }
       }
     }
 
     .form-actions {
-      margin-top: 40px;
+      margin-top: 40rpx;
 
       .submit-btn {
         width: 100%;
-        height: 88px;
-        line-height: 88px;
-        font-size: 32px;
-        border-radius: 12px;
+        height: 88rpx;
+        line-height: 88rpx;
+        font-size: 32rpx;
+        border-radius: 12rpx;
         background: #1989fa;
         color: #fff;
         border: none;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, ScrollView, Image, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
 import { Order, Payment } from '../../types'
@@ -20,6 +20,14 @@ export default function OrderDetail() {
       loadOrderDetail(Number(id))
     }
   }, [])
+
+  useDidShow(() => {
+    const instance = Taro.getCurrentInstance()
+    const { id } = instance.router?.params || {}
+    if (id) {
+      loadOrderDetail(Number(id))
+    }
+  })
 
   const loadOrderDetail = async (id: number) => {
     try {
@@ -101,6 +109,11 @@ export default function OrderDetail() {
         Taro.showToast({ title: '取消失败', icon: 'none' })
       }
     }
+  }
+
+  const handleRequestInvoice = () => {
+    if (!order) return
+    Taro.navigateTo({ url: `/pages/invoice-request/index?id=${order.id}` })
   }
 
   if (loading) {
@@ -185,6 +198,42 @@ export default function OrderDetail() {
             </View>
           )}
         </View>
+
+        {/* 发票信息 */}
+        {order.status === 'completed' && (
+          <View className='info-card'>
+            <View className='info-row'>
+              <Text className='info-label'>发票</Text>
+              <View className='info-value'>
+                {order.invoice_info ? (
+                   <Text style={{
+                     color: order.invoice_info.status === 'issued' ? '#07c160' : 
+                            order.invoice_info.status === 'cancelled' ? '#ff4d4f' : '#faad14',
+                     fontWeight: 'bold'
+                   }}>
+                     {order.invoice_info.status_display}
+                   </Text>
+                ) : (
+                   <View className='action-btn' onClick={handleRequestInvoice} style={{color: '#1989FA'}}>
+                     申请发票
+                   </View>
+                )}
+              </View>
+            </View>
+            {order.invoice_info && order.invoice_info.status === 'issued' && order.invoice_info.file_url && (
+               <View className='info-row'>
+                  <Text className='info-label'>下载</Text>
+                  <Text className='info-value' onClick={() => {
+                      if (order.invoice_info?.file_url) {
+                        Taro.setClipboardData({ data: order.invoice_info.file_url })
+                      }
+                  }} style={{color: '#1989FA'}}>
+                    复制链接
+                  </Text>
+               </View>
+            )}
+          </View>
+        )}
 
         {/* 价格明细 */}
         <View className='price-card'>

@@ -102,7 +102,7 @@ export default function Profile() {
       {/* 用户信息区域 */}
       <View className='user-section'>
         {user ? (
-          <View className='user-info' onClick={goToProfileEdit}>
+          <View className='user-info' onTap={goToProfileEdit}>
             <Image className='avatar' src={user.avatar_url || '/assets/default-avatar.png'} />
             <View className='user-details'>
               <View className='username'>{user.username || '未设置昵称'}</View>
@@ -117,7 +117,7 @@ export default function Profile() {
         ) : (
           <View className='login-section'>
             <Image className='avatar' src='/assets/default-avatar.png' />
-            <View className='login-text' onClick={handleLogin}>
+            <View className='login-text' onTap={handleLogin}>
               {loading ? '登录中...' : '点击授权'}
             </View>
           </View>
@@ -128,31 +128,31 @@ export default function Profile() {
       <View className='order-section'>
         <View className='section-header'>
           <Text className='section-title'>商城订单</Text>
-          <View className='view-all' onClick={() => goToOrders()}>
+          <View className='view-all' onTap={() => goToOrders()}>
             <Text className='view-all-text'>全部订单</Text>
             <Text className='arrow'>›</Text>
           </View>
         </View>
         <View className='order-menu'>
-          <View className='order-item' onClick={() => goToOrders('pending')}>
+          <View className='order-item' onTap={() => goToOrders('pending')}>
             <View className='order-icon-wrapper'>
               <Text className='order-icon'>💰</Text>
             </View>
             <Text className='order-text'>待支付</Text>
           </View>
-          <View className='order-item' onClick={() => goToOrders('paid')}>
+          <View className='order-item' onTap={() => goToOrders('paid')}>
             <View className='order-icon-wrapper'>
               <Text className='order-icon'>📦</Text>
             </View>
             <Text className='order-text'>待发货</Text>
           </View>
-          <View className='order-item' onClick={() => goToOrders('shipped')}>
+          <View className='order-item' onTap={() => goToOrders('shipped')}>
             <View className='order-icon-wrapper'>
               <Text className='order-icon'>🚚</Text>
             </View>
             <Text className='order-text'>待收货</Text>
           </View>
-          <View className='order-item' onClick={() => goToOrders('completed')}>
+          <View className='order-item' onTap={() => goToOrders('completed')}>
             <View className='order-icon-wrapper'>
               <Text className='order-icon'>✅</Text>
             </View>
@@ -163,7 +163,7 @@ export default function Profile() {
 
       {/* 功能菜单 */}
       <View className='menu-section'>
-        <View className='menu-item' onClick={goToAddresses}>
+        <View className='menu-item' onTap={goToAddresses}>
           <View className='menu-left'>
             <Text className='menu-icon'>📍</Text>
             <Text className='menu-text'>收货地址</Text>
@@ -171,7 +171,7 @@ export default function Profile() {
           <Text className='arrow'>›</Text>
         </View>
         
-        <View className='menu-item' onClick={goToCertification}>
+        <View className='menu-item' onTap={goToCertification}>
           <View className='menu-left'>
             <Text className='menu-icon'>🏢</Text>
             <Text className='menu-text'>经销商认证</Text>
@@ -184,12 +184,44 @@ export default function Profile() {
           </View>
           <Text className='arrow'>›</Text>
         </View>
+
+        {user?.role === 'dealer' && (
+          <>
+            <View className='menu-item' onTap={() => {
+              if (!user) {
+                Taro.showToast({ title: '请先登录', icon: 'none' })
+                return
+              }
+              Taro.navigateTo({ url: '/pages/credit-account/index' })
+            }}>
+              <View className='menu-left'>
+                <Text className='menu-icon'>💳</Text>
+                <Text className='menu-text'>信用账户</Text>
+              </View>
+              <Text className='arrow'>›</Text>
+            </View>
+
+            <View className='menu-item' onTap={() => {
+              if (!user) {
+                Taro.showToast({ title: '请先登录', icon: 'none' })
+                return
+              }
+              Taro.navigateTo({ url: '/pages/debt-reconciliation/index' })
+            }}>
+              <View className='menu-left'>
+                <Text className='menu-icon'>📊</Text>
+                <Text className='menu-text'>欠款对账</Text>
+              </View>
+              <Text className='arrow'>›</Text>
+            </View>
+          </>
+        )}
       </View>
 
       {/* 退出登录按钮 - 放在最底部 */}
       {user && (
         <View className='logout-section'>
-          <View className='logout-button' onClick={handleLogout}>
+          <View className='logout-button' onTap={handleLogout}>
             退出登录
           </View>
         </View>
