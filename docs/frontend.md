@@ -59,7 +59,7 @@
   - `getRecommendations`/`getRelatedProducts` 推荐/相关 `frontend/src/services/product.ts:49`
 - 订单服务：`frontend/src/services/order.ts:4`
   - `createOrder` 创建订单 `frontend/src/services/order.ts:6`
-  - `createBatchOrders` 批量创建（购物车）`frontend/src/services/order.ts:16`
+  - `createBatchOrders` 批量创建（购物车，支持 `payment_method=online|credit`）`frontend/src/services/order.ts:16`
   - `getMyOrders` 我的订单（分页）`frontend/src/services/order.ts:28`
   - `getOrderDetail` 详情 `frontend/src/services/order.ts:37`
   - `cancelOrder` 取消 `frontend/src/services/order.ts:42`

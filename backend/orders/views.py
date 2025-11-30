@@ -244,7 +244,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 ],
                 "address_id": 地址ID (必填),
                 "note": 备注 (可选),
-                "method": 支付方式 (可选，默认wechat)
+                "payment_method": "online|credit" (可选，默认 online)，用于区分是否走信用支付；
+                "method": "wechat|alipay|bank" (可选，默认 wechat)，当 payment_method 为 online 时指定具体在线支付渠道
             }
         
         Returns:
@@ -259,7 +260,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         items = request.data.get('items', [])
         address_id = request.data.get('address_id')
         note = request.data.get('note', '')
-        payment_method = request.data.get('method', 'wechat')
+        payment_method = request.data.get('payment_method', 'online')
+        online_method = request.data.get('method', 'wechat')
         
         if not items:
             return Response({'detail': '商品列表不能为空'}, status=status.HTTP_400_BAD_REQUEST)
@@ -288,16 +290,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                         address_id=address_id,
                         quantity=quantity,
                         note=note,
+                        payment_method=payment_method,
                     )
                     orders.append(order)
                     
-                    # 为每个订单创建支付记录
-                    payment = Payment.create_for_order(
-                        order, 
-                        method=payment_method, 
-                        ttl_minutes=30
-                    )
-                    payments.append(payment)
+                    # 只有在线支付才创建支付记录
+                    if payment_method == 'online':
+                        payment = Payment.create_for_order(
+                            order,
+                            method=online_method,
+                            ttl_minutes=30
+                        )
+                        payments.append(payment)
                     
                     logger.info(f'批量订单创建: order_id={order.id}, product_id={product_id}, quantity={quantity}')
                 

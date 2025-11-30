@@ -121,7 +121,13 @@
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
   - `POST /orders/create_order/` 创建订单 `backend/orders/views.py:136`
-  - `POST /orders/create_batch_orders/` 批量创建订单 `backend/orders/views.py:226`
+  - `POST /orders/create_batch_orders/` 批量创建订单 `backend/orders/views.py:235`
+    - 请求体：
+      - `items` 商品列表（`[{ product_id, quantity }]`）
+      - `address_id` 收货地址ID
+      - `note` 备注（可选）
+      - `payment_method` 支付方式：`online | credit`（默认 `online`）。当为 `credit` 时将直接记录采购到信用账户并将订单置为 `paid`，不创建支付记录；当为 `online` 时创建对应支付记录。
+      - `method` 在线支付渠道：`wechat | alipay | bank`（仅当 `payment_method=online` 时有效，默认 `wechat`）
   - `PATCH /orders/{id}/cancel|ship|complete|confirm_receipt/` 状态流转 `backend/orders/views.py:313`
     - 发货请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰" }`（或使用 `logistics_no`/`company` 字段）。
     - 发货校验：管理员必填快递单号；接口会写入订单物流信息后再流转到 `shipped`。

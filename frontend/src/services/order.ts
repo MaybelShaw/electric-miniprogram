@@ -8,6 +8,8 @@ export const orderService = {
     address_id: number
     quantity: number
     note?: string
+    payment_method?: 'online' | 'credit'
+    method?: 'wechat' | 'alipay' | 'bank'
   }): Promise<CreateOrderResponse> {
     return http.post<CreateOrderResponse>('/orders/create_order/', data)
   },
@@ -17,7 +19,8 @@ export const orderService = {
     items: Array<{ product_id: number; quantity: number }>
     address_id: number
     note?: string
-    method?: string
+    payment_method?: 'online' | 'credit'
+    method?: 'wechat' | 'alipay' | 'bank'
   }): Promise<{
     orders: Order[]
     payments: any[]
