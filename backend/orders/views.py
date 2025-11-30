@@ -333,8 +333,14 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
+            from django.utils import timezone
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
+            reason = request.data.get('reason', '')
+            if reason:
+                order.cancel_reason = reason
+            order.cancelled_at = timezone.now()
+            order.save(update_fields=['cancel_reason', 'cancelled_at'])
             order = OrderStateMachine.transition(
                 order,
                 'cancelled',

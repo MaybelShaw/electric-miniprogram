@@ -132,6 +132,10 @@
     - 发货请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰" }`（或使用 `logistics_no`/`company` 字段）。
     - 发货校验：管理员必填快递单号；接口会写入订单物流信息后再流转到 `shipped`。
     - 确认收货：订单所有者或管理员可调用 `PATCH /api/orders/{id}/confirm_receipt/`，可选请求体 `{ "note": "已收到" }`，成功后状态从 `shipped` 变为 `completed`，并记录状态历史（`backend/orders/views.py:379`）。
+    - 取消订单：订单所有者或管理员可调用 `PATCH /api/orders/{id}/cancel/`；可选请求体 `{ "note": "用户取消", "reason": "下单错误" }`。允许状态：`pending`、`paid`。流转至 `cancelled` 后：
+      - 自动释放锁定库存（本地库存产品）。
+      - 若订单在取消前为 `paid` 且为信用支付（无支付记录），自动记录信用退款以冲减欠款（`backend/orders/state_machine.py:212`）。
+      - 在线支付退款需按支付渠道另行处理（当前版本不自动退款，将在未来的退款流程中实现）。
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`

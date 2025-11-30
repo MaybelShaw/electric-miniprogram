@@ -70,6 +70,7 @@
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
   - **发货操作**：管理员点击发货时，需在弹窗中填写快递单号与物流公司。
+  - **取消订单**：支持对 `pending` 和 `paid` 状态的订单进行取消。点击取消时需在弹窗中填写取消原因与备注。
 - 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`
 - 信用账户：列表与编辑（额度、账期、激活状态） `merchant/src/services/api.ts:74`

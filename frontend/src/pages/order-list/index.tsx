@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { View, ScrollView, Image, Text } from '@tarojs/components'
+import { View, ScrollView, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { Order } from '../../types'
-import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
+import OrderCard from '../../components/OrderCard'
 import './index.scss'
 
 export default function OrderList() {
@@ -74,14 +74,17 @@ export default function OrderList() {
   }
 
   const handleCancelOrder = async (id: number) => {
-    const res = await Taro.showModal({
-      title: '提示',
-      content: '确定要取消订单吗？'
-    })
+    const options: any = {
+      title: '取消订单',
+      content: '',
+      editable: true,
+      placeholderText: '请输入取消原因（选填）'
+    }
+    const res = await Taro.showModal(options)
 
     if (res.confirm) {
       try {
-        await orderService.cancelOrder(id)
+        await orderService.cancelOrder(id, { reason: (res as any).content })
         Taro.showToast({ title: '取消成功', icon: 'success' })
         loadOrders(1)
       } catch (error) {
@@ -153,63 +156,14 @@ export default function OrderList() {
           </View>
         ) : (
           orders && orders.map(order => (
-            <View key={order.id} className='order-item' onClick={() => goToDetail(order.id)}>
-              <View className='order-header'>
-                <Text className='order-time'>{formatTime(order.created_at)}</Text>
-                <Text className={`order-status ${order.status}`}>{getOrderStatusText(order.status)}</Text>
-              </View>
-              <View className='order-content'>
-                <Image
-                  className='product-image'
-                  src={order.product?.main_images?.[0] || '/assets/default-product.png'}
-                  mode='aspectFill'
-                />
-                <View className='product-info'>
-                  <View className='product-name'>{order.product?.name || '商品'}</View>
-                  <View className='product-bottom'>
-                    <View className='product-price'>{Number(order.product?.price || 0).toFixed(2)}</View>
-                    <View className='product-quantity'>x{order.quantity || 0}</View>
-                  </View>
-                </View>
-              </View>
-              <View className='order-footer'>
-                <View className='total-amount'>
-                  合计：<Text className='amount'>{formatPrice(order.total_amount)}</Text>
-                </View>
-                {order.status === 'pending' && (
-                  <View className='order-actions'>
-                    <View
-                      className='cancel-btn'
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCancelOrder(order.id)
-                      }}
-                    >
-                      取消订单
-                    </View>
-                    <View
-                      className='pay-btn'
-                      onClick={(e) => handlePayOrder(e, order.id)}
-                    >
-                      立即支付
-                    </View>
-                  </View>
-                )}
-                {order.status === 'shipped' && (
-                  <View className='order-actions'>
-                    <View
-                      className='confirm-btn'
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleConfirmReceipt(order.id)
-                      }}
-                    >
-                      确认收货
-                    </View>
-                  </View>
-                )}
-              </View>
-            </View>
+            <OrderCard
+              key={order.id}
+              order={order}
+              onClick={goToDetail}
+              onCancel={handleCancelOrder}
+              onPay={handlePayOrder}
+              onConfirmReceipt={handleConfirmReceipt}
+            />
           ))
         )}
         {loading && <View className='loading-text'>加载中...</View>}

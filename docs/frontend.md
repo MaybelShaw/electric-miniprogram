@@ -11,7 +11,7 @@
 ## 架构与目录
 - 目录结构：`frontend/src/`
   - `pages/` 页面模块（home、category、cart、order、profile、credit 等）
-  - `components/` 通用组件（如商品卡片 `ProductCard`）
+  - `components/` 通用组件（如商品卡片 `ProductCard`、订单卡片 `OrderCard`）
   - `services/` 服务层，封装 API 调用与数据契约
   - `utils/` 请求封装、存储工具、格式化方法
   - `types/` TypeScript 类型定义（用户、商品、订单、支付、分页等）`frontend/src/types/index.ts:22`
@@ -62,7 +62,7 @@
   - `createBatchOrders` 批量创建（购物车，支持 `payment_method=online|credit`）`frontend/src/services/order.ts:16`
   - `getMyOrders` 我的订单（分页）`frontend/src/services/order.ts:28`
   - `getOrderDetail` 详情 `frontend/src/services/order.ts:37`
-  - `cancelOrder` 取消 `frontend/src/services/order.ts:42`
+  - `cancelOrder` 取消（支持 `reason`）`frontend/src/services/order.ts:46`
   - `confirmReceipt` 确认收货 `frontend/src/services/order.ts`
   - `requestInvoice` 申请发票 `frontend/src/services/order.ts`
 - 支付服务：`frontend/src/services/payment.ts:4`
@@ -86,6 +86,9 @@
   - **物流信息展示**：在订单详情页（`/pages/order-detail/index`），支持查看物流公司、快递单号、发货单号与 SN 码；快递单号支持长按复制。
   - **发票状态实时更新**：在订单详情页（`/pages/order-detail/index`），支持发票状态实时刷新（`useDidShow`）。
   - **状态可视化**：通过颜色区分发票状态（已开具：绿色 `#07c160`、已取消：红色 `#ff4d4f`、已申请：橙色 `#faad14`）。
+  - **订单取消**：用户可在订单列表或详情页取消 `pending`（待支付）或 `paid`（已支付/待发货）状态的订单。取消时支持输入原因。
+    - 待支付订单：直接取消。
+    - 已支付订单：取消后，若为信用支付则自动退款至信用账户；在线支付需等待后台处理。
 - 申请发票（`/pages/invoice-request/index`）：
    - 界面布局优化：采用对齐的表单设计，必填项标记不影响文字排版
   - 支持普通发票与专用发票两种类型（通过按钮快速切换）

@@ -43,8 +43,8 @@ export const orderService = {
   },
   
   // 取消订单
-  async cancelOrder(id: number): Promise<Order> {
-    return http.patch<Order>(`/orders/${id}/cancel/`)
+  async cancelOrder(id: number, data?: { note?: string; reason?: string }): Promise<Order> {
+    return http.patch<Order>(`/orders/${id}/cancel/`, data)
   },
 
   // 确认收货

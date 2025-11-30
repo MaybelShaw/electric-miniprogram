@@ -194,7 +194,7 @@ class OrderStateMachine:
         """
         # 订单被取消时，释放库存
         if new_status == OrderStatus.CANCELLED.value:
-            cls._handle_order_cancelled(order, operator)
+            cls._handle_order_cancelled(order, operator, old_status)
         
         # 订单完成时，更新商品销量
         elif new_status == OrderStatus.COMPLETED.value:
@@ -209,7 +209,7 @@ class OrderStateMachine:
             cls._handle_order_paid(order)
     
     @classmethod
-    def _handle_order_cancelled(cls, order, operator=None):
+    def _handle_order_cancelled(cls, order, operator=None, old_status: Optional[str] = None):
         """处理订单取消
         
         释放锁定的库存。
@@ -219,6 +219,7 @@ class OrderStateMachine:
             operator: 操作人
         """
         from .services import InventoryService
+        from users.credit_services import CreditAccountService
         
         try:
             InventoryService.release_stock(
@@ -230,6 +231,19 @@ class OrderStateMachine:
         except Exception as e:
             # 记录错误但不中断流程
             print(f'释放库存失败: {str(e)}')
+        
+        # 若订单在取消前处于已支付状态且为信用支付（无支付记录），记录信用退款以冲减欠款
+        try:
+            if old_status == 'paid' and not order.payments.exists():
+                if hasattr(order.user, 'credit_account') and order.user.credit_account:
+                    CreditAccountService.record_refund(
+                        credit_account=order.user.credit_account,
+                        amount=order.total_amount,
+                        order_id=order.id,
+                        description=f'订单取消退款 #{order.order_number}'
+                    )
+        except Exception as e:
+            print(f'信用退款记录失败: {str(e)}')
     
     @classmethod
     def _handle_order_completed(cls, order):

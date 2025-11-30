@@ -29,6 +29,8 @@ export default function Orders() {
   const [loadingLogistics, setLoadingLogistics] = useState(false);
   const [shipModalVisible, setShipModalVisible] = useState(false);
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
 
   const handleShip = (record: Order) => {
     setShippingOrder(record);
@@ -49,20 +51,29 @@ export default function Orders() {
     }
   };
 
+  const handleCancelClick = (record: Order) => {
+    setCancellingOrder(record);
+    setCancelModalVisible(true);
+  };
+
+  const handleCancelSubmit = async (values: any) => {
+    try {
+      if (!cancellingOrder) return false;
+      await cancelOrder(cancellingOrder.id, values);
+      message.success('取消成功');
+      setCancelModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '操作失败');
+      return false;
+    }
+  };
+
   const handleComplete = async (id: number) => {
     try {
       await completeOrder(id);
       message.success('完成订单');
-      actionRef.current?.reload();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
-  const handleCancel = async (id: number) => {
-    try {
-      await cancelOrder(id);
-      message.success('取消成功');
       actionRef.current?.reload();
     } catch (error) {
       message.error('操作失败');
@@ -318,21 +329,16 @@ export default function Orders() {
         
         if (['pending', 'paid'].includes(record.status)) {
           actions.push(
-            <Popconfirm
+            <Button
               key="cancel"
-              title="确认取消订单?"
-              description="取消后无法恢复"
-              onConfirm={() => handleCancel(record.id)}
+              type="link"
+              size="small"
+              danger
+              icon={<CloseOutlined />}
+              onClick={() => handleCancelClick(record)}
             >
-              <Button
-                type="link"
-                size="small"
-                danger
-                icon={<CloseOutlined />}
-              >
-                取消
-              </Button>
-            </Popconfirm>
+              取消
+            </Button>
           );
         }
         
@@ -401,225 +407,130 @@ export default function Orders() {
               success: true,
             };
           } catch (error) {
-            message.error('加载订单列表失败');
-            return { data: [], success: false, total: 0 };
+            return {
+              data: [],
+              success: false,
+            };
           }
         }}
         rowKey="id"
-        scroll={{ x: 1800 }}
+        pagination={{
+          pageSize: 20,
+        }}
         search={{
           labelWidth: 'auto',
-          defaultCollapsed: false,
         }}
-        pagination={{
-          defaultPageSize: 20,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total: number) => `共 ${total} 条`,
-        }}
-        options={{
-          reload: true,
-          density: true,
-          setting: true,
-        }}
+        toolBarRender={() => []}
       />
-
-      <Drawer
-        title="订单详情"
-        width={720}
-        open={detailVisible}
-        onClose={() => setDetailVisible(false)}
-      >
-        {currentOrder && (
-          <ProDescriptions
-            column={2}
-            dataSource={currentOrder}
-          >
-            <ProDescriptions.Item label="订单号" span={2} copyable>
-              {currentOrder.order_number}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="用户名" span={2}>
-              {currentOrder.user_username}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="商品名称" span={2}>
-              {currentOrder.product?.name}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="数量">
-              {currentOrder.quantity}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="单价">
-              ¥{currentOrder.product?.price}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="总金额" span={2}>
-              <span style={{ fontSize: 18, fontWeight: 'bold', color: '#ff4d4f' }}>
-                ¥{currentOrder.total_amount}
-              </span>
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="订单状态" span={2}>
-              <Tag color={statusMap[currentOrder.status]?.color}>
-                {statusMap[currentOrder.status]?.text}
-              </Tag>
-            </ProDescriptions.Item>
-            {currentOrder.is_haier_order && (
-              <>
-                <ProDescriptions.Item label="海尔订单" span={2}>
-                  <Tag color="blue">是</Tag>
-                </ProDescriptions.Item>
-                {currentOrder.haier_order_info?.haier_order_no && (
-                  <ProDescriptions.Item label="海尔订单号" span={2} copyable>
-                    {currentOrder.haier_order_info.haier_order_no}
-                  </ProDescriptions.Item>
-                )}
-                {currentOrder.haier_order_info?.haier_so_id && (
-                  <ProDescriptions.Item label="海尔子订单号" span={2} copyable>
-                    {currentOrder.haier_order_info.haier_so_id}
-                  </ProDescriptions.Item>
-                )}
-              </>
-            )}
-            <ProDescriptions.Item label="收货人">
-              {currentOrder.snapshot_contact_name}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="联系电话">
-              {currentOrder.snapshot_phone}
-            </ProDescriptions.Item>
-            <ProDescriptions.Item label="收货地址" span={2}>
-              {currentOrder.snapshot_address}
-            </ProDescriptions.Item>
-            {currentOrder.logistics_info && (
-              <>
-                <ProDescriptions.Item label="物流公司">
-                  {currentOrder.logistics_info.logistics_company}
-                </ProDescriptions.Item>
-                <ProDescriptions.Item label="物流单号" copyable>
-                  {currentOrder.logistics_info.logistics_no}
-                </ProDescriptions.Item>
-              </>
-            )}
-            <ProDescriptions.Item label="创建时间" span={2} valueType="dateTime">
-              {currentOrder.created_at}
-            </ProDescriptions.Item>
-          </ProDescriptions>
-        )}
-      </Drawer>
-
-      <Modal
-        title="推送订单到海尔"
-        open={pushModalVisible}
-        onOk={handlePushSubmit}
-        onCancel={() => setPushModalVisible(false)}
-        confirmLoading={pushing}
-        width={500}
-      >
-        <Form
-          form={pushForm}
-          layout="vertical"
-          style={{ marginTop: 20 }}
-        >
-          <Form.Item
-            label="订单来源系统"
-            name="source_system"
-            rules={[{ required: true, message: '请输入订单来源系统' }]}
-          >
-            <Input placeholder="例如: MERCHANT_ADMIN" />
-          </Form.Item>
-          <Form.Item
-            label="店铺名称"
-            name="shop_name"
-            rules={[{ required: true, message: '请输入店铺名称' }]}
-          >
-            <Input placeholder="例如: XX旗舰店" />
-          </Form.Item>
-        </Form>
-        <div style={{ marginTop: 16, padding: 12, background: '#f0f2f5', borderRadius: 4 }}>
-          <div style={{ marginBottom: 8, fontWeight: 'bold' }}>订单信息：</div>
-          <div>订单号: {currentOrder?.order_number}</div>
-          <div>商品: {currentOrder?.product?.name}</div>
-          <div>数量: {currentOrder?.quantity}</div>
-          <div>金额: ¥{currentOrder?.total_amount}</div>
-        </div>
-      </Modal>
-
-      <Modal
-        title="海尔物流信息"
-        open={logisticsModalVisible}
-        onCancel={() => setLogisticsModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setLogisticsModalVisible(false)}>
-            关闭
-          </Button>
-        ]}
-        width={800}
-      >
-        {loadingLogistics ? (
-          <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
-        ) : logisticsData ? (
-          <div>
-            {logisticsData.getAllLogisticsInfoByOrderCode && logisticsData.getAllLogisticsInfoByOrderCode.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <h4>统仓云仓物流</h4>
-                <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto' }}>
-                  {JSON.stringify(logisticsData.getAllLogisticsInfoByOrderCode, null, 2)}
-                </pre>
-              </div>
-            )}
-            {logisticsData.getStockDeliveryLogisticsRecord && logisticsData.getStockDeliveryLogisticsRecord.length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <h4>智汇宝物流</h4>
-                <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto' }}>
-                  {JSON.stringify(logisticsData.getStockDeliveryLogisticsRecord, null, 2)}
-                </pre>
-              </div>
-            )}
-            {logisticsData.getStockDeliveryLogisticsRecordThirdparty && logisticsData.getStockDeliveryLogisticsRecordThirdparty.length > 0 && (
-              <div>
-                <h4>第三方快递</h4>
-                <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto' }}>
-                  {JSON.stringify(logisticsData.getStockDeliveryLogisticsRecordThirdparty, null, 2)}
-                </pre>
-              </div>
-            )}
-            {!logisticsData.getAllLogisticsInfoByOrderCode && 
-             !logisticsData.getStockDeliveryLogisticsRecord && 
-             !logisticsData.getStockDeliveryLogisticsRecordThirdparty && (
-              <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-                暂无物流信息
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
-            暂无物流信息
-          </div>
-        )}
-      </Modal>
-
+      
+      {/* 发货弹窗 */}
       <ModalForm
-        title="发货"
-        open={shipModalVisible}
-        onOpenChange={setShipModalVisible}
+        title="订单发货"
+        visible={shipModalVisible}
+        onVisibleChange={setShipModalVisible}
         onFinish={handleShipSubmit}
-        modalProps={{
-          destroyOnClose: true,
-        }}
       >
         <ProFormText
           name="logistics_company"
           label="物流公司"
           placeholder="请输入物流公司"
+          rules={[{ required: true, message: '请输入物流公司' }]}
         />
         <ProFormText
-          name="tracking_number"
-          label="快递单号"
-          placeholder="请输入快递单号"
-          rules={[{ required: true, message: '请输入快递单号' }]}
+          name="logistics_no"
+          label="物流单号"
+          placeholder="请输入物流单号"
+          rules={[{ required: true, message: '请输入物流单号' }]}
+        />
+      </ModalForm>
+
+      {/* 取消订单弹窗 */}
+      <ModalForm
+        title="取消订单"
+        visible={cancelModalVisible}
+        onVisibleChange={setCancelModalVisible}
+        onFinish={handleCancelSubmit}
+      >
+        <ProFormText
+          name="reason"
+          label="取消原因"
+          placeholder="请输入取消原因"
+          rules={[{ required: true, message: '请输入取消原因' }]}
         />
         <ProFormText
           name="note"
           label="备注"
-          placeholder="选填"
+          placeholder="备注信息（可选）"
         />
       </ModalForm>
+
+      {/* 详情弹窗 */}
+      <Drawer
+        title="订单详情"
+        width={600}
+        visible={detailVisible}
+        onClose={() => setDetailVisible(false)}
+      >
+        {currentOrder && (
+          <ProDescriptions
+            column={1}
+            title="基本信息"
+            dataSource={currentOrder}
+          >
+            <ProDescriptions.Item label="订单号" dataIndex="order_number" />
+            <ProDescriptions.Item label="创建时间" dataIndex="created_at" valueType="dateTime" />
+            <ProDescriptions.Item 
+              label="状态" 
+              dataIndex="status"
+              render={(_, record) => {
+                 const status = statusMap[record.status];
+                 return <Tag color={status?.color}>{status?.text}</Tag>;
+              }}
+            />
+            <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
+            <ProDescriptions.Item label="备注" dataIndex="note" />
+          </ProDescriptions>
+        )}
+      </Drawer>
+
+      {/* 推送海尔弹窗 */}
+      <Modal
+        title="推送到海尔系统"
+        visible={pushModalVisible}
+        onOk={handlePushSubmit}
+        onCancel={() => setPushModalVisible(false)}
+        confirmLoading={pushing}
+      >
+        <Form form={pushForm} layout="vertical">
+           <Form.Item name="source_system" label="源系统" rules={[{ required: true }]}>
+             <Input />
+           </Form.Item>
+           <Form.Item name="shop_name" label="店铺名称" rules={[{ required: true }]}>
+             <Input />
+           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 物流查询弹窗 */}
+      <Modal
+        title="物流信息"
+        visible={logisticsModalVisible}
+        onCancel={() => setLogisticsModalVisible(false)}
+        footer={null}
+      >
+        {loadingLogistics ? (
+          <div>加载中...</div>
+        ) : logisticsData ? (
+          <div>
+            <p>物流公司: {logisticsData.logistics_company}</p>
+            <p>运单号: {logisticsData.logistics_no}</p>
+            <p>发货单号: {logisticsData.delivery_record_code}</p>
+            <p>SN码: {logisticsData.sn_code}</p>
+          </div>
+        ) : (
+          <div>暂无物流信息</div>
+        )}
+      </Modal>
     </>
   );
 }

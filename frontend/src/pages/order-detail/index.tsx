@@ -95,14 +95,17 @@ export default function OrderDetail() {
   const handleCancelOrder = async () => {
     if (!order) return
 
-    const res = await Taro.showModal({
-      title: '提示',
-      content: '确定要取消订单吗？'
-    })
+    const options: any = {
+      title: '取消订单',
+      content: '',
+      editable: true,
+      placeholderText: '请输入取消原因（选填）'
+    }
+    const res = await Taro.showModal(options)
 
     if (res.confirm) {
       try {
-        await orderService.cancelOrder(order.id)
+        await orderService.cancelOrder(order.id, { reason: (res as any).content })
         Taro.showToast({ title: '取消成功', icon: 'success' })
         loadOrderDetail(order.id)
       } catch (error) {
@@ -312,17 +315,17 @@ export default function OrderDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      {(order.status === 'pending' || order.status === 'shipped') && (
+      {(order.status === 'pending' || order.status === 'paid' || order.status === 'shipped') && (
         <View className='footer-bar'>
+          {(order.status === 'pending' || order.status === 'paid') && (
+            <View className='cancel-btn' onClick={handleCancelOrder}>
+              取消订单
+            </View>
+          )}
           {order.status === 'pending' && (
-            <>
-              <View className='cancel-btn' onClick={handleCancelOrder}>
-                取消订单
-              </View>
-              <View className='pay-btn' onClick={handlePay}>
-                {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
-              </View>
-            </>
+            <View className='pay-btn' onClick={handlePay}>
+              {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
+            </View>
           )}
           {order.status === 'shipped' && (
             <View className='confirm-btn' onClick={handleConfirmReceipt}>
