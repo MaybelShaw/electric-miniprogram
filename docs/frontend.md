@@ -63,6 +63,7 @@
   - `getMyOrders` 我的订单（分页）`frontend/src/services/order.ts:28`
   - `getOrderDetail` 详情 `frontend/src/services/order.ts:37`
   - `cancelOrder` 取消 `frontend/src/services/order.ts:42`
+  - `confirmReceipt` 确认收货 `frontend/src/services/order.ts`
   - `requestInvoice` 申请发票 `frontend/src/services/order.ts`
 - 支付服务：`frontend/src/services/payment.ts:4`
   - 列表/创建/详情/开始/成功/失败/取消/过期 `frontend/src/services/payment.ts:6`
@@ -81,6 +82,8 @@
 - 搜索页（`/pages/search/index`）：关键词检索、热门关键词、搜索建议
 - 购物车（`/pages/cart/index`）：选中/数量/移除/结算，跳转确认订单（Token 保护）
 - 订单详情/列表：状态筛选、支付入口、退款与取消、申请/查看发票
+  - **确认收货**：当订单状态为 `shipped` 时，用户可在订单列表或详情页点击“确认收货”按钮，确认后订单状态变更为 `completed`。
+  - **物流信息展示**：在订单详情页（`/pages/order-detail/index`），支持查看物流公司、快递单号、发货单号与 SN 码；快递单号支持长按复制。
   - **发票状态实时更新**：在订单详情页（`/pages/order-detail/index`），支持发票状态实时刷新（`useDidShow`）。
   - **状态可视化**：通过颜色区分发票状态（已开具：绿色 `#07c160`、已取消：红色 `#ff4d4f`、已申请：橙色 `#faad14`）。
 - 申请发票（`/pages/invoice-request/index`）：
@@ -93,6 +96,8 @@
   - 税率由后端计算，前端无需传递 `tax_rate` 字段
 - 个人中心（`/pages/profile/index`）：资料展示与编辑、地址管理入口
 - 信用账户与账务（`/pages/credit-account`、`/pages/account-statements`、`/pages/statement-detail`）：额度、账期、对账单与交易明细
+  - 账期规则：固定月度账期，正常 `30` 天；采购的应付日期为“交易日 + 账期天数”所在月份的最后一天。
+  - 对账明细中的“应付日期/付款状态”与后端同步，逾期状态按天更新。
 
 ## 页面交互流程
 - 登录与鉴权：

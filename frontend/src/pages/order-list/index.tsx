@@ -99,6 +99,23 @@ export default function OrderList() {
     Taro.navigateTo({ url: `/pages/order-detail/index?id=${id}` })
   }
 
+  const handleConfirmReceipt = async (id: number) => {
+    const res = await Taro.showModal({
+      title: '提示',
+      content: '确认已收到商品？'
+    })
+
+    if (res.confirm) {
+      try {
+        await orderService.confirmReceipt(id)
+        Taro.showToast({ title: '确认收货成功', icon: 'success' })
+        loadOrders(1)
+      } catch (error) {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    }
+  }
+
   const onLoadMore = () => {
     if (hasMore && !loading) {
       loadOrders(page + 1)
@@ -175,6 +192,19 @@ export default function OrderList() {
                       onClick={(e) => handlePayOrder(e, order.id)}
                     >
                       立即支付
+                    </View>
+                  </View>
+                )}
+                {order.status === 'shipped' && (
+                  <View className='order-actions'>
+                    <View
+                      className='confirm-btn'
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleConfirmReceipt(order.id)
+                      }}
+                    >
+                      确认收货
                     </View>
                   </View>
                 )}

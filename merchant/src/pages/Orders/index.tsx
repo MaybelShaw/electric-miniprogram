@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { ProTable, ProDescriptions } from '@ant-design/pro-components';
+import { ProTable, ProDescriptions, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined } from '@ant-design/icons';
 import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics } from '@/services/api';
@@ -27,14 +27,25 @@ export default function Orders() {
   const [logisticsModalVisible, setLogisticsModalVisible] = useState(false);
   const [logisticsData, setLogisticsData] = useState<any>(null);
   const [loadingLogistics, setLoadingLogistics] = useState(false);
+  const [shipModalVisible, setShipModalVisible] = useState(false);
+  const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
 
-  const handleShip = async (id: number) => {
+  const handleShip = (record: Order) => {
+    setShippingOrder(record);
+    setShipModalVisible(true);
+  };
+
+  const handleShipSubmit = async (values: any) => {
     try {
-      await shipOrder(id);
+      if (!shippingOrder) return false;
+      await shipOrder(shippingOrder.id, values);
       message.success('发货成功');
+      setShipModalVisible(false);
       actionRef.current?.reload();
-    } catch (error) {
-      message.error('操作失败');
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '操作失败');
+      return false;
     }
   };
 
@@ -275,19 +286,15 @@ export default function Orders() {
         
         if (record.status === 'paid') {
           actions.push(
-            <Popconfirm
+            <Button
               key="ship"
-              title="确认发货?"
-              onConfirm={() => handleShip(record.id)}
+              type="link"
+              size="small"
+              icon={<SendOutlined />}
+              onClick={() => handleShip(record)}
             >
-              <Button
-                type="link"
-                size="small"
-                icon={<SendOutlined />}
-              >
-                发货
-              </Button>
-            </Popconfirm>
+              发货
+            </Button>
           );
         }
         
@@ -586,6 +593,33 @@ export default function Orders() {
           </div>
         )}
       </Modal>
+
+      <ModalForm
+        title="发货"
+        open={shipModalVisible}
+        onOpenChange={setShipModalVisible}
+        onFinish={handleShipSubmit}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+      >
+        <ProFormText
+          name="logistics_company"
+          label="物流公司"
+          placeholder="请输入物流公司"
+        />
+        <ProFormText
+          name="tracking_number"
+          label="快递单号"
+          placeholder="请输入快递单号"
+          rules={[{ required: true, message: '请输入快递单号' }]}
+        />
+        <ProFormText
+          name="note"
+          label="备注"
+          placeholder="选填"
+        />
+      </ModalForm>
     </>
   );
 }

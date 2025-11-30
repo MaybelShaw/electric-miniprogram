@@ -116,6 +116,34 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/invoice-request/index?id=${order.id}` })
   }
 
+  const handleCopy = (text: string) => {
+    Taro.setClipboardData({
+      data: text,
+      success: () => {
+        Taro.showToast({ title: '复制成功', icon: 'success' })
+      }
+    })
+  }
+
+  const handleConfirmReceipt = async () => {
+    if (!order) return
+
+    const res = await Taro.showModal({
+      title: '提示',
+      content: '确认已收到商品？'
+    })
+
+    if (res.confirm) {
+      try {
+        await orderService.confirmReceipt(order.id)
+        Taro.showToast({ title: '确认收货成功', icon: 'success' })
+        loadOrderDetail(order.id)
+      } catch (error) {
+        Taro.showToast({ title: '操作失败', icon: 'none' })
+      }
+    }
+  }
+
   if (loading) {
     return (
       <View className='order-detail loading'>
@@ -146,6 +174,39 @@ export default function OrderDetail() {
           </View>
           <View className='status-text'>{getOrderStatusText(order.status)}</View>
         </View>
+
+        {/* 物流信息 */}
+        {order.logistics_info && (
+          <View className='info-card'>
+            {order.logistics_info.logistics_company ? (
+              <View className='info-row'>
+                <Text className='info-label'>物流公司</Text>
+                <Text className='info-value'>{order.logistics_info.logistics_company}</Text>
+              </View>
+            ) : null}
+            {order.logistics_info.logistics_no ? (
+              <View className='info-row'>
+                <Text className='info-label'>快递单号</Text>
+                <View className='info-right'>
+                  <Text className='info-value' userSelect>{order.logistics_info.logistics_no}</Text>
+                  <View className='copy-tag' onClick={() => handleCopy(order.logistics_info?.logistics_no || '')}>复制</View>
+                </View>
+              </View>
+            ) : null}
+            {order.logistics_info.delivery_record_code ? (
+               <View className='info-row'>
+                <Text className='info-label'>发货单号</Text>
+                <Text className='info-value'>{order.logistics_info.delivery_record_code}</Text>
+              </View>
+            ) : null}
+             {order.logistics_info.sn_code ? (
+               <View className='info-row'>
+                <Text className='info-label'>SN码</Text>
+                <Text className='info-value'>{order.logistics_info.sn_code}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
 
         {/* 收货地址 */}
         {order.snapshot_address && (
@@ -251,14 +312,23 @@ export default function OrderDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      {order.status === 'pending' && (
+      {(order.status === 'pending' || order.status === 'shipped') && (
         <View className='footer-bar'>
-          <View className='cancel-btn' onClick={handleCancelOrder}>
-            取消订单
-          </View>
-          <View className='pay-btn' onClick={handlePay}>
-            {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
-          </View>
+          {order.status === 'pending' && (
+            <>
+              <View className='cancel-btn' onClick={handleCancelOrder}>
+                取消订单
+              </View>
+              <View className='pay-btn' onClick={handlePay}>
+                {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
+              </View>
+            </>
+          )}
+          {order.status === 'shipped' && (
+            <View className='confirm-btn' onClick={handleConfirmReceipt}>
+              确认收货
+            </View>
+          )}
         </View>
       )}
     </View>

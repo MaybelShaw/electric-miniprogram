@@ -212,6 +212,26 @@
         word-break: break-all;
         font-family: 'DIN Alternate', sans-serif;
       }
+
+      .info-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 1;
+        
+        .info-value {
+          margin-right: 12rpx;
+        }
+        
+        .copy-tag {
+          font-size: 20rpx;
+          color: #1989FA;
+          background: rgba(25, 137, 250, 0.1);
+          padding: 4rpx 12rpx;
+          border-radius: 8rpx;
+          line-height: 1.2;
+        }
+      }
     }
   }
 

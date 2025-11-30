@@ -4,8 +4,12 @@ Credit account service layer for business logic
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, date
 from .models import CreditAccount, AccountStatement, AccountTransaction
+
+
+def _last_day_of_month(d: date) -> date:
+    return ((d.replace(day=28) + timedelta(days=4)).replace(day=1)) - timedelta(days=1)
 
 
 class CreditAccountService:
@@ -41,8 +45,8 @@ class CreditAccountService:
             credit_account.outstanding_debt += amount
             credit_account.save()
             
-            # Calculate due date
-            due_date = timezone.now().date() + timedelta(days=credit_account.payment_term_days)
+            target_date = timezone.now().date() + timedelta(days=credit_account.payment_term_days)
+            due_date = _last_day_of_month(target_date)
             
             # Create transaction record
             trans = AccountTransaction.objects.create(
@@ -155,7 +159,6 @@ class AccountStatementService:
             
             previous_balance = previous_statement.period_end_balance if previous_statement else Decimal('0.00')
             
-            # Get transactions in period
             transactions = AccountTransaction.objects.filter(
                 credit_account=credit_account,
                 created_at__date__gte=period_start,
@@ -177,21 +180,30 @@ class AccountStatementService:
             
             period_end_balance = previous_balance + current_purchases - current_payments - current_refunds
             
-            # Calculate due tracking
-            due_within_term = sum(
-                t.amount for t in transactions 
-                if t.transaction_type == 'purchase' and t.payment_status == 'unpaid'
-            ) or Decimal('0.00')
-            
-            paid_within_term = sum(
-                t.amount for t in transactions 
-                if t.transaction_type == 'purchase' and t.payment_status == 'paid'
-            ) or Decimal('0.00')
-            
-            overdue_amount = sum(
-                t.amount for t in transactions 
-                if t.transaction_type == 'purchase' and t.payment_status == 'overdue'
-            ) or Decimal('0.00')
+            due_qs = AccountTransaction.objects.filter(
+                credit_account=credit_account,
+                transaction_type='purchase',
+                payment_status='unpaid',
+                due_date__gte=period_start,
+                due_date__lte=period_end,
+            )
+            paid_qs = AccountTransaction.objects.filter(
+                credit_account=credit_account,
+                transaction_type='purchase',
+                payment_status='paid',
+                paid_date__gte=period_start,
+                paid_date__lte=period_end,
+            )
+            overdue_qs = AccountTransaction.objects.filter(
+                credit_account=credit_account,
+                transaction_type='purchase',
+                payment_status='overdue',
+                due_date__lte=period_end,
+            )
+
+            due_within_term = sum(t.amount for t in due_qs) or Decimal('0.00')
+            paid_within_term = sum(t.amount for t in paid_qs) or Decimal('0.00')
+            overdue_amount = sum(t.amount for t in overdue_qs) or Decimal('0.00')
             
             # Create statement
             statement = AccountStatement.objects.create(

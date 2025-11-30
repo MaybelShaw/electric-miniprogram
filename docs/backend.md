@@ -92,6 +92,16 @@
 - 订单与支付（`orders/`）：购物车、订单创建、状态机、支付与回调、折扣系统、数据分析
 - 第三方集成（`integrations/`）：海尔 API、易理货 API，对接认证与调用
 
+## 账期与对账
+- 固定账期：以月为单位，正常账期为 `30` 天；到期日以“月末”结算。
+- 到期日计算：以交易日加账期天数得到目标日期，实际应付日期为该目标日期所在月份的最后一天（`backend/users/credit_services.py:48`）。
+- 对账单生成：管理员在“账务对账单”中选择账期起止（建议选择某月 `1` 日至该月最后一天），系统汇总本期采购/付款/退款并计算期末未付。
+- 账期内统计：
+  - 账期内应付：到期日在账期内且未付款的采购金额（`backend/users/credit_services.py:183`）。
+  - 账期内已付：在账期内完成支付的采购金额（按采购记录的 `paid_date` 统计，`backend/users/credit_services.py:190`）。
+  - 逾期金额：到期日至账期末已逾期的采购金额（`backend/users/credit_services.py:197`）。
+- 逾期状态更新：每日根据应付日期更新逾期状态（`backend/users/credit_services.py:130`）。
+
 ## 主要 API 端点
 - 认证与用户（前缀 `/api/`）：
   - `POST /auth/wechat/` 微信登录（开发支持模拟）`backend/users/views.py:54`
@@ -112,7 +122,10 @@
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
   - `POST /orders/create_order/` 创建订单 `backend/orders/views.py:136`
   - `POST /orders/create_batch_orders/` 批量创建订单 `backend/orders/views.py:226`
-  - `PATCH /orders/{id}/cancel|ship|complete/` 状态流转 `backend/orders/views.py:313`
+  - `PATCH /orders/{id}/cancel|ship|complete|confirm_receipt/` 状态流转 `backend/orders/views.py:313`
+    - 发货请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰" }`（或使用 `logistics_no`/`company` 字段）。
+    - 发货校验：管理员必填快递单号；接口会写入订单物流信息后再流转到 `shipped`。
+    - 确认收货：订单所有者或管理员可调用 `PATCH /api/orders/{id}/confirm_receipt/`，可选请求体 `{ "note": "已收到" }`，成功后状态从 `shipped` 变为 `completed`，并记录状态历史（`backend/orders/views.py:379`）。
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`

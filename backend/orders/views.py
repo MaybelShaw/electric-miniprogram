@@ -355,6 +355,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
+            tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
+            logistics_company = request.data.get('logistics_company') or request.data.get('company') or ''
+            if not tracking_number:
+                return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+            order.logistics_no = tracking_number
+            order.logistics_company = logistics_company
+            order.save()
             order = OrderStateMachine.transition(
                 order,
                 'shipped',
@@ -391,6 +398,30 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": f"完成订单失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
+    def confirm_receipt(self, request, pk=None):
+        """确认收货：订单所有者或管理员可操作，状态从 shipped 转换到 completed"""
+        order = self.get_object()
+        user = request.user
+        if not (user.is_staff or order.user_id == user.id):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            from .state_machine import OrderStateMachine
+            note = request.data.get('note', '')
+            order = OrderStateMachine.transition(
+                order,
+                'completed',
+                operator=user,
+                note=note or '用户确认收货'
+            )
+            serializer = self.get_serializer(order)
+            return Response(serializer.data, status=200)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"确认收货失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def request_invoice(self, request, pk=None):

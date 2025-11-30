@@ -261,6 +261,22 @@
             box-shadow: 0 2rpx 6rpx rgba(238, 10, 36, 0.3);
           }
         }
+
+        .confirm-btn {
+          padding: 12rpx 36rpx;
+          background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
+          border-radius: 34rpx;
+          font-size: 26rpx;
+          color: #fff;
+          font-weight: 600;
+          box-shadow: 0 4rpx 12rpx rgba(25, 137, 250, 0.3);
+          transition: all 0.2s;
+
+          &:active {
+            transform: scale(0.96);
+            box-shadow: 0 2rpx 6rpx rgba(25, 137, 250, 0.3);
+          }
+        }
       }
     }
   }

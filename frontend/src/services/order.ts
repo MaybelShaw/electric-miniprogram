@@ -44,6 +44,11 @@ export const orderService = {
     return http.patch<Order>(`/orders/${id}/cancel/`)
   },
 
+  // 确认收货
+  async confirmReceipt(id: number): Promise<Order> {
+    return http.patch<Order>(`/orders/${id}/confirm_receipt/`)
+  },
+
   // 申请发票
   async requestInvoice(id: number, data: any): Promise<any> {
     return http.post(`/orders/${id}/request_invoice/`, data)

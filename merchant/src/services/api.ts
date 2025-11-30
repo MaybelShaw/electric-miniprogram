@@ -56,7 +56,7 @@ export const uploadImage = (file: File, productId?: number, fieldName?: string) 
 // 订单管理
 export const getOrders = (params?: any) => request.get('/orders/', { params });
 export const getOrder = (id: number) => request.get(`/orders/${id}/`);
-export const shipOrder = (id: number) => request.patch(`/orders/${id}/ship/`, {});
+export const shipOrder = (id: number, data?: any) => request.patch(`/orders/${id}/ship/`, data || {});
 export const completeOrder = (id: number) => request.patch(`/orders/${id}/complete/`, {});
 export const cancelOrder = (id: number) => request.patch(`/orders/${id}/cancel/`, {});
 export const pushToHaier = (id: number, data?: any) => request.post(`/orders/${id}/push_to_haier/`, data || {});

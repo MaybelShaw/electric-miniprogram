@@ -114,6 +114,13 @@ export interface Order {
   snapshot_address: string
   created_at: string
   updated_at: string
+  logistics_info?: {
+    logistics_company: string
+    logistics_no: string
+    delivery_record_code: string
+    sn_code: string
+    delivery_images: string[]
+  }
   invoice_info?: {
     id: number
     status: string

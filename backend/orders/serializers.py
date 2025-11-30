@@ -86,7 +86,14 @@ class OrderSerializer(serializers.ModelSerializer):
     
     def get_logistics_info(self, obj: Order):
         """获取物流信息"""
-        if not obj.logistics_company and not obj.logistics_no:
+        # 只要有任意一项物流相关信息，就返回字典，确保前端能展示已有信息
+        if not any([
+            obj.logistics_company, 
+            obj.logistics_no, 
+            obj.delivery_record_code, 
+            obj.sn_code,
+            obj.delivery_images
+        ]):
             return None
         
         return {
