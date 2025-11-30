@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Users from './pages/Users';
+import UserStats from './pages/UserStats';
 import Brands from './pages/Brands';
 import Categories from './pages/Categories';
 import Products from './pages/Products';
@@ -31,6 +32,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Navigate to="/users" replace />} />
                   <Route path="/users" element={<Users />} />
+                  <Route path="/user-stats" element={<UserStats />} />
                   <Route path="/brands" element={<Brands />} />
                   <Route path="/categories" element={<Categories />} />
                   <Route path="/products" element={<Products />} />

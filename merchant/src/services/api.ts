@@ -12,6 +12,10 @@ export const updateUser = (id: number, data: any) => request.patch(`/users/${id}
 export const deleteUser = (id: number) => request.delete(`/users/${id}/`);
 export const setAdmin = (id: number) => request.post(`/users/${id}/set_admin/`);
 export const unsetAdmin = (id: number) => request.post(`/users/${id}/unset_admin/`);
+export const getUserTransactionStats = (id: number, params?: any) => request.get(`/users/${id}/transaction_stats/`, { params });
+export const exportUserTransactionStats = (id: number, params?: any) => request.get(`/users/${id}/export_transaction_stats/`, { params, responseType: 'blob' });
+export const getCustomersTransactionStats = (params?: any) => request.get(`/users/customers_transaction_stats/`, { params });
+export const exportCustomersTransactionStats = (params?: any) => request.get(`/users/export_customers_transaction_stats/`, { params, responseType: 'blob' });
 
 // 品牌管理
 export const getBrands = (params?: any) => request.get('/brands/', { params });

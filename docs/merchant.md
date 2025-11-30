@@ -54,6 +54,19 @@
 
 ## 页面与操作流程
 - 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
+  - 统计功能已分离至独立页面“用户统计”
+- 用户统计：独立页面，采用现代化 ProCard 布局，通过顶部标签页切换查看“平台统计”或“用户统计”
+  - 平台统计：默认展示平台整体交易数据（按月/年），顶部提供关键指标卡片（总订单数、总交易金额），直观展示业务概况。
+  - 用户统计：提供用户搜索功能，支持通过用户名或手机号搜索并选择特定用户。选择用户后展示该用户的订单总数、收藏数、已完成订单数及交易趋势。
+  - 可视化增强：
+    - 订单数使用彩色标签（Tag）高亮显示
+    - 交易金额配备进度条（Progress），直观展示金额占比
+    - 表格底部自动计算本页总计
+  - 统计维度：支持按年/月切换，可选年份，可选是否包含“已支付未完成”订单
+  - 数据导出：点击“导出Excel”按钮，即可下载当前筛选条件下的统计报表
+  - API支持：
+    - 数据接口：`GET /api/users/{id}/transaction_stats/`、`GET /api/users/customers_transaction_stats/`
+    - Excel导出：`GET /api/users/{id}/export_transaction_stats/`、`GET /api/users/export_customers_transaction_stats/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
 - 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`

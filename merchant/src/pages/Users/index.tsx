@@ -44,7 +44,7 @@ export default function Users() {
         admin: { text: '管理员', status: 'Error' }
       },
       render: (role: string) => {
-        const roleMap = {
+        const roleMap: Record<string, { text: string; color: string }> = {
           individual: { text: '个人用户', color: 'default' },
           dealer: { text: '经销商', color: 'green' },
           admin: { text: '管理员', color: 'red' }
@@ -81,24 +81,6 @@ export default function Users() {
           }}
         />
       ),
-    },
-    { 
-      title: '订单数', 
-      dataIndex: 'orders_count',
-      hideInSearch: true,
-      width: 100,
-    },
-    { 
-      title: '收藏数', 
-      dataIndex: 'favorites_count',
-      hideInSearch: true,
-      width: 100,
-    },
-    { 
-      title: '已完成订单', 
-      dataIndex: 'completed_orders_count',
-      hideInSearch: true,
-      width: 120,
     },
     {
       title: '注册时间',

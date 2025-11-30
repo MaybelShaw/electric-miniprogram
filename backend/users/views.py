@@ -8,6 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from django.conf import settings
 from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction
+from orders.models import Order
+from django.db.models import Sum, Count
+from django.db.models.functions import TruncMonth, TruncYear
 from .serializers import (
     UserSerializer, 
     UserProfileSerializer, 
@@ -483,6 +486,325 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response(UserSerializer(user).data)
 
+    @action(detail=True, methods=['get'])
+    def transaction_stats(self, request, pk=None):
+        try:
+            period = request.query_params.get('period', 'month')
+            include_paid = request.query_params.get('include_paid', 'false')
+            include_paid = str(include_paid).lower() in ['true', '1']
+            year = request.query_params.get('year')
+            user_id = int(pk)
+        except Exception:
+            return Response({'detail': 'invalid parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Order.objects.filter(user_id=user_id)
+        statuses = ['completed']
+        if include_paid:
+            statuses.append('paid')
+        qs = qs.filter(status__in=statuses)
+        if year:
+            qs = qs.filter(created_at__year=year)
+
+        if period == 'year':
+            data = list(
+                qs.annotate(p=TruncYear('created_at'))
+                .values('p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('p')
+            )
+            result = [
+                {
+                    'period': d['p'].year if hasattr(d['p'], 'year') else str(d['p']),
+                    'orders': d['orders'] or 0,
+                    'amount': float(d['amount'] or 0)
+                } for d in data
+            ]
+            return Response(result)
+
+        data = list(
+            qs.annotate(p=TruncMonth('created_at'))
+            .values('p')
+            .annotate(orders=Count('id'), amount=Sum('total_amount'))
+            .order_by('p')
+        )
+        result = [
+            {
+                'period': d['p'].strftime('%Y-%m') if hasattr(d['p'], 'strftime') else str(d['p']),
+                'orders': d['orders'] or 0,
+                'amount': float(d['amount'] or 0)
+            } for d in data
+        ]
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def customers_transaction_stats(self, request):
+        if not request.user.is_staff:
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        period = request.query_params.get('period', 'month')
+        include_paid = request.query_params.get('include_paid', 'false')
+        include_paid = str(include_paid).lower() in ['true', '1']
+        year = request.query_params.get('year')
+        role = request.query_params.get('role')
+
+        qs = Order.objects.all()
+        statuses = ['completed']
+        if include_paid:
+            statuses.append('paid')
+        qs = qs.filter(status__in=statuses)
+        if year:
+            qs = qs.filter(created_at__year=year)
+        if role:
+            qs = qs.filter(user__role=role)
+
+        if period == 'year':
+            data = list(
+                qs.annotate(p=TruncYear('created_at'))
+                .values('user_id', 'user__username', 'p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('user_id', 'p')
+            )
+            result = [
+                {
+                    'user_id': d['user_id'],
+                    'username': d['user__username'],
+                    'period': d['p'].year if hasattr(d['p'], 'year') else str(d['p']),
+                    'orders': d['orders'] or 0,
+                    'amount': float(d['amount'] or 0)
+                } for d in data
+            ]
+            return Response(result)
+
+        data = list(
+            qs.annotate(p=TruncMonth('created_at'))
+            .values('user_id', 'user__username', 'p')
+            .annotate(orders=Count('id'), amount=Sum('total_amount'))
+            .order_by('user_id', 'p')
+        )
+        result = [
+            {
+                'user_id': d['user_id'],
+                'username': d['user__username'],
+                'period': d['p'].strftime('%Y-%m') if hasattr(d['p'], 'strftime') else str(d['p']),
+                'orders': d['orders'] or 0,
+                'amount': float(d['amount'] or 0)
+            } for d in data
+        ]
+        return Response(result)
+
+    @action(detail=True, methods=['get'])
+    def export_transaction_stats(self, request, pk=None):
+        from django.http import HttpResponse
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
+        try:
+            period = request.query_params.get('period', 'month')
+            include_paid = request.query_params.get('include_paid', 'false')
+            include_paid = str(include_paid).lower() in ['true', '1']
+            year = request.query_params.get('year')
+            user = self.get_object()
+        except Exception:
+            return Response({'detail': 'invalid parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        qs = Order.objects.filter(user_id=user.id)
+        statuses = ['completed']
+        if include_paid:
+            statuses.append('paid')
+        qs = qs.filter(status__in=statuses)
+        if year:
+            qs = qs.filter(created_at__year=year)
+
+        if period == 'year':
+            data = list(
+                qs.annotate(p=TruncYear('created_at'))
+                .values('p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('p')
+            )
+            rows = [
+                [
+                    (d['p'].year if hasattr(d['p'], 'year') else str(d['p'])),
+                    d['orders'] or 0,
+                    float(d['amount'] or 0)
+                ] for d in data
+            ]
+            header_text = '年份'
+        else:
+            data = list(
+                qs.annotate(p=TruncMonth('created_at'))
+                .values('p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('p')
+            )
+            rows = [
+                [
+                    (d['p'].strftime('%Y-%m') if hasattr(d['p'], 'strftime') else str(d['p'])),
+                    d['orders'] or 0,
+                    float(d['amount'] or 0)
+                ] for d in data
+            ]
+            header_text = '月份'
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = '交易统计'
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+        ws.merge_cells('A1:C1')
+        ws['A1'] = f"客户交易统计 - {user.username}"
+        ws['A1'].font = Font(size=16, bold=True)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        ws['A3'] = '统计维度'
+        ws['B3'] = '按年' if period == 'year' else '按月'
+        ws['A4'] = '筛选年份'
+        ws['B4'] = year or ''
+        ws['A5'] = '包含已支付未完成'
+        ws['B5'] = '是' if include_paid else '否'
+        headers = [header_text, '订单数', '交易金额']
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=7, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        start_row = 8
+        for i, row in enumerate(rows, start=start_row):
+            ws.cell(row=i, column=1, value=row[0])
+            ws.cell(row=i, column=2, value=row[1])
+            ws.cell(row=i, column=3, value=row[2])
+        if rows:
+            total_orders = sum(r[1] for r in rows)
+            total_amount = sum(r[2] for r in rows)
+            ws.cell(row=start_row + len(rows), column=1, value='总计')
+            ws.cell(row=start_row + len(rows), column=2, value=total_orders)
+            ws.cell(row=start_row + len(rows), column=3, value=float(total_amount))
+        for idx, col in enumerate(ws.columns, start=1):
+            max_length = 0
+            for cell in col:
+                try:
+                    if cell.value is not None and len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except Exception:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[get_column_letter(idx)].width = adjusted_width
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"user_{user.id}_transaction_stats_{period}"
+        if year:
+            filename += f"_{year}"
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        wb.save(response)
+        return response
+
+    @action(detail=False, methods=['get'])
+    def export_customers_transaction_stats(self, request):
+        from django.http import HttpResponse
+        import openpyxl
+        from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
+        if not request.user.is_staff:
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        period = request.query_params.get('period', 'month')
+        include_paid = request.query_params.get('include_paid', 'false')
+        include_paid = str(include_paid).lower() in ['true', '1']
+        year = request.query_params.get('year')
+        role = request.query_params.get('role')
+        qs = Order.objects.all()
+        statuses = ['completed']
+        if include_paid:
+            statuses.append('paid')
+        qs = qs.filter(status__in=statuses)
+        if year:
+            qs = qs.filter(created_at__year=year)
+        if role:
+            qs = qs.filter(user__role=role)
+        if period == 'year':
+            data = list(
+                qs.annotate(p=TruncYear('created_at'))
+                .values('user_id', 'user__username', 'p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('user_id', 'p')
+            )
+            rows = [
+                [
+                    d['user__username'],
+                    (d['p'].year if hasattr(d['p'], 'year') else str(d['p'])),
+                    d['orders'] or 0,
+                    float(d['amount'] or 0)
+                ] for d in data
+            ]
+            header_text = '年份'
+        else:
+            data = list(
+                qs.annotate(p=TruncMonth('created_at'))
+                .values('user_id', 'user__username', 'p')
+                .annotate(orders=Count('id'), amount=Sum('total_amount'))
+                .order_by('user_id', 'p')
+            )
+            rows = [
+                [
+                    d['user__username'],
+                    (d['p'].strftime('%Y-%m') if hasattr(d['p'], 'strftime') else str(d['p'])),
+                    d['orders'] or 0,
+                    float(d['amount'] or 0)
+                ] for d in data
+            ]
+            header_text = '月份'
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = '客户交易统计'
+        header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True)
+        ws.merge_cells('A1:D1')
+        ws['A1'] = '客户交易统计汇总'
+        ws['A1'].font = Font(size=16, bold=True)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        ws['A3'] = '统计维度'
+        ws['B3'] = '按年' if period == 'year' else '按月'
+        ws['A4'] = '筛选年份'
+        ws['B4'] = year or ''
+        ws['A5'] = '包含已支付未完成'
+        ws['B5'] = '是' if include_paid else '否'
+        headers = ['用户名', header_text, '订单数', '交易金额']
+        for col_idx, header in enumerate(headers, start=1):
+            cell = ws.cell(row=7, column=col_idx, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center')
+        start_row = 8
+        for i, row in enumerate(rows, start=start_row):
+            ws.cell(row=i, column=1, value=row[0])
+            ws.cell(row=i, column=2, value=row[1])
+            ws.cell(row=i, column=3, value=row[2])
+            ws.cell(row=i, column=4, value=row[3])
+        if rows:
+            total_orders = sum(r[2] for r in rows)
+            total_amount = sum(r[3] for r in rows)
+            ws.cell(row=start_row + len(rows), column=1, value='总计')
+            ws.cell(row=start_row + len(rows), column=3, value=total_orders)
+            ws.cell(row=start_row + len(rows), column=4, value=float(total_amount))
+        for idx, col in enumerate(ws.columns, start=1):
+            max_length = 0
+            for cell in col:
+                try:
+                    if cell.value is not None and len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except Exception:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[get_column_letter(idx)].width = adjusted_width
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"customers_transaction_stats_{period}"
+        if year:
+            filename += f"_{year}"
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        wb.save(response)
+        return response
+
 
 @extend_schema(tags=['Company Info'])
 class CompanyInfoViewSet(viewsets.ModelViewSet):
@@ -925,6 +1247,7 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         from django.http import HttpResponse
         import openpyxl
         from openpyxl.styles import Font, Alignment, PatternFill
+        from openpyxl.utils import get_column_letter
         
         statement = self.get_object()
         
@@ -995,17 +1318,16 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
             ws.cell(row=row_idx, column=9, value=transaction.description)
         
         # Adjust column widths
-        for col in ws.columns:
+        for idx, col in enumerate(ws.columns, start=1):
             max_length = 0
-            column = col[0].column_letter
             for cell in col:
                 try:
-                    if len(str(cell.value)) > max_length:
+                    if cell.value is not None and len(str(cell.value)) > max_length:
                         max_length = len(str(cell.value))
-                except:
+                except Exception:
                     pass
             adjusted_width = min(max_length + 2, 50)
-            ws.column_dimensions[column].width = adjusted_width
+            ws.column_dimensions[get_column_letter(idx)].width = adjusted_width
         
         # Save to response
         response = HttpResponse(
