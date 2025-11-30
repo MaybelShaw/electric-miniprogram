@@ -1,14 +1,14 @@
 .product-card {
   width: 330rpx;
   background: #fff;
-  border-radius: 12rpx;
+  border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
 
   &:active {
     transform: scale(0.98);
-    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
   }
 
   .product-image-wrapper {

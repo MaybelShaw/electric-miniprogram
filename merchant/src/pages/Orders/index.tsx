@@ -3,10 +3,11 @@ import { ProTable, ProDescriptions } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined } from '@ant-design/icons';
 import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics } from '@/services/api';
-import type { ActionType } from '@ant-design/pro-components';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
+import type { Order } from '@/services/types';
 
-const statusMap: any = {
+const statusMap: Record<string, { text: string; color: string }> = {
   pending: { text: '待支付', color: 'orange' },
   paid: { text: '已支付', color: 'blue' },
   shipped: { text: '已发货', color: 'cyan' },
@@ -19,7 +20,7 @@ const statusMap: any = {
 export default function Orders() {
   const actionRef = useRef<ActionType>();
   const [detailVisible, setDetailVisible] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState<any>(null);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [pushModalVisible, setPushModalVisible] = useState(false);
   const [pushForm] = Form.useForm();
   const [pushing, setPushing] = useState(false);
@@ -57,7 +58,7 @@ export default function Orders() {
     }
   };
 
-  const handleViewDetail = async (record: any) => {
+  const handleViewDetail = async (record: Order) => {
     try {
       const res: any = await getOrder(record.id);
       setCurrentOrder(res);
@@ -67,7 +68,7 @@ export default function Orders() {
     }
   };
 
-  const handlePushToHaier = (record: any) => {
+  const handlePushToHaier = (record: Order) => {
     setCurrentOrder(record);
     pushForm.setFieldsValue({
       source_system: 'MERCHANT_ADMIN',
@@ -80,10 +81,12 @@ export default function Orders() {
     try {
       const values = await pushForm.validateFields();
       setPushing(true);
-      await pushToHaier(currentOrder.id, values);
-      message.success('推送成功');
-      setPushModalVisible(false);
-      actionRef.current?.reload();
+      if (currentOrder) {
+        await pushToHaier(currentOrder.id, values);
+        message.success('推送成功');
+        setPushModalVisible(false);
+        actionRef.current?.reload();
+      }
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '推送失败');
     } finally {
@@ -91,7 +94,7 @@ export default function Orders() {
     }
   };
 
-  const handleViewLogistics = async (record: any) => {
+  const handleViewLogistics = async (record: Order) => {
     try {
       setLoadingLogistics(true);
       setLogisticsModalVisible(true);
@@ -105,7 +108,7 @@ export default function Orders() {
     }
   };
 
-  const columns: any = [
+  const columns: ProColumns<Order>[] = [
     { 
       title: '订单号', 
       dataIndex: 'order_number', 
@@ -140,7 +143,7 @@ export default function Orders() {
       dataIndex: 'total_amount', 
       hideInSearch: true, 
       width: 120,
-      render: (amount: number) => `¥${amount}`,
+      render: (amount) => `¥${amount}`,
     },
     {
       title: '状态',
@@ -156,7 +159,7 @@ export default function Orders() {
         refunding: { text: '退款中' },
         refunded: { text: '已退款' },
       },
-      render: (_: any, record: any) => {
+      render: (_, record) => {
         const status = statusMap[record.status];
         return <Tag color={status?.color}>{status?.text}</Tag>;
       },
@@ -166,7 +169,7 @@ export default function Orders() {
       dataIndex: 'is_haier_order',
       width: 100,
       hideInSearch: true,
-      render: (_: any, record: any) => {
+      render: (_, record) => {
         if (!record.is_haier_order) return <Tag>否</Tag>;
         const hasPushed = record.haier_order_info?.haier_so_id;
         return (
@@ -225,7 +228,7 @@ export default function Orders() {
       valueType: 'option',
       width: 280,
       fixed: 'right',
-      render: (_: any, record: any) => {
+      render: (_, record) => {
         const actions = [
           <Button
             key="view"

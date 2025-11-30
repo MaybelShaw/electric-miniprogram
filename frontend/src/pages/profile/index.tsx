@@ -200,20 +200,6 @@ export default function Profile() {
               </View>
               <Text className='arrow'>›</Text>
             </View>
-
-            <View className='menu-item' onTap={() => {
-              if (!user) {
-                Taro.showToast({ title: '请先登录', icon: 'none' })
-                return
-              }
-              Taro.navigateTo({ url: '/pages/debt-reconciliation/index' })
-            }}>
-              <View className='menu-left'>
-                <Text className='menu-icon'>📊</Text>
-                <Text className='menu-text'>欠款对账</Text>
-              </View>
-              <Text className='arrow'>›</Text>
-            </View>
           </>
         )}
       </View>

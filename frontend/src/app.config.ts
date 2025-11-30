@@ -36,19 +36,27 @@ export default defineAppConfig({
     list: [
       {
         pagePath: 'pages/home/index',
-        text: '首页'
+        text: '首页',
+        iconPath: 'assets/tabbar/home.png',
+        selectedIconPath: 'assets/tabbar/home-active.png'
       },
       {
         pagePath: 'pages/category/index',
-        text: '分类'
+        text: '分类',
+        iconPath: 'assets/tabbar/category.png',
+        selectedIconPath: 'assets/tabbar/category-active.png'
       },
       {
         pagePath: 'pages/cart/index',
-        text: '购物车'
+        text: '购物车',
+        iconPath: 'assets/tabbar/cart.png',
+        selectedIconPath: 'assets/tabbar/cart-active.png'
       },
       {
         pagePath: 'pages/profile/index',
-        text: '我的'
+        text: '我的',
+        iconPath: 'assets/tabbar/profile.png',
+        selectedIconPath: 'assets/tabbar/profile-active.png'
       }
     ]
   }

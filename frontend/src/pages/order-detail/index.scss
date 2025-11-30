@@ -1,7 +1,7 @@
 .order-detail {
   min-height: 100vh;
   background: #F7F8FA;
-  padding-bottom: 120rpx;
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 
   &.loading,
   &.error {
@@ -22,15 +22,43 @@
   }
 
   .status-card {
-    background: linear-gradient(135deg, #1989FA 0%, #0E6FD8 100%);
-    padding: 60rpx 30rpx;
+    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
+    padding: 40rpx 30rpx;
     text-align: center;
     color: #fff;
-    margin-bottom: 20rpx;
+    margin: 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 8rpx 24rpx rgba(25, 137, 250, 0.25);
+    transition: all 0.3s;
+
+    &.pending {
+      background: linear-gradient(135deg, #FF976A 0%, #FF6034 100%);
+      box-shadow: 0 8rpx 24rpx rgba(255, 96, 52, 0.25);
+    }
+
+    &.paid {
+      background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
+      box-shadow: 0 8rpx 24rpx rgba(25, 137, 250, 0.25);
+    }
+
+    &.shipped {
+      background: linear-gradient(135deg, #38f9d7 0%, #43e97b 100%);
+      box-shadow: 0 8rpx 24rpx rgba(67, 233, 123, 0.25);
+    }
+
+    &.completed {
+      background: linear-gradient(135deg, #07C160 0%, #00B26A 100%);
+      box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+    }
+
+    &.cancelled {
+      background: linear-gradient(135deg, #C8C9CC 0%, #969799 100%);
+      box-shadow: 0 8rpx 24rpx rgba(150, 151, 153, 0.25);
+    }
 
     .status-icon {
-      font-size: 100rpx;
-      margin-bottom: 20rpx;
+      font-size: 80rpx;
+      margin-bottom: 16rpx;
     }
 
     .status-text {
@@ -41,14 +69,17 @@
 
   .address-card {
     background: #fff;
-    padding: 30rpx;
-    margin-bottom: 20rpx;
+    padding: 32rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
     display: flex;
     align-items: flex-start;
 
     .address-icon {
       font-size: 40rpx;
-      margin-right: 20rpx;
+      margin-right: 24rpx;
+      color: #323233;
     }
 
     .address-content {
@@ -69,6 +100,7 @@
         .phone {
           font-size: 28rpx;
           color: #646566;
+          font-family: 'DIN Alternate', sans-serif;
         }
       }
 
@@ -82,8 +114,10 @@
 
   .product-card {
     background: #fff;
-    padding: 30rpx;
-    margin-bottom: 20rpx;
+    padding: 32rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .product-item {
       display: flex;
@@ -91,9 +125,10 @@
       .product-image {
         width: 160rpx;
         height: 160rpx;
-        border-radius: 12rpx;
-        margin-right: 20rpx;
+        border-radius: 16rpx;
+        margin-right: 24rpx;
         background: #F7F8FA;
+        object-fit: cover;
       }
 
       .product-info {
@@ -101,11 +136,13 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        padding: 4rpx 0;
 
         .product-name {
           font-size: 28rpx;
-          color: #323233;
-          line-height: 1.5;
+          color: #333;
+          line-height: 1.4;
+          font-weight: 500;
           display: -webkit-box;
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 2;
@@ -115,17 +152,25 @@
         .product-bottom {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-end;
 
           .product-price {
             font-size: 32rpx;
             font-weight: bold;
-            color: #FF6034;
+            color: #333;
+            font-family: 'DIN Alternate', sans-serif;
+            
+            &::before {
+              content: '¥';
+              font-size: 24rpx;
+              margin-right: 2rpx;
+            }
           }
 
           .product-quantity {
-            font-size: 28rpx;
+            font-size: 26rpx;
             color: #969799;
+            font-family: 'DIN Alternate', sans-serif;
           }
         }
       }
@@ -134,17 +179,24 @@
 
   .info-card {
     background: #fff;
-    padding: 30rpx;
-    margin-bottom: 20rpx;
+    padding: 32rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .info-row {
       display: flex;
       justify-content: space-between;
-      padding: 20rpx 0;
-      border-bottom: 1rpx solid #EBEDF0;
+      padding: 24rpx 0;
+      border-bottom: 1rpx solid #f5f6f7;
 
       &:last-child {
         border-bottom: none;
+        padding-bottom: 0;
+      }
+      
+      &:first-child {
+        padding-top: 0;
       }
 
       .info-label {
@@ -158,19 +210,22 @@
         max-width: 400rpx;
         text-align: right;
         word-break: break-all;
+        font-family: 'DIN Alternate', sans-serif;
       }
     }
   }
 
   .price-card {
     background: #fff;
-    padding: 30rpx;
-    margin-bottom: 20rpx;
+    padding: 32rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .price-row {
       display: flex;
       justify-content: space-between;
-      padding: 20rpx 0;
+      padding: 16rpx 0;
 
       .price-label {
         font-size: 28rpx;
@@ -180,22 +235,31 @@
       .price-value {
         font-size: 28rpx;
         color: #323233;
+        font-family: 'DIN Alternate', sans-serif;
       }
 
       &.total {
-        border-top: 1rpx solid #EBEDF0;
-        padding-top: 30rpx;
+        border-top: 1rpx solid #f5f6f7;
+        padding-top: 24rpx;
+        margin-top: 16rpx;
 
         .price-label {
-          font-size: 32rpx;
+          font-size: 30rpx;
           font-weight: bold;
-          color: #323233;
+          color: #333;
         }
 
         .price-value {
           font-size: 36rpx;
           font-weight: bold;
-          color: #FF6034;
+          color: #333;
+          font-family: 'DIN Alternate', sans-serif;
+          
+          &::before {
+            content: '¥';
+            font-size: 26rpx;
+            margin-right: 2rpx;
+          }
         }
       }
     }
@@ -211,7 +275,8 @@
     left: 0;
     right: 0;
     height: 100rpx;
-    background: #fff;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: flex-end;

@@ -1,22 +1,44 @@
 .profile {
   min-height: 100vh;
-  background: #F5F5F5;
+  background: #F7F8FA;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
 
   .user-section {
     background: #fff;
+    margin: 24rpx;
     padding: 40rpx 30rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+
+    // Decorative background
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 200rpx;
+      height: 200rpx;
+      background: radial-gradient(circle at top right, rgba(25, 137, 250, 0.08), transparent 70%);
+      border-radius: 0 24rpx 0 100%;
+    }
 
     .user-info {
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: relative;
+      z-index: 1;
 
       .avatar {
-        width: 120rpx;
-        height: 120rpx;
+        width: 140rpx;
+        height: 140rpx;
         border-radius: 50%;
         background: #F0F0F0;
-        margin-bottom: 20rpx;
+        margin-bottom: 24rpx;
+        border: 4rpx solid #fff;
+        box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
       }
 
       .user-details {
@@ -25,29 +47,28 @@
         align-items: center;
 
         .username {
-          font-size: 32rpx;
+          font-size: 36rpx;
           font-weight: bold;
           color: #323233;
-          margin-bottom: 8rpx;
+          margin-bottom: 12rpx;
         }
 
         .company-name {
           display: flex;
           align-items: center;
-          padding: 6rpx 16rpx;
-          background: #f0f9ff;
-          border-radius: 12rpx;
-          border: 1px solid #bae7ff;
-
+          padding: 8rpx 20rpx;
+          background: linear-gradient(135deg, #E6F7FF 0%, #BAE7FF 100%);
+          border-radius: 24rpx;
+          
           .company-icon {
             font-size: 24rpx;
-            margin-right: 6rpx;
+            margin-right: 8rpx;
           }
 
           .company-text {
             font-size: 24rpx;
-            color: #1890ff;
-            font-weight: 500;
+            color: #096DD9;
+            font-weight: 600;
           }
         }
       }
@@ -57,35 +78,47 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      padding: 20rpx 0;
 
       .avatar {
-        width: 120rpx;
-        height: 120rpx;
+        width: 140rpx;
+        height: 140rpx;
         border-radius: 50%;
         background: #F0F0F0;
-        margin-bottom: 20rpx;
+        margin-bottom: 24rpx;
+        opacity: 0.8;
       }
 
       .login-text {
-        font-size: 28rpx;
+        font-size: 30rpx;
         color: #323233;
+        font-weight: 500;
+        padding: 12rpx 40rpx;
+        background: #fff;
+        border: 2rpx solid #EBEDF0;
+        border-radius: 32rpx;
+        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
       }
     }
   }
 
   .order-section {
     background: #fff;
-    margin: 20rpx 0 0 0;
+    margin: 24rpx;
     padding: 30rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 30rpx;
+      padding-bottom: 20rpx;
+      border-bottom: 1rpx solid #F7F8FA;
 
       .section-title {
-        font-size: 32rpx;
+        font-size: 30rpx;
         font-weight: bold;
         color: #323233;
       }
@@ -93,6 +126,7 @@
       .view-all {
         display: flex;
         align-items: center;
+        padding: 8rpx 0;
         
         .view-all-text {
           font-size: 26rpx;
@@ -100,9 +134,10 @@
         }
 
         .arrow {
-          font-size: 32rpx;
+          font-size: 24rpx;
           color: #969799;
           margin-left: 4rpx;
+          margin-top: 2rpx;
         }
       }
     }
@@ -117,24 +152,32 @@
         flex-direction: column;
         align-items: center;
         flex: 1;
+        position: relative;
+
+        &:active {
+          opacity: 0.7;
+        }
 
         .order-icon-wrapper {
-          width: 80rpx;
-          height: 80rpx;
+          width: 88rpx;
+          height: 88rpx;
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 12rpx;
+          margin-bottom: 16rpx;
+          background: #F7F8FA;
+          border-radius: 24rpx;
+          transition: all 0.3s;
 
           .order-icon {
-            font-size: 48rpx;
+            font-size: 44rpx;
           }
         }
 
         .order-text {
           display: block;
           font-size: 24rpx;
-          color: #646566;
+          color: #323233;
           text-align: center;
           line-height: 1.3;
         }
@@ -144,14 +187,27 @@
 
   .menu-section {
     background: #fff;
-    margin: 20rpx 0 0 0;
+    margin: 24rpx;
     padding: 0 30rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .menu-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 30rpx 0;
+      padding: 32rpx 0;
+      border-bottom: 1rpx solid #F7F8FA;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:active {
+        background-color: #F7F8FA;
+        margin: 0 -30rpx;
+        padding: 32rpx 30rpx;
+      }
 
       .menu-left {
         display: flex;
@@ -159,61 +215,67 @@
 
         .menu-icon {
           font-size: 40rpx;
-          margin-right: 20rpx;
+          margin-right: 24rpx;
+          width: 48rpx;
+          text-align: center;
         }
 
         .menu-text {
           font-size: 28rpx;
           color: #323233;
+          font-weight: 500;
         }
 
         .badge {
-          margin-left: 12rpx;
-          padding: 4rpx 12rpx;
-          border-radius: 8rpx;
+          margin-left: 16rpx;
+          padding: 4rpx 16rpx;
+          border-radius: 20rpx;
           font-size: 20rpx;
-          font-weight: 500;
+          font-weight: 600;
 
           &.success {
-            background: #f6ffed;
-            color: #52c41a;
+            background: #F6FFED;
+            color: #52C41A;
+            border: 1rpx solid #B7EB8F;
           }
 
           &.warning {
-            background: #fff7e6;
-            color: #fa8c16;
+            background: #FFF7E6;
+            color: #FA8C16;
+            border: 1rpx solid #FFD591;
           }
         }
       }
 
       .arrow {
-        font-size: 32rpx;
-        color: #969799;
+        font-size: 24rpx;
+        color: #C8C9CC;
       }
     }
   }
 
   .logout-section {
-    padding: 40rpx 30rpx;
-    padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+    padding: 0 24rpx;
+    margin-top: 40rpx;
 
     .logout-button {
       width: 100%;
       height: 88rpx;
       background: #fff;
       color: #EE0A24;
-      font-size: 32rpx;
+      font-size: 30rpx;
       font-weight: 600;
       border-radius: 44rpx;
-      border: 2rpx solid #EBEDF0;
+      border: none;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
+      box-shadow: 0 4rpx 16rpx rgba(238, 10, 36, 0.08);
 
       &:active {
         background: #F7F8FA;
-        border-color: #EE0A24;
+        transform: scale(0.99);
       }
     }
   }

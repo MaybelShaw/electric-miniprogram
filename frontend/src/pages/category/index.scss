@@ -6,6 +6,7 @@
   .category-sidebar {
     width: 180rpx;
     background: #F7F8FA;
+    flex-shrink: 0;
 
     .category-item {
       height: 100rpx;
@@ -16,11 +17,13 @@
       color: #646566;
       background: #F7F8FA;
       position: relative;
+      transition: all 0.3s;
 
       &.active {
         background: #fff;
         color: #1989FA;
         font-weight: bold;
+        border-radius: 24rpx 0 0 24rpx;
 
         &::before {
           content: '';
@@ -28,8 +31,8 @@
           left: 0;
           top: 50%;
           transform: translateY(-50%);
-          width: 6rpx;
-          height: 40rpx;
+          width: 8rpx;
+          height: 32rpx;
           background: #1989FA;
           border-radius: 0 4rpx 4rpx 0;
         }
@@ -41,59 +44,92 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: #F7F8FA;
+    overflow: hidden;
 
     .sort-bar {
       display: flex;
       align-items: center;
       height: 88rpx;
-      padding: 0 30rpx;
-      border-bottom: 1rpx solid #EBEDF0;
+      padding: 0 24rpx;
+      background: #fff;
+      border-radius: 0 0 24rpx 24rpx;
+      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
+      flex-shrink: 0;
+      z-index: 10;
 
       .sort-item {
         flex: 1;
         text-align: center;
         font-size: 28rpx;
         color: #646566;
+        position: relative;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         &.active {
           color: #1989FA;
           font-weight: bold;
+
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40rpx;
+            height: 4rpx;
+            background: #1989FA;
+            border-radius: 2rpx;
+          }
         }
       }
     }
 
     .product-scroll {
       flex: 1;
+      height: 0; // Important for flex column scrolling
     }
 
     .product-list {
-      padding: 20rpx 30rpx;
+      padding: 24rpx;
 
       .product-item {
         display: flex;
-        padding: 20rpx 0;
-        border-bottom: 1rpx solid #EBEDF0;
+        padding: 24rpx;
+        background: #fff;
+        border-radius: 24rpx;
+        margin-bottom: 24rpx;
+        box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+        transition: all 0.3s;
+
+        &:active {
+          transform: scale(0.98);
+        }
 
         .product-image {
           width: 180rpx;
           height: 180rpx;
-          border-radius: 8rpx;
+          border-radius: 16rpx;
           background: #F7F8FA;
           flex-shrink: 0;
         }
 
         .product-info {
           flex: 1;
-          margin-left: 20rpx;
+          margin-left: 24rpx;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
+          height: 180rpx;
 
           .product-name {
             font-size: 28rpx;
             color: #323233;
-            line-height: 1.5;
+            line-height: 1.4;
+            font-weight: 500;
             overflow: hidden;
             text-overflow: ellipsis;
             display: -webkit-box;
@@ -102,24 +138,29 @@
           }
 
           .product-brand {
-            font-size: 24rpx;
-            color: #969799;
+            font-size: 22rpx;
+            color: #1989FA;
+            background: rgba(25, 137, 250, 0.08);
+            padding: 4rpx 12rpx;
+            border-radius: 8rpx;
+            align-self: flex-start;
             margin-top: 8rpx;
           }
 
           .product-bottom {
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-end;
 
             .product-price {
-              font-size: 32rpx;
+              font-size: 36rpx;
               font-weight: bold;
               color: #FF6034;
+              font-family: DIN;
             }
 
             .product-sales {
-              font-size: 24rpx;
+              font-size: 22rpx;
               color: #969799;
             }
           }
@@ -129,8 +170,8 @@
 
     .loading-text {
       text-align: center;
-      padding: 30rpx 0;
-      font-size: 26rpx;
+      padding: 20rpx 0 40rpx;
+      font-size: 24rpx;
       color: #969799;
     }
   }

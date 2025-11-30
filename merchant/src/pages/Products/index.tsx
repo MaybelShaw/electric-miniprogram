@@ -3,16 +3,17 @@ import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormS
 import { Tag, Image, Button, Popconfirm, message, Form, Alert, Descriptions } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct } from '@/services/api';
-import type { ActionType } from '@ant-design/pro-components';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
+import type { Product, Brand, Category } from '@/services/types';
 
 export default function Products() {
   const actionRef = useRef<ActionType>();
-  const [brands, setBrands] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<Product | null>(null);
   const [form] = Form.useForm();
 
   // 加载品牌和分类数据用于筛选
@@ -38,14 +39,14 @@ export default function Products() {
     loadFilters();
   }, []);
 
-  const columns: any = [
+  const columns: ProColumns<Product>[] = [
     {
       title: '主图',
       dataIndex: 'main_images',
       hideInSearch: true,
       width: 80,
-      render: (images: string[]) => 
-        images?.[0] ? <Image src={images[0]} width={50} height={50} style={{ objectFit: 'cover' }} /> : '-',
+      render: (_, record) => 
+        record.main_images?.[0] ? <Image src={record.main_images[0]} width={50} height={50} style={{ objectFit: 'cover' }} /> : '-',
     },
     { 
       title: '产品名称', 
@@ -67,7 +68,7 @@ export default function Products() {
         showSearch: true,
         placeholder: '请选择品牌',
       },
-      valueEnum: brands.reduce((acc: any, item: any) => {
+      valueEnum: brands.reduce((acc: Record<string, { text: string }>, item) => {
         acc[item.name] = { text: item.name };
         return acc;
       }, {}),
@@ -87,7 +88,7 @@ export default function Products() {
         local: { text: '本地', status: 'Default' },
         haier: { text: '海尔', status: 'Processing' },
       },
-      render: (_: any, record: any) => (
+      render: (_, record) => (
         <Tag color={record.source === 'haier' ? 'blue' : 'default'}>
           {record.source === 'haier' ? '海尔' : '本地'}
         </Tag>
@@ -102,7 +103,7 @@ export default function Products() {
         showSearch: true,
         placeholder: '请选择分类',
       },
-      valueEnum: categories.reduce((acc: any, item: any) => {
+      valueEnum: categories.reduce((acc: Record<string, { text: string }>, item) => {
         acc[item.name] = { text: item.name };
         return acc;
       }, {}),
@@ -112,7 +113,7 @@ export default function Products() {
       dataIndex: 'price', 
       hideInSearch: true,
       width: 100,
-      render: (price: number) => `¥${price}`,
+      render: (price) => `¥${price}`,
     },
     { 
       title: '最低价格',
@@ -139,8 +140,8 @@ export default function Products() {
       dataIndex: 'stock', 
       hideInSearch: true,
       width: 100,
-      render: (stock: number) => (
-        <Tag color={stock > 0 ? 'green' : 'red'}>{stock}</Tag>
+      render: (stock) => (
+        <Tag color={Number(stock) > 0 ? 'green' : 'red'}>{stock}</Tag>
       ),
     },
     {
@@ -152,7 +153,7 @@ export default function Products() {
         true: { text: '上架', status: 'Success' },
         false: { text: '下架', status: 'Error' },
       },
-      render: (_: any, record: any) => (
+      render: (_, record) => (
         <Tag color={record.is_active ? 'green' : 'red'}>
           {record.is_active ? '上架' : '下架'}
         </Tag>
@@ -176,7 +177,7 @@ export default function Products() {
       valueType: 'option',
       width: 180,
       fixed: 'right',
-      render: (_: any, record: any) => [
+      render: (_, record) => [
         <Button
           key="edit"
           type="link"
@@ -204,7 +205,7 @@ export default function Products() {
     },
   ];
 
-  const handleEdit = async (record: any) => {
+  const handleEdit = async (record: Product) => {
     try {
       // 获取完整的产品信息
       const res: any = await getProduct(record.id);
@@ -212,6 +213,7 @@ export default function Products() {
       
       // 先打开模态框
       setModalVisible(true);
+
       
       // 延迟设置表单值，确保模态框已渲染
       setTimeout(() => {

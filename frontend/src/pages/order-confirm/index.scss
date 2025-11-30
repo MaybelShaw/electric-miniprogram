@@ -1,6 +1,6 @@
 .order-confirm {
   min-height: 100vh;
-  background: #F5F5F5;
+  background: #F7F8FA;
   display: flex;
   flex-direction: column;
 
@@ -17,48 +17,75 @@
   .content {
     flex: 1;
     padding-bottom: 200rpx;
+    padding-top: 24rpx;
   }
 
   // 收货地址卡片
   .address-card {
     background: #fff;
-    margin: 20rpx 24rpx;
+    margin: 0 24rpx 24rpx;
     padding: 32rpx 24rpx;
-    border-radius: 16rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
     display: flex;
-    align-items: flex-start;
-    gap: 20rpx;
+    align-items: center;
+    gap: 24rpx;
+    transition: all 0.3s;
+
+    &:active {
+      transform: scale(0.99);
+    }
 
     .address-icon {
+      width: 80rpx;
+      height: 80rpx;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #EBF4FF 0%, #F0F7FF 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 40rpx;
-      line-height: 1;
+      flex-shrink: 0;
+      color: #3D7EFF;
     }
 
     .address-content {
       flex: 1;
+      min-width: 0; /* Prevent overflow */
 
       .address-header {
         display: flex;
         align-items: center;
         gap: 20rpx;
         margin-bottom: 12rpx;
+        flex-wrap: wrap;
 
         .contact-name {
           font-size: 32rpx;
-          font-weight: 600;
+          font-weight: bold;
           color: #323233;
+          max-width: 300rpx;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .phone {
           font-size: 28rpx;
           color: #646566;
+          font-family: 'DIN Alternate', sans-serif;
         }
       }
 
       .address-detail {
         font-size: 26rpx;
         color: #646566;
-        line-height: 1.6;
+        line-height: 1.5;
+        word-break: break-all;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
       }
 
       .no-address-text {
@@ -69,30 +96,38 @@
     }
 
     .arrow-right {
-      font-size: 40rpx;
+      font-size: 32rpx;
       color: #C8C9CC;
-      line-height: 1;
+      flex-shrink: 0;
     }
   }
 
   // 商品卡片
   .product-card {
     background: #fff;
-    margin: 20rpx 24rpx;
-    border-radius: 16rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
     overflow: hidden;
+    padding: 8rpx 0;
 
     .product-item {
       padding: 24rpx;
       display: flex;
-      gap: 20rpx;
+      gap: 24rpx;
+      border-bottom: 1rpx solid #F7F8FA;
+
+      &:last-child {
+        border-bottom: none;
+      }
 
       .product-image {
         width: 160rpx;
         height: 160rpx;
-        border-radius: 12rpx;
+        border-radius: 16rpx;
         background: #F7F8FA;
         flex-shrink: 0;
+        object-fit: cover;
       }
 
       .product-info {
@@ -100,11 +135,13 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        height: 160rpx;
 
         .product-name {
           font-size: 28rpx;
           color: #323233;
-          line-height: 1.5;
+          line-height: 1.4;
+          font-weight: 500;
           display: -webkit-box;
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 2;
@@ -114,6 +151,10 @@
         .product-spec {
           font-size: 24rpx;
           color: #969799;
+          background: #F7F8FA;
+          padding: 4rpx 12rpx;
+          border-radius: 8rpx;
+          align-self: flex-start;
           margin-top: 8rpx;
         }
 
@@ -121,7 +162,6 @@
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          margin-top: 12rpx;
 
           .product-price {
             display: flex;
@@ -131,57 +171,63 @@
             .price-symbol {
               font-size: 24rpx;
               color: #FF6034;
-              font-weight: 600;
+              font-weight: bold;
             }
 
             .price-value {
               font-size: 36rpx;
               color: #FF6034;
-              font-weight: 600;
+              font-weight: bold;
+              font-family: 'DIN Alternate', sans-serif;
             }
           }
 
           .quantity-text {
-            font-size: 28rpx;
+            font-size: 26rpx;
             color: #969799;
+            background: #F7F8FA;
+            padding: 4rpx 16rpx;
+            border-radius: 20rpx;
+            font-family: 'DIN Alternate', sans-serif;
           }
         }
       }
     }
-
   }
 
   // 支付方式卡片
   .payment-card {
     background: #fff;
-    margin: 20rpx 24rpx;
-    padding: 24rpx;
-    border-radius: 16rpx;
+    margin: 0 24rpx 24rpx;
+    padding: 32rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
     .payment-label {
-      font-size: 28rpx;
-      color: #646566;
+      font-size: 30rpx;
+      font-weight: bold;
+      color: #323233;
       display: block;
-      margin-bottom: 20rpx;
+      margin-bottom: 24rpx;
     }
 
     .payment-options {
       display: flex;
       flex-direction: column;
-      gap: 16rpx;
+      gap: 20rpx;
     }
 
     .payment-option {
       display: flex;
       align-items: center;
-      gap: 16rpx;
-      padding: 20rpx;
+      gap: 20rpx;
+      padding: 24rpx;
       border: 2rpx solid #EBEDF0;
-      border-radius: 12rpx;
+      border-radius: 16rpx;
       transition: all 0.3s;
 
       &.active {
-        border-color: #1989FA;
+        border-color: #3D7EFF;
         background: #F0F9FF;
       }
 
@@ -194,29 +240,32 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        transition: all 0.2s;
 
         .radio-dot {
           width: 20rpx;
           height: 20rpx;
-          background: #1989FA;
+          background: #3D7EFF;
           border-radius: 50%;
         }
       }
 
       &.active .option-radio {
-        border-color: #1989FA;
+        border-color: #3D7EFF;
+        background: #fff;
       }
 
       .option-content {
         flex: 1;
         display: flex;
         flex-direction: column;
-        gap: 4rpx;
+        gap: 8rpx;
       }
 
       .option-text {
         font-size: 28rpx;
         color: #323233;
+        font-weight: 500;
       }
 
       .option-hint {
@@ -229,16 +278,18 @@
   // 备注卡片
   .note-card {
     background: #fff;
-    margin: 20rpx 24rpx;
-    padding: 24rpx;
-    border-radius: 16rpx;
+    margin: 0 24rpx 24rpx;
+    padding: 32rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    gap: 24rpx;
 
     .note-label {
-      font-size: 28rpx;
-      color: #646566;
+      font-size: 30rpx;
+      font-weight: bold;
+      color: #323233;
       width: 80rpx;
       flex-shrink: 0;
     }
@@ -247,10 +298,11 @@
       flex: 1;
       font-size: 28rpx;
       color: #323233;
+      text-align: right;
     }
 
     .arrow-right {
-      font-size: 40rpx;
+      font-size: 32rpx;
       color: #C8C9CC;
     }
   }
@@ -265,14 +317,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: #fff;
-    padding: 16rpx 24rpx;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 16rpx 32rpx;
     padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
-    box-shadow: 0 -4rpx 12rpx rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20rpx;
+    gap: 24rpx;
     z-index: 100;
 
     .footer-left {
@@ -289,26 +342,32 @@
         }
 
         .total-price {
-          font-size: 36rpx;
-          font-weight: 600;
+          font-size: 44rpx;
+          font-weight: bold;
           color: #FF6034;
+          font-family: 'DIN Alternate', sans-serif;
         }
       }
     }
 
     .submit-btn {
-      padding: 24rpx 60rpx;
+      padding: 0 64rpx;
+      height: 88rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       background: linear-gradient(135deg, #FF6034 0%, #EE0A24 100%);
       color: #fff;
       font-size: 32rpx;
       font-weight: 600;
-      border-radius: 48rpx;
+      border-radius: 44rpx;
       white-space: nowrap;
-      box-shadow: 0 4rpx 12rpx rgba(255, 96, 52, 0.3);
+      box-shadow: 0 8rpx 24rpx rgba(238, 10, 36, 0.25);
+      transition: all 0.2s;
 
       &:active {
-        transform: scale(0.98);
-        opacity: 0.9;
+        transform: scale(0.96);
+        box-shadow: 0 4rpx 12rpx rgba(238, 10, 36, 0.2);
       }
     }
   }

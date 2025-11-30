@@ -136,7 +136,7 @@ export default function OrderDetail() {
     <View className='order-detail'>
       <ScrollView className='content' scrollY>
         {/* 订单状态 */}
-        <View className='status-card'>
+        <View className={`status-card ${order.status}`}>
           <View className='status-icon'>
             {order.status === 'pending' && '⏰'}
             {order.status === 'paid' && '✅'}
@@ -174,7 +174,7 @@ export default function OrderDetail() {
             <View className='product-info'>
               <View className='product-name'>{order.product.name}</View>
               <View className='product-bottom'>
-                <View className='product-price'>{formatPrice(order.product.price)}</View>
+                <View className='product-price'>{Number(order.product.price).toFixed(2)}</View>
                 <View className='product-quantity'>x{order.quantity}</View>
               </View>
             </View>
@@ -243,7 +243,7 @@ export default function OrderDetail() {
           </View>
           <View className='price-row total'>
             <Text className='price-label'>实付款</Text>
-            <Text className='price-value'>{formatPrice(order.total_amount)}</Text>
+            <Text className='price-value'>{Number(order.total_amount).toFixed(2)}</Text>
           </View>
         </View>
 

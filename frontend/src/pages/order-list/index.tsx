@@ -139,7 +139,7 @@ export default function OrderList() {
             <View key={order.id} className='order-item' onClick={() => goToDetail(order.id)}>
               <View className='order-header'>
                 <Text className='order-time'>{formatTime(order.created_at)}</Text>
-                <Text className='order-status'>{getOrderStatusText(order.status)}</Text>
+                <Text className={`order-status ${order.status}`}>{getOrderStatusText(order.status)}</Text>
               </View>
               <View className='order-content'>
                 <Image
@@ -150,7 +150,7 @@ export default function OrderList() {
                 <View className='product-info'>
                   <View className='product-name'>{order.product?.name || '商品'}</View>
                   <View className='product-bottom'>
-                    <View className='product-price'>{formatPrice(order.product?.price || '0')}</View>
+                    <View className='product-price'>{Number(order.product?.price || 0).toFixed(2)}</View>
                     <View className='product-quantity'>x{order.quantity || 0}</View>
                   </View>
                 </View>

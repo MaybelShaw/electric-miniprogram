@@ -59,11 +59,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           <View className='price-wrapper'>
             {discountPercent ? (
               <>
-                <Text className='current-price'>{formatPrice(product.discounted_price)}</Text>
+                <Text className='current-price'>{Number(product.discounted_price).toFixed(2)}</Text>
                 <Text className='original-price'>{formatPrice(product.price)}</Text>
               </>
             ) : (
-              <Text className='current-price'>{formatPrice(product.price)}</Text>
+              <Text className='current-price'>{Number(product.price).toFixed(2)}</Text>
             )}
           </View>
           <View className='sales-info'>

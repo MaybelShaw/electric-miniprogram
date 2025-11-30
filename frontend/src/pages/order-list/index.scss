@@ -7,20 +7,24 @@
   .tabs {
     display: flex;
     background: #fff;
-    padding: 0 30rpx;
-    border-bottom: 1rpx solid #EBEDF0;
+    padding: 0 10rpx;
+    border-bottom: 1rpx solid #f5f6f7;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
+    z-index: 10;
 
     .tab-item {
       flex: 1;
       text-align: center;
-      padding: 30rpx 0;
+      padding: 24rpx 0;
       font-size: 28rpx;
       color: #646566;
       position: relative;
+      transition: all 0.3s;
 
       &.active {
-        color: #1989FA;
-        font-weight: bold;
+        color: #333;
+        font-weight: 600;
+        font-size: 30rpx;
 
         &::after {
           content: '';
@@ -28,10 +32,10 @@
           bottom: 0;
           left: 50%;
           transform: translateX(-50%);
-          width: 60rpx;
-          height: 4rpx;
-          background: #1989FA;
-          border-radius: 2rpx;
+          width: 40rpx;
+          height: 6rpx;
+          background: linear-gradient(90deg, #3D7EFF, #1989FA);
+          border-radius: 3rpx;
         }
       }
     }
@@ -39,16 +43,22 @@
 
   .order-scroll {
     flex: 1;
+    padding: 24rpx 0;
+    box-sizing: border-box;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
   .empty {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding-top: 200rpx;
 
     .empty-text {
-      display: block;
       font-size: 28rpx;
       color: #969799;
+      margin-top: 20rpx;
     }
   }
 
@@ -65,63 +75,102 @@
 
     .retry-btn {
       display: inline-block;
-      padding: 20rpx 60rpx;
-      background: #1989FA;
+      padding: 16rpx 48rpx;
+      background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
       color: #fff;
       font-size: 28rpx;
       border-radius: 40rpx;
+      box-shadow: 0 4rpx 12rpx rgba(25, 137, 250, 0.3);
     }
   }
 
   .order-item {
     background: #fff;
-    margin: 20rpx 30rpx;
-    border-radius: 16rpx;
-    padding: 30rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    padding: 32rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    transition: all 0.3s;
+
+    &:active {
+      transform: scale(0.995);
+    }
 
     .order-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20rpx;
+      margin-bottom: 24rpx;
       padding-bottom: 20rpx;
-      border-bottom: 1rpx solid #EBEDF0;
+      border-bottom: 1rpx solid #f5f6f7;
 
       .order-time {
         font-size: 26rpx;
         color: #969799;
+        font-family: 'DIN Alternate', sans-serif;
       }
 
       .order-status {
-        font-size: 28rpx;
-        color: #FF6034;
-        font-weight: bold;
+        font-size: 26rpx;
+        font-weight: 600;
+        padding: 6rpx 16rpx;
+        border-radius: 8rpx;
+        background: #f5f5f5;
+        color: #999;
+
+        &.pending {
+          background: #fff7e6;
+          color: #fa8c16;
+        }
+
+        &.paid {
+          background: #e6f7ff;
+          color: #1890ff;
+        }
+
+        &.shipped {
+          background: #e6fffb;
+          color: #13c2c2;
+        }
+
+        &.completed {
+          background: #f6ffed;
+          color: #52c41a;
+        }
+
+        &.cancelled {
+          background: #f5f5f5;
+          color: #999;
+        }
       }
     }
 
     .order-content {
       display: flex;
-      margin-bottom: 20rpx;
+      margin-bottom: 24rpx;
 
       .product-image {
         width: 160rpx;
         height: 160rpx;
-        border-radius: 8rpx;
+        border-radius: 16rpx;
         background: #F7F8FA;
         flex-shrink: 0;
+        object-fit: cover;
       }
 
       .product-info {
         flex: 1;
-        margin-left: 20rpx;
+        margin-left: 24rpx;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        padding: 4rpx 0;
 
         .product-name {
           font-size: 28rpx;
-          color: #323233;
-          line-height: 1.5;
+          color: #333;
+          line-height: 1.4;
+          font-weight: 500;
           overflow: hidden;
           text-overflow: ellipsis;
           display: -webkit-box;
@@ -132,16 +181,25 @@
         .product-bottom {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-end;
 
           .product-price {
-            font-size: 28rpx;
-            color: #323233;
+            font-size: 32rpx;
+            color: #333;
+            font-weight: bold;
+            font-family: 'DIN Alternate', sans-serif;
+            
+            &::before {
+              content: '¥';
+              font-size: 24rpx;
+              margin-right: 2rpx;
+            }
           }
 
           .product-quantity {
             font-size: 26rpx;
             color: #969799;
+            font-family: 'DIN Alternate', sans-serif;
           }
         }
       }
@@ -152,47 +210,55 @@
       justify-content: space-between;
       align-items: center;
       padding-top: 20rpx;
-      border-top: 1rpx solid #EBEDF0;
+      border-top: 1rpx solid #f5f6f7;
 
       .total-amount {
         font-size: 26rpx;
         color: #646566;
+        display: flex;
+        align-items: baseline;
 
         .amount {
-          font-size: 32rpx;
+          font-size: 36rpx;
           font-weight: bold;
-          color: #FF6034;
+          color: #333;
+          margin-left: 8rpx;
+          font-family: 'DIN Alternate', sans-serif;
         }
       }
 
       .order-actions {
         display: flex;
-        gap: 16rpx;
+        gap: 20rpx;
 
         .cancel-btn {
           padding: 12rpx 32rpx;
-          border: 1rpx solid #EBEDF0;
-          border-radius: 40rpx;
+          border: 1rpx solid #dcdee0;
+          border-radius: 34rpx;
           font-size: 26rpx;
           color: #646566;
+          background: #fff;
           transition: all 0.2s;
 
           &:active {
-            background: #F7F8FA;
+            background: #f7f8fa;
+            color: #333;
           }
         }
 
         .pay-btn {
-          padding: 12rpx 32rpx;
+          padding: 12rpx 36rpx;
           background: linear-gradient(135deg, #FF6034 0%, #EE0A24 100%);
-          border-radius: 40rpx;
+          border-radius: 34rpx;
           font-size: 26rpx;
           color: #fff;
           font-weight: 600;
+          box-shadow: 0 4rpx 12rpx rgba(238, 10, 36, 0.3);
           transition: all 0.2s;
 
           &:active {
-            transform: scale(0.98);
+            transform: scale(0.96);
+            box-shadow: 0 2rpx 6rpx rgba(238, 10, 36, 0.3);
           }
         }
       }
@@ -202,7 +268,7 @@
   .loading-text {
     text-align: center;
     padding: 30rpx 0;
-    font-size: 26rpx;
-    color: #969799;
+    font-size: 24rpx;
+    color: #c8c9cc;
   }
 }

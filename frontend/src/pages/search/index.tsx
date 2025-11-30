@@ -96,7 +96,7 @@ export default function Search() {
                     <View className='product-name'>{product.name}</View>
                     <View className='product-brand'>{product.brand}</View>
                     <View className='product-bottom'>
-                      <View className='product-price'>{formatPrice(product.price)}</View>
+                      <View className='product-price'>{Number(product.price).toFixed(2)}</View>
                       <View className='product-sales'>销量 {product.sales_count}</View>
                     </View>
                   </View>

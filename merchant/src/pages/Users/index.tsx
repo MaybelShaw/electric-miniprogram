@@ -3,14 +3,15 @@ import { ProTable, ModalForm, ProFormText, ProFormSwitch } from '@ant-design/pro
 import { Tag, Button, Popconfirm, message, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getUsers, createUser, updateUser, deleteUser, setAdmin, unsetAdmin } from '@/services/api';
-import type { ActionType } from '@ant-design/pro-components';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import type { User } from '@/services/types';
 
 export default function Users() {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [editingRecord, setEditingRecord] = useState<User | null>(null);
 
-  const columns: any = [
+  const columns: ProColumns<User>[] = [
     { 
       title: '用户名', 
       dataIndex: 'username',
@@ -43,13 +44,13 @@ export default function Users() {
         dealer: { text: '经销商', status: 'Success' },
         admin: { text: '管理员', status: 'Error' }
       },
-      render: (role: string) => {
+      render: (_, record) => {
         const roleMap: Record<string, { text: string; color: string }> = {
           individual: { text: '个人用户', color: 'default' },
           dealer: { text: '经销商', color: 'green' },
           admin: { text: '管理员', color: 'red' }
         }
-        const roleInfo = roleMap[role] || { text: role, color: 'default' }
+        const roleInfo = roleMap[record.role] || { text: record.role, color: 'default' }
         return <Tag color={roleInfo.color}>{roleInfo.text}</Tag>
       },
     },
@@ -62,7 +63,7 @@ export default function Users() {
         true: { text: '是', status: 'Success' },
         false: { text: '否', status: 'Default' },
       },
-      render: (_: any, record: any) => (
+      render: (_, record) => (
         <Switch
           checked={record.is_staff}
           onChange={async (checked) => {
@@ -101,7 +102,7 @@ export default function Users() {
       valueType: 'option',
       width: 150,
       fixed: 'right',
-      render: (_: any, record: any) => [
+      render: (_, record) => [
         <Button
           key="edit"
           type="link"
@@ -140,6 +141,7 @@ export default function Users() {
       ],
     },
   ];
+
 
   return (
     <>
