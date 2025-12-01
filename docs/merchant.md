@@ -71,6 +71,15 @@
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
   - **发货操作**：管理员点击发货时，需在弹窗中填写快递单号与物流公司。
   - **取消订单**：支持对 `pending` 和 `paid` 状态的订单进行取消。点击取消时需在弹窗中填写取消原因与备注。
+  - **退货与退款**：新增退货处理动作（对接后端接口）
+    - **验收退货**：当订单有退货申请且状态为 `requested`（已申请）或 `in_transit`（退货在途）时，管理员可点击“验收退货”按钮，填写验收备注后确认收货。
+    - **完成退款**：当退货状态为 `received`（已收到退货）时，管理员可点击“完成退款”按钮，系统将执行退款逻辑（如冲减信用账户欠款）并将订单状态更新为 `refunded`。
+    - **详情查看**：订单详情抽屉中新增“退货信息”板块，展示退货原因、物流信息、凭证图片及处理记录。
+    - 接口映射：
+      - 用户发起：`POST /api/orders/{id}/request_return/`
+      - 用户补充：`PATCH /api/orders/{id}/add_return_tracking/`
+      - 管理员验收：`PATCH /api/orders/{id}/receive_return/`
+      - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
 - 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`
 - 信用账户：列表与编辑（额度、账期、激活状态） `merchant/src/services/api.ts:74`

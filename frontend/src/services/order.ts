@@ -55,5 +55,15 @@ export const orderService = {
   // 申请发票
   async requestInvoice(id: number, data: any): Promise<any> {
     return http.post(`/orders/${id}/request_invoice/`, data)
+  },
+
+  // 申请退货
+  async requestReturn(id: number, data: { reason: string; evidence_images?: string[] }): Promise<any> {
+    return http.post(`/orders/${id}/request_return/`, data)
+  },
+
+  // 填写退货物流
+  async addReturnTracking(id: number, data: { tracking_number: string; logistics_company?: string; evidence_images?: string[] }): Promise<any> {
+    return http.patch(`/orders/${id}/add_return_tracking/`, data)
   }
 }

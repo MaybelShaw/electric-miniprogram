@@ -67,6 +67,19 @@ export interface LogisticsInfo {
   logistics_no?: string;
 }
 
+export interface ReturnInfo {
+  status: 'requested' | 'approved' | 'in_transit' | 'received' | 'rejected';
+  status_display: string;
+  reason: string;
+  logistics_company: string;
+  tracking_number: string;
+  evidence_images: string[];
+  created_at: string;
+  updated_at: string;
+  processed_note: string;
+  processed_at: string | null;
+}
+
 export interface Order {
   id: number;
   order_number: string;
@@ -81,6 +94,7 @@ export interface Order {
   snapshot_phone: string;
   snapshot_address: string;
   logistics_info?: LogisticsInfo;
+  return_info?: ReturnInfo;
   created_at: string;
 }
 

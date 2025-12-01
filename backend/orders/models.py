@@ -383,3 +383,54 @@ class Invoice(models.Model):
 
     def __str__(self):
         return f'发票#{self.id} 订单:{self.order_id} 状态:{self.status}'
+
+
+class ReturnRequest(models.Model):
+    STATUS_CHOICES = [
+        ('requested', '已申请'),
+        ('in_transit', '退货在途'),
+        ('received', '已收到退货'),
+        ('rejected', '已拒绝'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='return_request',
+        verbose_name='订单'
+    )
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='return_requests',
+        verbose_name='用户'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested', verbose_name='状态')
+    reason = models.CharField(max_length=200, verbose_name='退货原因')
+    logistics_company = models.CharField(max_length=100, blank=True, default='', verbose_name='退货物流公司')
+    tracking_number = models.CharField(max_length=100, blank=True, default='', verbose_name='退货快递单号')
+    evidence_images = models.JSONField(default=list, blank=True, verbose_name='退货凭证图片')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='申请时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    processed_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='processed_returns',
+        verbose_name='处理人'
+    )
+    processed_note = models.TextField(blank=True, default='', verbose_name='处理备注')
+    processed_at = models.DateTimeField(null=True, blank=True, verbose_name='处理时间')
+
+    class Meta:
+        verbose_name = '退货申请'
+        verbose_name_plural = '退货申请'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f'退货#{self.id} 订单:{self.order_id} 状态:{self.status}'

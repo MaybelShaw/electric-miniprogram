@@ -128,6 +128,21 @@ export interface Order {
     file_url: string
     invoice_number: string
   }
+  return_info?: ReturnRequest
+}
+
+export interface ReturnRequest {
+  id: number
+  status: 'requested' | 'in_transit' | 'received' | 'rejected'
+  status_display: string
+  reason: string
+  logistics_company: string
+  tracking_number: string
+  evidence_images: string[]
+  created_at: string
+  updated_at: string
+  processed_note: string
+  processed_at: string | null
 }
 
 export interface Payment {

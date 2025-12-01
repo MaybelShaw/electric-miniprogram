@@ -147,6 +147,16 @@ export default function OrderDetail() {
     }
   }
 
+  const handleRequestReturn = () => {
+    if (!order) return
+    Taro.navigateTo({ url: `/pages/request-return/index?id=${order.id}` })
+  }
+
+  const handleReturnTracking = () => {
+    if (!order) return
+    Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
+  }
+
   if (loading) {
     return (
       <View className='order-detail loading'>
@@ -263,6 +273,38 @@ export default function OrderDetail() {
           )}
         </View>
 
+        {/* 退货信息 */}
+        {order.return_info && (
+          <View className='info-card'>
+            <View className='info-row' style={{ borderBottom: '1rpx solid #f5f6f7', paddingBottom: '16rpx', marginBottom: '16rpx' }}>
+              <Text className='info-label' style={{ fontWeight: 'bold', color: '#323233' }}>退货申请</Text>
+              <Text className='info-value' style={{ color: '#1989fa', fontWeight: 'bold' }}>{order.return_info.status_display}</Text>
+            </View>
+            <View className='info-row'>
+              <Text className='info-label'>退货原因</Text>
+              <Text className='info-value'>{order.return_info.reason}</Text>
+            </View>
+            {order.return_info.logistics_company && (
+              <View className='info-row'>
+                <Text className='info-label'>物流公司</Text>
+                <Text className='info-value'>{order.return_info.logistics_company}</Text>
+              </View>
+            )}
+            {order.return_info.tracking_number && (
+              <View className='info-row'>
+                <Text className='info-label'>退货单号</Text>
+                <Text className='info-value'>{order.return_info.tracking_number}</Text>
+              </View>
+            )}
+            {order.return_info.processed_note && (
+              <View className='info-row'>
+                <Text className='info-label'>处理备注</Text>
+                <Text className='info-value'>{order.return_info.processed_note}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* 发票信息 */}
         {order.status === 'completed' && (
           <View className='info-card'>
@@ -315,21 +357,37 @@ export default function OrderDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      {(order.status === 'pending' || order.status === 'paid' || order.status === 'shipped') && (
+      {(['pending', 'paid', 'shipped', 'completed'].includes(order.status) || (order.return_info && order.return_info.status === 'requested')) && (
         <View className='footer-bar'>
           {(order.status === 'pending' || order.status === 'paid') && (
             <View className='cancel-btn' onClick={handleCancelOrder}>
               取消订单
             </View>
           )}
+          
+          {/* 申请退货: paid, shipped, completed 且无退货申请 */}
+          {['paid', 'shipped', 'completed'].includes(order.status) && !order.return_info && (
+            <View className='cancel-btn' onClick={handleRequestReturn} style={{ marginLeft: '20rpx' }}>
+              申请退货
+            </View>
+          )}
+
           {order.status === 'pending' && (
             <View className='pay-btn' onClick={handlePay}>
               {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
             </View>
           )}
+          
           {order.status === 'shipped' && (
             <View className='confirm-btn' onClick={handleConfirmReceipt}>
               确认收货
+            </View>
+          )}
+
+          {/* 填写退货物流: 退货申请状态为 requested */}
+          {order.return_info && order.return_info.status === 'requested' && (
+            <View className='confirm-btn' onClick={handleReturnTracking} style={{ marginLeft: '20rpx', background: '#1989fa', borderColor: '#1989fa' }}>
+              填写退货物流
             </View>
           )}
         </View>

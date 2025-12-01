@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Order, Cart, CartItem, Discount, DiscountTarget, Invoice
+from .models import Order, Cart, CartItem, Discount, DiscountTarget, Invoice, ReturnRequest
 
 # Register your models here.
 
@@ -46,3 +46,10 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = ("id", "order", "user", "title", "amount", "status", "invoice_number", "requested_at", "issued_at")
     list_filter = ("status", "invoice_type")
     search_fields = ("order__order_number", "user__username", "invoice_number", "title")
+
+
+@admin.register(ReturnRequest)
+class ReturnRequestAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "user", "status", "reason", "tracking_number", "logistics_company", "created_at")
+    list_filter = ("status",)
+    search_fields = ("order__order_number", "user__username", "tracking_number")

@@ -136,6 +136,22 @@
       - 自动释放锁定库存（本地库存产品）。
       - 若订单在取消前为 `paid` 且为信用支付（无支付记录），自动记录信用退款以冲减欠款（`backend/orders/state_machine.py:212`）。
       - 在线支付退款需按支付渠道另行处理（当前版本不自动退款，将在未来的退款流程中实现）。
+  - 退货与退款：
+    - `POST /orders/{id}/request_return/` 申请退货（订单所有者或管理员）`backend/orders/views.py:441`
+      - 请求体：`{ "reason": "尺寸不合适", "evidence_images": ["/media/images/2025/12/01/abc.jpg"] }`
+      - 校验：仅 `paid|shipped|completed` 状态可申请；同一订单仅允许存在一条退货申请；`reason` 必填。
+      - 说明：退货凭证图片建议先通过 `POST /media-images/` 上传后，取返回的 `url` 作为 `evidence_images` 元素。
+    - `PATCH /orders/{id}/add_return_tracking/` 填写退货物流（订单所有者或管理员）`backend/orders/views.py:456`
+      - 请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰", "evidence_images": ["/media/images/...webp"] }`
+      - 效果：更新退货申请的快递单号与物流公司，状态置为 `in_transit`；若订单允许，状态机将流转为 `refunding`。
+    - `PATCH /orders/{id}/receive_return/` 标记已收到退货（管理员）`backend/orders/views.py:476`
+      - 请求体：`{ "note": "验货通过" }`
+      - 效果：更新退货申请状态为 `received`，记录处理人与时间；不直接变更订单状态。
+    - `PATCH /orders/{id}/complete_refund/` 完成退款（管理员）`backend/orders/views.py:486`
+      - 效果：订单状态机从 `refunding` 流转到 `refunded`。若订单为信用支付（无支付记录），自动记录一条信用退款以冲减欠款（`backend/users/credit_services.py:107`）。
+    - 数据结构：退货申请 `ReturnRequest` 模型 `backend/orders/models.py:...`
+      - 字段：`status(reason/logistics_company/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
+      - 状态：`requested | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
@@ -191,3 +207,10 @@
   - 开具：`POST /api/invoices/{id}/issue/`（需要 `invoice_number`，可选 `file_url`）
   - 取消：`POST /api/invoices/{id}/cancel/`（已开具不可取消）
 - 数据字段：`title/taxpayer_id/email/phone/address/bank_account/invoice_type/amount/tax_rate/tax_amount/status/invoice_number/file_url/requested_at/issued_at`
+
+## 退货功能说明
+- 角色与权限：
+  - 用户（订单所有者）：可申请退货、补充退货物流与凭证。
+  - 管理员：可标记已收到退货、完成退款。
+- 图片上传：通过 `POST /api/media-images/` 上传图片，返回的 `url` 可作为 `evidence_images` 列表元素传入退货接口。
+- 状态机配合：填写退货物流后，若订单允许，将进入 `refunding` 状态；完成退款后进入 `refunded` 并释放库存（`backend/orders/state_machine.py:203`）。

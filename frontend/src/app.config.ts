@@ -19,7 +19,9 @@ export default defineAppConfig({
     'pages/statement-detail/index',
     'pages/account-transactions/index',
     'pages/debt-reconciliation/index',
-    'pages/invoice-request/index'
+    'pages/invoice-request/index',
+    'pages/request-return/index',
+    'pages/return-tracking/index'
   ],
   window: {
     backgroundTextStyle: 'light',

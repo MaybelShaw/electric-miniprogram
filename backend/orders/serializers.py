@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget, Invoice
+from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer
@@ -13,6 +13,7 @@ class OrderSerializer(serializers.ModelSerializer):
     haier_order_info = serializers.SerializerMethodField()
     logistics_info = serializers.SerializerMethodField()
     invoice_info = serializers.SerializerMethodField()
+    return_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -42,6 +43,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "haier_order_info",
             "logistics_info",
             "invoice_info",
+            "return_info",
             "distribution_time",
             "install_time",
             "is_delivery_install",
@@ -115,6 +117,28 @@ class OrderSerializer(serializers.ModelSerializer):
                 'invoice_number': obj.invoice.invoice_number,
             }
         return None
+
+    def get_return_info(self, obj: Order):
+        rr = getattr(obj, 'return_request', None)
+        if not rr:
+            return None
+        mapping = {
+            'requested': '已申请',
+            'in_transit': '退货在途',
+            'received': '已收到退货',
+            'rejected': '已拒绝',
+        }
+        return {
+            'id': rr.id,
+            'status': rr.status,
+            'status_display': mapping.get(rr.status, rr.status),
+            'reason': rr.reason,
+            'logistics_company': rr.logistics_company,
+            'tracking_number': rr.tracking_number,
+            'evidence_images': rr.evidence_images,
+            'created_at': rr.created_at,
+            'updated_at': rr.updated_at,
+        }
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):
@@ -266,6 +290,60 @@ class InvoiceCreateSerializer(serializers.ModelSerializer):
             **validated_data
         )
         return inv
+
+
+class ReturnRequestSerializer(serializers.ModelSerializer):
+    status_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReturnRequest
+        fields = [
+            'id', 'order', 'user', 'status', 'status_label', 'reason',
+            'logistics_company', 'tracking_number', 'evidence_images',
+            'created_at', 'updated_at'
+        ]
+
+    def get_status_label(self, obj: ReturnRequest) -> str:
+        mapping = {
+            'requested': '已申请',
+            'in_transit': '退货在途',
+            'received': '已收到退货',
+            'rejected': '已拒绝',
+        }
+        return mapping.get(obj.status, obj.status)
+
+
+class ReturnRequestCreateSerializer(serializers.ModelSerializer):
+    evidence_images = serializers.ListField(child=serializers.CharField(), required=False)
+
+    class Meta:
+        model = ReturnRequest
+        fields = ['reason', 'evidence_images']
+
+    def validate(self, attrs):
+        order: Order = self.context.get('order')
+        request = self.context.get('request')
+        if not order or not request:
+            raise serializers.ValidationError('缺少订单或请求上下文')
+        if hasattr(order, 'return_request') and order.return_request:
+            raise serializers.ValidationError('该订单已存在退货申请')
+        if order.status not in {'paid', 'shipped', 'completed'}:
+            raise serializers.ValidationError('仅待发货/待收货/已完成订单可申请退货')
+        reason = attrs.get('reason')
+        if not reason or not str(reason).strip():
+            raise serializers.ValidationError('退货原因不能为空')
+        return attrs
+
+    def create(self, validated_data):
+        order: Order = self.context['order']
+        user = self.context['request'].user
+        rr = ReturnRequest.objects.create(
+            order=order,
+            user=user,
+            reason=validated_data.get('reason'),
+            evidence_images=validated_data.get('evidence_images') or []
+        )
+        return rr
 
 
 class DiscountTargetSerializer(serializers.ModelSerializer):

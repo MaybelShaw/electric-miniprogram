@@ -61,6 +61,8 @@ export const completeOrder = (id: number) => request.patch(`/orders/${id}/comple
 export const cancelOrder = (id: number, data?: any) => request.patch(`/orders/${id}/cancel/`, data || {});
 export const pushToHaier = (id: number, data?: any) => request.post(`/orders/${id}/push_to_haier/`, data || {});
 export const getHaierLogistics = (id: number) => request.get(`/orders/${id}/haier_logistics/`);
+export const receiveReturn = (id: number, data?: any) => request.patch(`/orders/${id}/receive_return/`, data || {});
+export const completeRefund = (id: number) => request.patch(`/orders/${id}/complete_refund/`, {});
 
 // 折扣管理
 export const getDiscounts = (params?: any) => request.get('/discounts/', { params });

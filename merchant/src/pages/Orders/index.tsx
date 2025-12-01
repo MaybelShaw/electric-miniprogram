@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
-import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics } from '@/services/api';
+import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined } from '@ant-design/icons';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
@@ -31,6 +31,8 @@ export default function Orders() {
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
+  const [receiveReturnModalVisible, setReceiveReturnModalVisible] = useState(false);
+  const [receivingOrder, setReceivingOrder] = useState<Order | null>(null);
 
   const handleShip = (record: Order) => {
     setShippingOrder(record);
@@ -67,6 +69,35 @@ export default function Orders() {
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '操作失败');
       return false;
+    }
+  };
+
+  const handleReceiveReturn = (record: Order) => {
+    setReceivingOrder(record);
+    setReceiveReturnModalVisible(true);
+  };
+
+  const handleReceiveReturnSubmit = async (values: any) => {
+    try {
+      if (!receivingOrder) return false;
+      await receiveReturn(receivingOrder.id, values);
+      message.success('验收成功');
+      setReceiveReturnModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '操作失败');
+      return false;
+    }
+  };
+
+  const handleCompleteRefund = async (id: number) => {
+    try {
+      await completeRefund(id);
+      message.success('退款成功');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '操作失败');
     }
   };
 
@@ -342,6 +373,41 @@ export default function Orders() {
           );
         }
         
+        // 退货相关操作
+        if (record.return_info) {
+          if (['requested', 'in_transit'].includes(record.return_info.status)) {
+            actions.push(
+              <Button
+                key="receive_return"
+                type="link"
+                size="small"
+                icon={<RollbackOutlined />}
+                onClick={() => handleReceiveReturn(record)}
+              >
+                验收退货
+              </Button>
+            );
+          }
+          
+          if (record.return_info.status === 'received' && record.status !== 'refunded') {
+             actions.push(
+              <Popconfirm
+                key="complete_refund"
+                title="确认退款?"
+                onConfirm={() => handleCompleteRefund(record.id)}
+              >
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<PayCircleOutlined />}
+                >
+                  完成退款
+                </Button>
+              </Popconfirm>
+            );
+          }
+        }
+        
         return <Space size={0}>{actions}</Space>;
       },
     },
@@ -464,6 +530,21 @@ export default function Orders() {
         />
       </ModalForm>
 
+      {/* 验收退货弹窗 */}
+      <ModalForm
+        title="验收退货"
+        visible={receiveReturnModalVisible}
+        onVisibleChange={setReceiveReturnModalVisible}
+        onFinish={handleReceiveReturnSubmit}
+      >
+        <ProFormText
+          name="note"
+          label="验收备注"
+          placeholder="备注信息（如：商品完好，同意退款）"
+          rules={[{ required: true, message: '请输入验收备注' }]}
+        />
+      </ModalForm>
+
       {/* 详情弹窗 */}
       <Drawer
         title="订单详情"
@@ -489,6 +570,38 @@ export default function Orders() {
             />
             <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
             <ProDescriptions.Item label="备注" dataIndex="note" />
+          </ProDescriptions>
+        )}
+
+        {currentOrder && currentOrder.return_info && (
+          <ProDescriptions
+            column={1}
+            title="退货信息"
+            style={{ marginTop: 24 }}
+            dataSource={currentOrder.return_info}
+          >
+            <ProDescriptions.Item label="退货状态" dataIndex="status_display" />
+            <ProDescriptions.Item label="退货原因" dataIndex="reason" />
+            <ProDescriptions.Item label="物流公司" dataIndex="logistics_company" />
+            <ProDescriptions.Item label="物流单号" dataIndex="tracking_number" />
+            <ProDescriptions.Item 
+              label="凭证图片" 
+              dataIndex="evidence_images"
+              render={(_, record) => {
+                if (!record.evidence_images || record.evidence_images.length === 0) return '-';
+                return (
+                  <Space>
+                    {record.evidence_images.map((url: string, index: number) => (
+                      <a key={index} href={url} target="_blank" rel="noopener noreferrer">
+                         <img src={url} style={{ width: 60, height: 60, objectFit: 'cover', border: '1px solid #f0f0f0' }} />
+                      </a>
+                    ))}
+                  </Space>
+                );
+              }}
+            />
+            <ProDescriptions.Item label="处理备注" dataIndex="processed_note" />
+            <ProDescriptions.Item label="处理时间" dataIndex="processed_at" valueType="dateTime" />
           </ProDescriptions>
         )}
       </Drawer>

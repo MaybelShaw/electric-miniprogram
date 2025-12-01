@@ -65,6 +65,8 @@
   - `cancelOrder` 取消（支持 `reason`）`frontend/src/services/order.ts:46`
   - `confirmReceipt` 确认收货 `frontend/src/services/order.ts`
   - `requestInvoice` 申请发票 `frontend/src/services/order.ts`
+  - `requestReturn` 申请退货 `frontend/src/services/order.ts`
+  - `addReturnTracking` 填写退货物流 `frontend/src/services/order.ts`
 - 支付服务：`frontend/src/services/payment.ts:4`
   - 列表/创建/详情/开始/成功/失败/取消/过期 `frontend/src/services/payment.ts:6`
 - 地址服务：`frontend/src/services/address.ts:4`
@@ -89,6 +91,10 @@
   - **订单取消**：用户可在订单列表或详情页取消 `pending`（待支付）或 `paid`（已支付/待发货）状态的订单。取消时支持输入原因。
     - 待支付订单：直接取消。
     - 已支付订单：取消后，若为信用支付则自动退款至信用账户；在线支付需等待后台处理。
+  - **退货与售后**：
+    - **申请退货**：在订单详情页（`/pages/order-detail/index`），针对 `paid`（已支付）、`shipped`（已发货）、`completed`（已完成）且未申请过退货的订单，可发起退货申请。需填写退货原因并上传凭证（最多3张）。
+    - **填写退货物流**：当退货申请状态为 `requested`（已申请/待发货）时，用户可填写退货物流公司与单号。
+    - **状态跟踪**：在订单详情页实时展示退货状态（已申请、退货在途、已收到退货、已拒绝）及处理备注。
 - 申请发票（`/pages/invoice-request/index`）：
    - 界面布局优化：采用对齐的表单设计，必填项标记不影响文字排版
   - 支持普通发票与专用发票两种类型（通过按钮快速切换）

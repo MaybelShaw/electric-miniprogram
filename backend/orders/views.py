@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
-from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget, Invoice
+from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
 from .serializers import (
     OrderSerializer,
     OrderCreateSerializer,
@@ -11,6 +11,8 @@ from .serializers import (
     DiscountTargetSerializer,
     InvoiceSerializer,
     InvoiceCreateSerializer,
+    ReturnRequestSerializer,
+    ReturnRequestCreateSerializer,
 )
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
@@ -470,6 +472,86 @@ class OrderViewSet(viewsets.ModelViewSet):
             pass
 
         return Response(InvoiceSerializer(inv).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def request_return(self, request, pk=None):
+        order = self.get_object()
+        user = request.user
+        if not (user.is_staff or order.user_id == user.id):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = ReturnRequestCreateSerializer(data=request.data, context={'request': request, 'order': order})
+        serializer.is_valid(raise_exception=True)
+        rr = serializer.save()
+        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
+    def add_return_tracking(self, request, pk=None):
+        order = self.get_object()
+        user = request.user
+        if not (user.is_staff or order.user_id == user.id):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+        rr = getattr(order, 'return_request', None)
+        if not rr:
+            return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
+        logistics_company = request.data.get('logistics_company') or request.data.get('company') or ''
+        evidence_images = request.data.get('evidence_images') or []
+        if not tracking_number:
+            return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+        rr.tracking_number = str(tracking_number)
+        rr.logistics_company = str(logistics_company)
+        if isinstance(evidence_images, list) and evidence_images:
+            rr.evidence_images = list(set((rr.evidence_images or []) + [str(x) for x in evidence_images if x]))
+        rr.status = 'in_transit'
+        rr.save()
+        try:
+            from .state_machine import OrderStateMachine
+            if OrderStateMachine.can_transition(order.status, 'refunding'):
+                OrderStateMachine.transition(order, 'refunding', operator=user, note='用户填写退货快递单号')
+        except Exception:
+            pass
+        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    def receive_return(self, request, pk=None):
+        order = self.get_object()
+        rr = getattr(order, 'return_request', None)
+        if not rr:
+            return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        rr.status = 'received'
+        rr.processed_by = request.user
+        rr.processed_note = str(request.data.get('note', '') or '')
+        from django.utils import timezone
+        rr.processed_at = timezone.now()
+        rr.save()
+        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    def complete_refund(self, request, pk=None):
+        order = self.get_object()
+        rr = getattr(order, 'return_request', None)
+        if not rr:
+            return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            from .state_machine import OrderStateMachine
+            OrderStateMachine.transition(order, 'refunded', operator=request.user, note=str(request.data.get('note', '') or ''))
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"退款完成失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            if not order.payments.exists():
+                from users.credit_services import CreditAccountService
+                if hasattr(order.user, 'credit_account') and order.user.credit_account:
+                    CreditAccountService.record_refund(
+                        credit_account=order.user.credit_account,
+                        amount=order.total_amount,
+                        order_id=order.id,
+                        description=f'退货退款 #{order.order_number}'
+                    )
+        except Exception:
+            pass
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def push_to_haier(self, request, pk=None):
