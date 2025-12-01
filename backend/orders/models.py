@@ -366,6 +366,7 @@ class Invoice(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested', verbose_name='状态')
     invoice_number = models.CharField(max_length=100, blank=True, default='', verbose_name='发票号码')
     file_url = models.URLField(blank=True, default='', verbose_name='发票文件URL')
+    file = models.FileField(upload_to='invoices/', blank=True, null=True, verbose_name='发票文件')
 
     requested_at = models.DateTimeField(auto_now_add=True, verbose_name='申请时间')
     issued_at = models.DateTimeField(null=True, blank=True, verbose_name='开具时间')

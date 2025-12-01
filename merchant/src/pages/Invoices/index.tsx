@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
-import { EyeOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
-import { getInvoices, getInvoice, issueInvoice, cancelInvoice, getOrder } from '@/services/api';
+import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, Upload } from 'antd';
+import { EyeOutlined, CheckOutlined, CloseOutlined, UploadOutlined } from '@ant-design/icons';
+import { getInvoices, getInvoice, issueInvoice, cancelInvoice, getOrder, uploadInvoice } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 
 const statusMap: any = {
@@ -25,6 +25,7 @@ export default function Invoices() {
   const [issuing, setIssuing] = useState(false);
   const [orderDetailVisible, setOrderDetailVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<any>(null);
+  const [fileList, setFileList] = useState<any[]>([]);
 
   const handleViewDetail = async (record: any) => {
     try {
@@ -49,6 +50,7 @@ export default function Invoices() {
   const handleIssue = (record: any) => {
     setCurrentInvoice(record);
     issueForm.resetFields();
+    setFileList([]);
     setIssueModalVisible(true);
   };
 
@@ -56,7 +58,33 @@ export default function Invoices() {
     try {
       const values = await issueForm.validateFields();
       setIssuing(true);
-      await issueInvoice(currentInvoice.id, values);
+
+      // 1. Upload file if present
+      let fileUrl = values.file_url || '';
+      if (fileList.length > 0) {
+          const file = fileList[0].originFileObj;
+          try {
+             await uploadInvoice(currentInvoice.id, file);
+             // Wait a bit or refetch? 
+             // Actually, we just need to ensure issueInvoice uses the uploaded file info if possible.
+             // But issueInvoice currently takes file_url.
+             // If we upload file, the backend updates 'file' field.
+             // We can just pass empty file_url or let the backend handle it.
+             // Ideally, we should modify backend issue() to not require file_url if file is present.
+          } catch (uploadErr) {
+              console.error(uploadErr);
+              message.error('文件上传失败');
+              setIssuing(false);
+              return;
+          }
+      }
+
+      // 2. Issue invoice
+      await issueInvoice(currentInvoice.id, {
+          invoice_number: values.invoice_number,
+          file_url: fileUrl 
+      });
+      
       message.success('发票开具成功');
       setIssueModalVisible(false);
       actionRef.current?.reload();
@@ -287,10 +315,23 @@ export default function Invoices() {
           >
             <Input placeholder="请输入发票号码" />
           </Form.Item>
+          
+          <Form.Item label="上传发票文件">
+             <Upload
+                fileList={fileList}
+                onChange={({ fileList }) => setFileList(fileList)}
+                beforeUpload={() => false}
+                maxCount={1}
+             >
+               <Button icon={<UploadOutlined />}>选择文件</Button>
+             </Upload>
+          </Form.Item>
+
           <Form.Item
-            label="发票文件URL"
+            label="发票文件URL (可选)"
             name="file_url"
             rules={[{ type: 'url', message: '请输入有效的URL' }]}
+            tooltip="若已上传文件，此项可留空"
           >
             <Input placeholder="请输入发票PDF下载链接" />
           </Form.Item>

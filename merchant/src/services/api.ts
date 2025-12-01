@@ -98,5 +98,12 @@ export const getAccountTransactions = (params?: any) => request.get('/account-tr
 // 发票管理
 export const getInvoices = (params?: any) => request.get('/invoices/', { params });
 export const getInvoice = (id: number) => request.get(`/invoices/${id}/`);
+export const uploadInvoice = (id: number, file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request.post(`/invoices/${id}/upload_file/`, formData);
+};
+export const downloadInvoice = (id: number) => request.get(`/invoices/${id}/download/`, { responseType: 'blob' });
+
 export const issueInvoice = (id: number, data: any) => request.post(`/invoices/${id}/issue/`, data);
 export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cancel/`);

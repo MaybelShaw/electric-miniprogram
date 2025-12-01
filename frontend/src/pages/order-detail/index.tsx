@@ -5,6 +5,7 @@ import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
 import { Order, Payment } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
+import { BASE_URL, TokenManager } from '../../utils/request'
 import './index.scss'
 
 export default function OrderDetail() {
@@ -118,6 +119,52 @@ export default function OrderDetail() {
     if (!order) return
     Taro.navigateTo({ url: `/pages/invoice-request/index?id=${order.id}` })
   }
+
+  const handleDownloadInvoice = async () => {
+    if (!order?.invoice_info?.id) return;
+    const token = TokenManager.getAccessToken();
+    if (!token) {
+        Taro.showToast({ title: '请先登录', icon: 'none' });
+        return;
+    }
+    const url = `${BASE_URL}/invoices/${order.invoice_info.id}/download/`;
+    
+    Taro.showLoading({ title: '下载中...' });
+    try {
+        const res = await Taro.downloadFile({
+            url: url,
+            header: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        Taro.hideLoading();
+        if (res.statusCode === 200) {
+            const filePath = res.tempFilePath;
+            const lowerPath = filePath.toLowerCase();
+            if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg') || lowerPath.endsWith('.png') || lowerPath.endsWith('.gif')) {
+                Taro.previewImage({
+                    urls: [filePath]
+                });
+            } else {
+                Taro.openDocument({
+                    filePath: filePath,
+                    success: function () {
+                        console.log('打开文档成功');
+                    },
+                    fail: function (err) {
+                        console.log('打开文档失败', err);
+                        Taro.showToast({ title: '无法打开文件', icon: 'none' });
+                    }
+                });
+            }
+        } else {
+            Taro.showToast({ title: '下载失败', icon: 'none' });
+        }
+    } catch (error) {
+        Taro.hideLoading();
+        Taro.showToast({ title: '下载出错', icon: 'none' });
+    }
+  };
 
   const handleCopy = (text: string) => {
     Taro.setClipboardData({
@@ -314,15 +361,11 @@ export default function OrderDetail() {
                 )}
               </View>
             </View>
-            {order.invoice_info && order.invoice_info.status === 'issued' && order.invoice_info.file_url && (
+            {order.invoice_info && order.invoice_info.status === 'issued' && (
                <View className='info-row'>
-                  <Text className='info-label'>下载</Text>
-                  <Text className='info-value' onClick={() => {
-                      if (order.invoice_info?.file_url) {
-                        Taro.setClipboardData({ data: order.invoice_info.file_url })
-                      }
-                  }} style={{color: '#1989FA'}}>
-                    复制链接
+                  <Text className='info-label'>发票文件</Text>
+                  <Text className='info-value' onClick={handleDownloadInvoice} style={{color: '#1989FA'}}>
+                    下载/查看
                   </Text>
                </View>
             )}

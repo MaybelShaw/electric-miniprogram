@@ -93,6 +93,13 @@ export interface Order {
   snapshot_address: string;
   logistics_info?: LogisticsInfo;
   return_info?: ReturnInfo;
+  invoice_info?: {
+    id: number;
+    status: string;
+    status_display: string;
+    file_url: string;
+    invoice_number: string;
+  };
   created_at: string;
 }
 

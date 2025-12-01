@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
-import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund } from '@/services/api';
+import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
+import { Upload } from 'antd';
 
 const statusMap: Record<string, { text: string; color: string }> = {
   pending: { text: '待支付', color: 'orange' },
@@ -33,6 +34,9 @@ export default function Orders() {
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [receiveReturnModalVisible, setReceiveReturnModalVisible] = useState(false);
   const [receivingOrder, setReceivingOrder] = useState<Order | null>(null);
+  const [uploadInvoiceModalVisible, setUploadInvoiceModalVisible] = useState(false);
+  const [uploadingOrder, setUploadingOrder] = useState<Order | null>(null);
+  const [invoiceFileList, setInvoiceFileList] = useState<any[]>([]);
 
   const handleShip = (record: Order) => {
     setShippingOrder(record);
@@ -88,6 +92,50 @@ export default function Orders() {
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '操作失败');
       return false;
+    }
+  };
+
+  const handleUploadInvoiceClick = (record: Order) => {
+    setUploadingOrder(record);
+    setInvoiceFileList([]);
+    setUploadInvoiceModalVisible(true);
+  };
+
+  const handleUploadInvoiceSubmit = async () => {
+    try {
+      if (!uploadingOrder?.invoice_info?.id) {
+        message.error('未找到发票信息');
+        return false;
+      }
+      if (invoiceFileList.length === 0) {
+        message.error('请选择文件');
+        return false;
+      }
+      const file = invoiceFileList[0].originFileObj;
+      await uploadInvoice(uploadingOrder.invoice_info.id, file);
+      message.success('上传成功');
+      setUploadInvoiceModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '上传失败');
+      return false;
+    }
+  };
+
+  const handleDownloadInvoiceClick = async (record: Order) => {
+    if (!record.invoice_info?.id) return;
+    try {
+      const res: any = await downloadInvoice(record.invoice_info.id);
+      const url = window.URL.createObjectURL(new Blob([res]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoice_${record.order_number}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      message.error('下载失败');
     }
   };
 
@@ -407,6 +455,34 @@ export default function Orders() {
             );
           }
         }
+
+        // 发票相关操作
+        if (record.invoice_info) {
+          actions.push(
+            <Button
+              key="upload_invoice"
+              type="link"
+              size="small"
+              icon={<UploadOutlined />}
+              onClick={() => handleUploadInvoiceClick(record)}
+            >
+              上传发票
+            </Button>
+          );
+          if (record.invoice_info.file_url) {
+            actions.push(
+              <Button
+                key="download_invoice"
+                type="link"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => handleDownloadInvoiceClick(record)}
+              >
+                下载发票
+              </Button>
+            );
+          }
+        }
         
         return <Space size={0}>{actions}</Space>;
       },
@@ -637,6 +713,29 @@ export default function Orders() {
           <div>暂无物流信息</div>
         )}
       </Modal>
+
+      {/* 上传发票弹窗 */}
+      <ModalForm
+        title="上传发票"
+        visible={uploadInvoiceModalVisible}
+        onVisibleChange={setUploadInvoiceModalVisible}
+        onFinish={handleUploadInvoiceSubmit}
+      >
+        <Form.Item
+          label="发票文件"
+          required
+          tooltip="支持PDF、图片格式"
+        >
+          <Upload
+            fileList={invoiceFileList}
+            onChange={({ fileList }) => setInvoiceFileList(fileList)}
+            beforeUpload={() => false}
+            maxCount={1}
+          >
+            <Button icon={<UploadOutlined />}>选择文件</Button>
+          </Upload>
+        </Form.Item>
+      </ModalForm>
     </>
   );
 }

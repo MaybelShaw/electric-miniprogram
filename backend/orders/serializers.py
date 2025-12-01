@@ -232,6 +232,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='order.product.name', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     status_label = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
@@ -248,6 +249,18 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'cancelled': '已取消',
         }
         return mapping.get(obj.status, obj.status)
+
+    def get_file_url(self, obj: Invoice) -> str:
+        try:
+            # Prefer stored file field
+            if getattr(obj, 'file', None):
+                f = obj.file
+                if hasattr(f, 'url') and f:
+                    return f.url
+            # Fallback to legacy file_url
+            return obj.file_url or ''
+        except Exception:
+            return obj.file_url or ''
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):

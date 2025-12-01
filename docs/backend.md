@@ -206,6 +206,8 @@
   - 列表与详情：`GET /api/invoices/`、`GET /api/invoices/{id}/`
   - 开具：`POST /api/invoices/{id}/issue/`（需要 `invoice_number`，可选 `file_url`）
   - 取消：`POST /api/invoices/{id}/cancel/`（已开具不可取消）
+  - 上传文件：`POST /api/invoices/{id}/upload_file/`（`multipart/form-data`，字段 `file`）
+  - 下载文件：`GET /api/invoices/{id}/download/`（返回附件或文件绝对链接）
 - 数据字段：`title/taxpayer_id/email/phone/address/bank_account/invoice_type/amount/tax_rate/tax_amount/status/invoice_number/file_url/requested_at/issued_at`
 
 ## 退货功能说明

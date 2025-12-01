@@ -29,6 +29,7 @@ from common.utils import parse_int, parse_datetime
 from common.throttles import PaymentRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
+from django.http import FileResponse
 
 
 # Create your views here.
@@ -1292,15 +1293,32 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         inv = self.get_object()
         if inv.status == 'issued':
             return Response({'detail': '发票已开具'}, status=status.HTTP_400_BAD_REQUEST)
+        
         invoice_number = str(request.data.get('invoice_number', '')).strip()
         file_url = str(request.data.get('file_url', '')).strip()
+        
         if not invoice_number:
             return Response({'detail': 'invoice_number 必填'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Handle optional file upload directly in issue
+        file = request.FILES.get('file')
+        if file:
+            inv.file = file
+        
         inv.invoice_number = invoice_number
         inv.file_url = file_url
         inv.status = 'issued'
         inv.issued_at = timezone.now()
         inv.save()
+        
+        # Ensure file_url is set if file was uploaded but no URL provided
+        if not inv.file_url and inv.file:
+             try:
+                inv.file_url = inv.file.url
+                inv.save(update_fields=['file_url'])
+             except Exception:
+                pass
+
         return Response(self.get_serializer(inv).data)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
@@ -1311,6 +1329,59 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         inv.status = 'cancelled'
         inv.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(inv).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def upload_file(self, request, pk=None):
+        """上传发票文件（PDF/图片），仅管理员。
+
+        表单：multipart/form-data，字段：file
+        保存到 MEDIA_ROOT/invoices/ 下，并更新 file 字段与 file_url。
+        """
+        inv = self.get_object()
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'detail': '缺少文件参数 file'}, status=status.HTTP_400_BAD_REQUEST)
+        inv.file = file
+        # 同步旧字段，便于前端兼容
+        try:
+            inv.file_url = inv.file.url if hasattr(inv.file, 'url') else inv.file_url
+        except Exception:
+            pass
+        inv.save()
+        return Response(self.get_serializer(inv).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrAdmin])
+    def download(self, request, pk=None):
+        """下载发票文件，订单所有者或管理员可访问。"""
+        inv = self.get_object()
+        # 优先使用 FileField
+        if getattr(inv, 'file', None):
+            f = inv.file
+            try:
+                # Determine filename
+                name = getattr(f, 'name', 'invoice')
+                filename = name.split('/')[-1] or 'invoice'
+                resp = FileResponse(f.open('rb'))
+                resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return resp
+            except Exception as e:
+                return Response({'detail': f'文件读取失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        # 退回到 file_url：若是本地相对路径，返回重定向
+        if inv.file_url:
+            url = inv.file_url
+            # 若是绝对URL，直接重定向
+            if url.startswith('http://') or url.startswith('https://'):
+                from django.http import HttpResponseRedirect
+                return HttpResponseRedirect(url)
+            # 相对 MEDIA 路径，构造绝对URL
+            try:
+                absolute = request.build_absolute_uri(url)
+                from django.http import HttpResponseRedirect
+                return HttpResponseRedirect(absolute)
+            except Exception:
+                from django.http import HttpResponseRedirect
+                return HttpResponseRedirect(url)
+        return Response({'detail': '未找到发票文件'}, status=status.HTTP_404_NOT_FOUND)
 
 
 
