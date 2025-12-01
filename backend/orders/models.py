@@ -36,10 +36,10 @@ class Order(models.Model):
     snapshot_contact_name = models.CharField(max_length=50,default='',verbose_name="联系人")
     snapshot_phone = models.CharField(max_length=20,default='',verbose_name="手机号")
     snapshot_address = models.TextField(default='',verbose_name="收货地址")
-    snapshot_province = models.CharField(max_length=50, blank=True, default='', verbose_name='省')
-    snapshot_city = models.CharField(max_length=50, blank=True, default='', verbose_name='市')
-    snapshot_district = models.CharField(max_length=50, blank=True, default='', verbose_name='区')
-    snapshot_town = models.CharField(max_length=50, blank=True, default='', verbose_name='县/街道')
+    snapshot_province = models.CharField(max_length=50, blank=True, default='', verbose_name='省', db_index=True)
+    snapshot_city = models.CharField(max_length=50, blank=True, default='', verbose_name='市', db_index=True)
+    snapshot_district = models.CharField(max_length=50, blank=True, default='', verbose_name='区', db_index=True)
+    snapshot_town = models.CharField(max_length=50, blank=True, default='', verbose_name='县/街道', db_index=True)
     
     # 海尔订单相关字段
     haier_order_no = models.CharField(max_length=100, blank=True, default='', verbose_name='海尔订单号')

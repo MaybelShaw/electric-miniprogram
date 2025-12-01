@@ -72,6 +72,217 @@ class OrderAnalytics:
         return result
     
     @classmethod
+    def get_sales_by_region(
+        cls,
+        level: str = 'province',
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        product_id: Optional[int] = None,
+        order_by: str = 'amount',
+        limit: Optional[int] = None,
+    ) -> List[Dict]:
+        """
+        获取按地区聚合的销售统计
+        
+        Args:
+            level: 地区维度（province/city/district/town）
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            product_id: 按商品过滤（可选）
+            order_by: 排序字段（orders/total_quantity/amount）
+            limit: 返回条目上限（可选）
+        
+        Returns:
+            地区销售列表，包含地区名称、订单数、销量、销售额
+        """
+        from orders.models import Order
+        
+        level = (level or 'province').strip().lower()
+        level_map = {
+            'province': 'snapshot_province',
+            'city': 'snapshot_city',
+            'district': 'snapshot_district',
+            'town': 'snapshot_town',
+        }
+        region_field = level_map.get(level, 'snapshot_province')
+        
+        order_by = (order_by or 'amount').strip().lower()
+        order_map = {
+            'orders': 'orders',
+            'total_quantity': 'total_quantity',
+            'amount': 'amount',
+        }
+        order_field = order_map.get(order_by, 'amount')
+        
+        cache_key = f'regional_sales_{region_field}_{start_date}_{end_date}_{product_id}_{order_field}_{limit}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        
+        qs = Order.objects.filter(status='completed')
+        if start_date:
+            qs = qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(created_at__date__lte=end_date)
+        if product_id:
+            qs = qs.filter(product_id=product_id)
+        
+        qs = (
+            qs.values(region_name=F(region_field))
+            .annotate(
+                orders=Count('id'),
+                total_quantity=Sum('quantity'),
+                amount=Sum('total_amount'),
+            )
+            .exclude(region_name='')
+            .order_by(f'-{order_field}')
+        )
+        
+        result = list(qs if limit is None else qs[:int(limit)])
+        cache.set(cache_key, result, cls.CACHE_TIMEOUT)
+        return result
+    
+    @classmethod
+    def get_product_region_distribution(
+        cls,
+        product_id: int,
+        level: str = 'province',
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        order_by: str = 'total_quantity',
+    ) -> List[Dict]:
+        """
+        获取某商品在各地区的销售分布
+        
+        Args:
+            product_id: 商品ID
+            level: 地区维度（province/city/district/town）
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            order_by: 排序字段（orders/total_quantity/amount）
+        
+        Returns:
+            地区分布列表，包含地区名称、订单数、销量、销售额
+        """
+        from orders.models import Order
+        
+        level = (level or 'province').strip().lower()
+        level_map = {
+            'province': 'snapshot_province',
+            'city': 'snapshot_city',
+            'district': 'snapshot_district',
+            'town': 'snapshot_town',
+        }
+        region_field = level_map.get(level, 'snapshot_province')
+        
+        order_by = (order_by or 'total_quantity').strip().lower()
+        order_map = {
+            'orders': 'orders',
+            'total_quantity': 'total_quantity',
+            'amount': 'amount',
+        }
+        order_field = order_map.get(order_by, 'total_quantity')
+        
+        cache_key = f'product_region_{product_id}_{region_field}_{start_date}_{end_date}_{order_field}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        
+        qs = Order.objects.filter(status='completed', product_id=product_id)
+        if start_date:
+            qs = qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(created_at__date__lte=end_date)
+        
+        qs = (
+            qs.values(region_name=F(region_field))
+            .annotate(
+                orders=Count('id'),
+                total_quantity=Sum('quantity'),
+                amount=Sum('total_amount'),
+            )
+            .exclude(region_name='')
+            .order_by(f'-{order_field}')
+        )
+        
+        result = list(qs)
+        cache.set(cache_key, result, cls.CACHE_TIMEOUT)
+        return result
+
+    @classmethod
+    def get_region_product_stats(
+        cls,
+        region_name: str,
+        level: str = 'province',
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        order_by: str = 'total_quantity',
+        limit: Optional[int] = None,
+    ) -> List[Dict]:
+        """
+        获取某地区的热销商品统计
+        
+        Args:
+            region_name: 地区名称（如"北京市"）
+            level: 地区维度（province/city/district/town）
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            order_by: 排序字段（orders/total_quantity/amount）
+            limit: 返回条目上限（可选）
+        
+        Returns:
+            商品列表，包含商品ID、名称、订单数、销量、销售额
+        """
+        from orders.models import Order
+        
+        level = (level or 'province').strip().lower()
+        level_map = {
+            'province': 'snapshot_province',
+            'city': 'snapshot_city',
+            'district': 'snapshot_district',
+            'town': 'snapshot_town',
+        }
+        region_field = level_map.get(level, 'snapshot_province')
+        
+        order_by = (order_by or 'total_quantity').strip().lower()
+        order_map = {
+            'orders': 'orders',
+            'total_quantity': 'total_quantity',
+            'amount': 'amount',
+        }
+        order_field = order_map.get(order_by, 'total_quantity')
+        
+        cache_key = f'region_prod_{region_name}_{region_field}_{start_date}_{end_date}_{order_field}_{limit}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+        
+        qs = Order.objects.filter(status='completed')
+        
+        # 地区过滤
+        filter_kwargs = {region_field: region_name}
+        qs = qs.filter(**filter_kwargs)
+        
+        if start_date:
+            qs = qs.filter(created_at__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(created_at__date__lte=end_date)
+        
+        qs = (
+            qs.values('product__id', 'product__name')
+            .annotate(
+                orders=Count('id'),
+                total_quantity=Sum('quantity'),
+                amount=Sum('total_amount'),
+            )
+            .order_by(f'-{order_field}')
+        )
+        
+        result = list(qs if limit is None else qs[:int(limit)])
+        cache.set(cache_key, result, cls.CACHE_TIMEOUT)
+        return result
+
+    @classmethod
     def get_top_products(
         cls,
         limit: int = 10,

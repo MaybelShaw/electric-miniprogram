@@ -1849,6 +1849,149 @@ class AnalyticsViewSet(viewsets.ViewSet):
         
         return Response(result)
     
+    @action(detail=False, methods=['get'])
+    def regional_sales(self, request):
+        """
+        获取按地区聚合的销售统计
+        
+        Query Parameters:
+            level: 地区维度（province/city/district/town），默认 province
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            product_id: 商品ID（可选）
+            order_by: 排序字段（orders/total_quantity/amount），默认 amount
+            limit: 返回条目上限（可选）
+        
+        Returns:
+            [ { region: 地区名称, orders: 订单数, total_quantity: 销量, amount: 销售额 }, ... ]
+        """
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        product_id = request.query_params.get('product_id')
+        order_by = request.query_params.get('order_by', 'amount')
+        limit = request.query_params.get('limit')
+        
+        try:
+            product_id = int(product_id) if product_id is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'product_id must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            limit = int(limit) if limit is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'limit must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = OrderAnalytics.get_sales_by_region(
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            product_id=product_id,
+            order_by=str(order_by).lower(),
+            limit=limit,
+        )
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def product_region_distribution(self, request):
+        """
+        获取某商品在各地区的销售分布
+        
+        Query Parameters:
+            product_id: 商品ID（必填）
+            level: 地区维度（province/city/district/town），默认 province
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            order_by: 排序字段（orders/total_quantity/amount），默认 total_quantity
+        
+        Returns:
+            [ { region: 地区名称, orders: 订单数, total_quantity: 销量, amount: 销售额 }, ... ]
+        """
+        product_id = request.query_params.get('product_id')
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        order_by = request.query_params.get('order_by', 'total_quantity')
+        
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return Response({'detail': 'product_id is required and must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = OrderAnalytics.get_product_region_distribution(
+            product_id=product_id,
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            order_by=str(order_by).lower(),
+        )
+        return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def region_product_stats(self, request):
+        """
+        获取某地区的热销商品统计
+        
+        Query Parameters:
+            region_name: 地区名称（必填）
+            level: 地区维度（province/city/district/town），默认 province
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
+            order_by: 排序字段（orders/total_quantity/amount），默认 total_quantity
+            limit: 返回条目上限（可选）
+        
+        Returns:
+            [ { product__id, product__name, orders, total_quantity, amount }, ... ]
+        """
+        region_name = request.query_params.get('region_name')
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        order_by = request.query_params.get('order_by', 'total_quantity')
+        limit = request.query_params.get('limit')
+        
+        if not region_name:
+            return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            limit = int(limit) if limit is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'limit must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = OrderAnalytics.get_region_product_stats(
+            region_name=region_name,
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            order_by=str(order_by).lower(),
+            limit=limit,
+        )
+        return Response(result)
+
     @action(detail=False, methods=['post'], permission_classes=[IsAdmin])
     def invalidate_cache(self, request):
         """

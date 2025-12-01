@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   FileTextOutlined,
   BarChartOutlined,
+  RiseOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { removeToken } from '@/utils/auth';
@@ -22,6 +23,7 @@ const { Header, Sider, Content } = AntLayout;
 const menuItems = [
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
   { key: '/user-stats', icon: <BarChartOutlined />, label: '用户统计' },
+  { key: '/sales-stats', icon: <RiseOutlined />, label: '销售统计' },
   { key: '/company-certification', icon: <SafetyCertificateOutlined />, label: '认证审核' },
   { key: '/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
   { key: '/account-statements', icon: <AccountBookOutlined />, label: '对账单' },

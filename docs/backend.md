@@ -157,6 +157,27 @@
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
+- 统计与分析（仅管理员）：
+  - `GET /analytics/sales_summary/` 销售汇总（`start_date/end_date`）
+  - `GET /analytics/top_products/` 热销商品排行（`limit/days`）
+  - `GET /analytics/daily_sales/` 每日销售统计（`days`）
+  - `GET /analytics/user_growth/` 用户增长统计（`days`）
+  - `GET /analytics/order_status_distribution/` 订单状态分布（`start_date/end_date`）
+  - `GET /analytics/regional_sales/` 地区销售统计（新增）
+    - 查询参数：`level`=`province|city`，`start_date`，`end_date`，`product_id`（可选），`order_by`=`orders|total_quantity|amount`，`limit`（可选）
+    - 返回：`[{ region_name, orders, total_quantity, amount }]` （注意：返回的地区字段名为 `region_name`，对应请求的 level）
+  - `GET /analytics/product_region_distribution/` 商品地区分布（新增）
+    - 查询参数：`product_id`（必填），`level`=`province|city`，`start_date`，`end_date`，`order_by`=`orders|total_quantity|amount`
+    - 返回：`[{ region_name, orders, total_quantity, amount }]`
+  - `GET /analytics/region_product_stats/` 地区热销商品（新增）
+    - 查询参数：`region_name`（必填），`level`=`province|city`，`start_date`，`end_date`，`order_by`=`orders|total_quantity|amount`，`limit`（可选）
+    - 返回：`[{ product__id, product__name, orders, total_quantity, amount }]`
+
+## 历史数据处理
+- 订单地区数据修复：
+  - 由于部分历史订单缺少快照地区信息，导致统计图表显示空白地区。
+  - 可运行命令修复：`python manage.py fix_order_regions`
+  - 该命令会解析 `snapshot_address` 填充 `snapshot_province/city/district`。
 - 集成与回调：
   - `GET/POST ... /integrations/haier/api/*` 海尔查询与操作 `backend/integrations/urls.py:18`
   - `POST /integrations/ylh/orders/*` 易理货订单操作 `backend/integrations/urls.py:28`

@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.2.6",
+    "@ant-design/plots": "^2.6.6",
     "@ant-design/pro-components": "^2.6.43",
     "antd": "^5.12.2",
     "axios": "^1.6.2",

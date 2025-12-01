@@ -95,6 +95,11 @@ export const exportAccountStatement = (id: number) => {
 // 交易记录管理
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
 
+// 统计分析
+export const getRegionalSales = (params?: any) => request.get('/analytics/regional_sales/', { params });
+export const getProductRegionDistribution = (params?: any) => request.get('/analytics/product_region_distribution/', { params });
+export const getRegionProductStats = (params?: any) => request.get('/analytics/region_product_stats/', { params });
+
 // 发票管理
 export const getInvoices = (params?: any) => request.get('/invoices/', { params });
 export const getInvoice = (id: number) => request.get(`/invoices/${id}/`);

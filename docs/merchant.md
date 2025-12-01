@@ -67,6 +67,16 @@
   - API支持：
     - 数据接口：`GET /api/users/{id}/transaction_stats/`、`GET /api/users/customers_transaction_stats/`
     - Excel导出：`GET /api/users/{id}/export_transaction_stats/`、`GET /api/users/export_customers_transaction_stats/`
+- 销售统计：独立页面，提供基于地区和商品的销售分析
+  - 地区销售统计：
+    - 图表可视化：支持按销售金额、订单数、销售数量展示饼图
+    - 数据表格：展示各省/市/区县的详细数据，支持排序
+    - 筛选：支持按时间范围、行政级别（省/市/区）、特定商品筛选
+  - 商品地区分布：
+    - 图表可视化：展示特定商品在各地区的销售分布（金额/数量/订单数）的饼图
+    - 数据表格：展示详细分布数据
+    - 筛选：支持按时间范围、行政级别筛选
+  - API支持：`GET /analytics/regional_sales/`、`GET /analytics/product_region_distribution/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
   - **发货操作**：管理员点击发货时，需在弹窗中填写快递单号与物流公司。
