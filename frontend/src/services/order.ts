@@ -63,7 +63,7 @@ export const orderService = {
   },
 
   // 填写退货物流
-  async addReturnTracking(id: number, data: { tracking_number: string; logistics_company?: string; evidence_images?: string[] }): Promise<any> {
+  async addReturnTracking(id: number, data: { tracking_number: string; evidence_images?: string[] }): Promise<any> {
     return http.patch(`/orders/${id}/add_return_tracking/`, data)
   }
 }

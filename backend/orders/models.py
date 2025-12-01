@@ -53,7 +53,6 @@ class Order(models.Model):
     is_government_order = models.BooleanField(default=False, verbose_name='是否国补订单')
     
     # 物流信息
-    logistics_company = models.CharField(max_length=100, blank=True, default='', verbose_name='物流公司')
     logistics_no = models.CharField(max_length=100, blank=True, default='', verbose_name='物流单号')
     delivery_record_code = models.CharField(max_length=100, blank=True, default='', verbose_name='发货单号')
     sn_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SN码')
@@ -155,7 +154,6 @@ class Order(models.Model):
         """
         from django.utils import timezone
         
-        self.logistics_company = logistics_data.get('logisticsCompany', '')
         self.logistics_no = logistics_data.get('logisticsNo', '')
         self.delivery_record_code = logistics_data.get('deliveryRecordCode', '')
         self.sn_code = logistics_data.get('snCode', '')
@@ -408,7 +406,6 @@ class ReturnRequest(models.Model):
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested', verbose_name='状态')
     reason = models.CharField(max_length=200, verbose_name='退货原因')
-    logistics_company = models.CharField(max_length=100, blank=True, default='', verbose_name='退货物流公司')
     tracking_number = models.CharField(max_length=100, blank=True, default='', verbose_name='退货快递单号')
     evidence_images = models.JSONField(default=list, blank=True, verbose_name='退货凭证图片')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='申请时间')

@@ -90,16 +90,14 @@ class OrderSerializer(serializers.ModelSerializer):
         """获取物流信息"""
         # 只要有任意一项物流相关信息，就返回字典，确保前端能展示已有信息
         if not any([
-            obj.logistics_company, 
-            obj.logistics_no, 
-            obj.delivery_record_code, 
+            obj.logistics_no,
+            obj.delivery_record_code,
             obj.sn_code,
             obj.delivery_images
         ]):
             return None
         
         return {
-            'logistics_company': obj.logistics_company,
             'logistics_no': obj.logistics_no,
             'delivery_record_code': obj.delivery_record_code,
             'sn_code': obj.sn_code,
@@ -133,7 +131,6 @@ class OrderSerializer(serializers.ModelSerializer):
             'status': rr.status,
             'status_display': mapping.get(rr.status, rr.status),
             'reason': rr.reason,
-            'logistics_company': rr.logistics_company,
             'tracking_number': rr.tracking_number,
             'evidence_images': rr.evidence_images,
             'created_at': rr.created_at,
@@ -299,7 +296,7 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
         model = ReturnRequest
         fields = [
             'id', 'order', 'user', 'status', 'status_label', 'reason',
-            'logistics_company', 'tracking_number', 'evidence_images',
+            'tracking_number', 'evidence_images',
             'created_at', 'updated_at'
         ]
 

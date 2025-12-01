@@ -191,12 +191,6 @@ export default function OrderDetail() {
         {/* 物流信息 */}
         {order.logistics_info && (
           <View className='info-card'>
-            {order.logistics_info.logistics_company ? (
-              <View className='info-row'>
-                <Text className='info-label'>物流公司</Text>
-                <Text className='info-value'>{order.logistics_info.logistics_company}</Text>
-              </View>
-            ) : null}
             {order.logistics_info.logistics_no ? (
               <View className='info-row'>
                 <Text className='info-label'>快递单号</Text>
@@ -284,12 +278,6 @@ export default function OrderDetail() {
               <Text className='info-label'>退货原因</Text>
               <Text className='info-value'>{order.return_info.reason}</Text>
             </View>
-            {order.return_info.logistics_company && (
-              <View className='info-row'>
-                <Text className='info-label'>物流公司</Text>
-                <Text className='info-value'>{order.return_info.logistics_company}</Text>
-              </View>
-            )}
             {order.return_info.tracking_number && (
               <View className='info-row'>
                 <Text className='info-label'>退货单号</Text>

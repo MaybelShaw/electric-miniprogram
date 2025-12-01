@@ -497,12 +497,6 @@ export default function Orders() {
         onFinish={handleShipSubmit}
       >
         <ProFormText
-          name="logistics_company"
-          label="物流公司"
-          placeholder="请输入物流公司"
-          rules={[{ required: true, message: '请输入物流公司' }]}
-        />
-        <ProFormText
           name="logistics_no"
           label="物流单号"
           placeholder="请输入物流单号"
@@ -582,7 +576,6 @@ export default function Orders() {
           >
             <ProDescriptions.Item label="退货状态" dataIndex="status_display" />
             <ProDescriptions.Item label="退货原因" dataIndex="reason" />
-            <ProDescriptions.Item label="物流公司" dataIndex="logistics_company" />
             <ProDescriptions.Item label="物流单号" dataIndex="tracking_number" />
             <ProDescriptions.Item 
               label="凭证图片" 

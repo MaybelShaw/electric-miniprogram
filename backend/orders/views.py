@@ -368,11 +368,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
             tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
-            logistics_company = request.data.get('logistics_company') or request.data.get('company') or ''
             if not tracking_number:
                 return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
             order.logistics_no = tracking_number
-            order.logistics_company = logistics_company
             order.save()
             order = OrderStateMachine.transition(
                 order,
@@ -494,12 +492,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
         tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
-        logistics_company = request.data.get('logistics_company') or request.data.get('company') or ''
         evidence_images = request.data.get('evidence_images') or []
         if not tracking_number:
             return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
         rr.tracking_number = str(tracking_number)
-        rr.logistics_company = str(logistics_company)
         if isinstance(evidence_images, list) and evidence_images:
             rr.evidence_images = list(set((rr.evidence_images or []) + [str(x) for x in evidence_images if x]))
         rr.status = 'in_transit'

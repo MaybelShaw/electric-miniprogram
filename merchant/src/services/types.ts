@@ -63,15 +63,13 @@ export interface HaierOrderInfo {
 }
 
 export interface LogisticsInfo {
-  logistics_company?: string;
   logistics_no?: string;
 }
 
 export interface ReturnInfo {
-  status: 'requested' | 'approved' | 'in_transit' | 'received' | 'rejected';
+  status: 'requested' | 'in_transit' | 'received' | 'rejected';
   status_display: string;
   reason: string;
-  logistics_company: string;
   tracking_number: string;
   evidence_images: string[];
   created_at: string;

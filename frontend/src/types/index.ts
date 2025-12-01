@@ -115,7 +115,6 @@ export interface Order {
   created_at: string
   updated_at: string
   logistics_info?: {
-    logistics_company: string
     logistics_no: string
     delivery_record_code: string
     sn_code: string
@@ -136,7 +135,6 @@ export interface ReturnRequest {
   status: 'requested' | 'in_transit' | 'received' | 'rejected'
   status_display: string
   reason: string
-  logistics_company: string
   tracking_number: string
   evidence_images: string[]
   created_at: string

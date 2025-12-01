@@ -50,6 +50,6 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 @admin.register(ReturnRequest)
 class ReturnRequestAdmin(admin.ModelAdmin):
-    list_display = ("id", "order", "user", "status", "reason", "tracking_number", "logistics_company", "created_at")
+    list_display = ("id", "order", "user", "status", "reason", "tracking_number", "created_at")
     list_filter = ("status",)
     search_fields = ("order__order_number", "user__username", "tracking_number")

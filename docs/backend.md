@@ -129,7 +129,7 @@
       - `payment_method` 支付方式：`online | credit`（默认 `online`）。当为 `credit` 时将直接记录采购到信用账户并将订单置为 `paid`，不创建支付记录；当为 `online` 时创建对应支付记录。
       - `method` 在线支付渠道：`wechat | alipay | bank`（仅当 `payment_method=online` 时有效，默认 `wechat`）
   - `PATCH /orders/{id}/cancel|ship|complete|confirm_receipt/` 状态流转 `backend/orders/views.py:313`
-    - 发货请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰" }`（或使用 `logistics_no`/`company` 字段）。
+    - 发货请求体：`{ "tracking_number": "SF1234567890" }`（也可使用 `logistics_no` 字段）。
     - 发货校验：管理员必填快递单号；接口会写入订单物流信息后再流转到 `shipped`。
     - 确认收货：订单所有者或管理员可调用 `PATCH /api/orders/{id}/confirm_receipt/`，可选请求体 `{ "note": "已收到" }`，成功后状态从 `shipped` 变为 `completed`，并记录状态历史（`backend/orders/views.py:379`）。
     - 取消订单：订单所有者或管理员可调用 `PATCH /api/orders/{id}/cancel/`；可选请求体 `{ "note": "用户取消", "reason": "下单错误" }`。允许状态：`pending`、`paid`。流转至 `cancelled` 后：
@@ -142,7 +142,7 @@
       - 校验：仅 `paid|shipped|completed` 状态可申请；同一订单仅允许存在一条退货申请；`reason` 必填。
       - 说明：退货凭证图片建议先通过 `POST /media-images/` 上传后，取返回的 `url` 作为 `evidence_images` 元素。
     - `PATCH /orders/{id}/add_return_tracking/` 填写退货物流（订单所有者或管理员）`backend/orders/views.py:456`
-      - 请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰", "evidence_images": ["/media/images/...webp"] }`
+      - 请求体：`{ "tracking_number": "SF1234567890", "evidence_images": ["/media/images/...webp"] }`
       - 效果：更新退货申请的快递单号与物流公司，状态置为 `in_transit`；若订单允许，状态机将流转为 `refunding`。
     - `PATCH /orders/{id}/receive_return/` 标记已收到退货（管理员）`backend/orders/views.py:476`
       - 请求体：`{ "note": "验货通过" }`
@@ -150,7 +150,7 @@
     - `PATCH /orders/{id}/complete_refund/` 完成退款（管理员）`backend/orders/views.py:486`
       - 效果：订单状态机从 `refunding` 流转到 `refunded`。若订单为信用支付（无支付记录），自动记录一条信用退款以冲减欠款（`backend/users/credit_services.py:107`）。
     - 数据结构：退货申请 `ReturnRequest` 模型 `backend/orders/models.py:...`
-      - 字段：`status(reason/logistics_company/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
+      - 字段：`status(reason/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
       - 状态：`requested | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`

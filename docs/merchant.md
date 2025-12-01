@@ -134,8 +134,8 @@
   - 我的交易：`GET /account-transactions/my_transactions/`（前端用户端）
 - 订单：
   - 发货/完成/取消：`PATCH /orders/{id}/ship|complete|cancel/`
-    - 发货请求体：`{ "tracking_number": "SF1234567890", "logistics_company": "顺丰" }`
-    - 管理员发货时需填写快递单号，系统会记录物流公司与单号并将状态流转为 `shipped`。
+    - 发货请求体：`{ "tracking_number": "SF1234567890" }`
+    - 管理员发货时需填写快递单号，系统会记录运单号并将状态流转为 `shipped`。
   - 海尔推送：`POST /orders/{id}/push_to_haier/`
   - 海尔物流：`GET /orders/{id}/haier_logistics/`
 

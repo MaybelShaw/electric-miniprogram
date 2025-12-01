@@ -8,7 +8,6 @@ import './index.scss'
 export default function ReturnTracking() {
   const [orderId, setOrderId] = useState<number>(0)
   const [trackingNumber, setTrackingNumber] = useState('')
-  const [logisticsCompany, setLogisticsCompany] = useState('')
   const [images, setImages] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -49,16 +48,11 @@ export default function ReturnTracking() {
       Taro.showToast({ title: '请填写快递单号', icon: 'none' })
       return
     }
-    if (!logisticsCompany.trim()) {
-      Taro.showToast({ title: '请填写物流公司', icon: 'none' })
-      return
-    }
 
     setSubmitting(true)
     try {
       await orderService.addReturnTracking(orderId, {
         tracking_number: trackingNumber.trim(),
-        logistics_company: logisticsCompany.trim(),
         evidence_images: images
       })
       Taro.showToast({ title: '提交成功', icon: 'success' })
@@ -75,18 +69,6 @@ export default function ReturnTracking() {
   return (
     <View className='return-tracking'>
       <View className='form-group'>
-        <View className='form-item'>
-          <View className='label'>
-            物流公司 <Text style={{ color: '#ff4d4f' }}>*</Text>
-          </View>
-          <Input
-            className='input'
-            placeholder='请输入物流公司名称'
-            value={logisticsCompany}
-            onInput={(e) => setLogisticsCompany(e.detail.value)}
-          />
-        </View>
-        <View className='divider' />
         <View className='form-item'>
           <View className='label'>
             快递单号 <Text style={{ color: '#ff4d4f' }}>*</Text>
