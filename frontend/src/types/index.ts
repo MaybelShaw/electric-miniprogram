@@ -96,7 +96,7 @@ export interface Address {
 }
 
 // 订单相关
-export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'refunding' | 'refunded'
+export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'returning' | 'refunding' | 'refunded'
 
 export interface Order {
   id: number
@@ -132,7 +132,7 @@ export interface Order {
 
 export interface ReturnRequest {
   id: number
-  status: 'requested' | 'in_transit' | 'received' | 'rejected'
+  status: 'requested' | 'approved' | 'in_transit' | 'received' | 'rejected'
   status_display: string
   reason: string
   tracking_number: string

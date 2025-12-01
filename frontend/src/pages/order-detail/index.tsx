@@ -30,6 +30,14 @@ export default function OrderDetail() {
     }
   })
 
+  const returnStatusMap: Record<string, string> = {
+    requested: '等待商家处理',
+    approved: '已同意退货',
+    in_transit: '退货中',
+    received: '已收到退货',
+    rejected: '已拒绝退货',
+  }
+
   const loadOrderDetail = async (id: number) => {
     try {
       const data = await orderService.getOrderDetail(id)
@@ -204,6 +212,49 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
   }
 
+  const getDisplayStatus = (order: Order) => {
+    if (order.return_info) {
+      const returnStatus = order.return_info.status;
+      if (returnStatus === 'requested') return '待商家处理';
+      if (returnStatus === 'approved') return '待退货';
+      if (returnStatus === 'in_transit') return '退货中';
+      if (returnStatus === 'received') return '商家已收货';
+      if (returnStatus === 'rejected') return '退货被拒';
+    }
+    return getOrderStatusText(order.status);
+  }
+
+  const getStatusIcon = (order: Order) => {
+    if (order.return_info) {
+      const returnStatus = order.return_info.status;
+      if (returnStatus === 'requested') return '⏳';
+      if (returnStatus === 'approved') return '📦';
+      if (returnStatus === 'in_transit') return '🚚';
+      if (returnStatus === 'received') return '✅';
+      if (returnStatus === 'rejected') return '❌';
+    }
+    
+    switch (order.status) {
+      case 'pending': return '⏰';
+      case 'paid': return '✅';
+      case 'shipped': return '🚚';
+      case 'completed': return '✨';
+      case 'cancelled': return '❌';
+      case 'returning': return '🚚';
+      case 'refunding': return '💸';
+      case 'refunded': return '💰';
+      default: return '✨';
+    }
+  }
+
+  const getStatusClass = (order: Order) => {
+    if (order.return_info) {
+       if (order.return_info.status === 'rejected') return 'cancelled';
+       return 'returning';
+    }
+    return order.status;
+  }
+
   if (loading) {
     return (
       <View className='order-detail loading'>
@@ -224,15 +275,11 @@ export default function OrderDetail() {
     <View className='order-detail'>
       <ScrollView className='content' scrollY>
         {/* 订单状态 */}
-        <View className={`status-card ${order.status}`}>
+        <View className={`status-card ${getStatusClass(order)}`}>
           <View className='status-icon'>
-            {order.status === 'pending' && '⏰'}
-            {order.status === 'paid' && '✅'}
-            {order.status === 'shipped' && '🚚'}
-            {order.status === 'completed' && '✨'}
-            {order.status === 'cancelled' && '❌'}
+            {getStatusIcon(order)}
           </View>
-          <View className='status-text'>{getOrderStatusText(order.status)}</View>
+          <View className='status-text'>{getDisplayStatus(order)}</View>
         </View>
 
         {/* 物流信息 */}
@@ -319,7 +366,7 @@ export default function OrderDetail() {
           <View className='info-card'>
             <View className='info-row' style={{ borderBottom: '1rpx solid #f5f6f7', paddingBottom: '16rpx', marginBottom: '16rpx' }}>
               <Text className='info-label' style={{ fontWeight: 'bold', color: '#323233' }}>退货申请</Text>
-              <Text className='info-value' style={{ color: '#1989fa', fontWeight: 'bold' }}>{order.return_info.status_display}</Text>
+              <Text className='info-value' style={{ color: '#1989fa', fontWeight: 'bold' }}>{returnStatusMap[order.return_info.status] || order.return_info.status_display}</Text>
             </View>
             <View className='info-row'>
               <Text className='info-label'>退货原因</Text>
@@ -415,9 +462,9 @@ export default function OrderDetail() {
             </View>
           )}
 
-          {/* 填写退货物流: 退货申请状态为 requested */}
-          {order.return_info && order.return_info.status === 'requested' && (
-            <View className='confirm-btn' onClick={handleReturnTracking} style={{ marginLeft: '20rpx', background: '#1989fa', borderColor: '#1989fa' }}>
+          {/* 填写退货物流: 退货申请需管理员同意(approved) */}
+          {order.return_info && order.return_info.status === 'approved' && (
+            <View className='return-tracking-btn' onClick={handleReturnTracking}>
               填写退货物流
             </View>
           )}

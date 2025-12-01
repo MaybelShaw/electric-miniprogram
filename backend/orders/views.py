@@ -23,6 +23,7 @@ from catalog.models import Product
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.utils import parse_int, parse_datetime
@@ -50,12 +51,30 @@ class OrderViewSet(viewsets.ModelViewSet):
         qs = Order.objects.all() if user.is_staff else Order.objects.filter(user=user)
         
         # Optimize queries by prefetching related objects
-        qs = qs.select_related('user', 'product').prefetch_related('payments', 'status_history')
+        qs = qs.select_related('user', 'product', 'return_request').prefetch_related('payments', 'status_history')
 
         # 订单状态筛选
         status_filter = self.request.query_params.get('status')
         if status_filter:
-            qs = qs.filter(status=status_filter)
+            if ',' in status_filter:
+                status_list = status_filter.split(',')
+                rr_active = {'requested', 'approved', 'in_transit', 'received'}
+                if 'returning' in status_list:
+                    qs = qs.filter(
+                        Q(status__in=status_list) |
+                        Q(return_request__status__in=rr_active)
+                    )
+                else:
+                    qs = qs.filter(status__in=status_list)
+            else:
+                if status_filter == 'returning':
+                    rr_active = {'requested', 'approved', 'in_transit', 'received'}
+                    qs = qs.filter(Q(status='returning') | Q(return_request__status__in=rr_active))
+                elif status_filter == 'completed':
+                    rr_active = {'requested', 'approved', 'in_transit', 'received'}
+                    qs = qs.filter(status='completed').exclude(return_request__status__in=rr_active)
+                else:
+                    qs = qs.filter(status=status_filter)
 
         # 订单号搜索（模糊）
         order_number = self.request.query_params.get('order_number')
@@ -492,6 +511,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        if rr.status != 'approved':
+            return Response({"detail": "退货申请尚未审核通过，无法填写物流"}, status=status.HTTP_400_BAD_REQUEST)
         tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
         evidence_images = request.data.get('evidence_images') or []
         if not tracking_number:
@@ -503,10 +524,42 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr.save()
         try:
             from .state_machine import OrderStateMachine
-            if OrderStateMachine.can_transition(order.status, 'refunding'):
-                OrderStateMachine.transition(order, 'refunding', operator=user, note='用户填写退货快递单号')
+            if OrderStateMachine.can_transition(order.status, 'returning'):
+                OrderStateMachine.transition(order, 'returning', operator=user, note='用户填写退货快递单号')
         except Exception:
             pass
+        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    def approve_return(self, request, pk=None):
+        order = self.get_object()
+        rr = getattr(order, 'return_request', None)
+        if not rr:
+            return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        if rr.status not in {'requested'}:
+            return Response({"detail": "当前状态不可审批"}, status=status.HTTP_400_BAD_REQUEST)
+        rr.status = 'approved'
+        rr.processed_by = request.user
+        rr.processed_note = str(request.data.get('note', '') or '')
+        from django.utils import timezone
+        rr.processed_at = timezone.now()
+        rr.save()
+        return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    def reject_return(self, request, pk=None):
+        order = self.get_object()
+        rr = getattr(order, 'return_request', None)
+        if not rr:
+            return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
+        if rr.status not in {'requested', 'approved'}:
+            return Response({"detail": "当前状态不可拒绝"}, status=status.HTTP_400_BAD_REQUEST)
+        rr.status = 'rejected'
+        rr.processed_by = request.user
+        rr.processed_note = str(request.data.get('note', '') or '')
+        from django.utils import timezone
+        rr.processed_at = timezone.now()
+        rr.save()
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])

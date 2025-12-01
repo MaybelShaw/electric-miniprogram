@@ -43,11 +43,31 @@ export default function OrderCard({
     (order.status === 'pending' && !!onPay) ||
     (order.status === 'shipped' && !!onConfirmReceipt)
 
+  const getDisplayStatus = () => {
+    if (order.return_info) {
+      const returnStatus = order.return_info.status;
+      if (returnStatus === 'requested') return '待商家处理';
+      if (returnStatus === 'approved') return '待退货';
+      if (returnStatus === 'in_transit') return '退货中';
+      if (returnStatus === 'received') return '商家已收货';
+      if (returnStatus === 'rejected') return '退货被拒';
+    }
+    return getOrderStatusText(order.status);
+  }
+
+  const getStatusClass = () => {
+    if (order.return_info) {
+      if (order.return_info.status === 'rejected') return 'cancelled';
+      return 'returning'; // You might need to add this class to OrderCard.scss too
+    }
+    return order.status;
+  }
+
   return (
     <View className='order-card' onClick={handleCardClick}>
       <View className='order-header'>
         <Text className='order-time'>{formatTime(order.created_at)}</Text>
-        <Text className={`order-status ${order.status}`}>{getOrderStatusText(order.status)}</Text>
+        <Text className={`order-status ${getStatusClass()}`}>{getDisplayStatus()}</Text>
       </View>
       
       <View className='order-content'>

@@ -59,6 +59,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipped': '待收货',
             'completed': '已完成',
             'cancelled': '已取消',
+            'returning': '退货中',
             'refunding': '退款中',
             'refunded': '已退款',
         }
@@ -122,6 +123,7 @@ class OrderSerializer(serializers.ModelSerializer):
             return None
         mapping = {
             'requested': '已申请',
+            'approved': '已同意',
             'in_transit': '退货在途',
             'received': '已收到退货',
             'rejected': '已拒绝',
@@ -135,6 +137,8 @@ class OrderSerializer(serializers.ModelSerializer):
             'evidence_images': rr.evidence_images,
             'created_at': rr.created_at,
             'updated_at': rr.updated_at,
+            'processed_note': rr.processed_note,
+            'processed_at': rr.processed_at,
         }
 
 
@@ -310,12 +314,13 @@ class ReturnRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order', 'user', 'status', 'status_label', 'reason',
             'tracking_number', 'evidence_images',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'processed_note', 'processed_at'
         ]
 
     def get_status_label(self, obj: ReturnRequest) -> str:
         mapping = {
             'requested': '已申请',
+            'approved': '已同意',
             'in_transit': '退货在途',
             'received': '已收到退货',
             'rejected': '已拒绝',

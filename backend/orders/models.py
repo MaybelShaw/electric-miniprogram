@@ -17,6 +17,7 @@ class Order(models.Model):
         ('shipped', '待收货'),
         ('completed', '已完成'),
         ('cancelled', '已取消'),
+        ('returning', '退货中'),
         ('refunding', '退款中'),
         ('refunded', '已退款'),
     ]
@@ -387,6 +388,7 @@ class Invoice(models.Model):
 class ReturnRequest(models.Model):
     STATUS_CHOICES = [
         ('requested', '已申请'),
+        ('approved', '已同意'),
         ('in_transit', '退货在途'),
         ('received', '已收到退货'),
         ('rejected', '已拒绝'),

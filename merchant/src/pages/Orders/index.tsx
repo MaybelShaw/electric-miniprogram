@@ -1,8 +1,8 @@
 import { useRef } from 'react';
-import { ProTable, ProDescriptions, ModalForm, ProFormText } from '@ant-design/pro-components';
+import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
-import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice } from '@/services/api';
+import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
@@ -14,8 +14,17 @@ const statusMap: Record<string, { text: string; color: string }> = {
   shipped: { text: '已发货', color: 'cyan' },
   completed: { text: '已完成', color: 'green' },
   cancelled: { text: '已取消', color: 'red' },
+  returning: { text: '退货中', color: 'purple' },
   refunding: { text: '退款中', color: 'purple' },
   refunded: { text: '已退款', color: 'magenta' },
+};
+
+const returnStatusMap: Record<string, { text: string; color: string }> = {
+  requested: { text: '等待商家处理', color: 'orange' },
+  approved: { text: '已同意退货', color: 'green' },
+  in_transit: { text: '退货中', color: 'blue' },
+  received: { text: '已收到退货', color: 'purple' },
+  rejected: { text: '已拒绝退货', color: 'red' },
 };
 
 export default function Orders() {
@@ -34,6 +43,8 @@ export default function Orders() {
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [receiveReturnModalVisible, setReceiveReturnModalVisible] = useState(false);
   const [receivingOrder, setReceivingOrder] = useState<Order | null>(null);
+  const [viewReturnModalVisible, setViewReturnModalVisible] = useState(false);
+  const [viewingReturnOrder, setViewingReturnOrder] = useState<Order | null>(null);
   const [uploadInvoiceModalVisible, setUploadInvoiceModalVisible] = useState(false);
   const [uploadingOrder, setUploadingOrder] = useState<Order | null>(null);
   const [invoiceFileList, setInvoiceFileList] = useState<any[]>([]);
@@ -209,6 +220,34 @@ export default function Orders() {
     }
   };
 
+  const handleViewReturnDetail = (record: Order) => {
+    setViewingReturnOrder(record);
+    setViewReturnModalVisible(true);
+  };
+
+  const handleProcessReturnSubmit = async (values: any) => {
+    try {
+      if (!viewingReturnOrder) return false;
+      
+      if (values.action === 'approve') {
+        await approveReturn(viewingReturnOrder.id, { note: values.note });
+        message.success('已同意退货');
+      } else if (values.action === 'reject') {
+        await rejectReturn(viewingReturnOrder.id, { note: values.note }); // backend expects 'note' for rejection reason based on previous code context? Wait, let's check previous code.
+        // Previous code: handleRejectReturnSubmit called rejectReturn(id, values). values had 'note' (label="拒绝原因", name="note").
+        // So yes, 'note' is correct.
+        message.success('已拒绝退货');
+      }
+      
+      setViewReturnModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '操作失败');
+      return false;
+    }
+  };
+
   const columns: ProColumns<Order>[] = [
     { 
       title: '订单号', 
@@ -257,6 +296,7 @@ export default function Orders() {
         shipped: { text: '已发货' },
         completed: { text: '已完成' },
         cancelled: { text: '已取消' },
+        returning: { text: '退货中' },
         refunding: { text: '退款中' },
         refunded: { text: '已退款' },
       },
@@ -423,7 +463,32 @@ export default function Orders() {
         
         // 退货相关操作
         if (record.return_info) {
-          if (['requested', 'in_transit'].includes(record.return_info.status)) {
+          if (record.return_info.status === 'requested') {
+            actions.push(
+              <Button
+                key="process_return"
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleViewReturnDetail(record)}
+              >
+                处理退货
+              </Button>
+            );
+          } else {
+            actions.push(
+              <Button
+                key="view_return"
+                type="link"
+                size="small"
+                onClick={() => handleViewReturnDetail(record)}
+              >
+                退货详情
+              </Button>
+            );
+          }
+
+          if (record.return_info.status === 'in_transit') {
             actions.push(
               <Button
                 key="receive_return"
@@ -615,6 +680,103 @@ export default function Orders() {
         />
       </ModalForm>
 
+      {/* 退货详情/处理弹窗 */}
+      <ModalForm
+        title={viewingReturnOrder?.return_info?.status === 'requested' ? "处理退货申请" : "退货详情"}
+        visible={viewReturnModalVisible}
+        onVisibleChange={setViewReturnModalVisible}
+        onFinish={handleProcessReturnSubmit}
+        modalProps={{
+          destroyOnClose: true,
+        }}
+        submitter={
+          viewingReturnOrder?.return_info?.status === 'requested'
+            ? {
+                searchConfig: {
+                  submitText: '确认提交',
+                  resetText: '取消',
+                },
+              }
+            : false
+        }
+      >
+        {viewingReturnOrder?.return_info && (
+          <>
+            <ProDescriptions column={1} title="退货申请详情" dataSource={viewingReturnOrder.return_info}>
+               <ProDescriptions.Item 
+               label="退货状态" 
+               dataIndex="status"
+               render={(_, record) => {
+                 const status = returnStatusMap[record.status];
+                 return <Tag color={status?.color}>{status?.text || record.status_display}</Tag>;
+               }}
+             />
+               <ProDescriptions.Item label="退货原因" dataIndex="reason" />
+               <ProDescriptions.Item label="申请时间" dataIndex="created_at" valueType="dateTime" />
+               <ProDescriptions.Item 
+                 label="凭证图片" 
+                 dataIndex="evidence_images"
+                 render={(_, record) => {
+                   if (!record.evidence_images || record.evidence_images.length === 0) return '-';
+                   return (
+                     <Space>
+                       {record.evidence_images.map((url: string, index: number) => (
+                         <a key={index} href={url} target="_blank" rel="noopener noreferrer">
+                            <img src={url} style={{ width: 60, height: 60, objectFit: 'cover', border: '1px solid #f0f0f0' }} />
+                         </a>
+                       ))}
+                     </Space>
+                   );
+                 }}
+               />
+               <ProDescriptions.Item label="物流单号" dataIndex="tracking_number" />
+               <ProDescriptions.Item label="处理备注" dataIndex="processed_note" />
+               <ProDescriptions.Item label="处理时间" dataIndex="processed_at" valueType="dateTime" />
+            </ProDescriptions>
+
+            {viewingReturnOrder.return_info.status === 'requested' && (
+              <>
+                <div style={{ margin: '24px 0', borderTop: '1px solid #f0f0f0' }} />
+                <ProFormRadio.Group
+                  name="action"
+                  label="处理结果"
+                  rules={[{ required: true, message: '请选择处理结果' }]}
+                  options={[
+                    { label: '同意退货', value: 'approve' },
+                    { label: '拒绝退货', value: 'reject' },
+                  ]}
+                />
+                
+                <ProFormDependency name={['action']}>
+                  {({ action }) => {
+                    if (action === 'approve') {
+                      return (
+                        <ProFormTextArea
+                          name="note"
+                          label="处理备注"
+                          placeholder="请输入处理备注（可选）"
+                        />
+                      );
+                    }
+                    if (action === 'reject') {
+                      return (
+                        <ProFormTextArea
+                          name="note" // Reusing 'note' as per API check earlier
+                          label="拒绝原因"
+                          placeholder="请输入拒绝原因"
+                          rules={[{ required: true, message: '请输入拒绝原因' }]}
+                        />
+                      );
+                    }
+                    return null;
+                  }}
+                </ProFormDependency>
+              </>
+            )}
+          </>
+        )}
+      </ModalForm>
+
       {/* 详情弹窗 */}
       <Drawer
         title="订单详情"
@@ -650,7 +812,14 @@ export default function Orders() {
             style={{ marginTop: 24 }}
             dataSource={currentOrder.return_info}
           >
-            <ProDescriptions.Item label="退货状态" dataIndex="status_display" />
+            <ProDescriptions.Item 
+              label="退货状态" 
+              dataIndex="status"
+              render={(_, record) => {
+                const status = returnStatusMap[record.status];
+                return <Tag color={status?.color}>{status?.text || record.status_display}</Tag>;
+              }}
+            />
             <ProDescriptions.Item label="退货原因" dataIndex="reason" />
             <ProDescriptions.Item label="物流单号" dataIndex="tracking_number" />
             <ProDescriptions.Item 

@@ -67,7 +67,7 @@ export interface LogisticsInfo {
 }
 
 export interface ReturnInfo {
-  status: 'requested' | 'in_transit' | 'received' | 'rejected';
+  status: 'requested' | 'approved' | 'in_transit' | 'received' | 'rejected';
   status_display: string;
   reason: string;
   tracking_number: string;

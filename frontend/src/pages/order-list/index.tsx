@@ -19,7 +19,8 @@ export default function OrderList() {
     { key: 'pending', label: '待支付' },
     { key: 'paid', label: '待发货' },
     { key: 'shipped', label: '待收货' },
-    { key: 'completed', label: '已完成' }
+    { key: 'completed', label: '已完成' },
+    { key: 'returning,refunding,refunded', label: '退货/售后' }
   ]
 
   useEffect(() => {

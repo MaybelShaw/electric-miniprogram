@@ -120,6 +120,7 @@
 - 订单与支付：
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
+    - 查询参数：`status`（支持单状态如 `paid` 或多状态逗号分隔如 `returning,refunding,refunded`）。当传入 `returning` 时，除订单本身状态为 `returning` 外，还会包含存在退货申请且状态为 `requested|approved|in_transit|received` 的订单；当传入 `completed` 时，将排除上述处于退货流程中的订单。
   - `POST /orders/create_order/` 创建订单 `backend/orders/views.py:136`
   - `POST /orders/create_batch_orders/` 批量创建订单 `backend/orders/views.py:235`
     - 请求体：
@@ -141,17 +142,25 @@
       - 请求体：`{ "reason": "尺寸不合适", "evidence_images": ["/media/images/2025/12/01/abc.jpg"] }`
       - 校验：仅 `paid|shipped|completed` 状态可申请；同一订单仅允许存在一条退货申请；`reason` 必填。
       - 说明：退货凭证图片建议先通过 `POST /media-images/` 上传后，取返回的 `url` 作为 `evidence_images` 元素。
-    - `PATCH /orders/{id}/add_return_tracking/` 填写退货物流（订单所有者或管理员）`backend/orders/views.py:456`
+    - `PATCH /orders/{id}/approve_return/` 同意退货（管理员）`backend/orders/views.py:512`
+      - 请求体：`{ "note": "同意退货，请尽快寄回" }`（可选）
+      - 效果：退货申请状态置为 `approved`，记录处理人与时间。
+    - `PATCH /orders/{id}/reject_return/` 拒绝退货（管理员）`backend/orders/views.py:526`
+      - 请求体：`{ "note": "不满足退货条件" }`
+      - 效果：退货申请状态置为 `rejected`，记录处理人与时间。
+    - `PATCH /orders/{id}/add_return_tracking/` 填写退货物流（订单所有者或管理员）`backend/orders/views.py:486`
+      - 前置条件：退货申请已被管理员同意（状态为 `approved`）。
       - 请求体：`{ "tracking_number": "SF1234567890", "evidence_images": ["/media/images/...webp"] }`
-      - 效果：更新退货申请的快递单号与物流公司，状态置为 `in_transit`；若订单允许，状态机将流转为 `refunding`。
-    - `PATCH /orders/{id}/receive_return/` 标记已收到退货（管理员）`backend/orders/views.py:476`
+      - 效果：更新退货申请的快递单号与凭证图片，状态置为 `in_transit`；若订单允许，状态机流转为 `returning`。
+    - `PATCH /orders/{id}/receive_return/` 标记已收到退货（管理员）`backend/orders/views.py:539`
       - 请求体：`{ "note": "验货通过" }`
-      - 效果：更新退货申请状态为 `received`，记录处理人与时间；不直接变更订单状态。
-    - `PATCH /orders/{id}/complete_refund/` 完成退款（管理员）`backend/orders/views.py:486`
+      - 前置状态：`in_transit`
+      - 效果：退货申请状态更新为 `received`，记录处理人与时间；不直接变更订单状态。
+    - `PATCH /orders/{id}/complete_refund/` 完成退款（管理员）`backend/orders/views.py:551`
       - 效果：订单状态机从 `refunding` 流转到 `refunded`。若订单为信用支付（无支付记录），自动记录一条信用退款以冲减欠款（`backend/users/credit_services.py:107`）。
-    - 数据结构：退货申请 `ReturnRequest` 模型 `backend/orders/models.py:...`
+    - 数据结构：退货申请 `ReturnRequest` 模型 `backend/orders/models.py:387`
       - 字段：`status(reason/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
-      - 状态：`requested | in_transit | received | rejected`
+      - 状态：`requested | approved | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
@@ -233,7 +242,7 @@
 
 ## 退货功能说明
 - 角色与权限：
-  - 用户（订单所有者）：可申请退货、补充退货物流与凭证。
-  - 管理员：可标记已收到退货、完成退款。
+  - 用户（订单所有者）：可申请退货；仅在管理员同意后可填写退货物流与凭证。
+  - 管理员：可同意/拒绝退货、验收退货、完成退款。
 - 图片上传：通过 `POST /api/media-images/` 上传图片，返回的 `url` 可作为 `evidence_images` 列表元素传入退货接口。
-- 状态机配合：填写退货物流后，若订单允许，将进入 `refunding` 状态；完成退款后进入 `refunded` 并释放库存（`backend/orders/state_machine.py:203`）。
+ - 状态机配合：填写退货物流后，若订单允许，将进入 `returning` 状态；完成退款后进入 `refunded` 并释放库存（`backend/orders/state_machine.py:203`）。

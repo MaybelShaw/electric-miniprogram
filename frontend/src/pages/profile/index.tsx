@@ -158,6 +158,12 @@ export default function Profile() {
             </View>
             <Text className='order-text'>已完成</Text>
           </View>
+          <View className='order-item' onTap={() => goToOrders('returning,refunding,refunded')}>
+            <View className='order-icon-wrapper'>
+              <Text className='order-icon'>↩️</Text>
+            </View>
+            <Text className='order-text'>退货/售后</Text>
+          </View>
         </View>
       </View>
 

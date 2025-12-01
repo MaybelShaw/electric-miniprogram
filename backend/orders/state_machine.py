@@ -18,6 +18,7 @@ class OrderStatus(Enum):
     SHIPPED = 'shipped'          # 待收货
     COMPLETED = 'completed'      # 已完成
     CANCELLED = 'cancelled'      # 已取消
+    RETURNING = 'returning'      # 退货中
     REFUNDING = 'refunding'      # 退款中
     REFUNDED = 'refunded'        # 已退款
 
@@ -38,15 +39,22 @@ class OrderStateMachine:
         },
         OrderStatus.PAID: {
             OrderStatus.SHIPPED,     # 发货
+            OrderStatus.RETURNING,   # 售后退货
             OrderStatus.REFUNDING,   # 申请退款
             OrderStatus.CANCELLED,   # 取消订单（支付后仍可取消）
         },
         OrderStatus.SHIPPED: {
             OrderStatus.COMPLETED,   # 订单完成
+            OrderStatus.RETURNING,   # 售后退货
             OrderStatus.REFUNDING,   # 申请退款
         },
         OrderStatus.COMPLETED: {
+            OrderStatus.RETURNING,   # 售后退货
             OrderStatus.REFUNDING,   # 售后退款
+        },
+        OrderStatus.RETURNING: {
+            OrderStatus.REFUNDING,   # 收到退货后进入退款
+            OrderStatus.REFUNDED,    # 直接完成退款
         },
         OrderStatus.REFUNDING: {
             OrderStatus.REFUNDED,    # 退款完成

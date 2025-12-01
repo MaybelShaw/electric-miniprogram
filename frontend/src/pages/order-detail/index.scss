@@ -56,6 +56,21 @@
       box-shadow: 0 8rpx 24rpx rgba(150, 151, 153, 0.25);
     }
 
+    &.returning {
+      background: linear-gradient(135deg, #7232dd 0%, #5a20c9 100%);
+      box-shadow: 0 8rpx 24rpx rgba(114, 50, 221, 0.25);
+    }
+
+    &.refunding {
+      background: linear-gradient(135deg, #ff6034 0%, #ee0a24 100%);
+      box-shadow: 0 8rpx 24rpx rgba(238, 10, 36, 0.25);
+    }
+    
+    &.refunded {
+       background: linear-gradient(135deg, #07C160 0%, #00B26A 100%);
+       box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+    }
+
     .status-icon {
       font-size: 80rpx;
       margin-bottom: 16rpx;
@@ -340,6 +355,27 @@
       &:active {
         transform: scale(0.98);
         box-shadow: 0 2rpx 8rpx rgba(255, 96, 52, 0.4);
+      }
+    }
+
+    .return-tracking-btn {
+      height: 72rpx;
+      padding: 0 60rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28rpx;
+      font-weight: 600;
+      color: #fff;
+      background: linear-gradient(135deg, #7232dd 0%, #5a20c9 100%);
+      border-radius: 36rpx;
+      margin-left: 20rpx;
+      box-shadow: 0 4rpx 12rpx rgba(114, 50, 221, 0.4);
+      transition: all 0.2s;
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2rpx 8rpx rgba(114, 50, 221, 0.4);
       }
     }
   }

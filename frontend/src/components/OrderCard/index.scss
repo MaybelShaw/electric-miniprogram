@@ -56,6 +56,21 @@
         background: #f5f5f5;
         color: #999;
       }
+
+      &.returning {
+        background: #f9f0ff;
+        color: #7232dd;
+      }
+      
+      &.refunding {
+        background: #fff0f0;
+        color: #ff4d4f;
+      }
+
+      &.refunded {
+        background: #f6ffed;
+        color: #52c41a;
+      }
     }
   }
 

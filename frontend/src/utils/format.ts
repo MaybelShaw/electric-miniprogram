@@ -46,6 +46,7 @@ export function getOrderStatusText(status: string): string {
     shipped: '待收货',
     completed: '已完成',
     cancelled: '已取消',
+    returning: '退货中',
     refunding: '退款中',
     refunded: '已退款'
   }
