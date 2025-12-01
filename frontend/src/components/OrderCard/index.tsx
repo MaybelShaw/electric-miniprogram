@@ -38,6 +38,11 @@ export default function OrderCard({
     onConfirmReceipt?.(order.id)
   }
 
+  const hasActions = 
+    ((order.status === 'pending' || order.status === 'paid') && !!onCancel) ||
+    (order.status === 'pending' && !!onPay) ||
+    (order.status === 'shipped' && !!onConfirmReceipt)
+
   return (
     <View className='order-card' onClick={handleCardClick}>
       <View className='order-header'>
@@ -59,32 +64,35 @@ export default function OrderCard({
           </View>
         </View>
       </View>
-      
-      <View className='order-footer'>
-        <View className='total-amount'>
-          合计：<Text className='amount'>{formatPrice(order.total_amount)}</Text>
-        </View>
-        
-        <View className='order-actions'>
-          {(order.status === 'pending' || order.status === 'paid') && onCancel && (
-            <View className='cancel-btn' onClick={handleCancel}>
-              取消订单
-            </View>
-          )}
-          
-          {order.status === 'pending' && onPay && (
-            <View className='pay-btn' onClick={handlePay}>
-              立即支付
-            </View>
-          )}
-          
-          {order.status === 'shipped' && onConfirmReceipt && (
-            <View className='confirm-btn' onClick={handleConfirm}>
-              确认收货
-            </View>
-          )}
-        </View>
+
+      <View className='order-total'>
+        <Text className='label'>合计</Text>
+        <Text className='amount'>{formatPrice(order.total_amount)}</Text>
       </View>
+      
+      {hasActions && (
+        <View className='order-footer'>
+          <View className='order-actions'>
+            {(order.status === 'pending' || order.status === 'paid') && onCancel && (
+              <View className='cancel-btn' onClick={handleCancel}>
+                取消订单
+              </View>
+            )}
+            
+            {order.status === 'pending' && onPay && (
+              <View className='pay-btn' onClick={handlePay}>
+                立即支付
+              </View>
+            )}
+            
+            {order.status === 'shipped' && onConfirmReceipt && (
+              <View className='confirm-btn' onClick={handleConfirm}>
+                确认收货
+              </View>
+            )}
+          </View>
+        </View>
+      )}
     </View>
   )
 }
