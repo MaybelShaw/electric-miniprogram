@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
-import { Product, Category, Brand } from '../../types'
+import { Product, Category, Brand, HomeBanner } from '../../types'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
 import './index.scss'
@@ -12,22 +12,27 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [banners, setBanners] = useState<HomeBanner[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
 
-  // 轮播图数据（前端配置）
-  const banners = [
-    { id: 1, image: 'https://via.placeholder.com/750x360/1989FA/FFFFFF?text=Banner+1', link: '' },
-    { id: 2, image: 'https://via.placeholder.com/750x360/FF6034/FFFFFF?text=Banner+2', link: '' },
-    { id: 3, image: 'https://via.placeholder.com/750x360/66BB6A/FFFFFF?text=Banner+3', link: '' }
-  ]
-
   useEffect(() => {
+    loadBanners()
     loadCategories()
     loadBrands()
     loadProducts(1)
   }, [])
+
+  // 加载轮播图
+  const loadBanners = async () => {
+    try {
+      const data = await productService.getHomeBanners()
+      setBanners(data)
+    } catch (error) {
+      // 静默失败
+    }
+  }
 
   // 加载分类
   const loadCategories = async () => {
@@ -146,8 +151,18 @@ export default function Home() {
         {/* 轮播图 */}
         <Swiper className='banner' autoplay circular indicatorDots>
           {banners.map(banner => (
-            <SwiperItem key={banner.id}>
-              <Image className='banner-image' src={banner.image} mode='aspectFill' />
+            <SwiperItem key={banner.id} onClick={() => {
+              if (banner.link_url) {
+                // 判断是否是 tab 页面
+                const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => banner.link_url.includes(path))
+                if (isTab) {
+                  Taro.switchTab({ url: banner.link_url })
+                } else {
+                  Taro.navigateTo({ url: banner.link_url })
+                }
+              }
+            }}>
+              <Image className='banner-image' src={banner.image_url} mode='aspectFill' />
             </SwiperItem>
           ))}
         </Swiper>

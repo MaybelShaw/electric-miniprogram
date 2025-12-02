@@ -1,7 +1,13 @@
 import { http } from '../utils/request'
-import { Product, ProductListResponse, Category, Brand } from '../types'
+import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../types/index'
 
 export const productService = {
+  // 获取轮播图列表
+  async getHomeBanners(): Promise<HomeBanner[]> {
+    const response = await http.get<{ count: number; results: HomeBanner[] }>('/home-banners/', undefined, false)
+    return response.results || []
+  },
+
   // 获取商品列表
   async getProducts(params?: {
     page?: number

@@ -20,12 +20,13 @@ export default function CategoryPage() {
     loadCategories()
     
     // 监听从首页传来的分类选择
-    const listener = Taro.eventCenter.on('selectCategory', (category: string) => {
+    const handleSelectCategory = (category: string) => {
       setSelectedCategory(category)
-    })
+    }
+    Taro.eventCenter.on('selectCategory', handleSelectCategory)
     
     return () => {
-      Taro.eventCenter.off('selectCategory', listener)
+      Taro.eventCenter.off('selectCategory', handleSelectCategory)
     }
   }, [])
 

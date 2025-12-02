@@ -109,3 +109,15 @@ export interface PaginationResult<T> {
   next?: string | null;
   previous?: string | null;
 }
+
+export interface HomeBanner {
+  id: number;
+  title: string;
+  link_url: string;
+  order: number;
+  is_active: boolean;
+  image_id: number;
+  image_url: string;
+  created_at: string;
+  updated_at: string;
+}

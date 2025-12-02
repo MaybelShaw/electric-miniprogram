@@ -14,6 +14,7 @@ import CompanyCertification from './pages/CompanyCertification';
 import CreditAccounts from './pages/CreditAccounts';
 import AccountStatements from './pages/AccountStatements';
 import AccountTransactions from './pages/AccountTransactions';
+import HomeBanners from './pages/HomeBanners';
 import { getToken } from './utils/auth';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -45,6 +46,7 @@ function App() {
                   <Route path="/credit-accounts" element={<CreditAccounts />} />
                   <Route path="/account-statements" element={<AccountStatements />} />
                   <Route path="/account-transactions" element={<AccountTransactions />} />
+                  <Route path="/home-banners" element={<HomeBanners />} />
                 </Routes>
               </Layout>
             </PrivateRoute>

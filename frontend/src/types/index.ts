@@ -68,6 +68,16 @@ export interface Brand {
   is_active: boolean
 }
 
+// 轮播图
+export interface HomeBanner {
+  id: number
+  title: string
+  link_url: string
+  order: number
+  image_url: string
+  image_id: number
+}
+
 // 购物车相关
 export interface CartItem {
   id: number

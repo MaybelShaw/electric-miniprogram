@@ -1,10 +1,11 @@
 from rest_framework import viewsets, permissions, status
-from .models import Product, Category, MediaImage, Brand, SearchLog
-from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer
+from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner
+from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
 from django.core.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
 from django.core.files.base import ContentFile
 from rest_framework.permissions import IsAuthenticated
@@ -977,3 +978,102 @@ class MediaImageViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(media)
         logger.info(f'返回普通响应: {serializer.data}')
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=['Home'])
+class HomeBannerViewSet(viewsets.ModelViewSet):
+    """
+    首页轮播图管理
+    
+    - GET /api/v1/catalog/home-banners/       获取轮播图列表（公开）
+    - POST /api/v1/catalog/home-banners/      创建轮播图（管理员）
+    - POST /api/v1/catalog/home-banners/upload/  上传图片并创建轮播图（管理员）
+    """
+    queryset = HomeBanner.objects.all().order_by('order', '-id')
+    serializer_class = HomeBannerSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # 公开接口默认只返回启用的轮播图
+        if self.request and self.request.method == 'GET' and not self.request.user.is_staff:
+            return qs.filter(is_active=True)
+        return qs
+
+    def perform_create(self, serializer):
+        user = getattr(self.request, 'user', None)
+        if not user or not user.is_staff:
+            raise PermissionDenied('仅管理员可创建轮播图')
+        serializer.save()
+
+    @extend_schema(
+        operation_id='home_banners_upload',
+        parameters=[
+            OpenApiParameter('title', OT.STR, OpenApiParameter.QUERY, description='轮播图标题'),
+            OpenApiParameter('link_url', OT.STR, OpenApiParameter.QUERY, description='跳转链接'),
+            OpenApiParameter('order', OT.INT, OpenApiParameter.QUERY, description='排序值'),
+            OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否启用'),
+        ],
+        description='上传图片并创建首页轮播图（管理员）',
+    )
+    @action(detail=False, methods=['post'])
+    def upload(self, request):
+        user = getattr(request, 'user', None)
+        if not user or not user.is_staff:
+            raise PermissionDenied('仅管理员可上传轮播图')
+
+        file: UploadedFile | None = request.FILES.get('file')
+        if not file:
+            raise ValidationError('缺少文件: file')
+
+        # 使用与 MediaImageViewSet 相同的安全文件处理逻辑
+        content_type = getattr(file, 'content_type', '') or ''
+        original_ext = self._get_extension_from_mime(content_type)
+
+        try:
+            secure_name = self._build_secure_filename(original_ext)
+        except Exception:
+            secure_name = f"images/{uuid.uuid4().hex}.{original_ext or 'jpg'}"
+
+        media = MediaImage(
+            original_name=getattr(file, 'name', ''),
+            content_type=content_type,
+        )
+        media.file.save(secure_name, file, save=False)
+        media.size = media.file.size
+        media.save()
+
+        title = request.data.get('title') or request.query_params.get('title') or ''
+        link_url = request.data.get('link_url') or request.query_params.get('link_url') or ''
+        try:
+            order = int(request.data.get('order') or request.query_params.get('order') or 0)
+        except (ValueError, TypeError):
+            order = 0
+        is_active_raw = request.data.get('is_active', request.query_params.get('is_active'))
+        is_active = str(is_active_raw).lower() in {'1', 'true', 'yes', 'y'} if is_active_raw is not None else True
+
+        banner = HomeBanner.objects.create(
+            image=media,
+            title=title,
+            link_url=link_url or '',
+            order=order,
+            is_active=is_active,
+        )
+        serializer = self.get_serializer(banner)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # 复用 MediaImageViewSet 的工具方法
+    def _build_secure_filename(self, ext: str) -> str:
+        now = timezone.now()
+        dir_path = f"images/{now.year:04}/{now.month:02}/{now.day:02}/"
+        return dir_path + f"{uuid.uuid4().hex}.{ext}"
+
+    def _get_extension_from_mime(self, mime_type: str) -> str:
+        mime_to_ext = {
+            'image/jpeg': 'jpg',
+            'image/png': 'png',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+            'image/bmp': 'bmp',
+        }
+        return mime_to_ext.get(mime_type, 'jpg')

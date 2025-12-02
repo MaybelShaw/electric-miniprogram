@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, MediaImage, SearchLog
+from .models import Category, Brand, Product, MediaImage, SearchLog, HomeBanner
 from orders.models import DiscountTarget
 from django.core.cache import cache
 from django.utils import timezone
@@ -349,3 +349,22 @@ class SearchLogSerializer(serializers.ModelSerializer):
         fields = ['id', 'keyword', 'user_id', 'username', 'created_at']
         read_only_fields = ['id', 'keyword', 'user_id', 'username', 'created_at']
 
+
+class HomeBannerSerializer(serializers.ModelSerializer):
+    image_id = serializers.IntegerField(source='image.id', read_only=True)
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomeBanner
+        fields = [
+            'id', 'title', 'link_url', 'order', 'is_active',
+            'image_id', 'image_url', 'created_at', 'updated_at', 'image'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
+
+    def get_image_url(self, obj: HomeBanner):
+        request = self.context.get('request')
+        url = obj.image.file.url if obj.image and obj.image.file else ''
+        if not url:
+            return ''
+        return request.build_absolute_uri(url) if request else url

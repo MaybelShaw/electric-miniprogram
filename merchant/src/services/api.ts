@@ -114,3 +114,19 @@ export const downloadInvoice = (id: number) => request.get(`/invoices/${id}/down
 
 export const issueInvoice = (id: number, data: any) => request.post(`/invoices/${id}/issue/`, data);
 export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cancel/`);
+
+// 轮播图管理
+export const getHomeBanners = (params?: any) => request.get('/home-banners/', { params });
+export const createHomeBanner = (data: any) => request.post('/home-banners/', data);
+export const updateHomeBanner = (id: number, data: any) => request.patch(`/home-banners/${id}/`, data);
+export const deleteHomeBanner = (id: number) => request.delete(`/home-banners/${id}/`);
+export const uploadHomeBanner = (file: File, data?: any) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (data) {
+    Object.keys(data).forEach(key => {
+      formData.append(key, data[key]);
+    });
+  }
+  return request.post('/home-banners/upload/', formData);
+};

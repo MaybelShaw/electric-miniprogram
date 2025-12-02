@@ -6,6 +6,7 @@ router = DefaultRouter()
 router.register(r"products", views.ProductViewSet)
 router.register(r"categories", views.CategoryViewSet)
 router.register(r"media-images", views.MediaImageViewSet, basename='media-images')
+router.register(r"home-banners", views.HomeBannerViewSet, basename='home-banners')
 router.register(r"brands", views.BrandViewSet)
 router.register(r"search-logs", views.SearchLogViewSet, basename='search-logs')
 

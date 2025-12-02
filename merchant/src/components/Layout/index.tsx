@@ -13,6 +13,7 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   RiseOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { removeToken } from '@/utils/auth';
@@ -28,6 +29,7 @@ const menuItems = [
   { key: '/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
   { key: '/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
   { key: '/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
+  { key: '/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
   { key: '/brands', icon: <TagOutlined />, label: '品牌管理' },
   { key: '/categories', icon: <AppstoreOutlined />, label: '品类管理' },
   { key: '/products', icon: <ShoppingOutlined />, label: '产品管理' },

@@ -49,7 +49,7 @@
 
   .banner {
     width: calc(100% - 48rpx);
-    height: 360rpx;
+    height: calc(100vw - 48rpx);
     margin: 24rpx auto;
     border-radius: 24rpx;
     overflow: hidden;
@@ -60,6 +60,7 @@
       width: 100%;
       height: 100%;
       border-radius: 24rpx;
+      object-fit: cover;
     }
   }
 

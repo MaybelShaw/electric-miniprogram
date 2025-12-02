@@ -229,6 +229,38 @@ class MediaImage(models.Model):
         return f'{self.original_name} ({self.id})'
 
 
+class HomeBanner(models.Model):
+    """
+    首页轮播图
+    
+    通过关联已上传的媒体图片来管理首页展示的轮播图。
+    """
+    id = models.BigAutoField(primary_key=True)
+    image = models.ForeignKey(
+        'catalog.MediaImage',
+        on_delete=models.CASCADE,
+        related_name='banners',
+        verbose_name='图片'
+    )
+    title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
+    link_url = models.URLField(max_length=500, blank=True, default='', verbose_name='跳转链接')
+    order = models.IntegerField(default=0, verbose_name='排序')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '首页轮播图'
+        verbose_name_plural = '首页轮播图'
+        ordering = ['order', '-id']
+        indexes = [
+            models.Index(fields=['is_active', 'order']),
+        ]
+
+    def __str__(self):
+        return self.title or f'Banner {self.id}'
+
+
 class SearchLog(models.Model):
     """
     搜索日志模型

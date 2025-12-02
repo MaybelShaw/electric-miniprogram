@@ -117,6 +117,13 @@
   - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
   - `GET /brands/` 品牌列表 `backend/catalog/urls.py:9`
   - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
+  - `GET/POST/... /home-banners/` 首页轮播图管理 `backend/catalog/urls.py:8`
+    - GET（公开）：返回启用的轮播图列表，按 `order` 升序。
+    - POST/PATCH/DELETE（管理员）：创建/更新/删除轮播图。
+    - 数据结构：`{ id, title, link_url, order, is_active, image_id, image_url, created_at }`。
+  - `POST /home-banners/upload/` 上传图片并创建轮播图（管理员） `backend/catalog/views.py`
+    - 表单字段：`file`（必填）、`title`（可选）、`link_url`（可选）、`order`（可选，默认 `0`）、`is_active`（可选，默认 `true`）。
+    - 返回：已创建轮播图数据，包含 `image_url` 为完整可访问地址。
 - 订单与支付：
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
