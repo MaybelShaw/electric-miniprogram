@@ -39,8 +39,8 @@ export const productService = {
   },
   
   // 获取分类列表
-  async getCategories(): Promise<Category[]> {
-    const response = await http.get<{ count: number; results: Category[] }>('/categories/', undefined, false)
+  async getCategories(params?: { level?: 'major' | 'minor' }): Promise<Category[]> {
+    const response = await http.get<{ count: number; results: Category[] }>('/categories/', params, false)
     return response.results || []
   },
   

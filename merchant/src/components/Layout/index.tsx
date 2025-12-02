@@ -31,7 +31,7 @@ const menuItems = [
   { key: '/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
   { key: '/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
   { key: '/brands', icon: <TagOutlined />, label: '品牌管理' },
-  { key: '/categories', icon: <AppstoreOutlined />, label: '品类管理' },
+  { key: '/categories', icon: <AppstoreOutlined />, label: '空间/品类管理' },
   { key: '/products', icon: <ShoppingOutlined />, label: '产品管理' },
   { key: '/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   { key: '/invoices', icon: <FileTextOutlined />, label: '发票管理' },

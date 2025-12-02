@@ -14,9 +14,34 @@ from common.serializers import (
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    parent_id = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.filter(level=Category.LEVEL_MAJOR),
+        source='parent',
+        allow_null=True,
+        required=False
+    )
+    children = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
-        fields = ["id", "name", "order"]
+        fields = ["id", "name", "order", "logo", "level", "parent_id", "children"]
+
+    def get_children(self, obj: Category):
+        if obj.level != Category.LEVEL_MAJOR:
+            return []
+        qs = obj.children.all().order_by('order', 'id')
+        # 仅返回必要字段，避免无限嵌套
+        return [
+            {
+                'id': c.id,
+                'name': c.name,
+                'order': c.order,
+                'logo': c.logo,
+                'level': c.level,
+                'parent_id': obj.id,
+            }
+            for c in qs
+        ]
 
 
 class BrandSerializer(serializers.ModelSerializer):

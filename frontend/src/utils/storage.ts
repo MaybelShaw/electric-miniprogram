@@ -39,6 +39,8 @@ export const Storage = {
 // 缓存键常量
 export const CACHE_KEYS = {
   CATEGORIES: 'cache_categories',
+  MAJOR_CATEGORIES: 'cache_major_categories',
+  MINOR_CATEGORIES: 'cache_minor_categories',
   BRANDS: 'cache_brands',
   USER_INFO: 'cache_user_info'
 }

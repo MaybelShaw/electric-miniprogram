@@ -10,6 +10,7 @@ import './index.scss'
 export default function Home() {
   const [searchValue, setSearchValue] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
+  const [majorCategories, setMajorCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
@@ -37,15 +38,25 @@ export default function Home() {
   // 加载分类
   const loadCategories = async () => {
     try {
-      const cached = Storage.get<Category[]>(CACHE_KEYS.CATEGORIES)
-      if (cached) {
-        setCategories(cached)
-        return
+      // 加载品类 (Minor Categories)
+      const cachedMinor = Storage.get<Category[]>(CACHE_KEYS.MINOR_CATEGORIES)
+      if (cachedMinor) {
+        setCategories(cachedMinor)
+      } else {
+        const data = await productService.getCategories({ level: 'minor' })
+        setCategories(data)
+        Storage.set(CACHE_KEYS.MINOR_CATEGORIES, data, 24 * 60 * 60 * 1000)
       }
-      
-      const data = await productService.getCategories()
-      setCategories(data)
-      Storage.set(CACHE_KEYS.CATEGORIES, data, 24 * 60 * 60 * 1000) // 缓存24小时
+
+      // 加载空间 (Major Categories)
+      const cachedMajor = Storage.get<Category[]>(CACHE_KEYS.MAJOR_CATEGORIES)
+      if (cachedMajor) {
+        setMajorCategories(cachedMajor)
+      } else {
+        const data = await productService.getCategories({ level: 'major' })
+        setMajorCategories(data)
+        Storage.set(CACHE_KEYS.MAJOR_CATEGORIES, data, 24 * 60 * 60 * 1000)
+      }
     } catch (error) {
       // 静默失败
     }
@@ -181,12 +192,36 @@ export default function Home() {
           </View>
         )}
 
+        {/* 空间专区 */}
+        {majorCategories.length > 0 && (
+          <View className='category-nav'>
+            <View className='category-title'>空间专区</View>
+            <ScrollView scrollX className='category-scroll'>
+              {majorCategories.map(cat => (
+                <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
+                  {cat.logo ? (
+                    <Image className='category-icon-img' src={cat.logo} mode='aspectFill' />
+                  ) : (
+                    <View className='category-icon'>{cat.name.charAt(0)}</View>
+                  )}
+                  <View className='category-name'>{cat.name}</View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         {/* 品类导航 */}
         <View className='category-nav'>
+          <View className='category-title'>品类专区</View>
           <ScrollView scrollX className='category-scroll'>
             {categories.map(cat => (
               <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
-                <View className='category-icon'>{cat.name.charAt(0)}</View>
+                {cat.logo ? (
+                  <Image className='category-icon-img' src={cat.logo} mode='aspectFill' />
+                ) : (
+                  <View className='category-icon'>{cat.name.charAt(0)}</View>
+                )}
                 <View className='category-name'>{cat.name}</View>
               </View>
             ))}

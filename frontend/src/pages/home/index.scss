@@ -71,6 +71,14 @@
     border-radius: 24rpx;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
 
+    .category-title {
+      font-size: 32rpx;
+      font-weight: bold;
+      color: #323233;
+      text-align: center;
+      margin-bottom: 24rpx;
+    }
+
     .category-scroll {
       white-space: nowrap;
       padding: 0 20rpx;
@@ -102,6 +110,16 @@
             transform: scale(0.95);
             background: #E0EEFF;
           }
+        }
+
+        .category-icon-img {
+          width: 96rpx;
+          height: 96rpx;
+          border-radius: 50%;
+          margin: 0 auto;
+          object-fit: cover;
+          display: block;
+          background: #F7F8FA;
         }
 
         .category-name {

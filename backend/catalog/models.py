@@ -6,6 +6,17 @@ class Category(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=100, unique=True, verbose_name='类别名称', default='默认分类')
     order = models.IntegerField(default=0, verbose_name='排序')
+    logo = models.URLField(max_length=500, blank=True, default='', verbose_name='分类Logo')
+
+    LEVEL_MAJOR = 'major'
+    LEVEL_MINOR = 'minor'
+    LEVEL_CHOICES = [
+        (LEVEL_MAJOR, '大类'),
+        (LEVEL_MINOR, '小类'),
+    ]
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default=LEVEL_MAJOR, verbose_name='层级')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children', verbose_name='父类别')
+
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True, verbose_name='更新时间')
 
@@ -16,6 +27,25 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        # 大类不能有父类别
+        if self.level == self.LEVEL_MAJOR and self.parent is not None:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({'parent': '大类不允许设置父类别'})
+        # 小类必须有父类别，且父类别必须是大类
+        if self.level == self.LEVEL_MINOR:
+            if self.parent is None:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'parent': '小类必须设置父类别'})
+            if getattr(self.parent, 'level', None) != self.LEVEL_MAJOR:
+                from django.core.exceptions import ValidationError
+                raise ValidationError({'parent': '小类的父类别必须是大类'})
+
+    def save(self, *args, **kwargs):
+        # 确保模型校验执行
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Brand(models.Model):

@@ -584,7 +584,22 @@ class CategoryViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(name__icontains=search)
-        return qs.order_by('order')
+
+        # 层级过滤：major / minor
+        level = (self.request.query_params.get('level') or '').strip()
+        if level in {Category.LEVEL_MAJOR, Category.LEVEL_MINOR}:
+            qs = qs.filter(level=level)
+
+        # 父类别过滤（仅针对小类）
+        parent_id = self.request.query_params.get('parent_id')
+        if parent_id:
+            try:
+                pid = int(parent_id)
+                qs = qs.filter(parent_id=pid)
+            except (ValueError, TypeError):
+                pass
+
+        return qs.order_by('order', 'id')
 
 
 @extend_schema(tags=['Brands'])

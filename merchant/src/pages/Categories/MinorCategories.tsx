@@ -1,0 +1,230 @@
+import { useState, useRef, useEffect } from 'react';
+import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect } from '@ant-design/pro-components';
+import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { getCategories, createCategory, updateCategory, deleteCategory, uploadImage } from '@/services/api';
+import type { ActionType } from '@ant-design/pro-components';
+
+export default function MinorCategories() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const actionRef = useRef<ActionType>();
+  const [form] = Form.useForm();
+  const [majorCategories, setMajorCategories] = useState<{label: string, value: number}[]>([]);
+
+  useEffect(() => {
+      if (modalVisible) {
+          getCategories({ level: 'major' }).then((res: any) => {
+              const data = Array.isArray(res) ? res : (res.results || res.data || []);
+              setMajorCategories(data.map((c: any) => ({ label: c.name, value: c.id })));
+          });
+
+          if (editingRecord) {
+              setLogoUrl(editingRecord.logo || '');
+              form.setFieldsValue({ 
+                  ...editingRecord, 
+                  logo: editingRecord.logo,
+                  parent_id: editingRecord.parent_id
+              });
+          } else {
+              setLogoUrl('');
+              form.resetFields();
+              form.setFieldsValue({ order: 0 });
+          }
+      }
+  }, [modalVisible, editingRecord, form]);
+
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteCategory(id);
+      message.success('删除成功');
+      actionRef.current?.reload();
+    } catch (error) {
+      message.error('删除失败');
+    }
+  };
+
+  const columns: any = [
+    { 
+      title: '品类名称', 
+      dataIndex: 'name',
+      formItemProps: {
+        rules: [{ required: false }],
+      },
+      fieldProps: {
+        placeholder: '请输入品类名称搜索',
+      },
+    },
+    {
+        title: '所属空间',
+        dataIndex: 'parent_id',
+        valueType: 'select',
+        request: async () => {
+            const res: any = await getCategories({ level: 'major' });
+            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            return data.map((c: any) => ({ label: c.name, value: c.id }));
+        },
+    },
+    {
+      title: 'Logo',
+      dataIndex: 'logo',
+      hideInSearch: true,
+      width: 100,
+      render: (_: any, record: any) => record.logo ? (
+        <Image src={record.logo} width={40} height={40} style={{ objectFit: 'contain' }} />
+      ) : '-',
+    },
+    { 
+      title: '排序', 
+      dataIndex: 'order', 
+      hideInSearch: true,
+      width: 100,
+      sorter: true,
+    },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 150,
+      fixed: 'right',
+      render: (_: any, record: any) => [
+        <a key="edit" onClick={() => { setEditingRecord(record); setModalVisible(true); }}>
+          编辑
+        </a>,
+        <Popconfirm key="delete" title="确定删除?" onConfirm={() => handleDelete(record.id)}>
+          <a style={{ color: 'red' }}>删除</a>
+        </Popconfirm>,
+      ],
+    },
+  ];
+
+  return (
+    <>
+      <ProTable
+        headerTitle="品类列表"
+        actionRef={actionRef}
+        columns={columns}
+        request={async (params) => {
+          try {
+            const queryParams: any = {
+                level: 'minor',
+                ...params
+            };
+            
+            if (params.name) queryParams.search = params.name;
+            // parent_id is handled by params automatically if it's in columns and search form
+
+            const res: any = await getCategories(queryParams);
+            
+            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            
+            // 移除 children 字段，避免 ProTable 自动渲染为树形结构
+            const cleanData = data.map((item: any) => {
+                const { children, ...rest } = item;
+                return rest;
+            });
+            
+            return { 
+              data: cleanData, 
+              success: true,
+              total: cleanData.length 
+            };
+          } catch (error) {
+            message.error('加载品类列表失败');
+            return { data: [], success: false, total: 0 };
+          }
+        }}
+        rowKey="id"
+        pagination={{
+          defaultPageSize: 20,
+          showSizeChanger: true,
+          showTotal: (total) => `共 ${total} 条`,
+        }}
+        search={{
+          labelWidth: 'auto',
+          defaultCollapsed: false,
+        }}
+        options={{
+          reload: true,
+          density: true,
+        }}
+        toolBarRender={() => [
+          <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalVisible(true); }}>
+            新增品类
+          </Button>,
+        ]}
+      />
+      <ModalForm
+        title={editingRecord ? '编辑品类' : '新增品类'}
+        open={modalVisible}
+        onOpenChange={setModalVisible}
+        form={form}
+        autoFocusFirstInput
+        modalProps={{
+            destroyOnClose: true,
+            onCancel: () => setModalVisible(false),
+        }}
+        onFinish={async (values) => {
+          try {
+            const submitData = {
+                ...values,
+                logo: logoUrl,
+                level: 'minor'
+            };
+            
+            if (editingRecord) {
+              await updateCategory(editingRecord.id, submitData);
+              message.success('更新成功');
+            } else {
+              await createCategory(submitData);
+              message.success('创建成功');
+            }
+            setModalVisible(false);
+            actionRef.current?.reload();
+            return true;
+          } catch (error) {
+            return false;
+          }
+        }}
+      >
+        <ProFormText name="name" label="品类名称" rules={[{ required: true, message: '请输入品类名称' }]} />
+        
+        <ProFormSelect
+            name="parent_id"
+            label="所属空间"
+            rules={[{ required: true, message: '请选择所属空间' }]}
+            options={majorCategories}
+        />
+        
+        <Form.Item label="品类Logo">
+            <Upload
+                listType="picture-card"
+                maxCount={1}
+                showUploadList={false}
+                customRequest={async (options) => {
+                    const { file, onSuccess, onError } = options;
+                    try {
+                        const res: any = await uploadImage(file as File);
+                        const url = res.url || res.file; 
+                        setLogoUrl(url);
+                        onSuccess?.(res);
+                    } catch (err) {
+                        onError?.(err as Error);
+                        message.error('上传失败');
+                    }
+                }}
+            >
+                {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : (
+                    <div>
+                        <PlusOutlined />
+                        <div style={{ marginTop: 8 }}>上传</div>
+                    </div>
+                )}
+            </Upload>
+        </Form.Item>
+        
+        <ProFormDigit name="order" label="排序" fieldProps={{ min: 0 }} />
+      </ModalForm>
+    </>
+  );
+}

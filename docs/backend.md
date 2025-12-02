@@ -115,6 +115,7 @@
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
   - `GET /products/by_brand/` 按品牌筛选 `backend/catalog/views.py`
   - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
+    - 数据结构：`{ id, name, order, logo }`（`logo` 为可选的图片 URL）
   - `GET /brands/` 品牌列表 `backend/catalog/urls.py:9`
   - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
   - `GET/POST/... /home-banners/` 首页轮播图管理 `backend/catalog/urls.py:8`

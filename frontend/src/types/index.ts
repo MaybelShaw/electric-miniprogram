@@ -56,6 +56,7 @@ export interface Category {
   id: number
   name: string
   order: number
+  logo?: string
 }
 
 // 品牌相关
