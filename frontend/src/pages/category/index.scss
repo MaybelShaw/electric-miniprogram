@@ -1,9 +1,41 @@
 .category-page {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   background: #F7F8FA;
 
-  .category-sidebar {
+  .search-bar {
+    padding: 16rpx 24rpx;
+    background: #fff;
+    flex-shrink: 0;
+
+    .search-input {
+      display: flex;
+      align-items: center;
+      height: 72rpx;
+      background: #F7F8FA;
+      border-radius: 36rpx;
+      padding: 0 24rpx;
+
+      .search-icon {
+        font-size: 32rpx;
+        margin-right: 16rpx;
+      }
+
+      .input {
+        flex: 1;
+        font-size: 28rpx;
+        color: #323233;
+      }
+    }
+  }
+
+  .category-content {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+
+    .category-sidebar {
     width: 180rpx;
     background: #F7F8FA;
     flex-shrink: 0;
@@ -174,5 +206,6 @@
       font-size: 24rpx;
       color: #969799;
     }
+  }
   }
 }

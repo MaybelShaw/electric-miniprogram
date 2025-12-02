@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, ScrollView, Image } from '@tarojs/components'
+import { View, ScrollView, Image, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Product, Category } from '../../types'
@@ -10,6 +10,7 @@ export default function CategoryPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [products, setProducts] = useState<Product[]>([])
+  const [searchValue, setSearchValue] = useState('')
   const [sortBy, setSortBy] = useState<string>('relevance')
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -84,6 +85,11 @@ export default function CategoryPage() {
     setPage(1)
   }
 
+  const handleSearch = () => {
+    if (!searchValue.trim()) return
+    Taro.navigateTo({ url: `/pages/search/index?keyword=${searchValue}` })
+  }
+
   const handleSortChange = (sort: string) => {
     setSortBy(sort)
     setPage(1)
@@ -101,21 +107,36 @@ export default function CategoryPage() {
 
   return (
     <View className='category-page'>
-      {/* 左侧分类 */}
-      <ScrollView className='category-sidebar' scrollY>
-        {categories.map(cat => (
-          <View
-            key={cat.id}
-            className={`category-item ${selectedCategory === cat.name ? 'active' : ''}`}
-            onClick={() => handleCategoryChange(cat.name)}
-          >
-            {cat.name}
-          </View>
-        ))}
-      </ScrollView>
+      {/* 搜索栏 */}
+      <View className='search-bar'>
+        <View className='search-input'>
+          <View className='search-icon'>🔍</View>
+          <Input
+            className='input'
+            placeholder='搜索商品'
+            value={searchValue}
+            onInput={(e) => setSearchValue(e.detail.value)}
+            onConfirm={handleSearch}
+          />
+        </View>
+      </View>
 
-      {/* 右侧商品列表 */}
-      <View className='product-container'>
+      <View className='category-content'>
+        {/* 左侧分类 */}
+        <ScrollView className='category-sidebar' scrollY>
+          {categories.map(cat => (
+            <View
+              key={cat.id}
+              className={`category-item ${selectedCategory === cat.name ? 'active' : ''}`}
+              onClick={() => handleCategoryChange(cat.name)}
+            >
+              {cat.name}
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* 右侧商品列表 */}
+        <View className='product-container'>
         {/* 排序栏 */}
         <View className='sort-bar'>
           <View
@@ -164,6 +185,7 @@ export default function CategoryPage() {
           {loading && <View className='loading-text'>加载中...</View>}
           {!hasMore && products.length > 0 && <View className='loading-text'>没有更多了</View>}
         </ScrollView>
+      </View>
       </View>
     </View>
   )
