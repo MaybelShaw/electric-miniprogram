@@ -4,15 +4,17 @@ from django.core.validators import MinValueValidator
 # Create your models here.
 class Category(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=100, unique=True, verbose_name='类别名称', default='默认分类')
+    name = models.CharField(max_length=100, verbose_name='类别名称', default='默认分类')
     order = models.IntegerField(default=0, verbose_name='排序')
     logo = models.URLField(max_length=500, blank=True, default='', verbose_name='分类Logo')
 
     LEVEL_MAJOR = 'major'
     LEVEL_MINOR = 'minor'
+    LEVEL_ITEM = 'item'
     LEVEL_CHOICES = [
-        (LEVEL_MAJOR, '大类'),
-        (LEVEL_MINOR, '小类'),
+        (LEVEL_MAJOR, '品类'),
+        (LEVEL_MINOR, '子品类'),
+        (LEVEL_ITEM, '品项'),
     ]
     level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default=LEVEL_MAJOR, verbose_name='层级')
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children', verbose_name='父类别')
@@ -24,23 +26,33 @@ class Category(models.Model):
         verbose_name = '商品类别'
         verbose_name_plural = '商品类别'
         ordering = ['order', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['level', 'name'], name='unique_category_level_name')
+        ]
 
     def __str__(self):
         return self.name
 
     def clean(self):
-        # 大类不能有父类别
+        # 品类（大类）不能有父类别
         if self.level == self.LEVEL_MAJOR and self.parent is not None:
             from django.core.exceptions import ValidationError
-            raise ValidationError({'parent': '大类不允许设置父类别'})
-        # 小类必须有父类别，且父类别必须是大类
+            raise ValidationError({'parent': '品类不允许设置父类别'})
+        # 子品类（小类）必须有父类别，且父类别必须是品类（大类）
         if self.level == self.LEVEL_MINOR:
             if self.parent is None:
                 from django.core.exceptions import ValidationError
-                raise ValidationError({'parent': '小类必须设置父类别'})
+                raise ValidationError({'parent': '子品类必须设置父类别'})
             if getattr(self.parent, 'level', None) != self.LEVEL_MAJOR:
                 from django.core.exceptions import ValidationError
-                raise ValidationError({'parent': '小类的父类别必须是大类'})
+                raise ValidationError({'parent': '子品类的父类别必须是品类'})
+        # 品项必须有父类别，且父类别必须是子品类
+        if self.level == self.LEVEL_ITEM:
+            from django.core.exceptions import ValidationError
+            if self.parent is None:
+                raise ValidationError({'parent': '品项必须设置父类别'})
+            if getattr(self.parent, 'level', None) != self.LEVEL_MINOR:
+                raise ValidationError({'parent': '品项的父类别必须是子品类'})
 
     def save(self, *args, **kwargs):
         # 确保模型校验执行
@@ -145,6 +157,12 @@ class Product(models.Model):
     def __str__(self):
         return self.name
     
+    def clean(self):
+        # 兼容旧数据：允许关联到小类或品项；新数据推荐关联到品项
+        from django.core.exceptions import ValidationError
+        if self.category and getattr(self.category, 'level', None) not in {Category.LEVEL_MINOR, Category.LEVEL_ITEM}:
+            raise ValidationError({'category': '商品必须关联到子品类或品项'})
+
     @classmethod
     def sync_from_haier(cls, haier_data: dict, category=None, brand=None):
         """

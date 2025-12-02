@@ -1,6 +1,7 @@
 import { Tabs } from 'antd';
 import MajorCategories from './MajorCategories';
 import MinorCategories from './MinorCategories';
+import ItemCategories from './ItemCategories';
 
 export default function Categories() {
   return (
@@ -13,9 +14,14 @@ export default function Categories() {
           children: <MajorCategories />,
         },
         {
-          label: '品项管理',
+          label: '子品类管理',
           key: 'minor',
           children: <MinorCategories />,
+        },
+        {
+          label: '品项管理',
+          key: 'item',
+          children: <ItemCategories />,
         },
       ]}
     />

@@ -5,19 +5,19 @@ import { PlusOutlined } from '@ant-design/icons';
 import { getCategories, createCategory, updateCategory, deleteCategory, uploadImage } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 
-export default function MinorCategories() {
+export default function ItemCategories() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [logoUrl, setLogoUrl] = useState<string>('');
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
-  const [majorCategories, setMajorCategories] = useState<{label: string, value: number}[]>([]);
+  const [minorCategories, setMinorCategories] = useState<{label: string, value: number}[]>([]);
 
   useEffect(() => {
       if (modalVisible) {
-          getCategories({ level: 'major' }).then((res: any) => {
+          getCategories({ level: 'minor' }).then((res: any) => {
               const data = Array.isArray(res) ? res : (res.results || res.data || []);
-              setMajorCategories(data.map((c: any) => ({ label: c.name, value: c.id })));
+              setMinorCategories(data.map((c: any) => ({ label: c.name, value: c.id })));
           });
 
           if (editingRecord) {
@@ -47,21 +47,21 @@ export default function MinorCategories() {
 
   const columns: any = [
     { 
-      title: '子品类名称', 
+      title: '品项名称', 
       dataIndex: 'name',
       formItemProps: {
         rules: [{ required: false }],
       },
       fieldProps: {
-        placeholder: '请输入子品类名称搜索',
+        placeholder: '请输入品项名称搜索',
       },
     },
     {
-        title: '所属品类',
+        title: '所属子品类',
         dataIndex: 'parent_id',
         valueType: 'select',
         request: async () => {
-            const res: any = await getCategories({ level: 'major' });
+            const res: any = await getCategories({ level: 'minor' });
             const data = Array.isArray(res) ? res : (res.results || res.data || []);
             return data.map((c: any) => ({ label: c.name, value: c.id }));
         },
@@ -101,24 +101,22 @@ export default function MinorCategories() {
   return (
     <>
       <ProTable
-        headerTitle="子品类列表"
+        headerTitle="品项列表"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
           try {
             const queryParams: any = {
-                level: 'minor',
+                level: 'item',
                 ...params
             };
             
             if (params.name) queryParams.search = params.name;
-            // parent_id is handled by params automatically if it's in columns and search form
-
+            
             const res: any = await getCategories(queryParams);
             
             const data = Array.isArray(res) ? res : (res.results || res.data || []);
             
-            // 移除 children 字段，避免 ProTable 自动渲染为树形结构
             const cleanData = data.map((item: any) => {
                 const { children, ...rest } = item;
                 return rest;
@@ -130,7 +128,7 @@ export default function MinorCategories() {
               total: cleanData.length 
             };
           } catch (error) {
-            message.error('加载子品类列表失败');
+            message.error('加载品项列表失败');
             return { data: [], success: false, total: 0 };
           }
         }}
@@ -150,12 +148,12 @@ export default function MinorCategories() {
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalVisible(true); }}>
-            新增子品类
+            新增品项
           </Button>,
         ]}
       />
       <ModalForm
-        title={editingRecord ? '编辑子品类' : '新增子品类'}
+        title={editingRecord ? '编辑品项' : '新增品项'}
         open={modalVisible}
         onOpenChange={setModalVisible}
         form={form}
@@ -169,7 +167,7 @@ export default function MinorCategories() {
             const submitData = {
                 ...values,
                 logo: logoUrl,
-                level: 'minor'
+                level: 'item'
             };
             
             if (editingRecord) {
@@ -187,16 +185,16 @@ export default function MinorCategories() {
           }
         }}
       >
-        <ProFormText name="name" label="子品类名称" rules={[{ required: true, message: '请输入子品类名称' }]} />
+        <ProFormText name="name" label="品项名称" rules={[{ required: true, message: '请输入品项名称' }]} />
         
         <ProFormSelect
             name="parent_id"
-            label="所属品类"
-            rules={[{ required: true, message: '请选择所属品类' }]}
-            options={majorCategories}
+            label="所属子品类"
+            rules={[{ required: true, message: '请选择所属子品类' }]}
+            options={minorCategories}
         />
         
-        <Form.Item label="子品类Logo">
+        <Form.Item label="品项Logo">
             <Upload
                 listType="picture-card"
                 maxCount={1}

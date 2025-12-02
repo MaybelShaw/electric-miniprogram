@@ -15,7 +15,7 @@ from common.serializers import (
 
 class CategorySerializer(serializers.ModelSerializer):
     parent_id = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.filter(level=Category.LEVEL_MAJOR),
+        queryset=Category.objects.all(),
         source='parent',
         allow_null=True,
         required=False
@@ -26,11 +26,27 @@ class CategorySerializer(serializers.ModelSerializer):
         model = Category
         fields = ["id", "name", "order", "logo", "level", "parent_id", "children"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 动态限制父类别可选范围
+        level = None
+        if hasattr(self, 'initial_data') and isinstance(self.initial_data, dict):
+            level = self.initial_data.get('level')
+        elif self.instance:
+            level = getattr(self.instance, 'level', None)
+
+        if level == Category.LEVEL_MINOR:
+            self.fields['parent_id'].queryset = Category.objects.filter(level=Category.LEVEL_MAJOR)
+        elif level == Category.LEVEL_ITEM:
+            self.fields['parent_id'].queryset = Category.objects.filter(level=Category.LEVEL_MINOR)
+        else:
+            self.fields['parent_id'].queryset = Category.objects.filter(id__isnull=False)
+
     def get_children(self, obj: Category):
-        if obj.level != Category.LEVEL_MAJOR:
+        # 返回直接子节点（避免无限嵌套）
+        if obj.level not in {Category.LEVEL_MAJOR, Category.LEVEL_MINOR}:
             return []
         qs = obj.children.all().order_by('order', 'id')
-        # 仅返回必要字段，避免无限嵌套
         return [
             {
                 'id': c.id,
@@ -180,6 +196,14 @@ class ProductSerializer(serializers.ModelSerializer):
         
         return rep
     
+    def validate(self, attrs):
+        category = attrs.get('category')
+        if category is None and self.instance is not None:
+            category = getattr(self.instance, 'category', None)
+        if category and getattr(category, 'level', None) not in {Category.LEVEL_MINOR, Category.LEVEL_ITEM}:
+            raise serializers.ValidationError({'category_id': '商品必须关联到子品类或品项'})
+        return attrs
+
     def _get_full_image_urls(self, images):
         """将图片URL转换为完整URL"""
         if not images:

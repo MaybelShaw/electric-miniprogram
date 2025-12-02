@@ -56,6 +56,7 @@
   - `getProductDetail` 详情 `frontend/src/services/product.ts:16`
   - `getProductsByCategory`/`getProductsByBrand` 分类/品牌筛选 `frontend/src/services/product.ts:21`
   - `getCategories`/`getBrands` 列表 `frontend/src/services/product.ts:36`
+    - 分类层级：`level=major|minor|item`（品类/子品类/品项）
   - `getRecommendations`/`getRelatedProducts` 推荐/相关 `frontend/src/services/product.ts:49`
 - 订单服务：`frontend/src/services/order.ts:4`
   - `createOrder` 创建订单 `frontend/src/services/order.ts:6`

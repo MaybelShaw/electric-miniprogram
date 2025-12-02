@@ -22,7 +22,7 @@ export default function Products() {
       try {
         const [brandsRes, categoriesRes]: any = await Promise.all([
           getBrands(),
-          getCategories({ level: 'minor' }),
+          getCategories({ level: 'item' }),
         ]);
         
         // 处理品牌数据

@@ -78,6 +78,9 @@
     - 筛选：支持按时间范围、行政级别筛选
   - API支持：`GET /analytics/regional_sales/`、`GET /analytics/product_region_distribution/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
+  - 分类层级（后端）：品类 → 子品类 → 品项 → 单品
+    - 创建子品类时需选择父“品类”；创建品项时需选择父“子品类”
+    - 产品关联建议指向“品项”，兼容指向“子品类”
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
   - **发货操作**：管理员点击发货时，需在弹窗中填写快递单号与物流公司。
   - **取消订单**：支持对 `pending` 和 `paid` 状态的订单进行取消。点击取消时需在弹窗中填写取消原因与备注。

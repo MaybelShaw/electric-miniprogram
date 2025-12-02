@@ -585,12 +585,12 @@ class CategoryViewSet(viewsets.ModelViewSet):
         if search:
             qs = qs.filter(name__icontains=search)
 
-        # 层级过滤：major / minor
+        # 层级过滤：major / minor / item
         level = (self.request.query_params.get('level') or '').strip()
-        if level in {Category.LEVEL_MAJOR, Category.LEVEL_MINOR}:
+        if level in {Category.LEVEL_MAJOR, Category.LEVEL_MINOR, Category.LEVEL_ITEM}:
             qs = qs.filter(level=level)
 
-        # 父类别过滤（仅针对小类）
+        # 父类别过滤（适用于子品类与品项）
         parent_id = self.request.query_params.get('parent_id')
         if parent_id:
             try:
