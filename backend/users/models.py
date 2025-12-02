@@ -81,7 +81,7 @@ class CompanyInfo(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(
         User, 
-        on_delete=models.CASCADE, 
+        on_delete=models.PROTECT, 
         related_name="company_info",
         verbose_name="关联用户"
     )
@@ -132,7 +132,7 @@ class CompanyInfo(models.Model):
 
 class Address(models.Model):
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="addresses")
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="addresses")
     contact_name = models.CharField(max_length=50, verbose_name="联系人")
     phone = models.CharField(max_length=20, verbose_name="手机号")
     province = models.CharField(max_length=20, verbose_name="省份")
@@ -155,7 +155,7 @@ class CreditAccount(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="credit_account",
         limit_choices_to={'role': 'dealer'},
         verbose_name="经销商用户"
@@ -214,7 +214,7 @@ class AccountStatement(models.Model):
     id = models.BigAutoField(primary_key=True)
     credit_account = models.ForeignKey(
         CreditAccount,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="statements",
         verbose_name="信用账户"
     )
@@ -312,7 +312,7 @@ class AccountTransaction(models.Model):
     id = models.BigAutoField(primary_key=True)
     credit_account = models.ForeignKey(
         CreditAccount,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="transactions",
         verbose_name="信用账户"
     )

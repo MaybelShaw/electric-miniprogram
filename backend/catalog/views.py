@@ -68,6 +68,45 @@ class ProductViewSet(viewsets.ModelViewSet):
         return qs
 
     @extend_schema(
+        operation_id='products_destroy',
+        description='删除商品：存在关联订单、购物车项、库存日志或折扣规则时，阻止删除并返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        orders_count = instance.orders.count()
+        cart_items_count = instance.cart_items.count()
+        inventory_logs_count = instance.inventory_logs.count()
+        discount_targets_count = instance.discount_targets.count()
+        total_refs = orders_count + cart_items_count + inventory_logs_count + discount_targets_count
+        if total_refs > 0:
+            return Response(
+                {
+                    'error': '无法删除商品',
+                    'message': (
+                        f"该商品存在 {orders_count} 个关联订单、{cart_items_count} 个购物车项、{inventory_logs_count} 条库存日志、{discount_targets_count} 条折扣规则，无法删除"
+                    ).strip(),
+                    'orders_count': orders_count,
+                    'cart_items_count': cart_items_count,
+                    'inventory_logs_count': inventory_logs_count,
+                    'discount_targets_count': discount_targets_count,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除商品',
+                        'message': '该商品被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
+
+    @extend_schema(
         operation_id='products_list',
         parameters=[
             OpenApiParameter('search', OT.STR, OpenApiParameter.QUERY, description='Keyword search on product name and description'),
@@ -601,6 +640,42 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
         return qs.order_by('order', 'id')
 
+    @extend_schema(
+        operation_id='categories_destroy',
+        description='删除分类：存在子分类或关联商品时，阻止删除并返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # 阻止删除存在子分类或商品的分类
+        children_count = instance.children.count()
+        products_count = instance.products.count()
+        if children_count > 0 or products_count > 0:
+            return Response(
+                {
+                    'error': '无法删除分类',
+                    'message': (
+                        f"该分类存在 {children_count} 个子分类、{products_count} 个关联商品，无法删除"
+                    ).strip(),
+                    'children_count': children_count,
+                    'products_count': products_count,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        # 无关联时正常删除，并防御PROTECT错误
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除分类',
+                        'message': '该分类被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
+
 
 @extend_schema(tags=['Brands'])
 class BrandViewSet(viewsets.ModelViewSet):
@@ -686,8 +761,21 @@ class BrandViewSet(viewsets.ModelViewSet):
                         status=status.HTTP_403_FORBIDDEN
                     )
         
-        # Proceed with deletion
-        return super().destroy(request, *args, **kwargs)
+        # Proceed with deletion, 捕获PROTECT错误
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除品牌',
+                        'message': '该品牌被商品引用，无法删除',
+                        'associated_products_count': associated_products,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
 
 
 @extend_schema(tags=['Search'])

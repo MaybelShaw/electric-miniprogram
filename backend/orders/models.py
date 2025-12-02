@@ -26,8 +26,8 @@ class Order(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     order_number = models.CharField(max_length=100, unique=True,default=generate_order_number,verbose_name='订单号')
-    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='orders', verbose_name='用户')
-    product = models.ForeignKey('catalog.Product', on_delete=models.CASCADE, related_name='orders', verbose_name='产品')
+    user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='orders', verbose_name='用户')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='orders', verbose_name='产品')
     quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='总金额')
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
@@ -162,7 +162,7 @@ class Order(models.Model):
         self.save()
 
 class Cart(models.Model):
-    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='cart', verbose_name='用户')
+    user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='cart', verbose_name='用户')
 
     def __str__(self):
         return f'{self.user.username}的购物车'
@@ -172,8 +172,8 @@ class Cart(models.Model):
         verbose_name_plural = "购物车"
 
 class CartItem(models.Model):
-    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items', verbose_name='购物车')
-    product = models.ForeignKey('catalog.Product', on_delete=models.CASCADE, related_name='cart_items', verbose_name='产品')
+    cart = models.ForeignKey(Cart, on_delete=models.PROTECT, related_name='items', verbose_name='购物车')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='cart_items', verbose_name='产品')
     quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
 
     class Meta:
@@ -198,7 +198,7 @@ class Payment(models.Model):
     ]
 
     id = models.BigAutoField(primary_key=True)
-    order = models.ForeignKey('orders.Order', on_delete=models.CASCADE, related_name='payments', verbose_name='订单')
+    order = models.ForeignKey('orders.Order', on_delete=models.PROTECT, related_name='payments', verbose_name='订单')
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='支付金额')
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='wechat', verbose_name='支付方式')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='init', verbose_name='支付状态')
@@ -271,9 +271,9 @@ class Discount(models.Model):
 
 class DiscountTarget(models.Model):
     id = models.BigAutoField(primary_key=True)
-    discount = models.ForeignKey(Discount, on_delete=models.CASCADE, related_name='targets', verbose_name='折扣')
-    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='discount_targets', verbose_name='用户')
-    product = models.ForeignKey('catalog.Product', on_delete=models.CASCADE, related_name='discount_targets', verbose_name='商品')
+    discount = models.ForeignKey(Discount, on_delete=models.PROTECT, related_name='targets', verbose_name='折扣')
+    user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='discount_targets', verbose_name='用户')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='discount_targets', verbose_name='商品')
 
     class Meta:
         verbose_name = '折扣适用范围'
@@ -293,7 +293,7 @@ class OrderStatusHistory(models.Model):
     id = models.BigAutoField(primary_key=True)
     order = models.ForeignKey(
         Order, 
-        on_delete=models.CASCADE, 
+        on_delete=models.PROTECT, 
         related_name='status_history',
         verbose_name='订单'
     )
@@ -341,13 +341,13 @@ class Invoice(models.Model):
     id = models.BigAutoField(primary_key=True)
     order = models.OneToOneField(
         Order,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='invoice',
         verbose_name='订单'
     )
     user = models.ForeignKey(
         'users.User',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='invoices',
         verbose_name='用户'
     )
@@ -397,13 +397,13 @@ class ReturnRequest(models.Model):
     id = models.BigAutoField(primary_key=True)
     order = models.OneToOneField(
         Order,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='return_request',
         verbose_name='订单'
     )
     user = models.ForeignKey(
         'users.User',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='return_requests',
         verbose_name='用户'
     )

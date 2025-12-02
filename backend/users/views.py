@@ -400,6 +400,25 @@ class AddressViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        operation_id='addresses_destroy',
+        description='删除地址：如被其他数据引用时，返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除地址',
+                        'message': '该地址被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
+
 
 @extend_schema(tags=['Users'])
 class AdminUserViewSet(viewsets.ModelViewSet):
@@ -805,6 +824,53 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         wb.save(response)
         return response
 
+    @extend_schema(
+        operation_id='users_destroy',
+        description='删除用户：存在关联数据时，阻止删除并返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        addresses_count = instance.addresses.count()
+        orders_count = instance.orders.count()
+        cart_count = instance.cart.count()
+        discount_targets_count = instance.discount_targets.count()
+        company_info_exists = 1 if hasattr(instance, 'company_info') else 0
+        credit_account_exists = 1 if hasattr(instance, 'credit_account') else 0
+        statements_count = instance.credit_account.statements.count() if credit_account_exists else 0
+        transactions_count = instance.credit_account.transactions.count() if credit_account_exists else 0
+        total_refs = addresses_count + orders_count + cart_count + discount_targets_count + company_info_exists + credit_account_exists + statements_count + transactions_count
+        if total_refs > 0:
+            return Response(
+                {
+                    'error': '无法删除用户',
+                    'message': (
+                        f"该用户存在 {addresses_count} 个地址、{orders_count} 个订单、{cart_count} 个购物车、{discount_targets_count} 条折扣关联、{company_info_exists} 条公司信息、{credit_account_exists} 个信用账户、{statements_count} 条对账单、{transactions_count} 条账务交易，无法删除"
+                    ).strip(),
+                    'addresses_count': addresses_count,
+                    'orders_count': orders_count,
+                    'cart_count': cart_count,
+                    'discount_targets_count': discount_targets_count,
+                    'company_info_exists': company_info_exists,
+                    'credit_account_exists': credit_account_exists,
+                    'statements_count': statements_count,
+                    'transactions_count': transactions_count,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除用户',
+                        'message': '该用户被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
+
 
 @extend_schema(tags=['Company Info'])
 class CompanyInfoViewSet(viewsets.ModelViewSet):
@@ -982,6 +1048,25 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             "company_info": CompanyInfoSerializer(company_info).data
         })
 
+    @extend_schema(
+        operation_id='company_info_destroy',
+        description='删除公司信息：如被其他数据引用时，返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除公司信息',
+                        'message': '该公司信息被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
+
 
 @extend_schema(tags=['Credit Account'])
 class CreditAccountViewSet(viewsets.ModelViewSet):
@@ -1037,6 +1122,41 @@ class CreditAccountViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    @extend_schema(
+        operation_id='credit_accounts_destroy',
+        description='删除信用账户：存在未结清欠款或关联账单/交易时，阻止删除并返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        statements_count = instance.statements.count()
+        transactions_count = instance.transactions.count()
+        has_debt = instance.outstanding_debt > 0
+        if has_debt or statements_count > 0 or transactions_count > 0:
+            return Response(
+                {
+                    'error': '无法删除信用账户',
+                    'message': (
+                        f"该账户{'存在未结清欠款，' if has_debt else ''}有 {statements_count} 条对账单、{transactions_count} 条账务交易，无法删除"
+                    ).strip(),
+                    'outstanding_debt': float(instance.outstanding_debt),
+                    'statements_count': statements_count,
+                    'transactions_count': transactions_count,
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除信用账户',
+                        'message': '该账户被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
 
 @extend_schema(tags=['Account Statement'])
 class AccountStatementViewSet(viewsets.ModelViewSet):
@@ -1337,6 +1457,25 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         wb.save(response)
         
         return response
+
+    @extend_schema(
+        operation_id='account_statements_destroy',
+        description='删除对账单：如被其他数据引用时，返回提示信息',
+    )
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except Exception as e:
+            from django.db.models.deletion import ProtectedError
+            if isinstance(e, ProtectedError):
+                return Response(
+                    {
+                        'error': '无法删除对账单',
+                        'message': '该对账单被其他数据引用，无法删除',
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
 
 
 @extend_schema(tags=['Account Transaction'])

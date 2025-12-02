@@ -17,7 +17,7 @@ class Category(models.Model):
         (LEVEL_ITEM, '品项'),
     ]
     level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default=LEVEL_MAJOR, verbose_name='层级')
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children', verbose_name='父类别')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.PROTECT, related_name='children', verbose_name='父类别')
 
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True, verbose_name='更新时间')
@@ -86,8 +86,8 @@ class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=200, verbose_name='产品名称')
     description = models.TextField(blank=True, default='', verbose_name='产品描述')
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products', verbose_name='类别')
-    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='products', verbose_name='品牌')
+    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='products', verbose_name='类别')
+    brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name='products', verbose_name='品牌')
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='价格')
     
     # 商品来源（用于区分本地商品 / 海尔商品等）
@@ -286,7 +286,7 @@ class HomeBanner(models.Model):
     id = models.BigAutoField(primary_key=True)
     image = models.ForeignKey(
         'catalog.MediaImage',
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='banners',
         verbose_name='图片'
     )
@@ -359,7 +359,7 @@ class InventoryLog(models.Model):
     id = models.BigAutoField(primary_key=True)
     product = models.ForeignKey(
         Product,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='inventory_logs',
         verbose_name='商品'
     )
