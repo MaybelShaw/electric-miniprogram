@@ -37,13 +37,13 @@ export default function MajorCategories() {
 
   const columns: any = [
     { 
-      title: '空间名称', 
+      title: '品类名称', 
       dataIndex: 'name',
       formItemProps: {
         rules: [{ required: false }],
       },
       fieldProps: {
-        placeholder: '请输入空间名称搜索',
+        placeholder: '请输入品类名称搜索',
       },
     },
     {
@@ -81,7 +81,7 @@ export default function MajorCategories() {
   return (
     <>
       <ProTable
-        headerTitle="空间列表"
+        headerTitle="品类列表"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
@@ -113,7 +113,7 @@ export default function MajorCategories() {
               total: cleanData.length 
             };
           } catch (error) {
-            message.error('加载空间列表失败');
+            message.error('加载品类列表失败');
             return { data: [], success: false, total: 0 };
           }
         }}
@@ -133,12 +133,12 @@ export default function MajorCategories() {
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalVisible(true); }}>
-            新增空间
+            新增品类
           </Button>,
         ]}
       />
       <ModalForm
-        title={editingRecord ? '编辑空间' : '新增空间'}
+        title={editingRecord ? '编辑品类' : '新增品类'}
         open={modalVisible}
         onOpenChange={setModalVisible}
         form={form}
@@ -170,9 +170,9 @@ export default function MajorCategories() {
           }
         }}
       >
-        <ProFormText name="name" label="空间名称" rules={[{ required: true, message: '请输入空间名称' }]} />
+        <ProFormText name="name" label="品类名称" rules={[{ required: true, message: '请输入品类名称' }]} />
         
-        <Form.Item label="空间Logo">
+        <Form.Item label="品类Logo">
             <Upload
                 listType="picture-card"
                 maxCount={1}

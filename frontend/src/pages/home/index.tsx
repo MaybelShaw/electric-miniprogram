@@ -9,7 +9,6 @@ import './index.scss'
 
 export default function Home() {
   const [searchValue, setSearchValue] = useState('')
-  const [categories, setCategories] = useState<Category[]>([])
   const [majorCategories, setMajorCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -38,16 +37,6 @@ export default function Home() {
   // 加载分类
   const loadCategories = async () => {
     try {
-      // 加载品类 (Minor Categories)
-      const cachedMinor = Storage.get<Category[]>(CACHE_KEYS.MINOR_CATEGORIES)
-      if (cachedMinor) {
-        setCategories(cachedMinor)
-      } else {
-        const data = await productService.getCategories({ level: 'minor' })
-        setCategories(data)
-        Storage.set(CACHE_KEYS.MINOR_CATEGORIES, data, 24 * 60 * 60 * 1000)
-      }
-
       // 加载空间 (Major Categories)
       const cachedMajor = Storage.get<Category[]>(CACHE_KEYS.MAJOR_CATEGORIES)
       if (cachedMajor) {
@@ -178,25 +167,10 @@ export default function Home() {
           ))}
         </Swiper>
 
-        {/* 品牌专区 */}
-        {brands.length > 0 && (
-          <View className='brand-section'>
-            <View className='section-title'>品牌专区</View>
-            <ScrollView scrollX className='brand-scroll'>
-              {brands.map(brand => (
-                <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
-                  <Image className='brand-logo' src={brand.logo} mode='aspectFit' />
-                  <View className='brand-name'>{brand.name}</View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* 空间专区 */}
+        {/* 品类专区 (原空间专区) */}
         {majorCategories.length > 0 && (
           <View className='category-nav'>
-            <View className='category-title'>空间专区</View>
+            <View className='category-title'>品类专区</View>
             <ScrollView scrollX className='category-scroll'>
               {majorCategories.map(cat => (
                 <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
@@ -212,22 +186,20 @@ export default function Home() {
           </View>
         )}
 
-        {/* 品类导航 */}
-        <View className='category-nav'>
-          <View className='category-title'>品类专区</View>
-          <ScrollView scrollX className='category-scroll'>
-            {categories.map(cat => (
-              <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
-                {cat.logo ? (
-                  <Image className='category-icon-img' src={cat.logo} mode='aspectFill' />
-                ) : (
-                  <View className='category-icon'>{cat.name.charAt(0)}</View>
-                )}
-                <View className='category-name'>{cat.name}</View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+        {/* 品牌专区 */}
+        {brands.length > 0 && (
+          <View className='brand-section'>
+            <View className='section-title'>品牌专区</View>
+            <ScrollView scrollX className='brand-scroll'>
+              {brands.map(brand => (
+                <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
+                  <Image className='brand-logo' src={brand.logo} mode='aspectFit' />
+                  <View className='brand-name'>{brand.name}</View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* 商品列表 */}
         <View className='product-section'>

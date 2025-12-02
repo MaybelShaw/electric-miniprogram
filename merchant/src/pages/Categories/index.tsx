@@ -8,12 +8,12 @@ export default function Categories() {
       defaultActiveKey="major"
       items={[
         {
-          label: '空间管理',
+          label: '品类管理',
           key: 'major',
           children: <MajorCategories />,
         },
         {
-          label: '品类管理',
+          label: '品项管理',
           key: 'minor',
           children: <MinorCategories />,
         },

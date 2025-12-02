@@ -47,17 +47,17 @@ export default function MinorCategories() {
 
   const columns: any = [
     { 
-      title: '品类名称', 
+      title: '品项名称', 
       dataIndex: 'name',
       formItemProps: {
         rules: [{ required: false }],
       },
       fieldProps: {
-        placeholder: '请输入品类名称搜索',
+        placeholder: '请输入品项名称搜索',
       },
     },
     {
-        title: '所属空间',
+        title: '所属品类',
         dataIndex: 'parent_id',
         valueType: 'select',
         request: async () => {
@@ -101,7 +101,7 @@ export default function MinorCategories() {
   return (
     <>
       <ProTable
-        headerTitle="品类列表"
+        headerTitle="品项列表"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
@@ -130,7 +130,7 @@ export default function MinorCategories() {
               total: cleanData.length 
             };
           } catch (error) {
-            message.error('加载品类列表失败');
+            message.error('加载品项列表失败');
             return { data: [], success: false, total: 0 };
           }
         }}
@@ -150,12 +150,12 @@ export default function MinorCategories() {
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalVisible(true); }}>
-            新增品类
+            新增品项
           </Button>,
         ]}
       />
       <ModalForm
-        title={editingRecord ? '编辑品类' : '新增品类'}
+        title={editingRecord ? '编辑品项' : '新增品项'}
         open={modalVisible}
         onOpenChange={setModalVisible}
         form={form}
@@ -187,16 +187,16 @@ export default function MinorCategories() {
           }
         }}
       >
-        <ProFormText name="name" label="品类名称" rules={[{ required: true, message: '请输入品类名称' }]} />
+        <ProFormText name="name" label="品项名称" rules={[{ required: true, message: '请输入品项名称' }]} />
         
         <ProFormSelect
             name="parent_id"
-            label="所属空间"
-            rules={[{ required: true, message: '请选择所属空间' }]}
+            label="所属品类"
+            rules={[{ required: true, message: '请选择所属品类' }]}
             options={majorCategories}
         />
         
-        <Form.Item label="品类Logo">
+        <Form.Item label="品项Logo">
             <Upload
                 listType="picture-card"
                 maxCount={1}

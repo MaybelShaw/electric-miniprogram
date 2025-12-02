@@ -74,7 +74,7 @@ export default function Products() {
       }, {}),
     },
     { 
-      title: '品类', 
+      title: '品项', 
       dataIndex: 'category',
       hideInSearch: true,
       width: 120,
@@ -95,13 +95,13 @@ export default function Products() {
       ),
     },
     { 
-      title: '品类筛选',
+      title: '品项筛选',
       dataIndex: 'category',
       hideInTable: true,
       valueType: 'select',
       fieldProps: {
         showSearch: true,
-        placeholder: '请选择品类',
+        placeholder: '请选择品项',
       },
       valueEnum: categories.reduce((acc: Record<string, { text: string }>, item) => {
         acc[item.name] = { text: item.name };
@@ -503,10 +503,10 @@ export default function Products() {
           
           <ProFormSelect
             name="category_id"
-            label="品类"
-            rules={[{ required: true, message: '请选择品类' }]}
+            label="品项"
+            rules={[{ required: true, message: '请选择品项' }]}
             options={categories.map(item => ({ label: item.name, value: item.id }))}
-            placeholder="请选择品类"
+            placeholder="请选择品项"
             showSearch
             width="md"
           />
