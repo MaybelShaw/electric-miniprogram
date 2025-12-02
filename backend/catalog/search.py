@@ -94,8 +94,11 @@ class ProductSearchService:
         except (ValueError, TypeError):
             page_size = cls.DEFAULT_PAGE_SIZE
         
-        # Start with active products
-        queryset = Product.objects.filter(is_active=True)
+        # Admin can see all products; regular users see only active ones
+        if user and getattr(user, 'is_staff', False):
+            queryset = Product.objects.all()
+        else:
+            queryset = Product.objects.filter(is_active=True)
         
         # Apply keyword search
         if keyword and keyword.strip():

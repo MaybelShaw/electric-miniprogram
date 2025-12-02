@@ -265,9 +265,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             page_size = 20
         
         if category_name is not None:
-            products = self.get_queryset().filter(category__name=category_name, is_active=True)
+            products = self.get_queryset().filter(category__name=category_name)
         else:
-            products = self.get_queryset().filter(is_active=True)
+            products = self.get_queryset()
+        if not request.user.is_staff:
+            products = products.filter(is_active=True)
         
         # Apply sorting
         if sort_by == 'sales':
@@ -328,9 +330,11 @@ class ProductViewSet(viewsets.ModelViewSet):
             page_size = 20
         
         if brand_name is not None:
-            products = self.get_queryset().filter(brand__name=brand_name, is_active=True)
+            products = self.get_queryset().filter(brand__name=brand_name)
         else:
-            products = self.get_queryset().filter(is_active=True)
+            products = self.get_queryset()
+        if not request.user.is_staff:
+            products = products.filter(is_active=True)
         
         # Apply sorting
         if sort_by == 'sales':

@@ -387,15 +387,6 @@ export default function Products() {
         defaultCollapsed: false,
         optionRender: (_: any, formProps: any, dom: any[]) => [
           ...dom.reverse(),
-          <Button
-            key="reset"
-            onClick={() => {
-              formProps?.form?.resetFields();
-              actionRef.current?.reload();
-            }}
-          >
-            重置
-          </Button>,
         ],
       }}
       pagination={{
