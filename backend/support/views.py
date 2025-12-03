@@ -6,6 +6,8 @@ from django.db.models import Q
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from .models import SupportTicket, SupportMessage
+from orders.models import Order
+from catalog.models import Product
 from .serializers import SupportTicketSerializer, SupportMessageSerializer
 
 
@@ -31,7 +33,9 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         content = request.data.get('content', '')
         attachment = request.FILES.get('attachment')
         attachment_type = request.data.get('attachment_type')
-        if not content and not attachment:
+        order_id = request.data.get('order_id')
+        product_id = request.data.get('product_id')
+        if not content and not attachment and not order_id and not product_id:
             return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
         if attachment:
             if not attachment_type:
@@ -42,7 +46,23 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
                     attachment_type = 'video'
             if attachment_type not in ('image', 'video'):
                 return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
+        if order_id and product_id:
+            return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
         role = 'support' if (request.user.is_staff or getattr(request.user, 'role', '') == 'support') else 'user'
+        order_obj = None
+        product_obj = None
+        if order_id:
+            try:
+                oid = int(order_id)
+                order_obj = Order.objects.get(id=oid, user_id=ticket.user_id)
+            except Exception:
+                return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+        if product_id:
+            try:
+                pid = int(product_id)
+                product_obj = Product.objects.get(id=pid)
+            except Exception:
+                return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
         msg = SupportMessage.objects.create(
             ticket=ticket,
             sender=request.user,
@@ -50,6 +70,8 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             content=content or '',
             attachment=attachment,
             attachment_type=attachment_type,
+            order=order_obj,
+            product=product_obj,
         )
         ticket.updated_at = timezone.now()
         ticket.save(update_fields=['updated_at'])
@@ -108,7 +130,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
 
 
 class SupportMessageViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = SupportMessage.objects.select_related('ticket').all().order_by('created_at')
+    queryset = SupportMessage.objects.select_related('ticket', 'order', 'product').all().order_by('created_at')
     serializer_class = SupportMessageSerializer
     permission_classes = [IsAuthenticated]
 
@@ -217,7 +239,9 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         content = request.data.get('content', '')
         attachment = request.FILES.get('attachment')
         attachment_type = request.data.get('attachment_type')
-        if not content and not attachment:
+        order_id = request.data.get('order_id')
+        product_id = request.data.get('product_id')
+        if not content and not attachment and not order_id and not product_id:
             return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
         if attachment:
             if not attachment_type:
@@ -228,6 +252,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                     attachment_type = 'video'
             if attachment_type not in ('image', 'video'):
                 return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
+        if order_id and product_id:
+            return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
 
         user_id = request.data.get('user_id')
         is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
@@ -250,6 +276,21 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             role = 'user'
             sender = request.user
 
+        order_obj = None
+        product_obj = None
+        if order_id:
+            try:
+                oid = int(order_id)
+                order_obj = Order.objects.get(id=oid, user_id=ticket.user_id)
+            except Exception:
+                return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+        if product_id:
+            try:
+                pid = int(product_id)
+                product_obj = Product.objects.get(id=pid)
+            except Exception:
+                return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
+
         msg = SupportMessage.objects.create(
             ticket=ticket,
             sender=sender,
@@ -257,6 +298,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             content=content or '',
             attachment=attachment,
             attachment_type=attachment_type,
+            order=order_obj,
+            product=product_obj,
         )
         ticket.updated_at = timezone.now()
         ticket.save(update_fields=['updated_at'])

@@ -14,13 +14,15 @@ interface ExtendedSupportMessage extends SupportMessage {
   local_id?: string
   status?: 'sending' | 'sent' | 'error'
   tempFilePath?: string // For local preview of uploaded media
+  order_info?: any
+  product_info?: any
 }
 
 interface OfflineMessage {
   content: string
   tempId: string
   timestamp: number
-  // Simple offline support for text only for now
+  extra?: { order_id?: number, product_id?: number }
 }
 
 export default function SupportChat() {
@@ -208,12 +210,88 @@ export default function SupportChat() {
     setShowPanel(false)
   }
 
+  const getStatusText = (status: string) => {
+    const map = {
+      pending: '待支付',
+      paid: '待发货',
+      shipped: '待收货',
+      completed: '已完成',
+      cancelled: '已取消',
+      returning: '退货中',
+      refunding: '退款中',
+      refunded: '已退款'
+    }
+    return map[status] || status
+  }
+
   const handleOrder = () => {
-    Taro.showToast({ title: '选择订单功能开发中', icon: 'none' })
+    Taro.navigateTo({
+      url: '/pages/support-chat/select-order/index',
+      events: {
+        acceptSelectedOrder: (order) => {
+          console.log('Received order:', order)
+          sendOrder(order).catch(err => {
+             console.error('Failed to send order:', err)
+             Taro.showToast({ title: '发送订单失败', icon: 'none' })
+          })
+        }
+      },
+      fail: (err) => {
+        console.error('Navigate to select-order failed:', err)
+        Taro.showToast({ title: '无法打开订单列表', icon: 'none' })
+      }
+    })
+    setShowPanel(false)
   }
 
   const handleProduct = () => {
-    Taro.showToast({ title: '选择商品功能开发中', icon: 'none' })
+    Taro.navigateTo({
+      url: '/pages/support-chat/select-product/index',
+      events: {
+        acceptSelectedProduct: (product) => {
+          console.log('Received product:', product)
+          sendProduct(product).catch(err => {
+             console.error('Failed to send product:', err)
+             Taro.showToast({ title: '发送商品失败', icon: 'none' })
+          })
+        }
+      },
+      fail: (err) => {
+        console.error('Navigate to select-product failed:', err)
+        Taro.showToast({ title: '无法打开商品列表', icon: 'none' })
+      }
+    })
+    setShowPanel(false)
+  }
+
+  const sendOrder = async (order: any) => {
+    const product = order.product || {}
+    const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+    
+    const orderInfo = {
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      quantity: order.quantity,
+      total_amount: order.total_amount,
+      product_name: product.name || '',
+      image: image
+    }
+    
+    await sendContent('', undefined, { order_id: order.id }, { order_info: orderInfo })
+  }
+
+  const sendProduct = async (product: any) => {
+    const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+    
+    const productInfo = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: image
+    }
+    
+    await sendContent('', undefined, { product_id: product.id }, { product_info: productInfo })
   }
   
   const handleInputFocus = () => {
@@ -226,11 +304,16 @@ export default function SupportChat() {
     sendContent()
   }
 
-  const sendContent = async (contentStr?: string, attachment?: { path: string, type: 'image' | 'video' }) => {
+  const sendContent = async (
+    contentStr?: string, 
+    attachment?: { path: string, type: 'image' | 'video' },
+    extra?: { order_id?: number, product_id?: number },
+    optimisticData?: { order_info?: any, product_info?: any }
+  ) => {
     const content = contentStr !== undefined ? contentStr : inputValue.trim()
-    if ((!content && !attachment) || !currentUser) return
+    if ((!content && !attachment && !extra) || !currentUser) return
     
-    if (!attachment) {
+    if (!attachment && !extra) {
       setInputValue('')
     }
     
@@ -241,9 +324,11 @@ export default function SupportChat() {
       sender: currentUser.id,
       sender_username: currentUser.username || 'Me',
       role: currentUser.role || 'user',
-      content: content || (attachment ? (attachment.type === 'image' ? '[图片]' : '[视频]') : ''),
+      content: content || (attachment ? (attachment.type === 'image' ? '[图片]' : '[视频]') : (extra?.order_id ? '[订单]' : '[商品]')),
       attachment_url: attachment ? attachment.path : undefined,
       attachment_type: attachment ? attachment.type : undefined,
+      order_info: optimisticData?.order_info,
+      product_info: optimisticData?.product_info,
       created_at: new Date().toISOString(),
       local_id: tempId,
       status: 'sending',
@@ -258,7 +343,7 @@ export default function SupportChat() {
     })
 
     try {
-      const res = await supportService.sendMessage(content, attachment)
+      const res = await supportService.sendMessage(content, attachment, extra)
       
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -284,7 +369,7 @@ export default function SupportChat() {
       if (!attachment) {
         const queueKey = 'offline_queue'
         const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
-        queue.push({ content, tempId, timestamp: Date.now() })
+        queue.push({ content, tempId, timestamp: Date.now(), extra })
         Taro.setStorageSync(queueKey, queue)
         
         Taro.showToast({ title: '发送失败，已保存到离线队列', icon: 'none' })
@@ -303,7 +388,7 @@ export default function SupportChat() {
 
     for (const item of queue) {
       try {
-        const res = await supportService.sendMessage(item.content)
+        const res = await supportService.sendMessage(item.content, undefined, item.extra)
         
         setMessages(prev => {
           const newMsgs = prev.map(m => 
@@ -385,7 +470,31 @@ export default function SupportChat() {
                     <Text className='sender-name'>{msg.sender_username}</Text>
                   )}
                   <View className='bubble'>
-                    {msg.attachment_type === 'image' ? (
+                    {msg.order_info ? (
+                      <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/order-detail/index?id=${msg.order_info.id}` })}>
+                        <View className='card-header'>
+                          <Text>订单号: {msg.order_info.order_number}</Text>
+                          <Text className='order-tag'>{getStatusText(msg.order_info.status)}</Text>
+                        </View>
+                        <View className='card-content'>
+                          <Image src={msg.order_info.image} mode='aspectFill' className='card-img' />
+                          <View className='card-info'>
+                            <Text className='card-title'>{msg.order_info.product_name}</Text>
+                            <Text className='card-desc'>¥{msg.order_info.total_amount}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : msg.product_info ? (
+                      <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/product-detail/index?id=${msg.product_info.id}` })}>
+                        <View className='card-content'>
+                          <Image src={msg.product_info.image} mode='aspectFill' className='card-img' />
+                          <View className='card-info'>
+                            <Text className='card-title'>{msg.product_info.name}</Text>
+                            <Text className='card-desc'>¥{msg.product_info.price}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : msg.attachment_type === 'image' ? (
                       <Image 
                         src={msg.attachment_url || msg.tempFilePath || ''} 
                         mode='widthFix' 

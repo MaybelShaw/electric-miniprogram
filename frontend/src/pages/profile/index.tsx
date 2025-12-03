@@ -186,13 +186,6 @@ export default function Profile() {
           <Text className='arrow'>›</Text>
         </View>
         
-        <View className='menu-item' onTap={goToSupport}>
-          <View className='menu-left'>
-            <Text className='menu-icon'>🎧</Text>
-            <Text className='menu-text'>客服支持</Text>
-          </View>
-          <Text className='arrow'>›</Text>
-        </View>
 
         <View className='menu-item' onTap={goToCertification}>
           <View className='menu-left'>
@@ -225,6 +218,14 @@ export default function Profile() {
             </View>
           </>
         )}
+
+        <View className='menu-item' onTap={goToSupport}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>🎧</Text>
+            <Text className='menu-text'>客服支持</Text>
+          </View>
+          <Text className='arrow'>›</Text>
+        </View>
       </View>
 
       {/* 退出登录按钮 - 放在最底部 */}

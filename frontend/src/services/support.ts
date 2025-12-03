@@ -10,6 +10,21 @@ export interface SupportMessage {
   content: string
   attachment_url?: string
   attachment_type?: 'image' | 'video'
+  order_info?: {
+    id: number
+    order_number: string
+    status: string
+    quantity: number
+    total_amount: string
+    product_name: string
+    image: string
+  }
+  product_info?: {
+    id: number
+    name: string
+    price: string
+    image: string
+  }
   created_at: string
 }
 
@@ -19,13 +34,23 @@ export const supportService = {
     http.get<SupportMessage[]>('/support/chat/', params),
   
   // 发送消息
-  sendMessage: (content: string, attachment?: { path: string, type: 'image' | 'video' }) => {
+  sendMessage: (content?: string, attachment?: { path: string, type: 'image' | 'video' }, extra?: { order_id?: number, product_id?: number }) => {
     if (!attachment) {
-      return http.post<SupportMessage>('/support/chat/', { content })
+      return http.post<SupportMessage>('/support/chat/', { 
+        content,
+        order_id: extra?.order_id,
+        product_id: extra?.product_id
+      })
     }
 
     return new Promise<SupportMessage>((resolve, reject) => {
       const token = TokenManager.getAccessToken()
+      const formData: any = {
+        'attachment_type': attachment.type
+      }
+      if (content) formData.content = content
+      if (extra?.order_id) formData.order_id = extra.order_id
+      if (extra?.product_id) formData.product_id = extra.product_id
       
       Taro.uploadFile({
         url: `${BASE_URL}/support/chat/`,
@@ -34,10 +59,7 @@ export const supportService = {
         header: {
           'Authorization': `Bearer ${token}`
         },
-        formData: {
-          'content': content || '',
-          'attachment_type': attachment.type
-        },
+        formData: formData,
         success: (res) => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             try {

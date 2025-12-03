@@ -130,8 +130,14 @@ export function useSupportChat(userId: number | null) {
     }
   };
 
-  const sendMessage = async (content: string, attachment?: File, attachmentType?: 'image' | 'video') => {
-    if (!userId || (!content.trim() && !attachment)) return;
+  const sendMessage = async (
+    content: string, 
+    attachment?: File, 
+    attachmentType?: 'image' | 'video', 
+    extra?: { order_id?: number, product_id?: number },
+    optimisticInfo?: { order_info?: any, product_info?: any }
+  ) => {
+    if (!userId || (!content.trim() && !attachment && !extra)) return;
     
     const tempId = `temp_${Date.now()}`;
     const tempMsg: ExtendedSupportMessage = {
@@ -140,19 +146,21 @@ export function useSupportChat(userId: number | null) {
       sender: user?.id || 0,
       sender_username: user?.username || 'Me',
       role: user?.role || 'user',
-      content: content || (attachmentType === 'image' ? '[图片]' : (attachmentType === 'video' ? '[视频]' : '')),
+      content: content || (attachmentType === 'image' ? '[图片]' : (attachmentType === 'video' ? '[视频]' : (extra?.product_id ? '[商品]' : (extra?.order_id ? '[订单]' : '')))),
       attachment_url: attachment ? URL.createObjectURL(attachment) : undefined,
       attachment_type: attachmentType,
       created_at: new Date().toISOString(),
       local_id: tempId,
-      status: 'sending'
+      status: 'sending',
+      order_info: optimisticInfo?.order_info,
+      product_info: optimisticInfo?.product_info
     };
 
     // Optimistic update
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res: any = await sendChatMessage(userId, content, attachment, attachmentType);
+      const res: any = await sendChatMessage(userId, content, attachment, attachmentType, extra);
       // Success
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -177,7 +185,7 @@ export function useSupportChat(userId: number | null) {
         m.local_id === tempId ? { ...m, status: 'error' } : m
       ));
       
-      if (!attachment) {
+      if (!attachment && !extra) {
         // Add to offline queue
         const queueKey = `offline_queue_user_${userId}`;
         const queue: OfflineMessage[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
@@ -186,7 +194,7 @@ export function useSupportChat(userId: number | null) {
         
         message.error('发送失败，已保存到离线队列，网络恢复后将自动重试');
       } else {
-        message.error('图片/视频发送失败');
+        message.error('发送失败');
       }
     }
   };

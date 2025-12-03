@@ -184,17 +184,21 @@
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
       - 返回字段：消息数组 `{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, created_at }`
       - 说明：系统为每个用户自动维护一个会话（内部复用工单模型）。
-    - `POST /support/chat/` 发送消息（支持文本、图片、视频）`backend/support/views.py:191`
+    - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
       - 表单字段：
         - `content` 文本（可选；当未上传附件时必填）
         - `attachment` 文件（可选；支持图片或视频）
         - `attachment_type` 类型（可选；`image|video`，未提供时将根据 `Content-Type` 自动判定）
         - `user_id` 目标用户ID（仅客服/管理员）
-      - 返回字段：`{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, created_at }`
+        - `order_id` 关联订单ID（可选；仅允许关联当前会话用户的订单）
+        - `product_id` 关联商品ID（可选；与 `order_id` 互斥）
+      - 返回字段：`{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, order_info, product_info, created_at }`
+        - `order_info`：当关联了订单时返回 `{ id, order_number, status, quantity, total_amount, product_id, product_name, image }`
+        - `product_info`：当关联了商品时返回 `{ id, name, price, image }`
       - 校验：当 `attachment` 存在且类型无法判定或不为 `image|video` 时返回 `400`。
   - 工单端点兼容：
-    - `POST /support/tickets/{id}/add_message/` 兼容上传图片/视频与文本 `backend/support/views.py:26`
+    - `POST /support/tickets/{id}/add_message/` 支持文本/图片/视频以及关联订单或商品 `backend/support/views.py:26`
       - 请求方式：`multipart/form-data`，字段同上。
   - 环境差异：
     - 开发与生产环境均注册聊天与工单端点 `backend/support/urls.py:8`

@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Select, Divider, Upload, Image as AntImage } from 'antd';
-import { EyeOutlined, SendOutlined, UserOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons';
-import { getSupportTickets, getSupportTicket, setSupportTicketStatus, assignSupportTicket } from '@/services/api';
+import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Select, Divider, Upload, Image as AntImage, Modal } from 'antd';
+import { EyeOutlined, SendOutlined, UserOutlined, UploadOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
+import { getSupportTickets, getSupportTicket, setSupportTicketStatus, assignSupportTicket, getProducts, getOrders } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { SupportTicket, SupportMessage } from '@/services/types';
 import { getUser } from '@/utils/auth';
@@ -30,6 +30,9 @@ export default function Support() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentTicket?.user || null);
   const messageListRef = useRef<HTMLDivElement>(null);
+  
+  const [productModalVisible, setProductModalVisible] = useState(false);
+  const [orderModalVisible, setOrderModalVisible] = useState(false);
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -57,6 +60,35 @@ export default function Support() {
     setMessageContent('');
   };
 
+  const handleSendProduct = async (product: any) => {
+    setProductModalVisible(false);
+    const productInfo = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image
+    };
+    // Using 'any' for sendMessage arguments to bypass TS check for now as we updated the hook but maybe not the type definition in this file's context if it was imported
+    // Actually we updated useSupportChat.ts, so it should be fine if TS picks it up.
+    await sendMessage('', undefined, undefined, { product_id: product.id }, { product_info: productInfo });
+  };
+
+  const handleSendOrder = async (order: any) => {
+    setOrderModalVisible(false);
+    // Extract info for optimistic update
+    const item = order.items && order.items.length > 0 ? order.items[0] : {};
+    const orderInfo = {
+      id: order.id,
+      order_number: order.order_number,
+      status: order.status,
+      quantity: order.items?.reduce((acc: number, cur: any) => acc + cur.quantity, 0) || 0,
+      total_amount: order.total_amount,
+      product_name: item.product_name || '商品',
+      image: item.product_image || ''
+    };
+    await sendMessage('', undefined, undefined, { order_id: order.id }, { order_info: orderInfo });
+  };
+
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
     const type = file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : undefined);
@@ -72,6 +104,20 @@ export default function Support() {
     } catch (e) {
       onError(e);
     }
+  };
+
+  const getOrderStatusText = (status: string) => {
+    const map: any = {
+      pending: '待付款',
+      paid: '待发货',
+      shipped: '已发货',
+      completed: '已完成',
+      cancelled: '已取消',
+      returning: '退货中',
+      refunding: '退款中',
+      refunded: '已退款'
+    };
+    return map[status] || status;
   };
 
   const handleStatusChange = async (status: string) => {
@@ -279,7 +325,49 @@ export default function Support() {
                             borderRadius: '8px',
                             wordBreak: 'break-word'
                           }}>
-                            {msg.attachment_type === 'image' ? (
+                            {msg.order_info ? (
+                              <div 
+                                style={{ width: 200, cursor: 'pointer' }} 
+                                onClick={() => window.open(`/orders?id=${msg.order_info?.id}`, '_blank')}
+                              >
+                                <div style={{ borderBottom: '1px solid #eee', paddingBottom: 4, marginBottom: 4, color: '#999', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                  <span>订单号: {msg.order_info.order_number}</span>
+                                  <span style={{ backgroundColor: '#f6ffed', color: '#52c41a', padding: '0 4px', borderRadius: 2 }}>{getOrderStatusText(msg.order_info.status)}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <AntImage 
+                                    width={40} 
+                                    height={40} 
+                                    src={msg.order_info.image} 
+                                    preview={false}
+                                    style={{ borderRadius: 4, objectFit: 'cover' }}
+                                  />
+                                  <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.order_info.product_name}</div>
+                                    <div style={{ color: '#fa4126', fontSize: 12 }}>¥{msg.order_info.total_amount}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : msg.product_info ? (
+                              <div 
+                                style={{ width: 200, cursor: 'pointer' }} 
+                                onClick={() => window.open(`/products?id=${msg.product_info?.id}`, '_blank')}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center' }}>
+                                  <AntImage 
+                                    width={40} 
+                                    height={40} 
+                                    src={msg.product_info.image} 
+                                    preview={false}
+                                    style={{ borderRadius: 4, objectFit: 'cover' }}
+                                  />
+                                  <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
+                                    <div style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.product_info.name}</div>
+                                    <div style={{ color: '#fa4126', fontSize: 12 }}>¥{msg.product_info.price}</div>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : msg.attachment_type === 'image' ? (
                               <AntImage 
                                 width={200} 
                                 src={msg.attachment_url} 
@@ -306,7 +394,7 @@ export default function Support() {
             </div>
 
             <div style={{ marginTop: 'auto' }}>
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
                 <Upload 
                    customRequest={handleUpload} 
                    showUploadList={false} 
@@ -314,6 +402,8 @@ export default function Support() {
                  >
                    <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
                  </Upload>
+                 <Button icon={<ShoppingOutlined />} size="small" onClick={() => setProductModalVisible(true)}>推荐商品</Button>
+                 <Button icon={<FileTextOutlined />} size="small" onClick={() => setOrderModalVisible(true)}>关联订单</Button>
               </div>
               <Input.TextArea
                 rows={3}
@@ -335,6 +425,74 @@ export default function Support() {
           </>
         )}
       </Drawer>
+
+      <Modal
+        title="选择推荐商品"
+        visible={productModalVisible}
+        onCancel={() => setProductModalVisible(false)}
+        footer={null}
+        width={800}
+        destroyOnClose
+      >
+        <ProTable
+          search={{ labelWidth: 'auto' }}
+          rowKey="id"
+          columns={[
+             { title: 'ID', dataIndex: 'id', width: 60, search: false },
+             { title: '商品名称', dataIndex: 'name' },
+             { title: '价格', dataIndex: 'price', search: false, render: (dom) => `¥${dom}` },
+             { title: '图片', dataIndex: 'image', search: false, render: (_, record: any) => <AntImage src={record.image} width={40} /> },
+             { 
+               title: '操作', 
+               valueType: 'option',
+               render: (_, record) => <Button type="link" onClick={() => handleSendProduct(record)}>发送</Button>
+             }
+          ]}
+          request={async (params) => {
+            const res: any = await getProducts({ page: params.current, page_size: params.pageSize, ...params });
+            return { data: res.results, total: res.count, success: true };
+          }}
+          pagination={{ pageSize: 5 }}
+          options={false}
+        />
+      </Modal>
+
+      <Modal
+        title="选择关联订单"
+        visible={orderModalVisible}
+        onCancel={() => setOrderModalVisible(false)}
+        footer={null}
+        width={800}
+        destroyOnClose
+      >
+        <ProTable
+          search={false}
+          rowKey="id"
+          columns={[
+             { title: '订单号', dataIndex: 'order_number' },
+             { title: '金额', dataIndex: 'total_amount', render: (dom) => `¥${dom}` },
+             { title: '状态', dataIndex: 'status', valueEnum: { pending: { text: '待付款' }, paid: { text: '待发货' }, shipped: { text: '已发货' }, completed: { text: '已完成' }, cancelled: { text: '已取消' } } },
+             { title: '时间', dataIndex: 'created_at', valueType: 'dateTime' },
+             { 
+               title: '操作', 
+               valueType: 'option',
+               render: (_, record) => <Button type="link" onClick={() => handleSendOrder(record)}>发送</Button>
+             }
+          ]}
+          request={async (params) => {
+            if (!currentTicket?.user) return { data: [], success: true };
+            const res: any = await getOrders({ 
+              page: params.current, 
+              page_size: params.pageSize, 
+              user_id: currentTicket.user, 
+              ...params 
+            });
+            return { data: res.results, total: res.count, success: true };
+          }}
+          pagination={{ pageSize: 5 }}
+          options={false}
+        />
+      </Modal>
     </>
   );
 }

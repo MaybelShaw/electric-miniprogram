@@ -131,6 +131,21 @@ export interface SupportMessage {
   content: string;
   attachment_url?: string;
   attachment_type?: 'image' | 'video';
+  order_info?: {
+    id: number;
+    order_number: string;
+    status: string;
+    quantity: number;
+    total_amount: string;
+    product_name: string;
+    image: string;
+  };
+  product_info?: {
+    id: number;
+    name: string;
+    price: string;
+    image: string;
+  };
   created_at: string;
 }
 

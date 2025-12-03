@@ -25,7 +25,9 @@ export default defineAppConfig({
     'pages/request-return/index',
     'pages/return-tracking/index',
     // Support pages
-    'pages/support-chat/index'
+    'pages/support-chat/index',
+    'pages/support-chat/select-order/index',
+    'pages/support-chat/select-product/index'
   ],
   window: {
     backgroundTextStyle: 'light',
