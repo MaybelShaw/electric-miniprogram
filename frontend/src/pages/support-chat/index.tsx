@@ -4,6 +4,10 @@ import Taro from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
+import cameraIcon from '../../assets/icons/camera.png'
+import pictureIcon from '../../assets/icons/picture.png'
+import orderIcon from '../../assets/icons/order.png'
+import productIcon from '../../assets/icons/product.png'
 import './index.scss'
 
 interface ExtendedSupportMessage extends SupportMessage {
@@ -431,25 +435,25 @@ export default function SupportChat() {
           <View className='action-panel'>
             <View className='action-item' onClick={handleCamera}>
               <View className='icon-wrapper'>
-                <Text className='icon'>📷</Text>
+                <Image src={cameraIcon} className='action-icon' />
               </View>
               <Text className='label'>拍摄</Text>
             </View>
             <View className='action-item' onClick={handleAlbum}>
               <View className='icon-wrapper'>
-                <Text className='icon'>🖼️</Text>
+                <Image src={pictureIcon} className='action-icon' />
               </View>
               <Text className='label'>相册</Text>
             </View>
             <View className='action-item' onClick={handleOrder}>
               <View className='icon-wrapper'>
-                <Text className='icon'>📋</Text>
+                <Image src={orderIcon} className='action-icon' />
               </View>
               <Text className='label'>订单</Text>
             </View>
             <View className='action-item' onClick={handleProduct}>
               <View className='icon-wrapper'>
-                <Text className='icon'>🛍️</Text>
+                <Image src={productIcon} className='action-icon' />
               </View>
               <Text className='label'>商品</Text>
             </View>
