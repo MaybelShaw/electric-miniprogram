@@ -68,7 +68,7 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'] if EnvironmentConfig.is_production() else ['rest_framework.permissions.AllowAny'],
     'SERVE_AUTHENTICATION': 'rest_framework_simplejwt.authentication.JWTAuthentication' if EnvironmentConfig.is_production() else None,
-    'SCHEMA_PATH_PREFIX': r'/api/v1',
+    'SCHEMA_PATH_PREFIX': r'/api',
     'CONTACT': {
         'name': 'API Support',
         'email': 'support@example.com',

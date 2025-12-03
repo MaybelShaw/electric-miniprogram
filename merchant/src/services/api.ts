@@ -18,24 +18,24 @@ export const getCustomersTransactionStats = (params?: any) => request.get(`/user
 export const exportCustomersTransactionStats = (params?: any) => request.get(`/users/export_customers_transaction_stats/`, { params, responseType: 'blob' });
 
 // 品牌管理
-export const getBrands = (params?: any) => request.get('/brands/', { params });
-export const createBrand = (data: any) => request.post('/brands/', data);
-export const updateBrand = (id: number, data: any) => request.patch(`/brands/${id}/`, data);
+export const getBrands = (params?: any) => request.get('/catalog/brands/', { params });
+export const createBrand = (data: any) => request.post('/catalog/brands/', data);
+export const updateBrand = (id: number, data: any) => request.patch(`/catalog/brands/${id}/`, data);
 export const deleteBrand = (id: number, force?: boolean) =>
-  request.delete(`/brands/${id}/`, { params: { force_delete: force } });
+  request.delete(`/catalog/brands/${id}/`, { params: { force_delete: force } });
 
 // 品类管理
-export const getCategories = (params?: any) => request.get('/categories/', { params });
-export const createCategory = (data: any) => request.post('/categories/', data);
-export const updateCategory = (id: number, data: any) => request.patch(`/categories/${id}/`, data);
-export const deleteCategory = (id: number) => request.delete(`/categories/${id}/`);
+export const getCategories = (params?: any) => request.get('/catalog/categories/', { params });
+export const createCategory = (data: any) => request.post('/catalog/categories/', data);
+export const updateCategory = (id: number, data: any) => request.patch(`/catalog/categories/${id}/`, data);
+export const deleteCategory = (id: number) => request.delete(`/catalog/categories/${id}/`);
 
 // 产品管理
-export const getProducts = (params?: any) => request.get('/products/', { params });
-export const getProduct = (id: number) => request.get(`/products/${id}/`);
-export const createProduct = (data: any) => request.post('/products/', data);
-export const updateProduct = (id: number, data: any) => request.patch(`/products/${id}/`, data);
-export const deleteProduct = (id: number) => request.delete(`/products/${id}/`);
+export const getProducts = (params?: any) => request.get('/catalog/products/', { params });
+export const getProduct = (id: number) => request.get(`/catalog/products/${id}/`);
+export const createProduct = (data: any) => request.post('/catalog/products/', data);
+export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
+export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
 export const getHaierProducts = (productCodes: string) => request.get('/haier/api/products/', { params: { product_codes: productCodes } });
 export const getHaierStock = (productCode: string, countyCode: string = '110101') => request.get('/haier/api/stock/', { params: { product_code: productCode, county_code: countyCode } });
 export const getHaierPrices = (productCodes: string) => request.get('/haier/api/prices/', { params: { product_codes: productCodes } });
@@ -53,7 +53,7 @@ export const uploadImage = (file: File, productId?: number, fieldName?: string) 
     formData.append('field_name', fieldName);
   }
   
-  return request.post('/media-images/', formData);
+  return request.post('/catalog/media-images/', formData);
 };
 
 // 订单管理
@@ -119,10 +119,10 @@ export const issueInvoice = (id: number, data: any) => request.post(`/invoices/$
 export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cancel/`);
 
 // 轮播图管理
-export const getHomeBanners = (params?: any) => request.get('/home-banners/', { params });
-export const createHomeBanner = (data: any) => request.post('/home-banners/', data);
-export const updateHomeBanner = (id: number, data: any) => request.patch(`/home-banners/${id}/`, data);
-export const deleteHomeBanner = (id: number) => request.delete(`/home-banners/${id}/`);
+export const getHomeBanners = (params?: any) => request.get('/catalog/home-banners/', { params });
+export const createHomeBanner = (data: any) => request.post('/catalog/home-banners/', data);
+export const updateHomeBanner = (id: number, data: any) => request.patch(`/catalog/home-banners/${id}/`, data);
+export const deleteHomeBanner = (id: number) => request.delete(`/catalog/home-banners/${id}/`);
 export const uploadHomeBanner = (file: File, data?: any) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -131,7 +131,7 @@ export const uploadHomeBanner = (file: File, data?: any) => {
       formData.append(key, data[key]);
     });
   }
-  return request.post('/home-banners/upload/', formData);
+  return request.post('/catalog/home-banners/upload/', formData);
 };
 
 // 客服工单管理

@@ -4,7 +4,7 @@ import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../ty
 export const productService = {
   // 获取轮播图列表
   async getHomeBanners(): Promise<HomeBanner[]> {
-    const response = await http.get<{ count: number; results: HomeBanner[] }>('/home-banners/', undefined, false)
+    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', undefined, false)
     return response.results || []
   },
 
@@ -15,12 +15,12 @@ export const productService = {
     sort_by?: 'sales' | 'price_asc' | 'price_desc' | 'created'
     search?: string
   }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/products/', params, false)
+    return http.get<ProductListResponse>('/catalog/products/', params, false)
   },
   
   // 获取商品详情
   async getProductDetail(id: number): Promise<Product> {
-    return http.get<Product>(`/products/${id}/`, undefined, false)
+    return http.get<Product>(`/catalog/products/${id}/`, undefined, false)
   },
   
   // 按分类获取商品
@@ -30,23 +30,23 @@ export const productService = {
     page?: number
     page_size?: number
   }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/products/by_category/', params, false)
+    return http.get<ProductListResponse>('/catalog/products/by_category/', params, false)
   },
   
   // 按品牌获取商品
   async getProductsByBrand(brand: string): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/products/by_brand/', { brand }, false)
+    return http.get<ProductListResponse>('/catalog/products/by_brand/', { brand }, false)
   },
   
   // 获取分类列表
   async getCategories(params?: { level?: 'major' | 'minor'; parent_id?: number }): Promise<Category[]> {
-    const response = await http.get<{ count: number; results: Category[] }>('/categories/', params, false)
+    const response = await http.get<{ count: number; results: Category[] }>('/catalog/categories/', params, false)
     return response.results || []
   },
   
   // 获取品牌列表
   async getBrands(): Promise<Brand[]> {
-    const response = await http.get<{ count: number; results: Brand[] }>('/brands/', undefined, false)
+    const response = await http.get<{ count: number; results: Brand[] }>('/catalog/brands/', undefined, false)
     return response.results || []
   },
   
@@ -57,12 +57,12 @@ export const productService = {
     limit?: number
     category_id?: number
   }): Promise<Product[]> {
-    return http.get<Product[]>('/products/recommendations/', params, false)
+    return http.get<Product[]>('/catalog/products/recommendations/', params, false)
   },
   
   // 获取相关商品
   async getRelatedProducts(id: number, limit = 10): Promise<Product[]> {
-    return http.get<Product[]>(`/products/${id}/related/`, { limit }, false)
+    return http.get<Product[]>(`/catalog/products/${id}/related/`, { limit }, false)
   },
   
 
