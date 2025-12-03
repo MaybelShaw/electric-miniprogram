@@ -28,9 +28,14 @@ class SupportMessage(models.Model):
     ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_messages')
     role = models.CharField(max_length=20, default='', db_index=True)
-    content = models.TextField()
+    content = models.TextField(blank=True)
+    attachment = models.FileField(upload_to='support/attachments/%Y/%m/%d/', null=True, blank=True)
+    attachment_type = models.CharField(max_length=10, choices=[('image', 'image'), ('video', 'video')], null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['created_at']
-        indexes = [models.Index(fields=['ticket', 'created_at'])]
+        indexes = [
+            models.Index(fields=['ticket', 'created_at']),
+            models.Index(fields=['attachment_type']),
+        ]

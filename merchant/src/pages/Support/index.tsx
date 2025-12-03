@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Select, Divider, Form } from 'antd';
-import { EyeOutlined, SendOutlined, UserOutlined } from '@ant-design/icons';
+import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Select, Divider, Upload, Image as AntImage } from 'antd';
+import { EyeOutlined, SendOutlined, UserOutlined, UploadOutlined, PaperClipOutlined } from '@ant-design/icons';
 import { getSupportTickets, getSupportTicket, setSupportTicketStatus, assignSupportTicket } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { SupportTicket, SupportMessage } from '@/services/types';
@@ -55,6 +55,23 @@ export default function Support() {
     if (!currentTicket || !messageContent.trim()) return;
     await sendMessage(messageContent);
     setMessageContent('');
+  };
+
+  const handleUpload = async (options: any) => {
+    const { file, onSuccess, onError } = options;
+    const type = file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : undefined);
+    
+    if (!type) {
+      message.error('仅支持图片和视频');
+      return;
+    }
+    
+    try {
+      await sendMessage('', file, type);
+      onSuccess("ok");
+    } catch (e) {
+      onError(e);
+    }
   };
 
   const handleStatusChange = async (status: string) => {
@@ -262,7 +279,22 @@ export default function Support() {
                             borderRadius: '8px',
                             wordBreak: 'break-word'
                           }}>
-                            {msg.content}
+                            {msg.attachment_type === 'image' ? (
+                              <AntImage 
+                                width={200} 
+                                src={msg.attachment_url} 
+                                style={{ borderRadius: 4 }}
+                              />
+                            ) : msg.attachment_type === 'video' ? (
+                              <video 
+                                width={200} 
+                                controls 
+                                src={msg.attachment_url} 
+                                style={{ borderRadius: 4 }}
+                              />
+                            ) : (
+                              msg.content
+                            )}
                             {msg.status === 'error' && <span style={{ color: 'red', marginLeft: 4 }}>(发送失败)</span>}
                           </div>
                         </div>
@@ -274,6 +306,15 @@ export default function Support() {
             </div>
 
             <div style={{ marginTop: 'auto' }}>
+              <div style={{ marginBottom: 8 }}>
+                <Upload 
+                   customRequest={handleUpload} 
+                   showUploadList={false} 
+                   accept="image/*,video/*"
+                 >
+                   <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
+                 </Upload>
+              </div>
               <Input.TextArea
                 rows={3}
                 value={messageContent}

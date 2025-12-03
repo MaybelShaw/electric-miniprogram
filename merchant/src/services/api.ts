@@ -139,7 +139,21 @@ export const getSupportTickets = (params?: any) => request.get('/support/chat/co
 export const getSupportTicket = (id: number) => request.get(`/support/tickets/${id}/`); // 保留用于获取详情（如果有必要，但conversations列表已有大部分信息）
 // 新的聊天接口
 export const getChatMessages = (userId: number, params?: any) => request.get('/support/chat/', { params: { user_id: userId, ...params } });
-export const sendChatMessage = (userId: number, content: string) => request.post('/support/chat/', { user_id: userId, content });
+export const sendChatMessage = (userId: number, content: string, attachment?: File, attachmentType?: 'image' | 'video') => {
+  if (!attachment) {
+    return request.post('/support/chat/', { user_id: userId, content });
+  }
+  
+  const formData = new FormData();
+  formData.append('user_id', userId.toString());
+  formData.append('content', content || '');
+  formData.append('attachment', attachment);
+  if (attachmentType) {
+    formData.append('attachment_type', attachmentType);
+  }
+  
+  return request.post('/support/chat/', formData);
+};
 
 // 旧接口保留但标记（如果还需要）
 export const createSupportTicket = (data: any) => request.post('/support/tickets/', data);

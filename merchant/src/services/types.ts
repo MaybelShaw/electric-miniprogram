@@ -129,6 +129,8 @@ export interface SupportMessage {
   sender_username: string;
   role: string;
   content: string;
+  attachment_url?: string;
+  attachment_type?: 'image' | 'video';
   created_at: string;
 }
 

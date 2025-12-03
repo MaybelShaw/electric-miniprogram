@@ -178,18 +178,26 @@
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
- - 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
-   - 直接聊天 Chat：
-     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:141`
-       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
-       - 返回字段：消息数组 `{ id, ticket, sender, sender_username, role, content, created_at }`
-       - 说明：系统为每个用户自动维护一个会话（内部复用工单模型）。
-     - `POST /support/chat/` 发送消息 `backend/support/views.py:177`
-       - 请求体：`{ content }`；客服/管理员可附加 `user_id`
-       - 返回字段：新消息 `{ id, ticket, sender, sender_username, role, content, created_at }`
-   - 环境差异：
-     - 开发环境：仅注册聊天端点，旧工单端点不再保留 `backend/support/urls.py:8`
-     - 生产环境：保留工单端点（兼容），同时提供聊天端点 `backend/support/urls.py:11`
+- 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
+  - 直接聊天 Chat：
+    - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:156`
+      - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
+      - 返回字段：消息数组 `{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, created_at }`
+      - 说明：系统为每个用户自动维护一个会话（内部复用工单模型）。
+    - `POST /support/chat/` 发送消息（支持文本、图片、视频）`backend/support/views.py:191`
+      - 请求方式：`multipart/form-data`
+      - 表单字段：
+        - `content` 文本（可选；当未上传附件时必填）
+        - `attachment` 文件（可选；支持图片或视频）
+        - `attachment_type` 类型（可选；`image|video`，未提供时将根据 `Content-Type` 自动判定）
+        - `user_id` 目标用户ID（仅客服/管理员）
+      - 返回字段：`{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, created_at }`
+      - 校验：当 `attachment` 存在且类型无法判定或不为 `image|video` 时返回 `400`。
+  - 工单端点兼容：
+    - `POST /support/tickets/{id}/add_message/` 兼容上传图片/视频与文本 `backend/support/views.py:26`
+      - 请求方式：`multipart/form-data`，字段同上。
+  - 环境差异：
+    - 开发与生产环境均注册聊天与工单端点 `backend/support/urls.py:8`
     - 客服/管理员可查看全部；普通用户仅能看到自己发送的消息与自己工单下的消息。
     - 查询参数：`ticket`（按工单过滤）、`after`（ISO 时间）、`limit`（返回条数）。
     - 返回字段：同上。
@@ -201,6 +209,7 @@
 > 4. **状态反馈**：发送消息会刷新工单的 `updated_at`，以便列表按最近活跃排序。
 
 > 相关模型：`SupportTicket` 与 `SupportMessage`（`backend/support/models.py:6`, `backend/support/models.py:26`）
+> - `SupportMessage` 新增：`attachment(FileField)`、`attachment_type(image|video)`，文本字段 `content` 允许为空；返回的 `attachment_url` 为可直接访问的绝对地址。
 - 统计与分析（仅管理员）：
   - `GET /analytics/sales_summary/` 销售汇总（`start_date/end_date`）
   - `GET /analytics/top_products/` 热销商品排行（`limit/days`）

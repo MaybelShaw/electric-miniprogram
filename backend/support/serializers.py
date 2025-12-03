@@ -4,11 +4,21 @@ from .models import SupportTicket, SupportMessage
 
 class SupportMessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source='sender.username', read_only=True)
+    attachment_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SupportMessage
-        fields = ['id', 'ticket', 'sender', 'sender_username', 'role', 'content', 'created_at']
-        read_only_fields = ['id', 'sender', 'sender_username', 'role', 'created_at']
+        fields = ['id', 'ticket', 'sender', 'sender_username', 'role', 'content', 'attachment_type', 'attachment_url', 'created_at']
+        read_only_fields = ['id', 'sender', 'sender_username', 'role', 'attachment_type', 'attachment_url', 'created_at']
+
+    def get_attachment_url(self, obj):
+        if not obj.attachment:
+            return None
+        request = self.context.get('request')
+        url = obj.attachment.url
+        if request is not None:
+            return request.build_absolute_uri(url)
+        return url
 
 
 class SupportTicketSerializer(serializers.ModelSerializer):

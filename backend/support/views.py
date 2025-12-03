@@ -29,13 +29,31 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or ticket.user_id == request.user.id):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         content = request.data.get('content', '')
-        if not content:
-            return Response({'detail': 'content required'}, status=status.HTTP_400_BAD_REQUEST)
+        attachment = request.FILES.get('attachment')
+        attachment_type = request.data.get('attachment_type')
+        if not content and not attachment:
+            return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
+        if attachment:
+            if not attachment_type:
+                ct = getattr(attachment, 'content_type', '') or ''
+                if ct.startswith('image/'):
+                    attachment_type = 'image'
+                elif ct.startswith('video/'):
+                    attachment_type = 'video'
+            if attachment_type not in ('image', 'video'):
+                return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
         role = 'support' if (request.user.is_staff or getattr(request.user, 'role', '') == 'support') else 'user'
-        msg = SupportMessage.objects.create(ticket=ticket, sender=request.user, role=role, content=content)
+        msg = SupportMessage.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            role=role,
+            content=content or '',
+            attachment=attachment,
+            attachment_type=attachment_type,
+        )
         ticket.updated_at = timezone.now()
         ticket.save(update_fields=['updated_at'])
-        return Response(SupportMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+        return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def set_status(self, request, pk=None):
@@ -86,7 +104,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
                     qs = qs[:l]
             except ValueError:
                 pass
-        return Response(SupportMessageSerializer(qs, many=True).data)
+        return Response(SupportMessageSerializer(qs, many=True, context={'request': request}).data)
 
 
 class SupportMessageViewSet(viewsets.ReadOnlyModelViewSet):
@@ -193,12 +211,23 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                     qs = qs[:l]
             except ValueError:
                 pass
-        return Response(SupportMessageSerializer(qs, many=True).data)
+        return Response(SupportMessageSerializer(qs, many=True, context={'request': request}).data)
 
     def create(self, request):
         content = request.data.get('content', '')
-        if not content:
-            return Response({'detail': 'content required'}, status=status.HTTP_400_BAD_REQUEST)
+        attachment = request.FILES.get('attachment')
+        attachment_type = request.data.get('attachment_type')
+        if not content and not attachment:
+            return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
+        if attachment:
+            if not attachment_type:
+                ct = getattr(attachment, 'content_type', '') or ''
+                if ct.startswith('image/'):
+                    attachment_type = 'image'
+                elif ct.startswith('video/'):
+                    attachment_type = 'video'
+            if attachment_type not in ('image', 'video'):
+                return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
 
         user_id = request.data.get('user_id')
         is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
@@ -221,7 +250,14 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             role = 'user'
             sender = request.user
 
-        msg = SupportMessage.objects.create(ticket=ticket, sender=sender, role=role, content=content)
+        msg = SupportMessage.objects.create(
+            ticket=ticket,
+            sender=sender,
+            role=role,
+            content=content or '',
+            attachment=attachment,
+            attachment_type=attachment_type,
+        )
         ticket.updated_at = timezone.now()
         ticket.save(update_fields=['updated_at'])
-        return Response(SupportMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+        return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text, Input, Button, ScrollView } from '@tarojs/components'
+import { View, Text, Input, Button, ScrollView, Image, Video } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
 import { authService } from '../../services/auth'
@@ -9,12 +9,14 @@ import './index.scss'
 interface ExtendedSupportMessage extends SupportMessage {
   local_id?: string
   status?: 'sending' | 'sent' | 'error'
+  tempFilePath?: string // For local preview of uploaded media
 }
 
 interface OfflineMessage {
   content: string
   tempId: string
   timestamp: number
+  // Simple offline support for text only for now
 }
 
 export default function SupportChat() {
@@ -24,6 +26,7 @@ export default function SupportChat() {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null)
   const [scrollIntoView, setScrollIntoView] = useState<string>('')
+  const [showPanel, setShowPanel] = useState(false)
   
   const pollingRef = useRef<any>()
   
@@ -154,11 +157,78 @@ export default function SupportChat() {
     }
   }
 
-  const sendMessage = async () => {
-    if (!inputValue.trim() || !currentUser) return
+  const handleTogglePanel = () => {
+    const willShow = !showPanel
+    setShowPanel(willShow)
+    // Adjust scroll to bottom when panel opens
+    if (willShow) {
+      setTimeout(() => {
+        setScrollIntoView('')
+        setTimeout(() => {
+            setScrollIntoView('bottom-anchor')
+        }, 50)
+      }, 100)
+    }
+  }
+
+  const handleCamera = async () => {
+    try {
+      const res = await Taro.chooseMedia({
+        count: 1,
+        mediaType: ['image', 'video'],
+        sourceType: ['camera'],
+      })
+      handleMediaSelect(res)
+    } catch (e) {
+      console.log('Camera cancelled or failed', e)
+    }
+  }
+
+  const handleAlbum = async () => {
+    try {
+      const res = await Taro.chooseMedia({
+        count: 1,
+        mediaType: ['image', 'video'],
+        sourceType: ['album'],
+      })
+      handleMediaSelect(res)
+    } catch (e) {
+      console.log('Album cancelled or failed', e)
+    }
+  }
+
+  const handleMediaSelect = async (res: Taro.chooseMedia.SuccessCallbackResult) => {
+    const file = res.tempFiles[0]
+    const type = res.type
+    await sendContent('', { path: file.tempFilePath, type: type as 'image' | 'video' })
+    setShowPanel(false)
+  }
+
+  const handleOrder = () => {
+    Taro.showToast({ title: '选择订单功能开发中', icon: 'none' })
+  }
+
+  const handleProduct = () => {
+    Taro.showToast({ title: '选择商品功能开发中', icon: 'none' })
+  }
+  
+  const handleInputFocus = () => {
+    if (showPanel) {
+      setShowPanel(false)
+    }
+  }
+
+  const handleSend = () => {
+    sendContent()
+  }
+
+  const sendContent = async (contentStr?: string, attachment?: { path: string, type: 'image' | 'video' }) => {
+    const content = contentStr !== undefined ? contentStr : inputValue.trim()
+    if ((!content && !attachment) || !currentUser) return
     
-    const content = inputValue.trim()
-    setInputValue('')
+    if (!attachment) {
+      setInputValue('')
+    }
     
     const tempId = `temp_${Date.now()}`
     const tempMsg: ExtendedSupportMessage = {
@@ -167,10 +237,13 @@ export default function SupportChat() {
       sender: currentUser.id,
       sender_username: currentUser.username || 'Me',
       role: currentUser.role || 'user',
-      content,
+      content: content || (attachment ? (attachment.type === 'image' ? '[图片]' : '[视频]') : ''),
+      attachment_url: attachment ? attachment.path : undefined,
+      attachment_type: attachment ? attachment.type : undefined,
       created_at: new Date().toISOString(),
       local_id: tempId,
-      status: 'sending'
+      status: 'sending',
+      tempFilePath: attachment ? attachment.path : undefined
     }
 
     // Optimistic update
@@ -181,7 +254,7 @@ export default function SupportChat() {
     })
 
     try {
-      const res = await supportService.sendMessage(content)
+      const res = await supportService.sendMessage(content, attachment)
       
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -204,12 +277,16 @@ export default function SupportChat() {
         m.local_id === tempId ? { ...m, status: 'error' } : m
       ))
       
-      const queueKey = 'offline_queue'
-      const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
-      queue.push({ content, tempId, timestamp: Date.now() })
-      Taro.setStorageSync(queueKey, queue)
-      
-      Taro.showToast({ title: '发送失败，已保存到离线队列', icon: 'none' })
+      if (!attachment) {
+        const queueKey = 'offline_queue'
+        const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
+        queue.push({ content, tempId, timestamp: Date.now() })
+        Taro.setStorageSync(queueKey, queue)
+        
+        Taro.showToast({ title: '发送失败，已保存到离线队列', icon: 'none' })
+      } else {
+        Taro.showToast({ title: '发送图片/视频失败', icon: 'none' })
+      }
     }
   }
 
@@ -304,7 +381,21 @@ export default function SupportChat() {
                     <Text className='sender-name'>{msg.sender_username}</Text>
                   )}
                   <View className='bubble'>
-                    <Text>{msg.content}</Text>
+                    {msg.attachment_type === 'image' ? (
+                      <Image 
+                        src={msg.attachment_url || msg.tempFilePath || ''} 
+                        mode='widthFix' 
+                        className='message-image'
+                        onClick={() => Taro.previewImage({ urls: [msg.attachment_url || msg.tempFilePath || ''] })}
+                      />
+                    ) : msg.attachment_type === 'video' ? (
+                      <Video 
+                        src={msg.attachment_url || msg.tempFilePath || ''}
+                        className='message-video'
+                      />
+                    ) : (
+                      <Text>{msg.content}</Text>
+                    )}
                   </View>
                   {msg.status === 'error' && (
                     <Text className='status error'>发送失败</Text>
@@ -317,24 +408,53 @@ export default function SupportChat() {
             </View>
           )
         })}
-        <View id="bottom-anchor" style={{ height: '1px' }}></View>
+        <View id="bottom-anchor" style={{ height: showPanel ? 'calc(500rpx + 120rpx + env(safe-area-inset-bottom))' : 'calc(120rpx + env(safe-area-inset-bottom))' }}></View>
       </ScrollView>
       
-      <View className='input-area'>
-        <Input
-          className='chat-input'
-          value={inputValue}
-          onInput={e => setInputValue(e.detail.value)}
-          onConfirm={sendMessage}
-          placeholder='请输入消息...'
-          confirmType='send'
-        />
-        <Button 
-          className={`send-btn ${!inputValue.trim() ? 'disabled' : ''}`}
-          onClick={sendMessage}
-        >
-          发送
-        </Button>
+      <View className={`chat-footer ${showPanel ? 'has-panel' : ''}`}>
+        <View className='input-area'>
+          <Input
+            className='chat-input'
+            value={inputValue}
+            onInput={e => setInputValue(e.detail.value)}
+            onConfirm={handleSend}
+            onFocus={handleInputFocus}
+            placeholder='请输入消息...'
+            confirmType='send'
+          />
+          <View className='media-btn' onClick={handleTogglePanel}>
+            <Text className='plus-icon'>+</Text>
+          </View>
+        </View>
+
+        {showPanel && (
+          <View className='action-panel'>
+            <View className='action-item' onClick={handleCamera}>
+              <View className='icon-wrapper'>
+                <Text className='icon'>📷</Text>
+              </View>
+              <Text className='label'>拍摄</Text>
+            </View>
+            <View className='action-item' onClick={handleAlbum}>
+              <View className='icon-wrapper'>
+                <Text className='icon'>🖼️</Text>
+              </View>
+              <Text className='label'>相册</Text>
+            </View>
+            <View className='action-item' onClick={handleOrder}>
+              <View className='icon-wrapper'>
+                <Text className='icon'>📋</Text>
+              </View>
+              <Text className='label'>订单</Text>
+            </View>
+            <View className='action-item' onClick={handleProduct}>
+              <View className='icon-wrapper'>
+                <Text className='icon'>🛍️</Text>
+              </View>
+              <Text className='label'>商品</Text>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   )
