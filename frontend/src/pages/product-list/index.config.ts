@@ -1,0 +1,4 @@
+export default definePageConfig({
+  navigationBarTitleText: '商品列表',
+  enablePullDownRefresh: false
+})

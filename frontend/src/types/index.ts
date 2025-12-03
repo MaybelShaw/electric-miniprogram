@@ -57,6 +57,9 @@ export interface Category {
   name: string
   order: number
   logo?: string
+  level?: 'major' | 'minor' | 'item'
+  parent_id?: number
+  children?: Category[]
 }
 
 // 品牌相关

@@ -2,6 +2,8 @@ export default defineAppConfig({
   pages: [
     'pages/home/index',
     'pages/category/index',
+    // Product list page
+    'pages/product-list/index',
     'pages/cart/index',
     'pages/profile/index',
     'pages/product-detail/index',
