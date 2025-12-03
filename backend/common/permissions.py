@@ -49,8 +49,8 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         Returns:
             bool: True if user is admin or owner, False otherwise
         """
-        # Administrators have access to all objects
-        if request.user and request.user.is_staff:
+        # Administrators and support staff have access to all objects
+        if request.user and (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
             return True
         
         # Get the owner from the object

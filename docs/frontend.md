@@ -68,6 +68,9 @@
   - `requestInvoice` 申请发票 `frontend/src/services/order.ts`
   - `requestReturn` 申请退货 `frontend/src/services/order.ts`
   - `addReturnTracking` 填写退货物流 `frontend/src/services/order.ts`
+- 客服支持服务：`frontend/src/services/support.ts`
+  - 工单列表/详情/创建/关闭
+  - 消息列表/发送（支持增量拉取、离线发送）
 - 支付服务：`frontend/src/services/payment.ts:4`
   - 列表/创建/详情/开始/成功/失败/取消/过期 `frontend/src/services/payment.ts:6`
 - 地址服务：`frontend/src/services/address.ts:4`
@@ -105,6 +108,17 @@
   - 增加邮箱格式正则校验
   - 税率由后端计算，前端无需传递 `tax_rate` 字段
 - 个人中心（`/pages/profile/index`）：资料展示与编辑、地址管理入口
+- 客服支持系统：
+  - **入口**：个人中心 -> 客服支持
+  - **功能**：
+    - 工单列表（`/pages/support-list/index`）：查看所有工单状态
+    - 创建工单（`/pages/support-create/index`）：提交新问题，支持关联订单
+    - 聊天详情（`/pages/support-chat/index`）：实时聊天界面
+  - **优化特性**：
+    - **增量轮询**：使用 `after` 参数仅拉取新消息，节省流量
+    - **本地缓存**：消息缓存在本地存储，进入页面秒开
+    - **离线支持**：断网时发送消息存入离线队列，网络恢复后自动重试
+    - **乐观更新**：发送消息立即上屏，提升体验
 - 信用账户与账务（`/pages/credit-account`、`/pages/account-statements`、`/pages/statement-detail`）：额度、账期、对账单与交易明细
   - 账期规则：固定月度账期，正常 `30` 天；采购的应付日期为“交易日 + 账期天数”所在月份的最后一天。
   - 对账明细中的“应付日期/付款状态”与后端同步，逾期状态按天更新。

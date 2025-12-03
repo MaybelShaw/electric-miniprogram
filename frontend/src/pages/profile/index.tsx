@@ -97,6 +97,15 @@ export default function Profile() {
     Taro.navigateTo({ url: '/pages/company-certification/index' })
   }
 
+
+  const goToSupport = () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    Taro.navigateTo({ url: '/pages/support-chat/index' })
+  }
+
   return (
     <View className='profile'>
       {/* 用户信息区域 */}
@@ -177,6 +186,14 @@ export default function Profile() {
           <Text className='arrow'>›</Text>
         </View>
         
+        <View className='menu-item' onTap={goToSupport}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>🎧</Text>
+            <Text className='menu-text'>客服支持</Text>
+          </View>
+          <Text className='arrow'>›</Text>
+        </View>
+
         <View className='menu-item' onTap={goToCertification}>
           <View className='menu-left'>
             <Text className='menu-icon'>🏢</Text>

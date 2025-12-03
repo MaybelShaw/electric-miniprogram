@@ -229,7 +229,7 @@ class PasswordLoginView(APIView):
                 user.is_superuser = True
                 user.role = 'admin'
                 user.save()
-            else:
+            elif getattr(user, 'role', '') != 'support':
                 return Response({"error": "无管理员权限"}, status=status.HTTP_403_FORBIDDEN)
         
         # 确保管理员用户的 role 字段正确

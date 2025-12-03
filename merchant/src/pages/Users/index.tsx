@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormSwitch } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, message, Switch } from 'antd';
+import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
+import { Tag, Button, Popconfirm, message, Switch, Form } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getUsers, createUser, updateUser, deleteUser, setAdmin, unsetAdmin } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { User } from '@/services/types';
 
 export default function Users() {
+  const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<User | null>(null);
@@ -36,19 +37,20 @@ export default function Users() {
     {
       title: '用户角色',
       dataIndex: 'role',
-      hideInSearch: true,
       width: 100,
       valueType: 'select',
       valueEnum: {
         individual: { text: '个人用户', status: 'Default' },
         dealer: { text: '经销商', status: 'Success' },
-        admin: { text: '管理员', status: 'Error' }
+        admin: { text: '管理员', status: 'Error' },
+        support: { text: '客服', status: 'Processing' },
       },
       render: (_, record) => {
         const roleMap: Record<string, { text: string; color: string }> = {
           individual: { text: '个人用户', color: 'default' },
           dealer: { text: '经销商', color: 'green' },
-          admin: { text: '管理员', color: 'red' }
+          admin: { text: '管理员', color: 'red' },
+          support: { text: '客服', color: 'blue' },
         }
         const roleInfo = roleMap[record.role] || { text: record.role, color: 'default' }
         return <Tag color={roleInfo.color}>{roleInfo.text}</Tag>
@@ -184,6 +186,11 @@ export default function Users() {
               queryParams.is_staff = params.is_staff;
             }
 
+            // 角色筛选
+            if (params.role) {
+              queryParams.role = params.role;
+            }
+
             const res: any = await getUsers(queryParams);
             
             // 处理分页响应
@@ -221,9 +228,26 @@ export default function Users() {
       />
       
       <ModalForm
+        form={form}
         title={editingRecord ? '编辑用户' : '新增用户'}
         open={modalVisible}
         onOpenChange={setModalVisible}
+        onValuesChange={(changedValues, allValues) => {
+          if (changedValues.role) {
+            if (changedValues.role === 'admin') {
+              form.setFieldValue('is_staff', true);
+            } else {
+              form.setFieldValue('is_staff', false);
+            }
+          }
+          if (changedValues.is_staff !== undefined) {
+            if (changedValues.is_staff) {
+              form.setFieldValue('role', 'admin');
+            } else if (allValues.role === 'admin') {
+              form.setFieldValue('role', 'individual');
+            }
+          }
+        }}
         onFinish={async (values: any) => {
           try {
             if (editingRecord) {
@@ -273,6 +297,20 @@ export default function Users() {
             placeholder="请输入密码"
           />
         )}
+
+        <ProFormSelect
+          name="role"
+          label="用户角色"
+          rules={[{ required: true, message: '请选择用户角色' }]}
+          valueEnum={{
+            individual: '个人用户',
+            dealer: '经销商',
+            admin: '管理员',
+            support: '客服',
+          }}
+          placeholder="请选择用户角色"
+          initialValue="individual"
+        />
         
         <ProFormSwitch
           name="is_staff"

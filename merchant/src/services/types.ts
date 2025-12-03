@@ -4,7 +4,7 @@ export interface User {
   openid: string;
   email: string;
   phone: string;
-  role: 'individual' | 'dealer' | 'admin';
+  role: 'individual' | 'dealer' | 'admin' | 'support';
   is_staff: boolean;
   date_joined: string;
   last_login_at: string;
@@ -120,4 +120,30 @@ export interface HomeBanner {
   image_url: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface SupportMessage {
+  id: number;
+  ticket: number;
+  sender: number;
+  sender_username: string;
+  role: string;
+  content: string;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: number;
+  user: number;
+  user_username: string;
+  order: number | null;
+  order_number?: string;
+  subject: string;
+  status: 'open' | 'pending' | 'resolved' | 'closed';
+  priority: 'low' | 'normal' | 'high';
+  assigned_to: number | null;
+  assigned_to_username?: string;
+  created_at: string;
+  updated_at: string;
+  messages?: SupportMessage[];
 }

@@ -133,3 +133,19 @@ export const uploadHomeBanner = (file: File, data?: any) => {
   }
   return request.post('/home-banners/upload/', formData);
 };
+
+// 客服工单管理
+export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params });
+export const getSupportTicket = (id: number) => request.get(`/support/tickets/${id}/`); // 保留用于获取详情（如果有必要，但conversations列表已有大部分信息）
+// 新的聊天接口
+export const getChatMessages = (userId: number, params?: any) => request.get('/support/chat/', { params: { user_id: userId, ...params } });
+export const sendChatMessage = (userId: number, content: string) => request.post('/support/chat/', { user_id: userId, content });
+
+// 旧接口保留但标记（如果还需要）
+export const createSupportTicket = (data: any) => request.post('/support/tickets/', data);
+export const updateSupportTicket = (id: number, data: any) => request.patch(`/support/tickets/${id}/`, data);
+export const addSupportTicketMessage = (id: number, content: string) => request.post(`/support/tickets/${id}/add_message/`, { content });
+export const setSupportTicketStatus = (id: number, status: string) => request.post(`/support/tickets/${id}/set_status/`, { status });
+export const assignSupportTicket = (id: number, userId: number) => request.post(`/support/tickets/${id}/assign/`, { user_id: userId });
+export const getSupportTicketMessages = (id: number, params?: any) => request.get(`/support/tickets/${id}/messages/`, { params });
+export const getSupportMessages = (params?: any) => request.get('/support/messages/', { params });

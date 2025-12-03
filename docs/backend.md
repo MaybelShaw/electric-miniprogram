@@ -19,10 +19,12 @@
   - `orders/` 购物车、订单、支付、折扣、状态机与分析
   - `integrations/` 海尔与易理货系统的对接
   - `common/` 权限、分页、异常、限流、健康检查、日志配置
+  - `support/` 客服系统（直接聊天优先，兼容工单）
 
 ## 目录结构
 - 主工程：`backend/backend/`（环境配置、入口、路由）
 - 模块：`catalog/`（商品）、`orders/`（订单与支付）、`users/`（用户与地址、信用账户）、`integrations/`（海尔/易理货对接）、`common/`（权限、分页、异常等）
+  - 新增：`support/`（客服工单与消息）
 
 ## 快速开始
 - 环境准备：Python 3.12+，建议安装 `uv`
@@ -73,10 +75,12 @@
   ```
 
 ## 路由入口
+- 路由入口：
 - 用户与认证：`backend/users/urls.py:25`
 - 订单与支付：`backend/orders/urls.py:1`
 - 商品与品牌：`backend/catalog/urls.py:5`
 - 集成与回调：`backend/integrations/urls.py:17`
+- 客服系统：`backend/support/urls.py:1`
 
 ## 认证与权限
 - 所有需要认证的端点在 Header 携带：`Authorization: Bearer <token>`
@@ -174,6 +178,29 @@
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
+ - 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
+   - 直接聊天 Chat：
+     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:141`
+       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
+       - 返回字段：消息数组 `{ id, ticket, sender, sender_username, role, content, created_at }`
+       - 说明：系统为每个用户自动维护一个会话（内部复用工单模型）。
+     - `POST /support/chat/` 发送消息 `backend/support/views.py:177`
+       - 请求体：`{ content }`；客服/管理员可附加 `user_id`
+       - 返回字段：新消息 `{ id, ticket, sender, sender_username, role, content, created_at }`
+   - 环境差异：
+     - 开发环境：仅注册聊天端点，旧工单端点不再保留 `backend/support/urls.py:8`
+     - 生产环境：保留工单端点（兼容），同时提供聊天端点 `backend/support/urls.py:11`
+    - 客服/管理员可查看全部；普通用户仅能看到自己发送的消息与自己工单下的消息。
+    - 查询参数：`ticket`（按工单过滤）、`after`（ISO 时间）、`limit`（返回条数）。
+    - 返回字段：同上。
+
+> 聊天说明：为简化实现，后端通过轮询/增量拉取的方式支持聊天体验。前端实现建议：
+> 1. **增量拉取**：利用 `after` 参数传入本地缓存中最后一条消息的时间，实现高效的增量更新。
+> 2. **本地缓存**：建议前端缓存消息记录（如 localStorage），减少重复拉取并提升首屏加载速度。
+> 3. **离线队列**：发送消息时可先存入本地队列，网络恢复后自动重试，提升弱网环境下的可靠性。
+> 4. **状态反馈**：发送消息会刷新工单的 `updated_at`，以便列表按最近活跃排序。
+
+> 相关模型：`SupportTicket` 与 `SupportMessage`（`backend/support/models.py:6`, `backend/support/models.py:26`）
 - 统计与分析（仅管理员）：
   - `GET /analytics/sales_summary/` 销售汇总（`start_date/end_date`）
   - `GET /analytics/top_products/` 热销商品排行（`limit/days`）

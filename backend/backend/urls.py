@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/v1/', include('orders.urls')),
     path('api/v1/', include('users.urls')),
     path('api/v1/haier/', include('integrations.urls')),
+    path('api/v1/support/', include('support.urls')),
     
     # Backward compatible endpoints (without version prefix)
     path('api/catalog/', include('catalog.urls')),
@@ -45,9 +46,11 @@ urlpatterns = [
     path('api/', include('orders.urls')),
     path('api/', include('users.urls')),
     path('api/haier/', include('integrations.urls')),
+    path('api/support/', include('support.urls')),
     
     # YLH callback endpoint (direct path for external callback)
     path('api/', include('integrations.urls')),
+    path('api/', include('support.urls')),
 ]
 
 if settings.DEBUG:

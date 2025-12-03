@@ -26,7 +26,12 @@ request.interceptors.response.use(
     if (error.response?.status === 401) {
       message.error('登录已过期，请重新登录');
       removeToken();
-      window.location.href = '/login';
+      // Redirect based on current path to keep context
+      if (window.location.pathname.startsWith('/support')) {
+        window.location.href = '/support/login';
+      } else {
+        window.location.href = '/admin/login';
+      }
     } else {
       message.error(error.response?.data?.message || '请求失败');
     }

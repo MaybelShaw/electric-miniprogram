@@ -23,7 +23,9 @@ export default defineAppConfig({
     'pages/debt-reconciliation/index',
     'pages/invoice-request/index',
     'pages/request-return/index',
-    'pages/return-tracking/index'
+    'pages/return-tracking/index',
+    // Support pages
+    'pages/support-chat/index'
   ],
   window: {
     backgroundTextStyle: 'light',

@@ -54,6 +54,7 @@ class User(AbstractUser, PermissionsMixin):
     ROLE_CHOICES = [
         ('individual', '个人用户'),
         ('dealer', '经销商'),
+        ('support', '客服'),
         ('admin', '管理员'),
     ]
     role = models.CharField(

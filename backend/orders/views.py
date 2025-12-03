@@ -48,7 +48,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.all() if user.is_staff else Order.objects.filter(user=user)
+        qs = Order.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Order.objects.filter(user=user)
         
         # Optimize queries by prefetching related objects
         qs = qs.select_related('user', 'product', 'return_request').prefetch_related('payments', 'status_history')
@@ -91,7 +91,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         # 用户名搜索（管理员可用）：模糊匹配 user.username
         username = self.request.query_params.get('username')
-        if self.request.user.is_staff and username:
+        if (self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'support') and username:
             try:
                 qs = qs.filter(user__username__icontains=username)
             except Exception:
@@ -99,7 +99,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         # 按用户ID筛选（仅管理员有效）
         user_id = self.request.query_params.get('user_id')
-        if user.is_staff and user_id:
+        if (user.is_staff or getattr(user, 'role', '') == 'support') and user_id:
             uid = parse_int(user_id)
             if uid is not None:
                 try:
@@ -195,7 +195,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         # 获取目标用户（支持管理员为其他用户创建订单）
         target_user = request.user
         user_id_raw = request.data.get('user_id')
-        if user_id_raw and request.user.is_staff:
+        if user_id_raw and (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
             try:
                 from users.models import User
                 target_user = User.objects.get(id=int(user_id_raw))
@@ -351,7 +351,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """取消订单：本人或管理员可取消，使用状态机进行状态转换"""
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or order.user_id == user.id):
+        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -381,7 +381,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """发货：仅管理员可操作，状态从 paid 转换到 shipped"""
         order = self.get_object()
         user = request.user
-        if not user.is_staff:
+        if not (user.is_staff or getattr(user, 'role', '') == 'support'):
             return Response({"detail": "Only admins can ship orders"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -410,7 +410,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """完成订单：仅管理员可操作，状态从 shipped 转换到 completed"""
         order = self.get_object()
         user = request.user
-        if not user.is_staff:
+        if not (user.is_staff or getattr(user, 'role', '') == 'support'):
             return Response({"detail": "Only admins can complete orders"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -434,7 +434,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """确认收货：订单所有者或管理员可操作，状态从 shipped 转换到 completed"""
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or order.user_id == user.id):
+        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -473,7 +473,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         返回：创建的发票记录
         """
         order = self.get_object()
-        if not (request.user.is_staff or order.user_id == request.user.id):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or order.user_id == request.user.id):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = InvoiceCreateSerializer(data=request.data, context={'request': request, 'order': order})
@@ -495,7 +495,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def request_return(self, request, pk=None):
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or order.user_id == user.id):
+        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         serializer = ReturnRequestCreateSerializer(data=request.data, context={'request': request, 'order': order})
         serializer.is_valid(raise_exception=True)
@@ -506,7 +506,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def add_return_tracking(self, request, pk=None):
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or order.user_id == user.id):
+        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -530,8 +530,10 @@ class OrderViewSet(viewsets.ModelViewSet):
             pass
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def approve_return(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -546,8 +548,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr.save()
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def reject_return(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -562,8 +566,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr.save()
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def receive_return(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -576,8 +582,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr.save()
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def complete_refund(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -603,13 +611,15 @@ class OrderViewSet(viewsets.ModelViewSet):
             pass
         return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
     
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def push_to_haier(self, request, pk=None):
         """
         推送订单到海尔系统
         
         仅对海尔产品订单有效，需要管理员权限
         """
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
         
         # 检查是否为海尔订单：只根据 product.source 判断
@@ -723,7 +733,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         
         # 检查权限
-        if not request.user.is_staff and order.user != request.user:
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support') and order.user != request.user:
             return Response(
                 {'detail': '无权查看该订单'},
                 status=status.HTTP_403_FORBIDDEN
@@ -1338,11 +1348,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Invoice.objects.all() if user.is_staff else Invoice.objects.filter(user=user)
+        qs = Invoice.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Invoice.objects.filter(user=user)
         return qs.select_related('order', 'user', 'order__product').order_by('-requested_at')
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def issue(self, request, pk=None):
+        # Support staff should be able to issue invoices
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+
         inv = self.get_object()
         if inv.status == 'issued':
             return Response({'detail': '发票已开具'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1374,8 +1388,12 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(inv).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def cancel(self, request, pk=None):
+        # Support staff should be able to cancel invoices
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+
         inv = self.get_object()
         if inv.status == 'issued':
             return Response({'detail': '已开具发票不可取消'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1383,13 +1401,17 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         inv.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(inv).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def upload_file(self, request, pk=None):
-        """上传发票文件（PDF/图片），仅管理员。
+        """上传发票文件（PDF/图片），管理员或客服。
 
         表单：multipart/form-data，字段：file
         保存到 MEDIA_ROOT/invoices/ 下，并更新 file 字段与 file_url。
         """
+        # Support staff should be able to upload invoice files
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+
         inv = self.get_object()
         file = request.FILES.get('file')
         if not file:
@@ -1405,7 +1427,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrAdmin])
     def download(self, request, pk=None):
-        """下载发票文件，订单所有者或管理员可访问。"""
+        """下载发票文件，订单所有者或管理员或客服可访问。"""
+        # Support staff should be able to download invoice files
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or self.get_object().user_id == request.user.id):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+
         inv = self.get_object()
         # 优先使用 FileField
         if getattr(inv, 'file', None):
