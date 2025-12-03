@@ -211,8 +211,18 @@ class EnvironmentConfig:
                 'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
                 'PORT': os.getenv('POSTGRES_PORT', '5432'),
             }
-        
-        # Development: use SQLite
+
+        db_choice = os.getenv('DJANGO_DB', 'sqlite').lower()
+        if db_choice == 'postgres':
+            return {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.getenv('POSTGRES_DB', 'electric_dev'),
+                'USER': os.getenv('POSTGRES_USER', 'electric'),
+                'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'electric'),
+                'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+                'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            }
+
         from pathlib import Path
         base_dir = Path(__file__).resolve().parents[2]
         return {

@@ -116,6 +116,20 @@
   - 开具：填写发票号码与文件链接，完成开票
   - 取消：对已开具或请求中的发票进行作废/取消操作
 
+## 客服支持页面
+- 页面位置：`merchant/src/pages/Support/index.tsx`
+- 能力概览：
+  - 会话列表与工单详情展示，支持状态切换（`open|pending|resolved|closed`）。
+  - 发送消息：支持文本、**图片**与**视频**附件，以及关联**订单**或**商品**。
+  - 选择发送：弹窗选择订单（`ProTable`）或商品，发送后在聊天中以卡片形式展示。
+- 渲染细节：
+  - 订单卡片：显示订单号、产品图、产品名与金额，并在右上角显示状态标签（映射见 `merchant/src/pages/Support/index.tsx:109`；渲染见 `merchant/src/pages/Support/index.tsx:320`）。
+  - 商品卡片：显示主图、名称与价格（渲染见 `merchant/src/pages/Support/index.tsx:340`）。
+  - 图片/视频：图片使用 `AntImage`；视频由浏览器原生播放器处理。
+- 权限：
+  - 客服/管理员可通过 `user_id` 指定目标用户并向其会话发送消息。
+  - 普通管理员不可查看非自己负责用户的会话（受后端权限控制）。
+
 ## 账务对账单页面
 - 列表、筛选、状态、操作与导出：`merchant/src/pages/AccountStatements/index.tsx:256`
 - 详情抽屉与财务汇总：`merchant/src/pages/AccountStatements/index.tsx:332`

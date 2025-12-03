@@ -16,6 +16,7 @@ dependencies = [
     "jionlp>=1.5.27",
     "openpyxl>=3.1.5",
     "requests>=2.32.5",
+    "psycopg[binary]>=3.2.1",
 ]
 
 [[tool.uv.index]]

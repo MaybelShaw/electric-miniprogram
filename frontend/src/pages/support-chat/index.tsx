@@ -542,17 +542,17 @@ export default function SupportChat() {
 
         {showPanel && (
           <View className='action-panel'>
+            <View className='action-item' onClick={handleAlbum}>
+              <View className='icon-wrapper'>
+                <Image src={pictureIcon} className='action-icon' />
+              </View>
+              <Text className='label'>图片/视频</Text>
+            </View>
             <View className='action-item' onClick={handleCamera}>
               <View className='icon-wrapper'>
                 <Image src={cameraIcon} className='action-icon' />
               </View>
               <Text className='label'>拍摄</Text>
-            </View>
-            <View className='action-item' onClick={handleAlbum}>
-              <View className='icon-wrapper'>
-                <Image src={pictureIcon} className='action-icon' />
-              </View>
-              <Text className='label'>相册</Text>
             </View>
             <View className='action-item' onClick={handleOrder}>
               <View className='icon-wrapper'>

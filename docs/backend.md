@@ -197,6 +197,9 @@
         - `order_info`：当关联了订单时返回 `{ id, order_number, status, quantity, total_amount, product_id, product_name, image }`
         - `product_info`：当关联了商品时返回 `{ id, name, price, image }`
       - 校验：当 `attachment` 存在且类型无法判定或不为 `image|video` 时返回 `400`。
+    - 存储与序列化：
+      - 附件存储路径：`support/attachments/%Y/%m/%d/`（`backend/support/models.py:33`），上传后可通过返回的 `attachment_url` 直接访问。
+      - 附件类型字段：`attachment_type` 支持 `image|video` 并建立索引（`backend/support/models.py:34`）。
   - 工单端点兼容：
     - `POST /support/tickets/{id}/add_message/` 支持文本/图片/视频以及关联订单或商品 `backend/support/views.py:26`
       - 请求方式：`multipart/form-data`，字段同上。
@@ -277,6 +280,63 @@
  - 反向代理与 CORS：在 `ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS` 中配置网关域名，开启 HTTPS；按需启用 `django-cors-headers`。
 - 回调安全：海尔回调签名验证与错误处理 `backend/orders/views.py:585`
 
+## 开发环境切换到 PostgreSQL（不保留数据，适合小白）
+- 目标：把本地数据库从默认 SQLite 改为 PostgreSQL，直接清空并重新初始化数据。
+- 适用系统：macOS（已验证），Windows/Linux 可参考 Docker 方案。
+
+### 一、安装 PostgreSQL（二选一）
+- Homebrew 安装：
+  - `brew install postgresql@16`
+  - `brew services start postgresql@16`
+  - 验证：`psql --version`
+- Docker 安装：
+  - `docker run -d --name electric-postgres -p 5432:5432 -e POSTGRES_USER=electric -e POSTGRES_PASSWORD=electric -e POSTGRES_DB=electric_dev postgres:16`
+
+### 二、创建数据库和用户（本地服务方式）
+- 进入 psql：`psql postgres`
+- 执行以下命令（全部复制粘贴即可）：
+  - `CREATE USER electric WITH PASSWORD 'electric';`
+  - `CREATE DATABASE electric_dev OWNER electric;`
+  - `GRANT ALL PRIVILEGES ON DATABASE electric_dev TO electric;`
+  - 退出：`\q`
+
+### 三、配置后端使用 PostgreSQL（开发环境快速切换）
+- 在项目根目录新建或编辑 `.env`（项目会自动加载 .env，参见 `backend/backend/settings/env_config.py:16`）：
+  - `DJANGO_ENV=development`
+  - `DJANGO_DB=postgres`
+  - `SECRET_KEY=dev-secret`
+  - `ALLOWED_HOSTS=localhost,127.0.0.1`
+  - `CORS_ALLOWED_ORIGINS=http://127.0.0.1:8000,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173`
+  - `POSTGRES_DB=electric_dev`
+  - `POSTGRES_USER=electric`
+  - `POSTGRES_PASSWORD=electric`
+  - `POSTGRES_HOST=127.0.0.1`
+  - `POSTGRES_PORT=5432`
+- 切换逻辑：开发环境通过 `DJANGO_DB=postgres` 启用 PostgreSQL（参见 `backend/backend/settings/env_config.py:205`）。生产环境始终使用 PostgreSQL（参见 `backend/backend/settings/production.py:13`），无需额外配置切换。
+
+### 四、清理原有 SQLite 并初始化（不保留数据）
+- 删除旧库文件：`rm backend/backend/db.sqlite3`
+- 安装依赖（使用 uv）：
+  - `pip install uv`
+  - `uv sync`
+- 迁移数据库：`python manage.py migrate`
+- 创建管理员（可选）：`python manage.py createsuperuser`
+- 启动服务：`python manage.py runserver`
+
+### 五、验证与常见问题
+- 验证连接：启动后在日志中应看到 `django.db.backends.postgresql`；也可运行 `psql -U electric -d electric_dev -c "\dt"` 查看表。
+- 连接失败（认证错误）：确认 `.env` 的 `POSTGRES_*` 与数据库中的用户名/密码一致；Docker 场景下主机与端口是 `127.0.0.1:5432`。
+- HTTPS 重定向导致无法访问：确保 `.env` 中设置了 `SECURE_SSL_REDIRECT=False`。
+- CORS 报错：确保 `.env` 中 `CORS_ALLOWED_ORIGINS` 包含前端来源（如 `http://localhost:5173`）。
+
+### 六、回滚到 SQLite（如需）
+- 修改 `.env`：`DJANGO_ENV=development`
+- 删除 PostgreSQL 中的库（可选）：`dropdb electric_dev`（Docker 可执行 `docker exec -it electric-postgres dropdb -U electric electric_dev`）
+- 删除 Django 迁移产生的表不会影响代码；重新运行 `python manage.py migrate` 会生成新的 SQLite 数据库 `backend/backend/db.sqlite3`。
+
+### 七、切换机制说明
+- 开发模式默认使用 SQLite（`env_config.py:219`）。当设置 `DJANGO_DB=postgres` 时，开发模式将改用 PostgreSQL（`env_config.py:205`）。
+- 生产模式始终使用 PostgreSQL，并严格校验环境变量（`production.py:13`、`env_config.py:236`）。
 ## 发票功能说明
 - 申请条件：订单状态为 `completed`
 - 申请端点：`POST /api/orders/{id}/request_invoice/`
@@ -294,3 +354,24 @@
   - 管理员：可同意/拒绝退货、验收退货、完成退款。
 - 图片上传：通过 `POST /api/media-images/` 上传图片，返回的 `url` 可作为 `evidence_images` 列表元素传入退货接口。
  - 状态机配合：填写退货物流后，若订单允许，将进入 `returning` 状态；完成退款后进入 `refunded` 并释放库存（`backend/orders/state_machine.py:203`）。
+-
+## 生产环境 .env 示例
+- 在生产环境中，可参考如下 `.env` 模板（请替换为真实值）：
+```
+DJANGO_ENV=production
+DJANGO_SETTINGS_MODULE=backend.settings.production
+SECRET_KEY=please-change-to-strong-secret
+DEBUG=False
+ALLOWED_HOSTS=yourdomain.com
+CORS_ALLOWED_ORIGINS=https://yourdomain.com
+
+POSTGRES_DB=electric_miniprogram
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your-strong-password
+POSTGRES_HOST=your-postgres-host
+POSTGRES_PORT=5432
+
+SECURE_SSL_REDIRECT=True
+MEDIA_URL=/media/
+```
+- 校验：生产启动时会检查必需变量是否齐全（`env_config.py:236`）。
