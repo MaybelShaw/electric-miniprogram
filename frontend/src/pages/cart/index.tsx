@@ -185,7 +185,12 @@ export default function Cart() {
   // 计算总价
   const totalPrice = cartItems
     .filter(item => item.selected)
-    .reduce((sum, item) => sum + parseFloat(item.product.price) * item.quantity, 0)
+    .reduce((sum, item) => {
+      const price = item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
+        ? item.product.discounted_price
+        : parseFloat(item.product.price)
+      return sum + price * item.quantity
+    }, 0)
 
   // 未登录状态
   if (!TokenManager.getAccessToken()) {
@@ -235,7 +240,11 @@ export default function Cart() {
                 {item.product.name}
               </View>
               <View className='product-bottom'>
-                <View className='product-price'>{formatPrice(item.product.price)}</View>
+                <View className='product-price'>
+                  {formatPrice(item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
+                    ? item.product.discounted_price
+                    : item.product.price)}
+                </View>
                 <View className='quantity-control'>
                   <View
                     className='btn minus'

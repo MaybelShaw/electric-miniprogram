@@ -202,7 +202,10 @@ export default function OrderConfirm() {
   // 计算总金额
   const finalAmount = items.reduce((sum, item) => {
     if (item.product) {
-      return sum + parseFloat(item.product.price) * item.quantity
+      const price = item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
+        ? item.product.discounted_price
+        : parseFloat(item.product.price)
+      return sum + price * item.quantity
     }
     return sum
   }, 0)
@@ -241,7 +244,11 @@ export default function OrderConfirm() {
                 <View className='product-bottom'>
                   <View className='product-price'>
                     <Text className='price-symbol'>¥</Text>
-                    <Text className='price-value'>{parseFloat(item.product!.price).toFixed(2)}</Text>
+                    <Text className='price-value'>
+                      {(item.product!.discounted_price && item.product!.discounted_price < parseFloat(item.product!.price)
+                        ? item.product!.discounted_price
+                        : parseFloat(item.product!.price)).toFixed(2)}
+                    </Text>
                   </View>
                   <View className='quantity-text'>x{item.quantity}</View>
                 </View>

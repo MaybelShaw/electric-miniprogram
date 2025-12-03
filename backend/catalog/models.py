@@ -205,13 +205,25 @@ class Product(models.Model):
         # 更新价格信息（如果有）
         if 'supplyPrice' in haier_data:
             product.supply_price = haier_data.get('supplyPrice')
-            product.price = haier_data.get('supplyPrice', 0)
+        # 海尔返回的市场价（用于商户对外售价的参考）
+        if 'marketPrice' in haier_data:
+            product.market_price = haier_data.get('marketPrice')
         if 'invoicePrice' in haier_data:
             product.invoice_price = haier_data.get('invoicePrice')
         if 'stockRebatePolicy' in haier_data:
             product.stock_rebate = haier_data.get('stockRebatePolicy')
         if 'rebateMoney' in haier_data:
             product.rebate_money = haier_data.get('rebateMoney')
+
+        # 商户对外售价：优先使用市场价；否则初始为供价（后续可由商户调整）
+        try:
+            if product.price in (None, 0):
+                base_sale_price = product.market_price or product.supply_price or 0
+                product.price = base_sale_price
+        except Exception:
+            # 兼容旧数据类型
+            base_sale_price = product.market_price or product.supply_price or 0
+            product.price = base_sale_price
         
         # 更新品牌（如果海尔数据中有）
         if haier_data.get('productBrandName') and not brand:
@@ -243,8 +255,8 @@ class Product(models.Model):
     
     @property
     def display_price(self):
-        """显示价格（优先使用供价，其次使用普通价格）"""
-        return self.supply_price or self.price
+        """显示价格（优先使用销售价格）"""
+        return self.price
     
     @property
     def is_available_from_haier(self):

@@ -9,21 +9,14 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  // 计算折扣百分比
-  const getDiscountPercent = () => {
-    if (!product.discounted_price || product.discounted_price >= parseFloat(product.price)) {
-      return null
-    }
-    const percent = Math.round((1 - product.discounted_price / parseFloat(product.price)) * 100)
-    return percent > 0 ? percent : null
-  }
-
-  const discountPercent = getDiscountPercent()
-
   // 跳转商品详情
   const goToDetail = () => {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}` })
   }
+
+  const sellingPrice = product.discounted_price && product.discounted_price < parseFloat(product.price)
+    ? product.discounted_price
+    : parseFloat(product.price)
 
   return (
     <View className='product-card' onClick={goToDetail}>
@@ -34,14 +27,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           src={product.main_images?.[0] || 'https://via.placeholder.com/330x330/F7F8FA/CCCCCC?text=No+Image'} 
           mode='aspectFill' 
         />
-        
-        {/* 折扣标签 */}
-        {discountPercent && (
-          <View className='discount-badge'>
-            <Text className='discount-text'>{discountPercent}% OFF</Text>
-          </View>
-        )}
-        
       </View>
 
       {/* 商品信息 */}
@@ -57,14 +42,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* 价格和销量 */}
         <View className='product-bottom'>
           <View className='price-wrapper'>
-            {discountPercent ? (
-              <>
-                <Text className='current-price'>{Number(product.discounted_price).toFixed(2)}</Text>
-                <Text className='original-price'>{formatPrice(product.price)}</Text>
-              </>
-            ) : (
-              <Text className='current-price'>{Number(product.price).toFixed(2)}</Text>
-            )}
+            <Text className='current-price'>{Number(sellingPrice).toFixed(2)}</Text>
           </View>
           <View className='sales-info'>
             <Text className='sales-count'>已售 {product.sales_count}</Text>

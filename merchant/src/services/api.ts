@@ -36,6 +36,9 @@ export const getProduct = (id: number) => request.get(`/products/${id}/`);
 export const createProduct = (data: any) => request.post('/products/', data);
 export const updateProduct = (id: number, data: any) => request.patch(`/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/products/${id}/`);
+export const getHaierProducts = (productCodes: string) => request.get('/haier/api/products/', { params: { product_codes: productCodes } });
+export const getHaierStock = (productCode: string, countyCode: string = '110101') => request.get('/haier/api/stock/', { params: { product_code: productCode, county_code: countyCode } });
+export const getHaierPrices = (productCodes: string) => request.get('/haier/api/prices/', { params: { product_codes: productCodes } });
 
 // 图片上传
 export const uploadImage = (file: File, productId?: number, fieldName?: string) => {

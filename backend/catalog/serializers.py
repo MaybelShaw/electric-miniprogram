@@ -190,9 +190,8 @@ class ProductSerializer(serializers.ModelSerializer):
         
         rep['detail_images'] = detail_images
         
-        # 使用display_price作为显示价格（优先供价）
-        if hasattr(instance, 'display_price'):
-            rep['price'] = instance.display_price
+        # 价格字段：保留 price 作为商户对外售价，供价通过 supply_price 返回
+        # 如果前端需要“显示价”为供价，可使用 rep['supply_price'] 或自行选择显示策略
         
         return rep
     

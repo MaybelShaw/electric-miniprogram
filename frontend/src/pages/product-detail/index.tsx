@@ -155,10 +155,11 @@ export default function ProductDetail() {
           <View className='product-price-row'>
             <View className='price-wrapper'>
               <Text className='price-label'>¥</Text>
-              <Text className='price'>{product.price}</Text>
-              {product.discounted_price && product.discounted_price < parseFloat(product.price) && (
-                <Text className='original-price'>¥{product.price}</Text>
-              )}
+              <Text className='price'>
+                 {(product.discounted_price && product.discounted_price < parseFloat(product.price)
+                   ? product.discounted_price
+                   : parseFloat(product.price)).toFixed(2)}
+               </Text>
             </View>
             <View className='sales-info'>
               <Text className='sales'>销量 {product.sales_count}</Text>
