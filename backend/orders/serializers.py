@@ -112,7 +112,6 @@ class OrderSerializer(serializers.ModelSerializer):
                 'id': obj.invoice.id,
                 'status': obj.invoice.status,
                 'status_display': obj.invoice.get_status_display(),
-                'file_url': obj.invoice.file_url,
                 'invoice_number': obj.invoice.invoice_number,
             }
         return None
@@ -236,14 +235,13 @@ class InvoiceSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source='order.product.name', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     status_label = serializers.SerializerMethodField()
-    file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Invoice
         fields = [
             'id', 'order', 'order_number', 'product_name', 'user', 'username', 'title', 'taxpayer_id', 'email', 'phone',
             'address', 'bank_account', 'invoice_type', 'amount', 'tax_rate', 'tax_amount', 'status',
-            'status_label', 'invoice_number', 'file_url', 'requested_at', 'issued_at', 'updated_at'
+            'status_label', 'invoice_number', 'requested_at', 'issued_at', 'updated_at'
         ]
 
     def get_status_label(self, obj: Invoice) -> str:
@@ -253,18 +251,6 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'cancelled': '已取消',
         }
         return mapping.get(obj.status, obj.status)
-
-    def get_file_url(self, obj: Invoice) -> str:
-        try:
-            # Prefer stored file field
-            if getattr(obj, 'file', None):
-                f = obj.file
-                if hasattr(f, 'url') and f:
-                    return f.url
-            # Fallback to legacy file_url
-            return obj.file_url or ''
-        except Exception:
-            return obj.file_url or ''
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):

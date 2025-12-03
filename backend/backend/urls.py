@@ -32,25 +32,12 @@ urlpatterns = [
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # API v1 endpoints (versioned)
+    # API v1 endpoints (versioned only)
     path('api/v1/catalog/', include('catalog.urls')),
-    path('api/v1/', include('catalog.urls')),
     path('api/v1/', include('orders.urls')),
     path('api/v1/', include('users.urls')),
     path('api/v1/haier/', include('integrations.urls')),
     path('api/v1/support/', include('support.urls')),
-    
-    # Backward compatible endpoints (without version prefix)
-    path('api/catalog/', include('catalog.urls')),
-    path('api/', include('catalog.urls')),
-    path('api/', include('orders.urls')),
-    path('api/', include('users.urls')),
-    path('api/haier/', include('integrations.urls')),
-    path('api/support/', include('support.urls')),
-    
-    # YLH callback endpoint (direct path for external callback)
-    path('api/', include('integrations.urls')),
-    path('api/', include('support.urls')),
 ]
 
 if settings.DEBUG:

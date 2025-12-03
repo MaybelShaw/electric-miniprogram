@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.views import APIView
 from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
 from .serializers import (
@@ -1265,7 +1265,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             return Response({'detail': '发票已开具'}, status=status.HTTP_400_BAD_REQUEST)
         
         invoice_number = str(request.data.get('invoice_number', '')).strip()
-        file_url = str(request.data.get('file_url', '')).strip()
         
         if not invoice_number:
             return Response({'detail': 'invoice_number 必填'}, status=status.HTTP_400_BAD_REQUEST)
@@ -1280,18 +1279,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             inv.file = file
         
         inv.invoice_number = invoice_number
-        inv.file_url = file_url
         inv.status = 'issued'
         inv.issued_at = timezone.now()
         inv.save()
-        
-        # Ensure file_url is set if file was uploaded but no URL provided
-        if not inv.file_url and inv.file:
-             try:
-                inv.file_url = inv.file.url
-                inv.save(update_fields=['file_url'])
-             except Exception:
-                pass
 
         return Response(self.get_serializer(inv).data)
 
@@ -1310,11 +1300,7 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def upload_file(self, request, pk=None):
-        """上传发票文件（PDF/图片），管理员或客服。
-
-        表单：multipart/form-data，字段：file
-        保存到 MEDIA_ROOT/invoices/ 下，并更新 file 字段与 file_url。
-        """
+        """上传发票文件（PDF/图片），管理员或客服。"""
         # Support staff should be able to upload invoice files
         if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
              return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
@@ -1328,11 +1314,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         except serializers.ValidationError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         inv.file = file
-        # 同步旧字段，便于前端兼容
-        try:
-            inv.file_url = inv.file.url if hasattr(inv.file, 'url') else inv.file_url
-        except Exception:
-            pass
         inv.save()
         return Response(self.get_serializer(inv).data, status=status.HTTP_200_OK)
 
@@ -1356,21 +1337,6 @@ class InvoiceViewSet(viewsets.ModelViewSet):
                 return resp
             except Exception as e:
                 return Response({'detail': f'文件读取失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-        # 退回到 file_url：若是本地相对路径，返回重定向
-        if inv.file_url:
-            url = inv.file_url
-            # 若是绝对URL，直接重定向
-            if url.startswith('http://') or url.startswith('https://'):
-                from django.http import HttpResponseRedirect
-                return HttpResponseRedirect(url)
-            # 相对 MEDIA 路径，构造绝对URL
-            try:
-                absolute = request.build_absolute_uri(url)
-                from django.http import HttpResponseRedirect
-                return HttpResponseRedirect(absolute)
-            except Exception:
-                from django.http import HttpResponseRedirect
-                return HttpResponseRedirect(url)
         return Response({'detail': '未找到发票文件'}, status=status.HTTP_404_NOT_FOUND)
 
 
