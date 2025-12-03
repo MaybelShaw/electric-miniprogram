@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -9,6 +9,7 @@ from .models import SupportTicket, SupportMessage
 from orders.models import Order
 from catalog.models import Product
 from .serializers import SupportTicketSerializer, SupportMessageSerializer
+from common.serializers import AttachmentFileValidator
 
 
 class SupportTicketViewSet(viewsets.ModelViewSet):
@@ -38,6 +39,10 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
         if not content and not attachment and not order_id and not product_id:
             return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
         if attachment:
+            try:
+                AttachmentFileValidator()(attachment)
+            except serializers.ValidationError as e:
+                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             if not attachment_type:
                 ct = getattr(attachment, 'content_type', '') or ''
                 if ct.startswith('image/'):

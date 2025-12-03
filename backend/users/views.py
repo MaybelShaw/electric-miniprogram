@@ -75,11 +75,17 @@ class WeChatLoginView(APIView):
         
         # 检查是否配置了微信凭证
         if not appid or not secret:
-            # 未配置微信凭证时，使用模拟登录（仅用于本地测试）
-            logger.warning('微信凭证未配置，使用模拟登录模式')
-            logger.info(f'模拟登录: code={code}')
-            openid = code
-            session_key = None
+            if settings.DEBUG:
+                logger.warning('微信凭证未配置，使用模拟登录模式')
+                logger.info(f'模拟登录: code={code}')
+                openid = code
+                session_key = None
+            else:
+                logger.error('微信凭证未配置，生产环境禁止模拟登录')
+                return Response(
+                    {"error": "WeChat credentials are not configured"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
         else:
             # 调用微信API（开发和生产环境都使用真实API）
             url = f"https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code"
@@ -89,7 +95,7 @@ class WeChatLoginView(APIView):
                 response = requests.get(url, timeout=10)
                 data = response.json()
                 
-                logger.info(f'微信API响应: {data}')
+                logger.info(f'微信API响应: keys={list(data.keys())}')
                 
                 if "errcode" in data:
                     error_code = data.get("errcode")

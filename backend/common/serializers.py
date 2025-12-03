@@ -229,6 +229,41 @@ class ImageFileValidator:
         
         return None
     
+    
+class PDFOrImageFileValidator(ImageFileValidator):
+    ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']
+    ALLOWED_MIME_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+    ]
+
+    def _detect_mime_from_magic_bytes(self, header):
+        mime = super()._detect_mime_from_magic_bytes(header)
+        if mime:
+            return mime
+        # Simple PDF detection by header '%PDF'
+        if header.startswith(b'%PDF'):
+            return 'application/pdf'
+        return None
+
+
+class AttachmentFileValidator(ImageFileValidator):
+    ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov']
+    ALLOWED_MIME_TYPES = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'video/mp4',
+        'video/quicktime',
+    ]
+    MAX_SIZE = 50 * 1024 * 1024
+    
     def _detect_mime_from_content(self, file, header):
         """
         Detect MIME type from file content using available methods.

@@ -31,6 +31,7 @@ from common.throttles import PaymentRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
 from django.http import FileResponse
+from common.serializers import PDFOrImageFileValidator
 
 
 # Create your views here.
@@ -782,104 +783,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
     
-    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
-    def haier_callback(self, request):
-        """
-        接收海尔订单回调
-        
-        处理海尔系统的订单确认、取消、缺货等回调
-        """
-        import hashlib
-        import json
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        
-        # 获取参数
-        app_key = request.POST.get('AppKey')
-        timestamp = request.POST.get('TimeStamp')
-        sign = request.POST.get('Sign')
-        method = request.POST.get('Method')
-        data_str = request.POST.get('Data')
-        
-        # 验证签名
-        try:
-            secret = settings.HAIER_CALLBACK_SECRET
-            params = {
-                'AppKey': app_key,
-                'TimeStamp': timestamp,
-                'Method': method,
-                'Data': data_str,
-            }
-            
-            # 生成签名
-            sorted_params = sorted(params.items())
-            sign_str = secret + ''.join([f"{k}{v}" for k, v in sorted_params]) + secret
-            calculated_sign = hashlib.md5(sign_str.lower().encode()).hexdigest().upper()
-            
-            if calculated_sign != sign:
-                logger.warning(f'海尔回调签名验证失败: calculated={calculated_sign}, received={sign}')
-                return Response({
-                    'success': False,
-                    'code': 'error',
-                    'description': '签名验证失败',
-                    'timeStamp': timestamp,
-                })
-        except Exception as e:
-            logger.error(f'签名验证异常: {str(e)}')
-            return Response({
-                'success': False,
-                'code': 'error',
-                'description': '签名验证异常',
-                'timeStamp': timestamp,
-            })
-        
-        # 解析数据
-        try:
-            callback_data = json.loads(data_str)
-        except Exception as e:
-            logger.error(f'解析回调数据失败: {str(e)}')
-            return Response({
-                'success': False,
-                'code': 'error',
-                'description': '数据格式错误',
-                'timeStamp': timestamp,
-            })
-        
-        # 更新订单
-        try:
-            order = Order.objects.get(order_number=callback_data['PlatformOrderNo'])
-            order.update_from_haier_callback(callback_data)
-            
-            logger.info(f'海尔回调处理成功: order={order.order_number}, method={method}')
-            
-            return Response({
-                'success': True,
-                'code': 'success',
-                'description': '成功',
-                'timeStamp': timestamp,
-                'data': {
-                    'statusCode': '200',
-                    'message': '成功',
-                    'platformOrderNo': order.order_number,
-                }
-            })
-        except Order.DoesNotExist:
-            logger.warning(f'订单不存在: {callback_data.get("PlatformOrderNo")}')
-            return Response({
-                'success': False,
-                'code': 'error',
-                'description': '订单不存在',
-                'timeStamp': timestamp,
-            })
-        except Exception as e:
-            logger.error(f'处理回调失败: {str(e)}')
-            return Response({
-                'success': False,
-                'code': 'error',
-                'description': f'处理失败: {str(e)}',
-                'timeStamp': timestamp,
-            })
 
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -1370,6 +1273,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         # Handle optional file upload directly in issue
         file = request.FILES.get('file')
         if file:
+            try:
+                PDFOrImageFileValidator()(file)
+            except serializers.ValidationError as e:
+                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
             inv.file = file
         
         inv.invoice_number = invoice_number
@@ -1416,6 +1323,10 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         file = request.FILES.get('file')
         if not file:
             return Response({'detail': '缺少文件参数 file'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            PDFOrImageFileValidator()(file)
+        except serializers.ValidationError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         inv.file = file
         # 同步旧字段，便于前端兼容
         try:

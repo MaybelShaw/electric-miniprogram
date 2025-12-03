@@ -36,8 +36,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        # 'rest_framework.permissions.IsAuthenticated',
-        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -67,8 +66,8 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'E-Commerce API',
     'DESCRIPTION': 'API documentation for the e-commerce system',
     'VERSION': '1.0.0',
-    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
-    'SERVE_AUTHENTICATION': None,
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'] if EnvironmentConfig.is_production() else ['rest_framework.permissions.AllowAny'],
+    'SERVE_AUTHENTICATION': 'rest_framework_simplejwt.authentication.JWTAuthentication' if EnvironmentConfig.is_production() else None,
     'SCHEMA_PATH_PREFIX': r'/api/v1',
     'CONTACT': {
         'name': 'API Support',
@@ -253,12 +252,12 @@ YLH_AUTH_URL = EnvironmentConfig.get_env('YLH_AUTH_URL', 'http://dev.ylhtest.com
 YLH_BASE_URL = EnvironmentConfig.get_env('YLH_BASE_URL', 'http://dev.ylhtest.com/ylh-cloud-service-jst-order-dev')
 YLH_USERNAME = EnvironmentConfig.get_env('YLH_USERNAME', '')
 YLH_PASSWORD = EnvironmentConfig.get_env('YLH_PASSWORD', '')
-YLH_CLIENT_ID = EnvironmentConfig.get_env('YLH_CLIENT_ID', 'open_api_erp')
-YLH_CLIENT_SECRET = EnvironmentConfig.get_env('YLH_CLIENT_SECRET', '12345678')
+YLH_CLIENT_ID = EnvironmentConfig.get_env('YLH_CLIENT_ID', '')
+YLH_CLIENT_SECRET = EnvironmentConfig.get_env('YLH_CLIENT_SECRET', '')
 
 # YLH Callback Configuration (for receiving Haier platform callbacks)
-YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '85f46119-e920-4f01-9624-66326c013217')
-YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '8e17bb88a087400bac9ab67e67b138ef')
+YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '')
+YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '')
 
 # ============================================================================
 # Haier API Mock Data Configuration

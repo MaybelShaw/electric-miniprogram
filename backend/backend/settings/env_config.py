@@ -251,6 +251,12 @@ class EnvironmentConfig:
             'POSTGRES_USER',
             'POSTGRES_PASSWORD',
             'POSTGRES_HOST',
+            'WECHAT_APPID',
+            'WECHAT_SECRET',
+            'YLH_CLIENT_ID',
+            'YLH_CLIENT_SECRET',
+            'YLH_CALLBACK_APP_KEY',
+            'YLH_CALLBACK_SECRET',
         ]
         
         missing_vars = [var for var in required_vars if not os.getenv(var)]
