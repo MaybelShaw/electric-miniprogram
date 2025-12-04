@@ -80,7 +80,7 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             product=product_obj,
         )
         if role == 'support':
-            if ticket.status != 'pending':
+            if ticket.status == 'open':
                 ticket.status = 'pending'
                 ticket.updated_at = timezone.now()
                 ticket.save(update_fields=['status', 'updated_at'])
@@ -322,7 +322,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             product=product_obj,
         )
         if role == 'support':
-            if ticket.status != 'pending':
+            if ticket.status == 'open':
                 ticket.status = 'pending'
                 ticket.updated_at = timezone.now()
                 ticket.save(update_fields=['status', 'updated_at'])

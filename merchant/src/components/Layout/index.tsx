@@ -1,4 +1,4 @@
-import { Layout as AntLayout, Menu, Button } from 'antd';
+import { Layout as AntLayout, Menu, Button, Badge, notification } from 'antd';
 import {
   UserOutlined,
   TagOutlined,
@@ -17,7 +17,9 @@ import {
   CustomerServiceOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
+import { getSupportTickets } from '@/services/api';
 import './index.css';
 
 const { Header, Sider, Content } = AntLayout;
@@ -54,11 +56,63 @@ interface LayoutProps {
 export default function Layout({ children, menuItems = adminMenuItems, title = '商户管理' }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const lastCountRef = useRef<number | null>(null);
+
+  const isSupportLayout = title === '客服系统' || menuItems.some(item => item.key === '/support/tickets');
+
+  useEffect(() => {
+    if (!isSupportLayout) return;
+
+    const pollTickets = async () => {
+      try {
+        // Get open tickets count
+        const res: any = await getSupportTickets({ status: 'open', page_size: 1 });
+        const count = res.count || res.total || 0;
+
+        if (lastCountRef.current !== null && count > lastCountRef.current) {
+          notification.info({
+            message: '新消息提醒',
+            description: `您有 ${count} 条待处理工单`,
+            placement: 'bottomRight',
+            onClick: () => {
+              navigate('/support/tickets');
+            }
+          });
+        }
+        
+        lastCountRef.current = count;
+        setUnreadCount(count);
+      } catch (e) {
+        console.error('Polling tickets failed', e);
+      }
+    };
+
+    pollTickets();
+    const intervalId = setInterval(pollTickets, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [isSupportLayout, navigate]);
 
   const handleLogout = () => {
     removeToken();
     navigate('/login');
   };
+
+  const itemsWithBadge = menuItems.map(item => {
+    if (item.key === '/support/tickets' && unreadCount > 0) {
+      return {
+        ...item,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{item.label}</span>
+            <Badge count={unreadCount} size="small" style={{ marginLeft: 8 }} />
+          </div>
+        )
+      };
+    }
+    return item;
+  });
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
@@ -68,7 +122,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
           theme="dark"
           mode="inline"
           selectedKeys={[location.pathname]}
-          items={menuItems}
+          items={itemsWithBadge}
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
