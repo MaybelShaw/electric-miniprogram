@@ -36,11 +36,14 @@ services:
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_EMAIL=admin@example.com
       - DJANGO_SUPERUSER_PASSWORD=admin123
+      - PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+      - PIP_TRUSTED_HOST=mirrors.aliyun.com
+      - UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
     depends_on:
       db:
         condition: service_healthy
     command: >
-      bash -lc "pip install --no-cache-dir uv &&
+      bash -lc "pip install uv &&
                 uv sync &&
                 uv run python manage.py migrate &&
                 uv run python manage.py createsuperuser --noinput || true &&

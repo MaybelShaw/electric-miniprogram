@@ -26,7 +26,6 @@ services:
       - SECRET_KEY=please-change
       - ALLOWED_HOSTS=localhost,127.0.0.1
       - CORS_ALLOWED_ORIGINS=http://localhost
-      - SECURE_SSL_REDIRECT=False
       - POSTGRES_DB=electric_miniprogram
       - POSTGRES_USER=electric
       - POSTGRES_PASSWORD=electric
@@ -38,11 +37,14 @@ services:
       - YLH_CLIENT_SECRET=dummy
       - YLH_CALLBACK_APP_KEY=dummy
       - YLH_CALLBACK_SECRET=dummy
+      - PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+      - PIP_TRUSTED_HOST=mirrors.aliyun.com
+      - UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
     depends_on:
       db:
         condition: service_healthy
     command: >
-      bash -lc "pip install --no-cache-dir uv &&
+      bash -lc "pip install uv &&
                 uv sync &&
                 uv run python manage.py migrate &&
                 uv run python manage.py collectstatic --noinput &&
