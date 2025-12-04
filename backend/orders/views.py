@@ -680,11 +680,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             logger.info(f'推送成功: order_id={order.id}')
             
-            # 更新订单的haier_so_id和haier_order_no
             order.haier_so_id = order_data['soId']
-            # 从返回结果中获取巨商汇订单号（如果有）
-            if isinstance(result, dict) and result.get('data'):
-                order.haier_order_no = result['data'].get('retailOrderNo', '')
+            haier_order_no = ''
+            if isinstance(result, dict):
+                data_section = result.get('data') if isinstance(result.get('data', None), dict) else result
+                if isinstance(data_section, dict):
+                    haier_order_no = data_section.get('retailOrderNo', '') or data_section.get('retail_order_no', '')
+            order.haier_order_no = haier_order_no
             order.save()
             
             serializer = self.get_serializer(order)
