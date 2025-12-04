@@ -1,8 +1,9 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import SupportTicketViewSet, SupportMessageViewSet, SupportChatViewSet
+from .views import SupportTicketViewSet, SupportMessageViewSet, SupportChatViewSet, SupportApiRootView
 from backend.settings.env_config import EnvironmentConfig
 
+app_name = 'support'
 
 router = DefaultRouter()
 if EnvironmentConfig.is_development():
@@ -16,5 +17,6 @@ else:
 
 
 urlpatterns = [
+    path('', SupportApiRootView.as_view(), name='support-root'),
     path('', include(router.urls)),
 ]

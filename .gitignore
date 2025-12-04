@@ -11,7 +11,7 @@ venv/
 # Django
 *.log
 staticfiles/
-media/*
+backend/media/*
 !backend/media/.gitkeep
 
 # Node/Taro (if present)
@@ -48,3 +48,7 @@ htmlcov/
 # Logs directory keep marker
 backend/logs/
 !backend/logs/.gitkeep
+
+#wechat
+frontend/project.config.json
+

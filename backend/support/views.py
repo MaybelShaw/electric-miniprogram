@@ -1,4 +1,5 @@
 from rest_framework import viewsets, status, serializers
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -309,3 +310,15 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         ticket.updated_at = timezone.now()
         ticket.save(update_fields=['updated_at'])
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class SupportApiRootView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        base = request.build_absolute_uri('.')
+        return Response({
+            'chat': base + 'chat/',
+            'tickets': base + 'tickets/',
+            'messages': base + 'messages/',
+        })
