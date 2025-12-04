@@ -40,7 +40,6 @@ def get_logging_config():
     Returns:
         dict: Logging configuration for Django
     """
-    
     # Determine log level based on environment
     if EnvironmentConfig.is_production():
         default_level = 'INFO'
@@ -48,11 +47,10 @@ def get_logging_config():
     else:
         default_level = 'DEBUG'
         django_level = 'DEBUG'
-    
-    return {
+
+    config = {
         'version': 1,
         'disable_existing_loggers': False,
-        
         # Define formatters
         'formatters': {
             'verbose': {
@@ -71,21 +69,20 @@ def get_logging_config():
                 'datefmt': '%Y-%m-%d %H:%M:%S',
             },
         },
-        
         # Define handlers
         'handlers': {},
+        'loggers': {},
     }
-    
-    # Build handlers based on platform
+
     handlers = config['handlers']
-    
+
     # Console handler - always output to console
     handlers['console'] = {
         'level': default_level,
         'class': 'logging.StreamHandler',
         'formatter': 'simple',
     }
-    
+
     # General application log file
     if IS_WINDOWS:
         handlers['file'] = {
@@ -108,7 +105,7 @@ def get_logging_config():
             'formatter': 'verbose',
             'encoding': 'utf-8',
         }
-    
+
     # Error log file
     if IS_WINDOWS:
         handlers['error_file'] = {
@@ -131,7 +128,7 @@ def get_logging_config():
             'formatter': 'verbose',
             'encoding': 'utf-8',
         }
-    
+
     # Payment audit log file
     if IS_WINDOWS:
         handlers['payment_audit'] = {
@@ -154,7 +151,7 @@ def get_logging_config():
             'formatter': 'audit',
             'encoding': 'utf-8',
         }
-    
+
     # Database query log file (development only)
     if IS_WINDOWS:
         handlers['db_queries'] = {
@@ -177,7 +174,7 @@ def get_logging_config():
             'formatter': 'verbose',
             'encoding': 'utf-8',
         }
-    
+
     # API request/response log file
     if IS_WINDOWS:
         handlers['api'] = {
@@ -200,88 +197,65 @@ def get_logging_config():
             'formatter': 'verbose',
             'encoding': 'utf-8',
         }
-    
-    # Add loggers configuration
-    config['loggers'] = {
 
-            # Root logger
-            'django': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': django_level,
-                'propagate': False,
-            },
-            
-            # Django request logger
-            'django.request': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': 'WARNING',
-                'propagate': False,
-            },
-            
-            # Django database logger (development only)
-            'django.db.backends': {
-                'handlers': ['db_queries'] if not EnvironmentConfig.is_production() else [],
-                'level': 'DEBUG' if not EnvironmentConfig.is_production() else 'INFO',
-                'propagate': False,
-            },
-            
-            # Application logger
-            'backend': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-            
-            # API logger
-            'api': {
-                'handlers': ['console', 'api', 'error_file'],
-                'level': 'INFO',
-                'propagate': False,
-            },
-            
-            # Payment audit logger
-            'payment_audit': {
-                'handlers': ['console', 'payment_audit', 'error_file'],
-                'level': 'INFO',
-                'propagate': False,
-            },
-            
-            # Orders logger
-            'orders': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-            
-            # Catalog logger
-            'catalog': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-            
-            # Users logger
-            'users': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-            
-            # Integrations logger
-            'integrations': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-            
-            # Common logger
-            'common': {
-                'handlers': ['console', 'file', 'error_file'],
-                'level': default_level,
-                'propagate': False,
-            },
-        }
-    
+    config['loggers'] = {
+        'django': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': django_level,
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['db_queries'] if not EnvironmentConfig.is_production() else [],
+            'level': 'DEBUG' if not EnvironmentConfig.is_production() else 'INFO',
+            'propagate': False,
+        },
+        'backend': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+        'api': {
+            'handlers': ['console', 'api', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'payment_audit': {
+            'handlers': ['console', 'payment_audit', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'orders': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+        'catalog': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+        'users': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+        'integrations': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+        'common': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
+    }
+
     return config
 
 
