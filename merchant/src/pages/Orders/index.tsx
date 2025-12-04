@@ -266,6 +266,7 @@ export default function Orders() {
       dataIndex: ['product', 'name'],
       ellipsis: true,
       hideInSearch: true,
+      width: 200,
     },
     {
       title: '商品搜索',
@@ -342,6 +343,7 @@ export default function Orders() {
       dataIndex: 'snapshot_address',
       ellipsis: true,
       hideInSearch: true,
+      width: 200,
     },
     {
       title: '创建时间',
@@ -560,6 +562,7 @@ export default function Orders() {
         headerTitle="订单列表"
         actionRef={actionRef}
         columns={columns}
+        scroll={{ x: 1800 }}
         request={async (params: any) => {
           try {
             const queryParams: any = {
