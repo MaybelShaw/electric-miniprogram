@@ -20,11 +20,11 @@ from backend.settings.env_config import EnvironmentConfig
 IS_WINDOWS = sys.platform.startswith('win')
 
 # Get the base directory for log files
-BASE_DIR = Path(__file__).resolve().parents[2]
+BASE_DIR = Path(__file__).resolve().parents[1]
 LOGS_DIR = BASE_DIR / 'backend' / 'logs'
 
 # Create logs directory if it doesn't exist
-LOGS_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_logging_config():
