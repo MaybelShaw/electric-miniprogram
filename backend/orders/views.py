@@ -653,53 +653,32 @@ class OrderViewSet(viewsets.ModelViewSet):
             shop_name = request.data.get('shop_name', '默认店铺')
             order_data = order.prepare_haier_order_data(source_system, shop_name)
             
-            # 检查是否使用模拟数据
-            use_mock_data = getattr(settings, 'HAIER_USE_MOCK_DATA', True)
+            # 始终使用真实易理货API
+            from integrations.ylhapi import YLHSystemAPI
             
-            if use_mock_data:
-                # 使用模拟数据（开发/测试环境）
-                logger.info(f'使用模拟推送数据: order_id={order.id}, so_id={order_data["soId"]}')
-                
-                # 模拟推送成功的返回结果
-                result = {
-                    'success': True,
-                    'code': 'success',
-                    'message': '订单推送成功（模拟）',
-                    'data': {
-                        'retailOrderNo': f'SO.{order.order_number}',  # 巨商汇订单号
-                        'soId': order_data['soId'],
-                        'status': 'confirmed'
-                    }
-                }
-                
-                logger.info(f'模拟推送成功: order_id={order.id}')
-            else:
-                # 使用真实易理货API（生产环境）
-                from integrations.ylhapi import YLHSystemAPI
-                
-                logger.info(f'使用真实易理货API推送订单: order_id={order.id}')
-                
-                ylh_api = YLHSystemAPI.from_settings()
-                
-                # 认证
-                if not ylh_api.authenticate():
-                    logger.error('易理货系统认证失败')
-                    return Response(
-                        {'detail': '易理货系统认证失败'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                
-                # 推送订单
-                result = ylh_api.create_order(order_data)
-                
-                if not result:
-                    logger.error(f'推送订单失败: order_id={order.id}')
-                    return Response(
-                        {'detail': '推送订单失败'},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                    )
-                
-                logger.info(f'真实推送成功: order_id={order.id}')
+            logger.info(f'调用易理货API推送订单: order_id={order.id}')
+            
+            ylh_api = YLHSystemAPI.from_settings()
+            
+            # 认证
+            if not ylh_api.authenticate():
+                logger.error('易理货系统认证失败')
+                return Response(
+                    {'detail': '易理货系统认证失败'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # 推送订单
+            result = ylh_api.create_order(order_data)
+            
+            if not result:
+                logger.error(f'推送订单失败: order_id={order.id}')
+                return Response(
+                    {'detail': '推送订单失败'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            logger.info(f'推送成功: order_id={order.id}')
             
             # 更新订单的haier_so_id和haier_order_no
             order.haier_so_id = order_data['soId']

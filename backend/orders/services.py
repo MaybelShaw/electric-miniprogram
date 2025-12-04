@@ -143,77 +143,40 @@ def check_haier_stock(product, address, quantity):
     county_code = get_county_code(address.province, address.city, address.district)
     logger.info(f'使用区域编码: {county_code} ({address.province} {address.city} {address.district})')
     
-    # 检查是否启用模拟数据模式
-    use_mock_data = getattr(settings, 'HAIER_USE_MOCK_DATA', True)
+    # 使用真实海尔API
+    from integrations.haierapi import HaierAPI
     
-    if use_mock_data:
-        # 使用模拟数据（开发/测试环境）
-        logger.info(f'使用模拟库存数据: product_code={product.product_code}')
-        
-        # 模拟库存数据（根据API文档格式）
-        mock_stock_info = {
-            'secCode': 'WH001',  # 库位编码
-            'stock': 100,  # 模拟库存数量
-            'warehouseGrade': '0',  # 0:本级仓/1:上级仓
-            'timelinessData': {
-                'cutTime': '18:00',  # 截单时间
-                'achieveUserOrderCut': '2025-11-26 18:00',  # 预计送达用户时间
-                'hour': '24',  # 配送用户时效
-                'isTranfer': '0'  # 是否转运：0否 1是
-            }
-        }
-        
-        available_stock = mock_stock_info['stock']
-        
-        logger.info(f'模拟库存查询成功: product_code={product.product_code}, stock={available_stock}, required={quantity}')
-        
-        # 检查库存是否充足
-        if available_stock < quantity:
-            raise ValueError(f'海尔产品库存不足，当前库存: {available_stock}，需要: {quantity}')
-        
-        return {
-            'available': True,
-            'stock': available_stock,
-            'warehouse_code': mock_stock_info.get('secCode', ''),
-            'warehouse_grade': mock_stock_info.get('warehouseGrade', ''),
-            'timeliness_data': mock_stock_info.get('timelinessData', {})
-        }
+    logger.info(f'查询海尔库存: product_code={product.product_code}')
     
-    else:
-        # 使用真实海尔API（生产环境）
-        from integrations.haierapi import HaierAPI
-        
-        logger.info(f'使用真实海尔API查询库存: product_code={product.product_code}')
-        
-        haier_api = HaierAPI.from_settings()
-        
-        # 认证
-        if not haier_api.authenticate():
-            logger.error('海尔API认证失败')
-            raise ValueError('海尔库存查询失败：认证失败')
-        
-        # 查询库存
-        stock_info = haier_api.check_stock(product.product_code, county_code)
-        
-        if not stock_info:
-            logger.error(f'海尔库存查询失败: product_code={product.product_code}')
-            raise ValueError('海尔库存查询失败：无法获取库存信息')
-        
-        # 检查库存是否充足
-        available_stock = stock_info.get('stock', 0)
-        
-        logger.info(f'海尔库存查询成功: product_code={product.product_code}, stock={available_stock}, required={quantity}')
-        
-        if available_stock < quantity:
-            raise ValueError(f'海尔产品库存不足，当前库存: {available_stock}，需要: {quantity}')
-        
-        return {
-            'available': True,
-            'stock': available_stock,
-            'warehouse_code': stock_info.get('secCode', ''),
-            'warehouse_grade': stock_info.get('warehouseGrade', ''),
-            'timeliness_data': stock_info.get('timelinessData', {})
-        }
+    haier_api = HaierAPI.from_settings()
+    
+    # 认证
+    if not haier_api.authenticate():
+        logger.error('海尔API认证失败')
+        raise ValueError('海尔库存查询失败：认证失败')
+    
+    # 查询库存
+    stock_info = haier_api.check_stock(product.product_code, county_code)
+    
+    if not stock_info:
+        logger.error(f'海尔库存查询失败: product_code={product.product_code}')
+        raise ValueError('海尔库存查询失败：无法获取库存信息')
+    
+    # 检查库存是否充足
+    available_stock = stock_info.get('stock', 0)
+    
+    logger.info(f'海尔库存查询成功: product_code={product.product_code}, stock={available_stock}, required={quantity}')
+    
+    if available_stock < quantity:
+        raise ValueError(f'海尔产品库存不足，当前库存: {available_stock}，需要: {quantity}')
+    
+    return {
+        'available': True,
+        'stock': available_stock,
+        'warehouse_code': stock_info.get('secCode', ''),
+        'warehouse_grade': stock_info.get('warehouseGrade', ''),
+        'timeliness_data': stock_info.get('timelinessData', {})
+    }
 
 
 def create_order(user, product_id, address_id, quantity, note='', payment_method='online'):
