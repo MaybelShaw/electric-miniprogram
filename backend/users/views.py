@@ -178,10 +178,10 @@ from django.views.decorators.csrf import csrf_exempt
 @extend_schema(tags=['Authentication'])
 @method_decorator(csrf_exempt, name='dispatch')
 class PasswordLoginView(APIView):
-    """管理员用户名+密码登录。
+    """管理员及客服用户名+密码登录。
     - 允许匿名访问
     - 验证用户名与密码
-    - 非管理员用户返回 403
+    - 非管理员或客服用户返回 403
     - 开发环境支持快捷创建管理员（若用户名不存在）
     """
     permission_classes = [permissions.AllowAny]
@@ -190,7 +190,7 @@ class PasswordLoginView(APIView):
 
     @extend_schema(
         operation_id='password_login',
-        description='Admin password login. Authenticate with username and password to get JWT token.',
+        description='Admin and Support password login. Authenticate with username and password to get JWT token.',
     )
     def post(self, request):
         from .services import (

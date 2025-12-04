@@ -1,6 +1,13 @@
 import request from '@/utils/request';
 
 // 登录
+export const loginAdmin = (data: { username: string; password: string }) =>
+  request.post('/admin/login/', data);
+
+export const loginSupport = (data: { username: string; password: string }) =>
+  request.post('/password_login/', data);
+
+// 兼容旧调用
 export const login = (data: { username: string; password: string }) =>
   request.post('/admin/login/', data);
 

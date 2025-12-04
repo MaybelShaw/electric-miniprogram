@@ -60,7 +60,6 @@ function App() {
                   <Route path="account-statements" element={<AccountStatements />} />
                   <Route path="account-transactions" element={<AccountTransactions />} />
                   <Route path="home-banners" element={<HomeBanners />} />
-                  <Route path="tickets" element={<Support />} />
                 </Routes>
               </Layout>
             </RoleGuard>

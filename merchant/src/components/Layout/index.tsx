@@ -37,7 +37,6 @@ export const adminMenuItems = [
   { key: '/admin/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   { key: '/admin/invoices', icon: <FileTextOutlined />, label: '发票管理' },
   { key: '/admin/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
-  { key: '/admin/tickets', icon: <CustomerServiceOutlined />, label: '工单与消息' },
 ];
 
 export const supportMenuItems = [

@@ -1,7 +1,7 @@
 import { Form, Input, Button, Card, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { login } from '@/services/api';
+import { loginAdmin, loginSupport } from '@/services/api';
 import { setToken, setUser } from '@/utils/auth';
 import './index.css';
 
@@ -10,7 +10,7 @@ export default function Login({ role = 'admin' }: { role?: 'admin' | 'support' }
 
   const onFinish = async (values: any) => {
     try {
-      const res: any = await login(values);
+      const res: any = role === 'support' ? await loginSupport(values) : await loginAdmin(values);
       
       // Check if user role matches the login page role
       if (role === 'support' && res.user.role !== 'support') {
