@@ -37,6 +37,7 @@ class YLHSystemAPI:
         """
         self.auth_url = config.get('auth_url')
         self.base_url = config.get('base_url')
+        self.stock_base_url = config.get('stock_base_url', self.base_url)
         self.username = config.get('username')
         self.password = config.get('password')
         self.client_id = config.get('client_id', 'open_api_erp')
@@ -52,6 +53,7 @@ class YLHSystemAPI:
         config = {
             'auth_url': getattr(settings, 'YLH_AUTH_URL', 'http://dev.ylhtest.com/ylh-cloud-mgt-auth-dev/oauth/token'),
             'base_url': getattr(settings, 'YLH_BASE_URL', 'http://dev.ylhtest.com/ylh-cloud-service-jst-order-dev'),
+            'stock_base_url': getattr(settings, 'YLH_STOCK_BASE_URL', getattr(settings, 'YLH_BASE_URL', 'http://dev.ylhtest.com/ylh-cloud-service-jst-order-dev')),
             'username': getattr(settings, 'YLH_USERNAME', ''),
             'password': getattr(settings, 'YLH_PASSWORD', ''),
             'client_id': getattr(settings, 'YLH_CLIENT_ID', 'open_api_erp'),
@@ -385,7 +387,7 @@ class YLHSystemAPI:
         
         try:
             response = self._post_json(
-                f"{self.base_url}/api/composite/stock/logistics/get-store-logistics-by-order-code",
+                f"{self.stock_base_url}/api/composite/stock/logistics/get-store-logistics-by-order-code",
                 order_codes,
                 headers={
                     "Authorization": self._get_auth_header(),

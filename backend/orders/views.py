@@ -741,14 +741,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            # 查询物流（使用SO单号）
-            logistics_info = ylh_api.get_logistics_by_order_codes([order.haier_so_id])
+            code = order.haier_order_no or order.haier_so_id
+            logistics_info = ylh_api.get_logistics_by_order_codes([code])
             
             if not logistics_info:
-                return Response(
-                    {'detail': '查询物流失败'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({'detail': '查询物流失败'}, status=status.HTTP_502_BAD_GATEWAY)
             
             return Response({
                 'detail': '查询成功',
