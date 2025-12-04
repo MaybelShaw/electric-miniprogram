@@ -370,6 +370,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 operator=user,
                 note=note
             )
+            try:
+                from catalog.models import Product as CatalogProduct
+                is_haier_product = bool(
+                    order.product and getattr(order.product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
+                )
+                if is_haier_product and order.haier_so_id:
+                    from integrations.ylhapi import YLHSystemAPI
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    ylh_api = YLHSystemAPI.from_settings()
+                    if ylh_api.authenticate():
+                        src = str(request.data.get('source_system', 'MERCHANT_ADMIN'))
+                        ylh_api.cancel_order(order.haier_so_id, order.cancel_reason or '', src)
+                        logger.info(f'已同步易理货取消: order_id={order.id}, soId={order.haier_so_id}')
+                    else:
+                        logger.error('易理货系统认证失败，取消不同步')
+            except Exception as sync_err:
+                import logging
+                logging.getLogger(__name__).error(f'同步易理货取消失败: {str(sync_err)}')
             serializer = self.get_serializer(order)
             return Response(serializer.data, status=200)
         except ValueError as e:
