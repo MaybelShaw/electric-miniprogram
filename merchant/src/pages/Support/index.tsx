@@ -258,7 +258,7 @@ export default function Support() {
               <ProDescriptions.Item label="ID" dataIndex="id" />
               <ProDescriptions.Item label="状态">
                 <Select
-                  defaultValue={currentTicket.status}
+                  value={currentTicket.status}
                   style={{ width: 120 }}
                   onChange={handleStatusChange}
                   disabled={!(currentUser?.is_staff || currentUser?.role === 'support')}

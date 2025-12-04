@@ -79,8 +79,22 @@ class SupportTicketViewSet(viewsets.ModelViewSet):
             order=order_obj,
             product=product_obj,
         )
-        ticket.updated_at = timezone.now()
-        ticket.save(update_fields=['updated_at'])
+        if role == 'support':
+            if ticket.status != 'pending':
+                ticket.status = 'pending'
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['status', 'updated_at'])
+            else:
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['updated_at'])
+        else:
+            if ticket.status != 'open':
+                ticket.status = 'open'
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['status', 'updated_at'])
+            else:
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['updated_at'])
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
@@ -307,8 +321,22 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             order=order_obj,
             product=product_obj,
         )
-        ticket.updated_at = timezone.now()
-        ticket.save(update_fields=['updated_at'])
+        if role == 'support':
+            if ticket.status != 'pending':
+                ticket.status = 'pending'
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['status', 'updated_at'])
+            else:
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['updated_at'])
+        else:
+            if ticket.status != 'open':
+                ticket.status = 'open'
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['status', 'updated_at'])
+            else:
+                ticket.updated_at = timezone.now()
+                ticket.save(update_fields=['updated_at'])
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
