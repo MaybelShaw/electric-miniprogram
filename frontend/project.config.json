@@ -2,7 +2,7 @@
   "miniprogramRoot": "dist/",
   "projectname": "frontend",
   "description": "",
-  "appid": "wxe0e83d4daf273584",
+  "appid": "touristappid",
   "setting": {
     "urlCheck": true,
     "es6": false,
