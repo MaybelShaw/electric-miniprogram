@@ -257,17 +257,38 @@ export default function Support() {
             <ProDescriptions column={2} dataSource={currentTicket}>
               <ProDescriptions.Item label="ID" dataIndex="id" />
               <ProDescriptions.Item label="状态">
-                <Select
-                  value={currentTicket.status}
-                  style={{ width: 120 }}
-                  onChange={handleStatusChange}
-                  disabled={!(currentUser?.is_staff || currentUser?.role === 'support')}
-                >
-                  <Select.Option value="open">待处理</Select.Option>
-                  <Select.Option value="pending">处理中</Select.Option>
-                  <Select.Option value="resolved">已解决</Select.Option>
-                  <Select.Option value="closed">已关闭</Select.Option>
-                </Select>
+                <Space direction="vertical" size={5}>
+                  <Tag color={statusMap[currentTicket.status]?.color}>
+                    {statusMap[currentTicket.status]?.text}
+                  </Tag>
+                  {(currentUser?.is_staff || currentUser?.role === 'support') && (
+                    <Space size={5} wrap>
+                      {currentTicket.status === 'open' && (
+                        <>
+                          <Button size="small" type="primary" onClick={() => handleStatusChange('pending')}>开始处理</Button>
+                          <Button size="small" onClick={() => handleStatusChange('resolved')}>已解决</Button>
+                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
+                        </>
+                      )}
+                      {currentTicket.status === 'pending' && (
+                        <>
+                          <Button size="small" type="primary" onClick={() => handleStatusChange('resolved')}>已解决</Button>
+                          <Button size="small" onClick={() => handleStatusChange('open')}>放回待处理</Button>
+                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
+                        </>
+                      )}
+                      {currentTicket.status === 'resolved' && (
+                        <>
+                          <Button size="small" onClick={() => handleStatusChange('open')}>重新打开</Button>
+                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
+                        </>
+                      )}
+                      {currentTicket.status === 'closed' && (
+                        <Button size="small" type="primary" onClick={() => handleStatusChange('open')}>重新打开</Button>
+                      )}
+                    </Space>
+                  )}
+                </Space>
               </ProDescriptions.Item>
               <ProDescriptions.Item label="提交用户" dataIndex="user_username" />
               <ProDescriptions.Item label="优先级">
