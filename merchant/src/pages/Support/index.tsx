@@ -28,7 +28,7 @@ export default function Support() {
   const [messageContent, setMessageContent] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentTicket?.user || null);
+  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentTicket?.user || null, currentTicket?.id || null);
   const messageListRef = useRef<HTMLDivElement>(null);
   
   const [productModalVisible, setProductModalVisible] = useState(false);

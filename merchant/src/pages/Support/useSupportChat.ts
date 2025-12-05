@@ -15,7 +15,7 @@ interface OfflineMessage {
   timestamp: number;
 }
 
-export function useSupportChat(userId: number | null) {
+export function useSupportChat(userId: number | null, ticketId: number | null = null) {
   const [messages, setMessages] = useState<ExtendedSupportMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function useSupportChat(userId: number | null) {
       return;
     }
 
-    const cacheKey = `chat_messages_user_${userId}`;
+    const cacheKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${userId}`;
     const cachedData = localStorage.getItem(cacheKey);
     let initialMessages: ExtendedSupportMessage[] = [];
     let initialLastFetchedAt = null;
@@ -84,6 +84,9 @@ export function useSupportChat(userId: number | null) {
       if (after) {
         params.after = after;
       }
+      if (ticketId) {
+        params.ticket_id = ticketId;
+      }
       
       const res: any = await getChatMessages(uid, params);
       
@@ -109,7 +112,8 @@ export function useSupportChat(userId: number | null) {
             // order_by('created_at') in backend handles this.
             const newLastFetchedAt = lastMsg.created_at;
             
-            localStorage.setItem(`chat_messages_user_${uid}`, JSON.stringify({
+            const storageKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${uid}`;
+            localStorage.setItem(storageKey, JSON.stringify({
               messages: newMsgs,
               lastFetchedAt: newLastFetchedAt
             }));
@@ -160,7 +164,7 @@ export function useSupportChat(userId: number | null) {
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res: any = await sendChatMessage(userId, content, attachment, attachmentType, extra);
+      const res: any = await sendChatMessage(userId, content, attachment, attachmentType, { ...extra, ticket_id: ticketId || undefined });
       // Success
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -169,7 +173,8 @@ export function useSupportChat(userId: number | null) {
         // Update cache immediately
          const lastMsg = newMsgs[newMsgs.length - 1];
          if (lastMsg) {
-            localStorage.setItem(`chat_messages_user_${userId}`, JSON.stringify({
+            const storageKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${userId}`;
+            localStorage.setItem(storageKey, JSON.stringify({
               messages: newMsgs,
               lastFetchedAt: lastMsg.created_at
             }));
@@ -187,7 +192,7 @@ export function useSupportChat(userId: number | null) {
       
       if (!attachment && !extra) {
         // Add to offline queue
-        const queueKey = `offline_queue_user_${userId}`;
+        const queueKey = ticketId ? `offline_queue_ticket_${ticketId}` : `offline_queue_user_${userId}`;
         const queue: OfflineMessage[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
         queue.push({ content, tempId, timestamp: Date.now() });
         localStorage.setItem(queueKey, JSON.stringify(queue));
@@ -202,7 +207,7 @@ export function useSupportChat(userId: number | null) {
   // Retry offline messages
   const retryOfflineMessages = async () => {
     if (!userId) return;
-    const queueKey = `offline_queue_user_${userId}`;
+    const queueKey = ticketId ? `offline_queue_ticket_${ticketId}` : `offline_queue_user_${userId}`;
     const queue: OfflineMessage[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
     if (queue.length === 0) return;
 
@@ -213,7 +218,7 @@ export function useSupportChat(userId: number | null) {
 
     for (const item of queue) {
       try {
-        const res: any = await sendChatMessage(userId, item.content);
+        const res: any = await sendChatMessage(userId, item.content, undefined, undefined, { ticket_id: ticketId || undefined });
         // Update the specific message in the list from error/sending to sent
         setMessages(prev => prev.map(m => 
             (m.local_id === item.tempId || (m.content === item.content && m.status === 'error')) 

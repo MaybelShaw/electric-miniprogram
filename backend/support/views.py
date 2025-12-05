@@ -220,8 +220,23 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
     def list(self, request):
+        ticket_id = request.query_params.get('ticket_id')
         user_id = request.query_params.get('user_id')
-        if user_id:
+
+        if ticket_id:
+            try:
+                tid = int(ticket_id)
+            except ValueError:
+                return Response({'detail': 'invalid ticket_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                ticket = SupportTicket.objects.get(id=tid)
+            except SupportTicket.DoesNotExist:
+                return Response({'detail': 'ticket not found'}, status=status.HTTP_404_NOT_FOUND)
+            # permission: non-support can only access own ticket
+            if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+                if ticket.user_id != request.user.id:
+                    return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        elif user_id:
             if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
                 return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
             try:
@@ -261,6 +276,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         attachment_type = request.data.get('attachment_type')
         order_id = request.data.get('order_id')
         product_id = request.data.get('product_id')
+        ticket_id = request.data.get('ticket_id')
         if not content and not attachment and not order_id and not product_id:
             return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
         if attachment:
@@ -277,8 +293,30 @@ class SupportChatViewSet(viewsets.GenericViewSet):
 
         user_id = request.data.get('user_id')
         is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+        # Prefer explicit ticket when provided
+        ticket = None
+        sender = request.user
+        role = 'user'
 
-        if user_id and is_support:
+        if ticket_id:
+            try:
+                tid = int(ticket_id)
+            except ValueError:
+                return Response({'detail': 'invalid ticket_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                t = SupportTicket.objects.get(id=tid)
+            except SupportTicket.DoesNotExist:
+                return Response({'detail': 'ticket not found'}, status=status.HTTP_404_NOT_FOUND)
+            # permissions
+            if is_support:
+                ticket = t
+                role = 'support'
+            else:
+                if t.user_id != request.user.id:
+                    return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+                ticket = t
+                role = 'user'
+        elif user_id and is_support:
             try:
                 uid = int(user_id)
             except ValueError:
@@ -290,11 +328,9 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                 return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
             ticket = self._ensure_user_chat_ticket(target_user)
             role = 'support'
-            sender = request.user
         else:
             ticket = self._ensure_user_chat_ticket(request.user)
             role = 'user'
-            sender = request.user
 
         order_obj = None
         product_obj = None
