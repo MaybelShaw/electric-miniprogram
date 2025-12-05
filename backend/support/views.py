@@ -194,7 +194,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
     serializer_class = SupportMessageSerializer
 
     def _ensure_user_chat_ticket(self, user):
-        ticket = SupportTicket.objects.filter(user_id=user.id, status__in=['open', 'pending']).order_by('-updated_at').first()
+        ticket = SupportTicket.objects.filter(user_id=user.id, status__in=['open', 'pending', 'resolved']).order_by('-updated_at').first()
         if not ticket:
             ticket = SupportTicket.objects.create(user=user, subject='会话', status='open', priority='normal')
         return ticket
@@ -210,7 +210,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if status_param:
             qs = qs.filter(status=status_param)
         else:
-            qs = qs.filter(status__in=['open', 'pending'])
+            qs = qs.filter(status__in=['open', 'pending', 'resolved'])
 
         page = self.paginate_queryset(qs)
         if page is not None:
