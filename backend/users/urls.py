@@ -11,7 +11,8 @@ from .views import (
     CompanyInfoViewSet,
     CreditAccountViewSet,
     AccountStatementViewSet,
-    AccountTransactionViewSet
+    AccountTransactionViewSet,
+    NotificationViewSet
 )
 
 router = SimpleRouter()
@@ -21,6 +22,7 @@ router.register(r'company-info', CompanyInfoViewSet, basename='company-info')
 router.register(r'credit-accounts', CreditAccountViewSet, basename='credit-account')
 router.register(r'account-statements', AccountStatementViewSet, basename='account-statement')
 router.register(r'account-transactions', AccountTransactionViewSet, basename='account-transaction')
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('login/', WeChatLoginView.as_view(), name='wechat-login'),

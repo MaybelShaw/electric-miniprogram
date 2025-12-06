@@ -7,25 +7,28 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action, api_view, permission_classes, throttle_classes
 from django.conf import settings
-from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction
+from django.utils import timezone
+from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction, Notification
 from orders.models import Order
 from django.db.models import Sum, Count
 from django.db.models.functions import TruncMonth, TruncYear
 from .serializers import (
-    UserSerializer, 
-    UserProfileSerializer, 
-    AddressSerializer, 
+    UserSerializer,
+    UserProfileSerializer,
+    AddressSerializer,
     CompanyInfoSerializer,
     CreditAccountSerializer,
     AccountStatementSerializer,
     AccountStatementDetailSerializer,
-    AccountTransactionSerializer
+    AccountTransactionSerializer,
+    NotificationSerializer,
 )
 from django.db.models import Q
 from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.throttles import LoginRateThrottle
 from common.address_parser import address_parser
 from common.utils import to_bool
+from common.pagination import SmallResultsSetPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
 
@@ -424,6 +427,92 @@ class AddressViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             raise
+
+
+@extend_schema(tags=['Notifications'])
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    用户消息中心
+    - 支持按类型/状态筛选
+    - 支持标记单条或全部已读
+    - 提供订阅模板配置
+    """
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = SmallResultsSetPagination
+
+    def get_queryset(self):
+        qs = Notification.objects.filter(user=self.request.user).order_by('-created_at')
+
+        ntype = self.request.query_params.get('type')
+        if ntype:
+            qs = qs.filter(type=ntype)
+
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        read_flag = self.request.query_params.get('read')
+        if read_flag is not None:
+            val = str(read_flag).lower()
+            if val in {'1', 'true', 'yes', 'read'}:
+                qs = qs.filter(read_at__isnull=False)
+            elif val in {'0', 'false', 'no', 'unread'}:
+                qs = qs.filter(read_at__isnull=True)
+
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        notif = self.get_object()
+        notif.mark_read()
+        return Response(self.get_serializer(notif).data)
+
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        updated = Notification.objects.filter(
+            user=request.user,
+            read_at__isnull=True
+        ).update(read_at=timezone.now())
+        return Response({'marked': updated})
+
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        qs = Notification.objects.filter(user=request.user)
+        return Response({
+            'unread_count': qs.filter(read_at__isnull=True).count(),
+            'pending_count': qs.filter(status='pending').count(),
+            'total': qs.count(),
+        })
+
+    @action(detail=False, methods=['get'])
+    def subscribe_templates(self, request):
+        """
+        返回后端配置的订阅消息模板ID，便于前端申请授权。
+        """
+        templates = getattr(settings, 'WECHAT_SUBSCRIBE_TEMPLATES', {}) or {}
+        default_page = getattr(settings, 'WECHAT_SUBSCRIBE_DEFAULT_PAGE', '')
+
+        items = []
+        if isinstance(templates, dict):
+            for scene, tmpl in templates.items():
+                if isinstance(tmpl, dict):
+                    items.append({
+                        'scene': scene,
+                        'template_id': tmpl.get('template_id') or tmpl.get('id') or '',
+                        'page': tmpl.get('page') or default_page,
+                    })
+                else:
+                    items.append({
+                        'scene': scene,
+                        'template_id': str(tmpl),
+                        'page': default_page,
+                    })
+
+        return Response({
+            'templates': items,
+            'default_page': default_page,
+        })
 
 
 @extend_schema(tags=['Users'])
@@ -1269,6 +1358,29 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
                 return Response({"error": "该账期的对账单已存在"}, status=status.HTTP_400_BAD_REQUEST)
             # Generate statement via service
             statement = AccountStatementService.generate_statement(credit_account, ps, pe)
+            try:
+                from users.services import create_notification
+                create_notification(
+                    credit_account.user,
+                    title='新的对账单已生成',
+                    content=f'{ps} 至 {pe} 的对账单已生成，期末未付 ¥{statement.period_end_balance}',
+                    ntype='statement',
+                    metadata={
+                        'statement_id': statement.id,
+                        'status': statement.status,
+                        'period_start': str(ps),
+                        'period_end': str(pe),
+                        'amount': str(statement.period_end_balance),
+                        'page': f'pages/statement-detail/index?id={statement.id}',
+                        'subscription_data': {
+                            'thing1': {'value': f'{ps} 至 {pe}'[:20]},
+                            'time2': {'value': timezone.localtime(statement.created_at).strftime('%Y-%m-%d %H:%M') if statement.created_at else ''},
+                            'thing3': {'value': f'未付 ¥{statement.period_end_balance}'[:20]},
+                        },
+                    }
+                )
+            except Exception:
+                pass
             serializer = self.get_serializer(statement)
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
@@ -1320,6 +1432,30 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         statement.status = 'confirmed'
         statement.confirmed_at = timezone.now()
         statement.save()
+
+        try:
+            from users.services import create_notification
+            create_notification(
+                statement.credit_account.user,
+                title='对账单已确认',
+                content=f'{statement.period_start} 至 {statement.period_end} 的对账单已确认',
+                ntype='statement',
+                metadata={
+                    'statement_id': statement.id,
+                    'status': statement.status,
+                    'period_start': str(statement.period_start),
+                    'period_end': str(statement.period_end),
+                    'amount': str(statement.period_end_balance),
+                    'page': f'pages/statement-detail/index?id={statement.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'{statement.period_start} 至 {statement.period_end}'[:20]},
+                        'time2': {'value': timezone.localtime(statement.confirmed_at).strftime('%Y-%m-%d %H:%M') if statement.confirmed_at else ''},
+                        'thing3': {'value': '对账单已确认'},
+                    },
+                }
+            )
+        except Exception:
+            pass
         
         return Response({
             "message": "对账单已确认",
@@ -1361,6 +1497,30 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
             paid_date=timezone.now().date(),
             description=f'对账单结算: {statement.period_start} 至 {statement.period_end}'
         )
+
+        try:
+            from users.services import create_notification
+            create_notification(
+                credit_account.user,
+                title='对账单已结清',
+                content=f'{statement.period_start} 至 {statement.period_end} 的对账单已结清',
+                ntype='statement',
+                metadata={
+                    'statement_id': statement.id,
+                    'status': statement.status,
+                    'period_start': str(statement.period_start),
+                    'period_end': str(statement.period_end),
+                    'amount': str(statement.period_end_balance),
+                    'page': f'pages/statement-detail/index?id={statement.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'{statement.period_start} 至 {statement.period_end}'[:20]},
+                        'time2': {'value': timezone.localtime(statement.settled_at).strftime('%Y-%m-%d %H:%M') if statement.settled_at else ''},
+                        'thing3': {'value': '对账单已结清'},
+                    },
+                }
+            )
+        except Exception:
+            pass
         
         return Response({
             "message": "对账单已结清",

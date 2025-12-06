@@ -89,6 +89,8 @@ class Notification(models.Model):
         ('payment', '支付'),
         ('order', '订单'),
         ('refund', '退款'),
+        ('return', '退货'),
+        ('statement', '对账单'),
         ('system', '系统'),
     ]
 
@@ -101,6 +103,7 @@ class Notification(models.Model):
     metadata = models.JSONField(default=dict, blank=True, verbose_name='元数据')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     sent_at = models.DateTimeField(null=True, blank=True, verbose_name='发送时间')
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name='阅读时间')
 
     class Meta:
         verbose_name = '通知'
@@ -109,12 +112,23 @@ class Notification(models.Model):
             models.Index(fields=['user', 'status']),
             models.Index(fields=['type']),
             models.Index(fields=['created_at']),
+            models.Index(fields=['read_at']),
         ]
 
     def mark_sent(self):
         self.status = 'sent'
         self.sent_at = timezone.now()
         self.save(update_fields=['status', 'sent_at'])
+
+    def mark_read(self):
+        if self.read_at:
+            return
+        self.read_at = timezone.now()
+        self.save(update_fields=['read_at'])
+
+    @property
+    def is_read(self) -> bool:
+        return bool(self.read_at)
 
 
 class CompanyInfo(models.Model):

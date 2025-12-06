@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction
+from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction, Notification
 from django.core.cache import cache
 
 
@@ -160,6 +160,34 @@ class AddressSerializer(serializers.ModelSerializer):
                 is_default=False
             )
         return super().update(instance, validated_data)
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """通知序列化器，用于站内信/订阅消息中心。"""
+    is_read = serializers.SerializerMethodField()
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'title',
+            'content',
+            'type',
+            'type_display',
+            'status',
+            'status_display',
+            'metadata',
+            'created_at',
+            'sent_at',
+            'read_at',
+            'is_read',
+        ]
+        read_only_fields = fields
+
+    def get_is_read(self, obj):
+        return bool(getattr(obj, 'read_at', None))
 
 
 class CreditAccountSerializer(serializers.ModelSerializer):

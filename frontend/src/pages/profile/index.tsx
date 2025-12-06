@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Image, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { authService } from '../../services/auth'
+import { notificationService } from '../../services/notification'
 import { TokenManager } from '../../utils/request'
 import { User } from '../../types'
 import './index.scss'
@@ -9,12 +10,37 @@ import './index.scss'
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useDidShow(() => {
     if (TokenManager.getAccessToken()) {
       loadUserInfo()
+      loadNotificationStats()
+    } else {
+      setUnreadCount(0)
     }
   })
+
+  useEffect(() => {
+    const refreshUnread = () => {
+      if (TokenManager.getAccessToken()) {
+        loadNotificationStats()
+      } else {
+        setUnreadCount(0)
+      }
+    }
+    const clearUnread = () => setUnreadCount(0)
+
+    Taro.eventCenter.on('notificationsUpdated', refreshUnread)
+    Taro.eventCenter.on('userLogin', refreshUnread)
+    Taro.eventCenter.on('userLogout', clearUnread)
+
+    return () => {
+      Taro.eventCenter.off('notificationsUpdated', refreshUnread)
+      Taro.eventCenter.off('userLogin', refreshUnread)
+      Taro.eventCenter.off('userLogout', clearUnread)
+    }
+  }, [])
 
   const loadUserInfo = async () => {
     try {
@@ -22,6 +48,15 @@ export default function Profile() {
       setUser(data)
     } catch (error) {
       // 静默失败
+    }
+  }
+
+  const loadNotificationStats = async () => {
+    try {
+      const data = await notificationService.getStats()
+      setUnreadCount(data.unread_count || 0)
+    } catch (error) {
+      setUnreadCount(0)
     }
   }
 
@@ -33,6 +68,7 @@ export default function Profile() {
       const res = await authService.login()
       TokenManager.setTokens(res.access, res.refresh)
       setUser(res.user)
+      loadNotificationStats()
       
       // 触发登录成功事件，通知其他页面刷新
       Taro.eventCenter.trigger('userLogin')
@@ -54,6 +90,7 @@ export default function Profile() {
     if (res.confirm) {
       TokenManager.clearTokens()
       setUser(null)
+      setUnreadCount(0)
       
       // 触发登出事件，通知其他页面清空状态
       Taro.eventCenter.trigger('userLogout')
@@ -79,6 +116,13 @@ export default function Profile() {
     Taro.navigateTo({ url: '/pages/address-list/index' })
   }
 
+  const goToMessages = () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    Taro.navigateTo({ url: '/pages/message-center/index' })
+  }
 
 
   const goToProfileEdit = () => {
@@ -178,6 +222,17 @@ export default function Profile() {
 
       {/* 功能菜单 */}
       <View className='menu-section'>
+        <View className='menu-item' onTap={goToMessages}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>🔔</Text>
+            <Text className='menu-text'>消息中心</Text>
+            {unreadCount > 0 && (
+              <View className='badge danger'>{unreadCount > 99 ? '99+' : unreadCount}</View>
+            )}
+          </View>
+          <Text className='arrow'>›</Text>
+        </View>
+
         <View className='menu-item' onTap={goToAddresses}>
           <View className='menu-left'>
             <Text className='menu-icon'>📍</Text>

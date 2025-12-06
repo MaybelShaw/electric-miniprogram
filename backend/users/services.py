@@ -53,7 +53,7 @@ def ensure_user_password(user, password):
         user.save(update_fields=['password'])
 
 
-def create_notification(user, title: str, content: str, ntype: str = 'system', metadata: dict = None):
+def create_notification(user, title: str, content: str, ntype: str = 'system', metadata: dict = None, send_subscription: bool = True):
     """创建一条通知记录（用于订阅消息/站内提醒队列）。"""
     if not user:
         return None
@@ -66,6 +66,12 @@ def create_notification(user, title: str, content: str, ntype: str = 'system', m
             metadata=metadata or {},
             status='pending'
         )
+        if send_subscription:
+            try:
+                from .notification_service import NotificationDispatcher
+                NotificationDispatcher.dispatch(notif)
+            except Exception:
+                pass
         return notif
     except Exception:
         return None

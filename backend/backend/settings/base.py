@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from .env_config import EnvironmentConfig
 
@@ -227,6 +228,32 @@ LOGGING = get_logging_config()
 # WeChat Mini Program Configuration
 WECHAT_APPID = EnvironmentConfig.get_env('WECHAT_APPID', '')
 WECHAT_SECRET = EnvironmentConfig.get_env('WECHAT_SECRET', '')
+# Subscription message templates: JSON string or comma-separated key:template pairs
+def _load_subscribe_templates():
+    raw = EnvironmentConfig.get_env('WECHAT_SUBSCRIBE_TEMPLATES', '')
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+    templates = {}
+    try:
+        for pair in str(raw).split(','):
+            if ':' in pair:
+                key, val = pair.split(':', 1)
+                key = key.strip()
+                val = val.strip()
+                if key and val:
+                    templates[key] = val
+    except Exception:
+        return {}
+    return templates
+
+WECHAT_SUBSCRIBE_TEMPLATES = _load_subscribe_templates()
+WECHAT_SUBSCRIBE_DEFAULT_PAGE = EnvironmentConfig.get_env('WECHAT_SUBSCRIBE_DEFAULT_PAGE', 'pages/home/index')
 
 # WeChat Pay Configuration (for future use)
 WECHAT_PAY_MCHID = EnvironmentConfig.get_env('WECHAT_PAY_MCHID', '')

@@ -376,6 +376,27 @@ class OrderViewSet(viewsets.ModelViewSet):
                 note=note
             )
             try:
+                from users.services import create_notification
+                create_notification(
+                    order.user,
+                    title='订单已取消',
+                    content=f'订单 {order.order_number} 已取消' + (f'，原因：{order.cancel_reason}' if order.cancel_reason else ''),
+                    ntype='order',
+                    metadata={
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'status': 'cancelled',
+                        'page': f'pages/order-detail/index?id={order.id}',
+                        'subscription_data': {
+                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                            'time2': {'value': timezone.localtime(order.cancelled_at).strftime('%Y-%m-%d %H:%M') if order.cancelled_at else ''},
+                            'thing3': {'value': (order.cancel_reason or '订单已取消')[:20]},
+                        },
+                    }
+                )
+            except Exception:
+                pass
+            try:
                 from catalog.models import Product as CatalogProduct
                 is_haier_product = bool(
                     order.product and getattr(order.product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
@@ -423,6 +444,28 @@ class OrderViewSet(viewsets.ModelViewSet):
                 operator=user,
                 note=note
             )
+            try:
+                from users.services import create_notification
+                create_notification(
+                    order.user,
+                    title='订单已发货',
+                    content=f'订单 {order.order_number} 已发货，物流单号 {tracking_number}',
+                    ntype='order',
+                    metadata={
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'logistics_no': tracking_number,
+                        'status': 'shipped',
+                        'page': f'pages/order-detail/index?id={order.id}',
+                        'subscription_data': {
+                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                            'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
+                            'thing3': {'value': f'物流单号 {tracking_number}'[:20]},
+                        },
+                    }
+                )
+            except Exception:
+                pass
             serializer = self.get_serializer(order)
             return Response(serializer.data, status=200)
         except ValueError as e:
@@ -525,6 +568,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer = ReturnRequestCreateSerializer(data=request.data, context={'request': request, 'order': order})
         serializer.is_valid(raise_exception=True)
         rr = serializer.save()
+        try:
+            from users.services import create_notification
+            create_notification(
+                order.user,
+                title='退货申请已提交',
+                content=f'订单 {order.order_number} 的退货申请已提交，待客服审核',
+                ntype='return',
+                metadata={
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'return_request_id': rr.id,
+                    'status': rr.status,
+                    'page': f'pages/order-detail/index?id={order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(rr.created_at).strftime('%Y-%m-%d %H:%M') if rr.created_at else ''},
+                        'thing3': {'value': '退货申请已提交'},
+                    },
+                }
+            )
+        except Exception:
+            pass
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
@@ -571,6 +636,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         rr.processed_at = timezone.now()
         rr.save()
+        try:
+            from users.services import create_notification
+            create_notification(
+                order.user,
+                title='退货申请已同意',
+                content=f'订单 {order.order_number} 的退货申请已同意，请尽快寄回商品',
+                ntype='return',
+                metadata={
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'return_request_id': rr.id,
+                    'status': rr.status,
+                    'page': f'pages/order-detail/index?id={order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(rr.processed_at).strftime('%Y-%m-%d %H:%M') if rr.processed_at else ''},
+                        'thing3': {'value': '退货申请已同意'},
+                    },
+                }
+            )
+        except Exception:
+            pass
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
@@ -589,6 +676,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         rr.processed_at = timezone.now()
         rr.save()
+        try:
+            from users.services import create_notification
+            create_notification(
+                order.user,
+                title='退货申请被拒绝',
+                content=f'订单 {order.order_number} 的退货申请被拒绝' + (f'，原因：{rr.processed_note}' if rr.processed_note else ''),
+                ntype='return',
+                metadata={
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'return_request_id': rr.id,
+                    'status': rr.status,
+                    'page': f'pages/order-detail/index?id={order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(rr.processed_at).strftime('%Y-%m-%d %H:%M') if rr.processed_at else ''},
+                        'thing3': {'value': (rr.processed_note or '退货申请被拒绝')[:20]},
+                    },
+                }
+            )
+        except Exception:
+            pass
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
@@ -605,6 +714,28 @@ class OrderViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         rr.processed_at = timezone.now()
         rr.save()
+        try:
+            from users.services import create_notification
+            create_notification(
+                order.user,
+                title='退货包裹已签收',
+                content=f'订单 {order.order_number} 的退货包裹已签收，正在处理退款',
+                ntype='return',
+                metadata={
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'return_request_id': rr.id,
+                    'status': rr.status,
+                    'page': f'pages/order-detail/index?id={order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(rr.processed_at).strftime('%Y-%m-%d %H:%M') if rr.processed_at else ''},
+                        'thing3': {'value': '退货包裹已签收'},
+                    },
+                }
+            )
+        except Exception:
+            pass
         return Response(ReturnRequestSerializer(rr).data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
@@ -622,6 +753,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": f"退款完成失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        try:
+            from users.services import create_notification
+            create_notification(
+                order.user,
+                title='退款已完成',
+                content=f'订单 {order.order_number} 退款已完成，金额 ¥{order.actual_amount}',
+                ntype='refund',
+                metadata={
+                    'order_id': order.id,
+                    'order_number': order.order_number,
+                    'status': 'refunded',
+                    'amount': str(order.actual_amount),
+                    'page': f'pages/order-detail/index?id={order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
+                        'thing3': {'value': f'退款金额 ¥{order.actual_amount}'[:20]},
+                    },
+                }
+            )
+        except Exception:
+            pass
         try:
             if not order.payments.exists():
                 from users.credit_services import CreditAccountService
@@ -1590,7 +1743,17 @@ class PaymentCallbackView(APIView):
                             title='支付已过期',
                             content=f'订单 {payment.order.order_number} 支付已过期，请重新下单或再次支付',
                             ntype='payment',
-                            metadata={'order_id': payment.order_id, 'payment_id': payment.id}
+                            metadata={
+                                'order_id': payment.order_id,
+                                'payment_id': payment.id,
+                                'order_number': payment.order.order_number,
+                                'page': f'pages/order-detail/index?id={payment.order_id}',
+                                'subscription_data': {
+                                    'thing1': {'value': f'订单 {payment.order.order_number}'[:20]},
+                                    'time2': {'value': timezone.localtime(payment.expires_at).strftime('%Y-%m-%d %H:%M') if payment.expires_at else ''},
+                                    'thing3': {'value': '支付已过期'},
+                                },
+                            }
                         )
                     except Exception:
                         pass
@@ -1714,6 +1877,31 @@ class RefundViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
+        try:
+            from users.services import create_notification
+            create_notification(
+                refund.order.user,
+                title='退款成功',
+                content=f'订单 {refund.order.order_number} 退款成功，金额 ¥{refund.amount}',
+                ntype='refund',
+                metadata={
+                    'order_id': refund.order.id,
+                    'order_number': refund.order.order_number,
+                    'refund_id': refund.id,
+                    'payment_id': refund.payment_id,
+                    'status': refund.status,
+                    'amount': str(refund.amount),
+                    'page': f'pages/order-detail/index?id={refund.order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {refund.order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(refund.updated_at).strftime('%Y-%m-%d %H:%M') if refund.updated_at else ''},
+                        'thing3': {'value': f'退款金额 ¥{refund.amount}'[:20]},
+                    },
+                }
+            )
+        except Exception:
+            pass
+
         return Response(RefundSerializer(refund).data)
 
     @action(detail=True, methods=['post'])
@@ -1729,6 +1917,30 @@ class RefundViewSet(viewsets.ModelViewSet):
         })
         refund.operator = request.user
         refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+        try:
+            from users.services import create_notification
+            reason_text = str(request.data.get('reason') or '')
+            create_notification(
+                refund.order.user,
+                title='退款失败',
+                content=f'订单 {refund.order.order_number} 退款失败' + (f'，原因：{reason_text}' if reason_text else ''),
+                ntype='refund',
+                metadata={
+                    'order_id': refund.order.id,
+                    'order_number': refund.order.order_number,
+                    'refund_id': refund.id,
+                    'payment_id': refund.payment_id,
+                    'status': refund.status,
+                    'page': f'pages/order-detail/index?id={refund.order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {refund.order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(refund.updated_at).strftime('%Y-%m-%d %H:%M') if refund.updated_at else ''},
+                        'thing3': {'value': (reason_text or '退款失败')[:20]},
+                    },
+                }
+            )
+        except Exception:
+            pass
         return Response(RefundSerializer(refund).data)
 
     def _find_payment(self, data: Dict) -> Optional[Payment]:

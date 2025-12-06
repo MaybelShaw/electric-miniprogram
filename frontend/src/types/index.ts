@@ -19,6 +19,24 @@ export interface LoginResponse {
   user: User
 }
 
+// 通知中心
+export type NotificationType = 'payment' | 'order' | 'refund' | 'return' | 'statement' | 'system'
+
+export interface Notification {
+  id: number
+  title: string
+  content: string
+  type: NotificationType
+  type_display?: string
+  status: 'pending' | 'sent' | 'failed'
+  status_display?: string
+  metadata: Record<string, any>
+  created_at: string
+  sent_at?: string | null
+  read_at?: string | null
+  is_read: boolean
+}
+
 // 商品相关
 export interface Product {
   id: number

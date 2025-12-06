@@ -399,7 +399,15 @@ class PaymentService:
                 metadata={
                     'order_id': payment.order_id,
                     'payment_id': payment.id,
-                    'status': payment.status
+                    'order_number': payment.order.order_number,
+                    'status': payment.status,
+                    'amount': str(payment.amount),
+                    'page': f'pages/order-detail/index?id={payment.order_id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {payment.order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(payment.updated_at).strftime('%Y-%m-%d %H:%M') if payment.updated_at else ''},
+                        'thing3': {'value': f'支付成功，金额¥{payment.amount}'[:20]},
+                    },
                 }
             )
         except Exception:
