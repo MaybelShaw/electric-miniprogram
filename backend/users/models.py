@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, PermissionsMixin, BaseUserManager
+from django.utils import timezone
 
 
 # Create your models here.
@@ -75,6 +76,45 @@ class User(AbstractUser, PermissionsMixin):
 
     def __str__(self):
         return self.username or self.openid
+
+
+class Notification(models.Model):
+    STATUS_CHOICES = [
+        ('pending', '待发送'),
+        ('sent', '已发送'),
+        ('failed', '发送失败'),
+    ]
+
+    TYPE_CHOICES = [
+        ('payment', '支付'),
+        ('order', '订单'),
+        ('refund', '退款'),
+        ('system', '系统'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='notifications', verbose_name='用户')
+    title = models.CharField(max_length=100, verbose_name='标题')
+    content = models.TextField(verbose_name='内容')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='system', verbose_name='类型')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='状态')
+    metadata = models.JSONField(default=dict, blank=True, verbose_name='元数据')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name='发送时间')
+
+    class Meta:
+        verbose_name = '通知'
+        verbose_name_plural = '通知'
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['type']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def mark_sent(self):
+        self.status = 'sent'
+        self.sent_at = timezone.now()
+        self.save(update_fields=['status', 'sent_at'])
 
 
 class CompanyInfo(models.Model):

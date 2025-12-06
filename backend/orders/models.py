@@ -235,6 +235,44 @@ class Payment(models.Model):
         return payment
 
 
+class Refund(models.Model):
+    STATUS_CHOICES = [
+        ('pending', '待处理'),
+        ('processing', '处理中'),
+        ('succeeded', '退款成功'),
+        ('failed', '退款失败'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    order = models.ForeignKey('orders.Order', on_delete=models.PROTECT, related_name='refunds', verbose_name='订单')
+    payment = models.ForeignKey('orders.Payment', on_delete=models.PROTECT, null=True, blank=True, related_name='refunds', verbose_name='关联支付')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='退款金额')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='退款状态')
+    reason = models.CharField(max_length=255, blank=True, default='', verbose_name='退款原因')
+    transaction_id = models.CharField(max_length=100, blank=True, default='', verbose_name='退款交易号')
+    operator = models.ForeignKey('users.User', on_delete=models.PROTECT, null=True, blank=True, related_name='handled_refunds', verbose_name='操作人')
+    logs = models.JSONField(default=list, blank=True, verbose_name='退款日志')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '退款记录'
+        verbose_name_plural = '退款记录'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['order']),
+            models.Index(fields=['payment']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f'退款#{self.id} 订单:{self.order_id} 状态:{self.status}'
+
+    @property
+    def is_finished(self):
+        return self.status in {'succeeded', 'failed'}
+
+
 # 折扣系统
 class Discount(models.Model):
     id = models.BigAutoField(primary_key=True)

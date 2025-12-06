@@ -1,12 +1,14 @@
 from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.views import APIView
-from .models import Order,Cart,CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
+from .models import Order,Cart,CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest
 from .serializers import (
     OrderSerializer,
     OrderCreateSerializer,
     CartItemSerializer,
     CartSerializer,
     PaymentSerializer,
+    RefundSerializer,
+    RefundCreateSerializer,
     DiscountSerializer,
     DiscountTargetSerializer,
     InvoiceSerializer,
@@ -32,6 +34,9 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
 from django.http import FileResponse
 from common.serializers import PDFOrImageFileValidator
+from common.logging import log_security
+from decimal import Decimal
+from .payment_service import PaymentService
 
 
 # Create your views here.
@@ -1078,34 +1083,107 @@ class PaymentViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         payment = self.get_object()
-        if payment.status in ['succeeded', 'cancelled', 'expired']:
-            return Response({'detail': 'Payment not startable'}, status=400)
+        from .payment_service import PaymentService
+        from .models import Order
+
+        ok, reason = PaymentService.ensure_payment_startable(payment)
+        if not ok:
+            # 如果因过期导致不可用，更新状态
+            if '过期' in reason:
+                payment.status = 'expired'
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'expired_before_start'
+                })
+                payment.save(update_fields=['status', 'logs', 'updated_at'])
+            return Response({'detail': reason}, status=status.HTTP_400_BAD_REQUEST)
+
+        provider = request.data.get('provider') or payment.method
+
+        ok_freq, msg_freq = PaymentService.check_user_payment_frequency(request.user)
+        if not ok_freq:
+            log_security('pay_freq_user', msg_freq, {'user_id': request.user.id if request.user else None})
+            return Response({'detail': msg_freq}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # 设备/IP 限频
+        client_ip = PaymentService.extract_client_ip(request)
+        device_id = request.META.get('HTTP_X_DEVICE_ID', '')
+        ok_cli, msg_cli = PaymentService.check_client_frequency(request.user, client_ip=client_ip, device_id=device_id)
+        if not ok_cli:
+            log_security('pay_freq_client', msg_cli, {'user_id': request.user.id if request.user else None, 'ip': client_ip, 'device_id': device_id})
+            return Response({'detail': msg_cli}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # 仅待支付订单可启动支付
+        if payment.order.status not in ['pending', 'paid']:
+            return Response({'detail': '订单状态不支持支付'}, status=status.HTTP_409_CONFLICT)
+
+        # 金额阈值校验
+        ok_amount, msg_amount = PaymentService.check_amount_threshold(payment.order)
+        if not ok_amount:
+            log_security('pay_amount_exceeded', msg_amount, {'user_id': request.user.id if request.user else None, 'order_id': payment.order_id})
+            return Response({'detail': msg_amount}, status=status.HTTP_400_BAD_REQUEST)
+
         payment.status = 'processing'
-        payment.logs.append({'t': str(payment.updated_at), 'event': 'start', 'detail': 'user starts payment'})
-        payment.save()
-        return Response(self.get_serializer(payment).data)
+        payment.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'start',
+            'detail': f'user starts {provider} payment'
+        })
+        payment.save(update_fields=['status', 'logs', 'updated_at'])
+
+        pay_params = None
+        if provider == 'wechat':
+            pay_params = PaymentService.generate_wechat_jsapi_params(payment)
+            PaymentService.log_payment_event(
+                payment.id,
+                'wechat_jsapi_params_generated',
+                details={
+                    'package': pay_params.get('package'),
+                    'appId': pay_params.get('appId')
+                }
+            )
+
+        serializer_data = self.get_serializer(payment).data
+        return Response({
+            'payment': serializer_data,
+            'pay_params': pay_params
+        })
 
     @action(detail=True, methods=['post'])
     def succeed(self, request, pk=None):
+        from .payment_service import PaymentService
+
         payment = self.get_object()
-        payment.status = 'succeeded'
-        payment.logs.append({'t': str(payment.updated_at), 'event': 'succeeded'})
-        payment.save()
-        
-        # 使用状态机更新订单状态
+        if payment.order.status not in ['pending', 'paid']:
+            return Response({'detail': '订单状态不支持标记支付成功'}, status=status.HTTP_409_CONFLICT)
+
+        # 金额阈值校验（防止人为构造成功接口）
+        ok_amount, msg_amount = PaymentService.check_amount_threshold(payment.order)
+        if not ok_amount:
+            return Response({'detail': msg_amount}, status=status.HTTP_400_BAD_REQUEST)
+
+        transaction_id = (
+            request.data.get('transaction_id') or
+            request.data.get('wx_transaction_id') or
+            request.data.get('prepay_id')
+        )
+
+        ok, reason = PaymentService.ensure_payment_succeed_allowed(payment)
+        if not ok:
+            return Response({'detail': reason}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            from .state_machine import OrderStateMachine
-            OrderStateMachine.transition(
-                payment.order,
-                'paid',
-                operator=request.user,
-                note='Payment succeeded'
+            payment = PaymentService.process_payment_success(
+                payment.id,
+                transaction_id=transaction_id,
+                operator=request.user
             )
-        except ValueError:
-            # 如果状态转换失败，仍然返回支付成功的响应
-            pass
-        
-        return Response(self.get_serializer(payment).data)
+            serializer = self.get_serializer(payment)
+            return Response(serializer.data)
+        except ValueError as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'detail': f'Failed to mark payment succeeded: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(tags=['Discounts'])
@@ -1371,10 +1449,10 @@ class PaymentCallbackView(APIView):
         provider = (provider or 'mock').lower()
         data = request.data or {}
 
-        # 仅在开发环境允许简化回调（mock/wechat）
-        if not settings.DEBUG and provider in ('mock', 'wechat'):
-            logger.warning(f'非开发环境不允许{provider}回调')
-            return Response({'detail': f'{provider} callback only enabled in development'}, status=403)
+        # mock 回调仅在开发环境允许，微信回调在生产也允许
+        if not settings.DEBUG and provider == 'mock':
+            logger.warning('非开发环境不允许 mock 回调')
+            return Response({'detail': 'mock callback only enabled in development'}, status=403)
 
         # 记录回调接收事件
         logger.info(f'收到支付回调: provider={provider}, data={data}')
@@ -1404,6 +1482,18 @@ class PaymentCallbackView(APIView):
                 details={'provider': provider}
             )
 
+        # 验证回调金额与支付单一致
+        ok_amount, reason_amount = PaymentService.validate_callback_amount(payment, data)
+        if not ok_amount:
+            logger.error(f'回调金额校验失败: payment_id={payment.id}, reason={reason_amount}')
+            PaymentService.log_payment_event(
+                payment.id,
+                'callback_amount_mismatch',
+                details={'provider': provider},
+                error=reason_amount
+            )
+            return Response({'detail': reason_amount}, status=400)
+
         # 防止重复处理已成功的支付
         if payment.status == 'succeeded':
             logger.warning(f'支付记录已处理过: payment_id={payment.id}')
@@ -1413,10 +1503,19 @@ class PaymentCallbackView(APIView):
                 details={'provider': provider}
             )
             return Response(PaymentSerializer(payment).data)
+        if payment.status in ['cancelled', 'expired', 'failed']:
+            logger.warning(f'回调被拒绝，支付状态不允许更新: payment_id={payment.id}, status={payment.status}')
+            PaymentService.log_payment_event(
+                payment.id,
+                'callback_rejected_by_status',
+                details={'provider': provider, 'status': payment.status}
+            )
+            return Response({'detail': 'payment status not updatable'}, status=400)
 
         # 提取回调数据
         status_param = data.get('status') or data.get('result_code') or data.get('trade_state')
         transaction_id = data.get('transaction_id') or data.get('wx_transaction_id') or data.get('trans_id')
+        callback_amount = data.get('total_fee') or data.get('amount') or data.get('total')
 
         # 映射支付状态
         new_status = self._map_payment_status(provider, status_param)
@@ -1424,17 +1523,29 @@ class PaymentCallbackView(APIView):
         # 使用事务处理支付状态更新
         try:
             with transaction.atomic():
+                # 锁定支付记录，避免并发回调穿透
+                from .models import Payment
+                payment = Payment.objects.select_for_update().get(id=payment.id)
+
                 # 处理支付成功
-                if new_status == 'succeeded' and payment.status != 'succeeded':
+                if new_status == 'succeeded' and payment.status in ['init', 'processing']:
+                    # 再次金额阈值/一致性校验
+                    ok_amount, reason_amt = PaymentService.check_amount_threshold(payment.order)
+                    if not ok_amount:
+                        raise ValueError(reason_amt)
+                    if callback_amount and str(callback_amount) != str(payment.amount):
+                        log_security('callback_amount_mismatch', '回调金额不一致', {'payment_id': payment.id, 'order_id': payment.order_id})
+                        raise ValueError('回调金额与支付单不一致')
+
                     PaymentService.process_payment_success(
                         payment.id,
                         transaction_id=transaction_id,
                         operator=None
                     )
                     logger.info(f'支付成功处理: payment_id={payment.id}, transaction_id={transaction_id}')
-                
+
                 # 处理支付失败
-                elif new_status == 'failed':
+                elif new_status == 'failed' and payment.status not in ['cancelled', 'expired']:
                     payment.status = 'failed'
                     PaymentService.log_payment_event(
                         payment.id,
@@ -1443,9 +1554,9 @@ class PaymentCallbackView(APIView):
                     )
                     payment.save()
                     logger.warning(f'支付失败: payment_id={payment.id}')
-                
+
                 # 处理支付取消
-                elif new_status == 'cancelled':
+                elif new_status == 'cancelled' and payment.status not in ['cancelled', 'expired']:
                     payment.status = 'cancelled'
                     PaymentService.log_payment_event(
                         payment.id,
@@ -1454,9 +1565,9 @@ class PaymentCallbackView(APIView):
                     )
                     payment.save()
                     logger.info(f'支付已取消: payment_id={payment.id}')
-                
+
                 # 处理支付过期
-                elif new_status == 'expired':
+                elif new_status == 'expired' and payment.status != 'expired':
                     payment.status = 'expired'
                     # 使用状态机更新订单状态
                     try:
@@ -1471,6 +1582,18 @@ class PaymentCallbackView(APIView):
                         logger.error(f'订单状态转换失败: {str(e)}')
                         payment.order.status = 'cancelled'
                         payment.order.save()
+
+                    try:
+                        from users.services import create_notification
+                        create_notification(
+                            payment.order.user,
+                            title='支付已过期',
+                            content=f'订单 {payment.order.order_number} 支付已过期，请重新下单或再次支付',
+                            ntype='payment',
+                            metadata={'order_id': payment.order_id, 'payment_id': payment.id}
+                        )
+                    except Exception:
+                        pass
                     
                     PaymentService.log_payment_event(
                         payment.id,
@@ -1502,6 +1625,111 @@ class PaymentCallbackView(APIView):
             return Response({'detail': 'callback processing failed'}, status=500)
 
         return Response(PaymentSerializer(payment).data)
+
+
+@extend_schema(tags=['Refunds'])
+class RefundViewSet(viewsets.ModelViewSet):
+    """
+    退款管理
+    - 创建退款（支持部分退款）
+    - 更新退款状态（start/succeed/fail）
+    """
+    queryset = Refund.objects.all().select_related('order', 'payment', 'operator')
+    serializer_class = RefundSerializer
+    permission_classes = [IsOwnerOrAdmin]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = self.queryset
+        if not user.is_staff:
+            qs = qs.filter(order__user=user)
+        return qs.order_by('-created_at')
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return RefundCreateSerializer
+        return super().get_serializer_class()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        refund = serializer.save(status='pending')
+
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'refund_created',
+            'amount': str(refund.amount),
+            'reason': refund.reason
+        })
+        refund.save(update_fields=['logs'])
+
+        # 将订单置为 refunding 状态（如果尚未退款完成）
+        try:
+            if refund.order.status not in ['refunded', 'refunding']:
+                OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='申请退款')
+        except Exception:
+            pass
+
+        return Response(RefundSerializer(refund).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        refund = self.get_object()
+        if refund.status not in ['pending', 'failed']:
+            return Response({'detail': '当前状态不可开始处理'}, status=400)
+        refund.status = 'processing'
+        refund.logs.append({'t': timezone.now().isoformat(), 'event': 'start'})
+        refund.operator = request.user
+        refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+        return Response(RefundSerializer(refund).data)
+
+    @action(detail=True, methods=['post'])
+    def succeed(self, request, pk=None):
+        refund = self.get_object()
+        if refund.status != 'processing':
+            return Response({'detail': '当前状态不可标记成功'}, status=400)
+
+        # 防止超额退款
+        refundable = PaymentService.calculate_refundable_amount(refund.order)
+        if refund.amount > refundable:
+            return Response({'detail': '退款金额超出可退金额'}, status=400)
+
+        refund.status = 'succeeded'
+        refund.transaction_id = request.data.get('transaction_id') or refund.transaction_id
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'succeeded',
+            'transaction_id': refund.transaction_id
+        })
+        refund.operator = request.user
+        refund.save(update_fields=['status', 'transaction_id', 'logs', 'operator', 'updated_at'])
+
+        # 根据累计退款更新订单状态
+        total_refunded = sum([r.amount for r in refund.order.refunds.filter(status='succeeded')])
+        try:
+            if total_refunded >= refund.order.actual_amount:
+                OrderStateMachine.transition(refund.order, 'refunded', operator=request.user, note='退款完成')
+            elif refund.order.status != 'refunding':
+                OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='部分退款中')
+        except Exception:
+            pass
+
+        return Response(RefundSerializer(refund).data)
+
+    @action(detail=True, methods=['post'])
+    def fail(self, request, pk=None):
+        refund = self.get_object()
+        if refund.status not in ['pending', 'processing']:
+            return Response({'detail': '当前状态不可标记失败'}, status=400)
+        refund.status = 'failed'
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'failed',
+            'reason': request.data.get('reason', '')
+        })
+        refund.operator = request.user
+        refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+        return Response(RefundSerializer(refund).data)
 
     def _find_payment(self, data: Dict) -> Optional[Payment]:
         """查找支付记录
@@ -1555,11 +1783,8 @@ class PaymentCallbackView(APIView):
         from .payment_service import PaymentService
         
         if provider == 'wechat':
-            # 微信支付签名验证
-            secret = settings.WECHAT_PAY_SECRET if hasattr(settings, 'WECHAT_PAY_SECRET') else None
-            if not secret:
-                return False
-            return PaymentService.verify_callback_signature(data, signature, secret)
+            # 微信支付签名验证（简化版，开发测试用）
+            return PaymentService.verify_wechat_callback(data)
         
         elif provider == 'alipay':
             # 支付宝签名验证

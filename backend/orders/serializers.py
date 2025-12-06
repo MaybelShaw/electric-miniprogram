@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.conf import settings
 from datetime import timedelta
-from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
+from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer
@@ -238,6 +238,50 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'order', 'amount', 'method', 'status', 'created_at', 'updated_at', 'expires_at', 'logs'
         ]
+
+
+class RefundSerializer(serializers.ModelSerializer):
+    payment_method = serializers.CharField(source='payment.method', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+
+    class Meta:
+        model = Refund
+        fields = [
+            'id', 'order', 'order_number', 'payment', 'payment_method',
+            'amount', 'status', 'reason', 'transaction_id',
+            'operator', 'logs', 'created_at', 'updated_at'
+        ]
+
+
+class RefundCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Refund
+        fields = ['order', 'payment', 'amount', 'reason']
+
+    def validate(self, attrs):
+        order = attrs.get('order')
+        payment = attrs.get('payment')
+        amount = attrs.get('amount')
+        request = self.context.get('request')
+
+        if not order:
+            raise serializers.ValidationError('缺少订单信息')
+
+        if payment and payment.order_id != order.id:
+            raise serializers.ValidationError('支付记录不属于该订单')
+
+        from .payment_service import PaymentService
+        refundable = PaymentService.calculate_refundable_amount(order)
+        if amount is None or amount <= 0:
+            raise serializers.ValidationError('退款金额必须大于0')
+        if amount > refundable:
+            raise serializers.ValidationError(f'退款金额超出可退金额，可退 {refundable}')
+
+        # 普通用户只能操作自己的订单
+        if request and not request.user.is_staff and order.user_id != request.user.id:
+            raise serializers.ValidationError('没有权限为该订单退款')
+
+        return attrs
 
 
 class InvoiceSerializer(serializers.ModelSerializer):

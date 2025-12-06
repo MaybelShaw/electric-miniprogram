@@ -24,6 +24,7 @@ export default defineAppConfig({
     'pages/invoice-request/index',
     'pages/request-return/index',
     'pages/return-tracking/index',
+    'pages/payment-result/index',
     // Support pages
     'pages/support-chat/index',
     'pages/support-chat/select-order/index',

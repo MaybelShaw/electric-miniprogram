@@ -1,5 +1,5 @@
 import { http } from '../utils/request'
-import { Payment, PaginatedResponse } from '../types'
+import { Payment, PaginatedResponse, PaymentStartResponse } from '../types'
 
 export const paymentService = {
   // 获取支付记录列表
@@ -26,13 +26,13 @@ export const paymentService = {
   },
   
   // 开始支付
-  async startPayment(id: number): Promise<Payment> {
-    return http.post<Payment>(`/payments/${id}/start/`)
+  async startPayment(id: number, data?: { provider?: 'wechat' | 'alipay' | 'bank' }): Promise<PaymentStartResponse> {
+    return http.post<PaymentStartResponse>(`/payments/${id}/start/`, data)
   },
   
   // 支付成功
-  async succeedPayment(id: number): Promise<Payment> {
-    return http.post<Payment>(`/payments/${id}/succeed/`)
+  async succeedPayment(id: number, data?: { transaction_id?: string; wx_transaction_id?: string; prepay_id?: string }): Promise<Payment> {
+    return http.post<Payment>(`/payments/${id}/succeed/`, data)
   },
   
   // 支付失败

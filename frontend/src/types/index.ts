@@ -163,11 +163,31 @@ export interface Payment {
   order: number
   amount: string
   method: 'wechat' | 'alipay' | 'bank'
-  status: 'pending' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
+  status: 'init' | 'processing' | 'succeeded' | 'failed' | 'cancelled' | 'expired'
   created_at: string
   updated_at: string
   expires_at: string
   logs: Array<{ t: string; event: string; detail?: string }>
+}
+
+export interface WechatPayParams {
+  appId: string
+  mch_id: string
+  timeStamp: string
+  nonceStr: string
+  package: string
+  signType: string
+  paySign: string
+  prepay_id: string
+  signPayload?: string
+  payment_id?: number
+  order_number?: string
+  amount?: string
+}
+
+export interface PaymentStartResponse {
+  payment: Payment
+  pay_params?: WechatPayParams | null
 }
 
 export interface CreateOrderResponse {

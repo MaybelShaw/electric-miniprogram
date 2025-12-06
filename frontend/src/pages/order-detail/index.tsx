@@ -3,7 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
-import { Order, Payment } from '../../types'
+import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import { BASE_URL, TokenManager } from '../../utils/request'
 import './index.scss'
@@ -91,6 +91,16 @@ export default function OrderDetail() {
     }
   }
 
+  const requestWechatPayment = async (payParams: WechatPayParams) => {
+    await Taro.requestPayment({
+      timeStamp: payParams.timeStamp,
+      nonceStr: payParams.nonceStr,
+      package: payParams.package,
+      signType: payParams.signType as any,
+      paySign: payParams.paySign,
+    })
+  }
+
   const handlePay = async () => {
     if (!order || paying) return
 
@@ -106,22 +116,33 @@ export default function OrderDetail() {
         setPayment(paymentRecord)
       }
 
-      // 模拟支付流程
-      Taro.showLoading({ title: '支付中...' })
-      
-      // 调用支付成功接口
-      await paymentService.succeedPayment(paymentRecord.id)
-      
-      Taro.hideLoading()
-      Taro.showToast({ title: '支付成功', icon: 'success' })
-      
-      // 重新加载订单详情
-      setTimeout(() => {
-        loadOrderDetail(order.id)
-      }, 1500)
+      // 获取微信支付参数并拉起支付
+      const startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+      if (startRes.payment) {
+        setPayment(startRes.payment)
+      }
+      const payParams = startRes.pay_params
+      if (!payParams) {
+        throw new Error('未获取到支付参数')
+      }
+
+      await requestWechatPayment(payParams)
+
+      // 支付成功后通知后端
+      await paymentService.succeedPayment(paymentRecord.id, {
+        transaction_id: payParams.prepay_id,
+        prepay_id: payParams.prepay_id,
+      })
+
+      Taro.redirectTo({
+        url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${paymentRecord.id}`
+      })
     } catch (error: any) {
-      Taro.hideLoading()
-      Taro.showToast({ title: error.message || '支付失败', icon: 'none' })
+      const msg = error?.errMsg || error?.message || '支付失败'
+      Taro.showToast({ title: msg, icon: 'none' })
+      Taro.redirectTo({
+        url: `/pages/payment-result/index?status=fail&orderId=${order?.id || ''}&paymentId=${payment?.id || ''}&reason=${encodeURIComponent(msg)}`
+      })
     } finally {
       setPaying(false)
     }

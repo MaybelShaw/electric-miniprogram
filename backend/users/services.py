@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User
+from .models import User, Notification
 
 def get_or_create_wechat_user(openid):
     return User.objects.get_or_create(openid=openid, defaults={'role': 'individual'})
@@ -51,3 +51,21 @@ def ensure_user_password(user, password):
     if not user.has_usable_password():
         user.set_password(password)
         user.save(update_fields=['password'])
+
+
+def create_notification(user, title: str, content: str, ntype: str = 'system', metadata: dict = None):
+    """创建一条通知记录（用于订阅消息/站内提醒队列）。"""
+    if not user:
+        return None
+    try:
+        notif = Notification.objects.create(
+            user=user,
+            title=title[:100],
+            content=content,
+            type=ntype,
+            metadata=metadata or {},
+            status='pending'
+        )
+        return notif
+    except Exception:
+        return None

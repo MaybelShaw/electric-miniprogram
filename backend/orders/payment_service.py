@@ -7,12 +7,16 @@
 
 import hashlib
 import hmac
+import time
+import uuid
 from decimal import Decimal
 from typing import Dict, Optional
 from django.db import transaction
 from django.utils import timezone
 from django.conf import settings
+from django.core.cache import cache
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +54,10 @@ class PaymentService:
             True
         """
         try:
-            # 按字典序排序参数
-            sorted_params = sorted(data.items())
+            # 按字典序排序参数（排除签名字段）
+            sorted_params = sorted(
+                (k, v) for k, v in data.items() if k not in {'sign', 'signature'}
+            )
             sign_str = '&'.join([f'{k}={v}' for k, v in sorted_params])
             
             # 计算签名
@@ -66,6 +72,187 @@ class PaymentService:
         except Exception as e:
             logger.error(f'签名验证异常: {str(e)}')
             return False
+
+    @staticmethod
+    def verify_wechat_callback(data: Dict) -> bool:
+        """基于项目配置的简化版微信回调验签。
+
+        说明：正式的微信支付V3回调应使用平台证书与sha256+RSA验签并解密资源。
+        这里在未集成官方SDK时使用共享密钥的HMAC校验以便开发测试。
+        """
+        secret = getattr(settings, 'WECHAT_PAY_SECRET', '')
+        signature = data.get('signature') or data.get('sign')
+        if not (secret and signature):
+            return False
+        return PaymentService.verify_callback_signature(data, signature, secret)
+
+    @staticmethod
+    def validate_callback_amount(payment, data: Dict) -> tuple[bool, str]:
+        """验证回调金额与支付单金额一致。"""
+        from decimal import Decimal, InvalidOperation
+
+        amount_fields = ['amount', 'total_amount', 'total_fee', 'money']
+        val = None
+        for field in amount_fields:
+            if data.get(field) is not None:
+                val = data.get(field)
+                break
+        if val is None:
+            return True, ''  # 没有金额字段时跳过
+        try:
+            amt = Decimal(str(val))
+        except (InvalidOperation, TypeError):
+            return False, '回调金额解析失败'
+        if amt != payment.amount:
+            return False, f'回调金额不匹配: {amt} != {payment.amount}'
+        return True, ''
+
+    @staticmethod
+    def generate_wechat_jsapi_params(payment) -> Dict:
+        """生成微信JSAPI支付参数（开发/测试用）
+
+        生成符合 wx.requestPayment 所需的参数结构，同时记录基本信息用于日志/对账。
+        在缺少真实微信商户配置时，使用占位的 appid/mchid/密钥生成签名，便于前后端联调。
+        """
+        app_id = getattr(settings, 'WECHAT_APPID', '') or 'mock-appid'
+        mch_id = getattr(settings, 'WECHAT_PAY_MCHID', '') or 'mock-mchid'
+        sign_key = getattr(settings, 'WECHAT_PAY_SECRET', '') or settings.SECRET_KEY
+
+        # 生成基础字段
+        nonce_str = uuid.uuid4().hex
+        time_stamp = str(int(time.time()))
+        prepay_id = uuid.uuid4().hex  # 占位的prepay_id，真实环境应由微信返回
+        package = f'prepay_id={prepay_id}'
+        sign_type = 'HMAC-SHA256'
+
+        # 按微信签名规范拼接字符串并生成签名
+        sign_payload = '&'.join([
+            f'appId={app_id}',
+            f'timeStamp={time_stamp}',
+            f'nonceStr={nonce_str}',
+            f'package={package}',
+            f'signType={sign_type}',
+        ])
+        pay_sign = hmac.new(
+            sign_key.encode('utf-8'),
+            sign_payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        return {
+            'appId': app_id,
+            'mch_id': mch_id,
+            'timeStamp': time_stamp,
+            'nonceStr': nonce_str,
+            'package': package,
+            'signType': sign_type,
+            'paySign': pay_sign,
+            'prepay_id': prepay_id,
+            'signPayload': sign_payload,
+            'payment_id': payment.id,
+            'order_number': getattr(payment.order, 'order_number', ''),
+            'amount': str(payment.amount),
+            'mchId': mch_id,
+        }
+
+    @staticmethod
+    def ensure_payment_startable(payment) -> tuple[bool, str]:
+        """检查支付是否可开始/继续。
+
+        仅允许 init/processing 状态继续，其他状态返回原因。
+        """
+        if payment.status in ['cancelled', 'expired', 'failed']:
+            return False, f'支付已处于不可继续状态: {payment.status}'
+        if timezone.now() > payment.expires_at:
+            return False, '支付已过期'
+        return True, ''
+
+    @staticmethod
+    def ensure_payment_succeed_allowed(payment) -> tuple[bool, str]:
+        """检查支付是否可以被标记为成功。"""
+        if payment.status == 'succeeded':
+            return False, '支付已成功'
+        if payment.status in ['cancelled', 'expired', 'failed']:
+            return False, f'当前状态不允许标记成功: {payment.status}'
+        if timezone.now() > payment.expires_at:
+            return False, '支付已过期'
+        return True, ''
+
+    @staticmethod
+    def calculate_refundable_amount(order) -> Decimal:
+        """计算订单当前可退款金额（基于已成功支付减去已成功退款）。"""
+        from .models import Refund
+        from decimal import Decimal
+
+        paid_amount = sum([p.amount for p in order.payments.filter(status='succeeded')])
+        refunded_amount = sum([r.amount for r in Refund.objects.filter(order=order, status='succeeded')])
+        available = Decimal(str(paid_amount)) - Decimal(str(refunded_amount))
+        return available if available > 0 else Decimal('0')
+
+    @staticmethod
+    def check_user_payment_frequency(user, window_seconds: int = 5) -> tuple[bool, str]:
+        """简单的支付防抖控制：同一用户在短时间内重复拉起支付会被拒绝。"""
+        if not user or not getattr(user, 'id', None):
+            return True, ''
+        cache_key = f'pay_rate_limit_user_{user.id}'
+        last_ts = cache.get(cache_key)
+        now_ts = time.time()
+        if last_ts and (now_ts - last_ts) < window_seconds:
+            return False, f'支付操作过于频繁，请稍后再试'
+        cache.set(cache_key, now_ts, timeout=window_seconds)
+        return True, ''
+
+    @staticmethod
+    def check_amount_threshold(order, max_amount: Decimal | None = None) -> tuple[bool, str]:
+        """校验订单支付金额是否超过阈值。
+
+        max_amount 默认读取 settings.PAYMENT_MAX_AMOUNT；用于阻止异常大额支付。
+        """
+        limit = max_amount or getattr(settings, 'PAYMENT_MAX_AMOUNT', None)
+        if limit is None:
+            return True, ''
+        try:
+            if order.total_amount > Decimal(str(limit)):
+                return False, f'单笔金额超出限制（上限 {limit}）'
+        except Exception:
+            pass
+        return True, ''
+
+    @staticmethod
+    def check_client_frequency(user, client_ip: str = '', device_id: str = '', window_seconds: int = 10, limit: int = 3) -> tuple[bool, str]:
+        """基于设备/IP 的短时间限频。
+
+        在 window_seconds 内，同一 device_id 或 IP 超过 limit 次则拒绝。
+        device_id 可由前端通过 Header 传递（如 X-Device-Id）。
+        """
+        keys = []
+        if device_id:
+            keys.append(f'pay_freq_dev_{device_id}')
+        if client_ip:
+            keys.append(f'pay_freq_ip_{client_ip}')
+        if not keys:
+            return True, ''
+
+        for key in keys:
+            count = cache.get(key, 0)
+            if count >= limit:
+                return False, '支付请求过于频繁，请稍后再试'
+        # increment
+        for key in keys:
+            count = cache.get(key, 0)
+            cache.set(key, count + 1, timeout=window_seconds)
+        return True, ''
+
+    @staticmethod
+    def extract_client_ip(request) -> str:
+        ip = request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR') or ''
+        # 取第一个 IP
+        if ip and ',' in ip:
+            ip = ip.split(',')[0].strip()
+        # 简单校验 IPv4/IPv6 格式
+        if ip and not re.match(r'^[0-9a-fA-F:\.]+$', ip):
+            return ''
+        return ip
     
     @staticmethod
     def check_payment_amount(order, payment_amount: Decimal) -> bool:
@@ -139,6 +326,7 @@ class PaymentService:
         """
         from .models import Payment
         from .state_machine import OrderStateMachine
+        from users.services import create_notification
         
         # 使用select_for_update锁定支付记录，防止并发处理
         payment = Payment.objects.select_for_update().get(id=payment_id)
@@ -200,7 +388,23 @@ class PaymentService:
             })
             payment.save()
             raise
-        
+
+        # 创建通知（订阅消息/站内）
+        try:
+            create_notification(
+                payment.order.user,
+                title='支付成功',
+                content=f'订单 {payment.order.order_number} 支付成功，金额 ¥{payment.amount}',
+                ntype='payment',
+                metadata={
+                    'order_id': payment.order_id,
+                    'payment_id': payment.id,
+                    'status': payment.status
+                }
+            )
+        except Exception:
+            pass
+
         return payment
     
     @staticmethod
