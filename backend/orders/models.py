@@ -220,14 +220,16 @@ class Payment(models.Model):
         return f'支付#{self.id} 订单:{self.order_id} 状态:{self.status}'
 
     @classmethod
-    def create_for_order(cls, order, method='wechat', ttl_minutes=30):
+    def create_for_order(cls, order, method='wechat', ttl_minutes=None):
         now = timezone.now()
+        from django.conf import settings as dj_settings
+        ttl = ttl_minutes if ttl_minutes is not None else getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
         payment = cls.objects.create(
             order=order,
             amount=order.total_amount,
             method=method,
             status='init',
-            expires_at=now + timedelta(minutes=ttl_minutes),
+            expires_at=now + timedelta(minutes=ttl),
             logs=[{'t': now.isoformat(), 'event': 'start', 'detail': f'start payment {method}'}]
         )
         return payment

@@ -17,6 +17,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db import transaction
 
+from django.conf import settings
 from orders.models import Order, Payment
 from orders.state_machine import OrderStateMachine
 from orders.services import InventoryService
@@ -29,8 +30,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--timeout-minutes',
             type=int,
-            default=30,
-            help='Payment timeout in minutes (default: 30)',
+            default=getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10),
+            help='Payment timeout in minutes (default from settings.ORDER_PAYMENT_TIMEOUT_MINUTES)',
         )
         parser.add_argument(
             '--dry-run',

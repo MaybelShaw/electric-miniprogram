@@ -226,9 +226,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if payment_method == 'online':
                     payment_method_type = request.data.get('method', 'wechat')
                     payment = Payment.create_for_order(
-                        order, 
-                        method=payment_method_type, 
-                        ttl_minutes=30
+                        order,
+                        method=payment_method_type,
+                        ttl_minutes=settings.ORDER_PAYMENT_TIMEOUT_MINUTES
                     )
                     logger.info(f'支付记录创建成功: payment_id={payment.id}, order_id={order.id}')
                 else:
@@ -322,7 +322,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                         payment = Payment.create_for_order(
                             order,
                             method=online_method,
-                            ttl_minutes=30
+                            ttl_minutes=settings.ORDER_PAYMENT_TIMEOUT_MINUTES
                         )
                         payments.append(payment)
                     
@@ -1051,7 +1051,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         
         # 创建支付记录
         try:
-            payment = Payment.create_for_order(order, method=method, ttl_minutes=30)
+            payment = Payment.create_for_order(order, method=method, ttl_minutes=settings.ORDER_PAYMENT_TIMEOUT_MINUTES)
             
             # 记录支付创建事件
             PaymentService.log_payment_event(

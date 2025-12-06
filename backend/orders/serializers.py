@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.conf import settings
+from datetime import timedelta
 from .models import Order, Cart, CartItem, Payment, Discount, DiscountTarget, Invoice, ReturnRequest
 from catalog.models import Product
 from users.models import Address
@@ -14,6 +16,7 @@ class OrderSerializer(serializers.ModelSerializer):
     logistics_info = serializers.SerializerMethodField()
     invoice_info = serializers.SerializerMethodField()
     return_info = serializers.SerializerMethodField()
+    expires_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -31,6 +34,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "status_label",
             "created_at",
             "updated_at",
+            "expires_at",
             "snapshot_contact_name",
             "snapshot_phone",
             "snapshot_address",
@@ -139,6 +143,12 @@ class OrderSerializer(serializers.ModelSerializer):
             'processed_note': rr.processed_note,
             'processed_at': rr.processed_at,
         }
+
+    def get_expires_at(self, obj: Order):
+        if obj.status == 'pending':
+            timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
+            return obj.created_at + timedelta(minutes=timeout)
+        return None
 
 
 class OrderCreateSerializer(serializers.ModelSerializer):

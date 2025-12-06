@@ -13,6 +13,7 @@ export default function OrderDetail() {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
+  const [timeLeft, setTimeLeft] = useState('')
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -29,6 +30,31 @@ export default function OrderDetail() {
       loadOrderDetail(Number(id))
     }
   })
+
+  useEffect(() => {
+    if (!order || order.status !== 'pending' || !order.expires_at) return
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime()
+      const expireTime = new Date(order.expires_at!).getTime()
+      const diff = expireTime - now
+
+      if (diff <= 0) {
+         setTimeLeft('已超时')
+         return
+      }
+
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+      
+      setTimeLeft(`${minutes}分${seconds}秒`)
+    }
+
+    calculateTimeLeft()
+    const timer = setInterval(calculateTimeLeft, 1000)
+
+    return () => clearInterval(timer)
+  }, [order?.status, order?.expires_at])
 
   const returnStatusMap: Record<string, string> = {
     requested: '等待商家处理',
@@ -279,7 +305,12 @@ export default function OrderDetail() {
           <View className='status-icon'>
             {getStatusIcon(order)}
           </View>
-          <View className='status-text'>{getDisplayStatus(order)}</View>
+          <View className='status-text-container'>
+            <View className='status-text'>{getDisplayStatus(order)}</View>
+            {order.status === 'pending' && timeLeft && (
+              <View className='status-countdown'>剩余支付时间：{timeLeft}</View>
+            )}
+          </View>
         </View>
 
         {/* 物流信息 */}

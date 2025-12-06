@@ -265,3 +265,5 @@ YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '')
 # ============================================================================
 # 是否使用模拟数据（开发/测试环境建议设置为True，生产环境设置为False）
 HAIER_USE_MOCK_DATA = EnvironmentConfig.get_env('HAIER_USE_MOCK_DATA', 'True').lower() in ('true', '1', 'yes')
+
+ORDER_PAYMENT_TIMEOUT_MINUTES = int(EnvironmentConfig.get_env('ORDER_PAYMENT_TIMEOUT_MINUTES', '10'))

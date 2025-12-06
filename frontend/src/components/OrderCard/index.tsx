@@ -1,4 +1,5 @@
 import { View, Image, Text } from '@tarojs/components'
+import { useState, useEffect } from 'react'
 import { Order } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import './index.scss'
@@ -19,6 +20,33 @@ export default function OrderCard({
   onClick 
 }: OrderCardProps) {
   
+  const [timeLeft, setTimeLeft] = useState('')
+
+  useEffect(() => {
+    if (order.status !== 'pending' || !order.expires_at) return
+
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime()
+      const expireTime = new Date(order.expires_at!).getTime()
+      const diff = expireTime - now
+
+      if (diff <= 0) {
+         setTimeLeft('已超时')
+         return
+      }
+
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+      
+      setTimeLeft(`${minutes}分${seconds}秒`)
+    }
+
+    calculateTimeLeft()
+    const timer = setInterval(calculateTimeLeft, 1000)
+
+    return () => clearInterval(timer)
+  }, [order.status, order.expires_at])
+
   const handleCardClick = () => {
     onClick?.(order.id)
   }
@@ -66,7 +94,11 @@ export default function OrderCard({
   return (
     <View className='order-card' onClick={handleCardClick}>
       <View className='order-header'>
-        <Text className='order-time'>{formatTime(order.created_at)}</Text>
+        {order.status === 'pending' && timeLeft ? (
+          <Text className='order-countdown'>剩余 {timeLeft}</Text>
+        ) : (
+          <Text className='order-time'>{formatTime(order.created_at)}</Text>
+        )}
         <Text className={`order-status ${getStatusClass()}`}>{getDisplayStatus()}</Text>
       </View>
       

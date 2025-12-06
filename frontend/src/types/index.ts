@@ -128,6 +128,7 @@ export interface Order {
   snapshot_address: string
   created_at: string
   updated_at: string
+  expires_at?: string
   logistics_info?: {
     logistics_no: string
     delivery_record_code: string
