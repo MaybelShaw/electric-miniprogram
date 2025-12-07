@@ -1,14 +1,16 @@
+@import '../../styles/variables.scss';
+
 .profile {
   min-height: 100vh;
-  background: #F7F8FA;
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  background: $background-color-base;
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
 
   .user-section {
-    background: #fff;
-    margin: 24rpx;
-    padding: 40rpx 30rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $background-color-light;
+    margin: $spacing-md;
+    padding: $spacing-xl $spacing-lg;
+    border-radius: $spacing-md;
+    box-shadow: $shadow-sm;
     position: relative;
     overflow: hidden;
 
@@ -18,10 +20,10 @@
       position: absolute;
       top: 0;
       right: 0;
-      width: 200rpx;
-      height: 200rpx;
+      width: 200px;
+      height: 200px;
       background: radial-gradient(circle at top right, rgba(25, 137, 250, 0.08), transparent 70%);
-      border-radius: 0 24rpx 0 100%;
+      border-radius: 0 $spacing-md 0 100%;
     }
 
     .user-info {
@@ -32,13 +34,13 @@
       z-index: 1;
 
       .avatar {
-        width: 140rpx;
-        height: 140rpx;
+        width: 140px;
+        height: 140px;
         border-radius: 50%;
         background: #F0F0F0;
-        margin-bottom: 24rpx;
-        border: 4rpx solid #fff;
-        box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+        margin-bottom: $spacing-md;
+        border: 4px solid $white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       }
 
       .user-details {
@@ -47,27 +49,27 @@
         align-items: center;
 
         .username {
-          font-size: 36rpx;
+          font-size: $font-size-xl;
           font-weight: bold;
-          color: #323233;
-          margin-bottom: 12rpx;
+          color: $text-color-base;
+          margin-bottom: $spacing-sm;
         }
 
         .company-name {
           display: flex;
           align-items: center;
-          padding: 8rpx 20rpx;
-          background: linear-gradient(135deg, #E6F7FF 0%, #BAE7FF 100%);
-          border-radius: 24rpx;
+          padding: $spacing-xs 20px;
+          background: linear-gradient(135deg, lighten-c($primary-color, 45%) 0%, lighten-c($primary-color, 40%) 100%);
+          border-radius: $spacing-md;
           
           .company-icon {
-            font-size: 24rpx;
-            margin-right: 8rpx;
+            font-size: $font-size-sm;
+            margin-right: $spacing-xs;
           }
 
           .company-text {
-            font-size: 24rpx;
-            color: #096DD9;
+            font-size: $font-size-sm;
+            color: $primary-color;
             font-weight: 600;
           }
         }
@@ -78,26 +80,26 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20rpx 0;
+      padding: $spacing-md 0;
 
       .avatar {
-        width: 140rpx;
-        height: 140rpx;
+        width: 140px;
+        height: 140px;
         border-radius: 50%;
         background: #F0F0F0;
-        margin-bottom: 24rpx;
+        margin-bottom: $spacing-md;
         opacity: 0.8;
       }
 
       .login-text {
-        font-size: 30rpx;
-        color: #323233;
+        font-size: $font-size-lg;
+        color: $text-color-base;
         font-weight: 500;
-        padding: 12rpx 40rpx;
-        background: #fff;
-        border: 2rpx solid #EBEDF0;
-        border-radius: 32rpx;
-        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+        padding: 12px $spacing-xl;
+        background: $background-color-light;
+        border: 2px solid $border-color;
+        border-radius: 32px;
+        box-shadow: $shadow-sm;
       }
     }
   }

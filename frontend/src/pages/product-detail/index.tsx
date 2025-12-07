@@ -19,6 +19,9 @@ export default function ProductDetail() {
   const [currentSku, setCurrentSku] = useState<ProductSKU | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [relatedLoading, setRelatedLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('product')
+  const [scrollIntoView, setScrollIntoView] = useState('')
+  const [navOpacity, setNavOpacity] = useState(0)
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -38,9 +41,9 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (product?.id) {
-      loadRelatedProducts(product.id, product.category_id)
+      loadRelatedProducts(product.id, product.category_id, product.category)
     }
-  }, [product?.id, product?.category_id])
+  }, [product?.id, product?.category_id, product?.category])
 
   const loadProduct = async (id: number) => {
     setLoading(true)
@@ -55,26 +58,30 @@ export default function ProductDetail() {
     }
   }
 
-  const loadRelatedProducts = async (id: number, categoryId?: number) => {
+  const loadRelatedProducts = async (id: number, categoryId?: number, categoryName?: string) => {
     setRelatedLoading(true)
     try {
-      const related = await productService.getRelatedProducts(id, 8)
-      if (related.length > 0) {
-        setRelatedProducts(related)
-        return
-      }
-
-      if (categoryId) {
-        const fallback = await productService.getRecommendations({
+      let items: Product[] = []
+      
+      if (categoryName) {
+        const res = await productService.getProductsByCategory({
+          category: categoryName,
+          page_size: 20
+        })
+        items = res.results || []
+      } else if (categoryId) {
+        items = await productService.getRecommendations({
           type: 'category',
           category_id: categoryId,
-          limit: 8
+          limit: 20
         })
-        setRelatedProducts(fallback.filter((item) => item.id !== id))
       } else {
-        setRelatedProducts([])
+        items = await productService.getRelatedProducts(id, 20)
       }
+      
+      setRelatedProducts(items.filter((item) => item.id !== id))
     } catch (error) {
+      console.error(error)
       setRelatedProducts([])
     } finally {
       setRelatedLoading(false)
@@ -192,6 +199,21 @@ export default function ProductDetail() {
     setCurrentImageIndex(e.detail.current)
   }
 
+  const handleTabClick = (tab: string) => {
+    setActiveTab(tab)
+    setScrollIntoView(`${tab}-anchor`)
+  }
+
+  const handleScroll = (e: any) => {
+    const scrollTop = e.detail.scrollTop
+    const threshold = 100 // Pixel threshold for full opacity
+    let opacity = 0
+    if (scrollTop > 0) {
+      opacity = Math.min(scrollTop / threshold, 1)
+    }
+    setNavOpacity(opacity)
+  }
+
   if (loading) {
     return (
       <View className='product-detail loading-container'>
@@ -221,7 +243,33 @@ export default function ProductDetail() {
 
   return (
     <View className='product-detail'>
-      <ScrollView className='content' scrollY>
+      <View 
+        className='nav-bar' 
+        style={{ 
+          backgroundColor: `rgba(255, 255, 255, ${navOpacity})`,
+          boxShadow: navOpacity > 0.8 ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
+          borderBottom: navOpacity > 0.8 ? '1px solid #EBEDF0' : 'none'
+        }}
+      >
+        {['product', 'detail', 'recommend'].map((tab) => (
+          <View
+            key={tab}
+            className={`nav-item ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => handleTabClick(tab)}
+            style={{ opacity: navOpacity }}
+          >
+            {tab === 'product' ? '商品' : tab === 'detail' ? '详情' : '推荐'}
+          </View>
+        ))}
+      </View>
+      <ScrollView 
+        className='content' 
+        scrollY
+        scrollIntoView={scrollIntoView}
+        scrollWithAnimation
+        onScroll={handleScroll}
+      >
+        <View id="product-anchor">
         {/* 商品主图 */}
         <View className='image-container'>
           <Swiper 
@@ -320,8 +368,10 @@ export default function ProductDetail() {
           </View>
         )}
 
+        </View>
+
         {/* 商品详情 */}
-        <View className='detail-section'>
+        <View id="detail-anchor" className='detail-section'>
           <View className='section-title'>
             <View className='title-line' />
             <Text className='title-text'>商品详情</Text>
@@ -356,15 +406,13 @@ export default function ProductDetail() {
           )}
         </View>
 
-        {/* 同类推荐 */}
-        <View className='recommend-section'>
+        {/* 猜你喜欢 */}
+        <View id="recommend-anchor" className='recommend-section'>
           <View className='recommend-header'>
             <View className='recommend-title'>
               <View className='dot' />
-              <Text className='title-text'>同类推荐</Text>
-              <Text className='category-chip'>{product.category}</Text>
+              <Text className='title-text'>猜你喜欢</Text>
             </View>
-            <Text className='subtitle'>看看同分类热销好货</Text>
           </View>
 
           {relatedLoading ? (
@@ -391,6 +439,13 @@ export default function ProductDetail() {
               <Text className='icon'>🏠</Text>
             </View>
             <Text className='icon-text'>首页</Text>
+          </View>
+
+          <View className='icon-btn contact-btn' onClick={() => Taro.navigateTo({ url: '/pages/support-chat/index' })}>
+            <View className='icon-wrapper'>
+              <Text className='icon'>🎧</Text>
+            </View>
+            <Text className='icon-text'>客服</Text>
           </View>
 
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>

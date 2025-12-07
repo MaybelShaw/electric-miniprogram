@@ -1,83 +1,86 @@
+@import '../../styles/variables.scss';
+@import '../../styles/mixins.scss';
+
 .order-detail {
   min-height: 100vh;
-  background: #F7F8FA;
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  background: $background-color-base;
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
 
   &.loading,
   &.error {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 100rpx 40rpx;
+    padding: 100px $spacing-xl;
 
     .loading-text,
     .error-text {
-      font-size: 28rpx;
-      color: #969799;
+      font-size: $font-size-md;
+      color: $text-color-secondary;
     }
   }
 
   .content {
-    height: 100vh;
+    min-height: 100vh;
   }
 
   .status-card {
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    padding: 40rpx 30rpx;
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    padding: $spacing-xl $spacing-lg;
     text-align: center;
-    color: #fff;
-    margin: 24rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 8rpx 24rpx rgba(25, 137, 250, 0.25);
+    color: $white;
+    margin: $spacing-md;
+    border-radius: $border-radius-lg;
+    box-shadow: 0 8px 24px rgba($primary-color, 0.25);
     transition: all 0.3s;
 
     &.pending {
-      background: linear-gradient(135deg, #FF976A 0%, #FF6034 100%);
-      box-shadow: 0 8rpx 24rpx rgba(255, 96, 52, 0.25);
+      background: linear-gradient(135deg, #FF976A 0%, $warning-color 100%);
+      box-shadow: 0 8px 24px rgba($warning-color, 0.25);
     }
 
     &.paid {
-      background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-      box-shadow: 0 8rpx 24rpx rgba(25, 137, 250, 0.25);
+      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      box-shadow: 0 8px 24px rgba($primary-color, 0.25);
     }
 
     &.shipped {
       background: linear-gradient(135deg, #38f9d7 0%, #43e97b 100%);
-      box-shadow: 0 8rpx 24rpx rgba(67, 233, 123, 0.25);
+      box-shadow: 0 8px 24px rgba(67, 233, 123, 0.25);
     }
 
     &.completed {
-      background: linear-gradient(135deg, #07C160 0%, #00B26A 100%);
-      box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+      background: linear-gradient(135deg, lighten-c($success-color, 5%) 0%, $success-color 100%);
+      box-shadow: 0 8px 24px rgba($success-color, 0.25);
     }
 
     &.cancelled {
-      background: linear-gradient(135deg, #C8C9CC 0%, #969799 100%);
-      box-shadow: 0 8rpx 24rpx rgba(150, 151, 153, 0.25);
+      background: linear-gradient(135deg, #C8C9CC 0%, $text-color-secondary 100%);
+      box-shadow: 0 8px 24px rgba(150, 151, 153, 0.25);
     }
 
     &.returning {
       background: linear-gradient(135deg, #7232dd 0%, #5a20c9 100%);
-      box-shadow: 0 8rpx 24rpx rgba(114, 50, 221, 0.25);
+      box-shadow: 0 8px 24px rgba(114, 50, 221, 0.25);
     }
 
     &.refunding {
-      background: linear-gradient(135deg, #ff6034 0%, #ee0a24 100%);
-      box-shadow: 0 8rpx 24rpx rgba(238, 10, 36, 0.25);
+      background: linear-gradient(135deg, $warning-color 0%, $danger-color 100%);
+      box-shadow: 0 8px 24px rgba($danger-color, 0.25);
     }
     
     &.refunded {
-       background: linear-gradient(135deg, #07C160 0%, #00B26A 100%);
-       box-shadow: 0 8rpx 24rpx rgba(7, 193, 96, 0.25);
+       background: linear-gradient(135deg, lighten-c($success-color, 5%) 0%, $success-color 100%);
+       box-shadow: 0 8px 24px rgba($success-color, 0.25);
     }
 
     .status-icon {
-      font-size: 80rpx;
-      margin-bottom: 16rpx;
+      font-size: 80px;
+      margin-bottom: $spacing-sm;
     }
 
     .status-text {
-      font-size: 36rpx;
+      font-size: $font-size-xl;
       font-weight: bold;
     }
 
@@ -88,26 +91,26 @@
     }
 
     .status-countdown {
-      font-size: 28rpx;
-      margin-top: 10rpx;
+      font-size: $font-size-md;
+      margin-top: 10px;
       opacity: 0.9;
       font-family: 'DIN Alternate', sans-serif;
     }
   }
 
   .address-card {
-    background: #fff;
-    padding: 32rpx;
-    margin: 0 24rpx 24rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $white;
+    padding: 32px;
+    margin: 0 24px 24px;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
     display: flex;
     align-items: flex-start;
 
     .address-icon {
-      font-size: 40rpx;
-      margin-right: 24rpx;
-      color: #323233;
+      font-size: 40px;
+      margin-right: 24px;
+      color: $text-color-base;
     }
 
     .address-content {
@@ -116,46 +119,46 @@
       .address-header {
         display: flex;
         align-items: center;
-        margin-bottom: 16rpx;
+        margin-bottom: 16px;
 
         .contact-name {
-          font-size: 32rpx;
+          font-size: 32px;
           font-weight: bold;
-          color: #323233;
-          margin-right: 20rpx;
+          color: $text-color-base;
+          margin-right: 20px;
         }
 
         .phone {
-          font-size: 28rpx;
-          color: #646566;
+          font-size: 28px;
+          color: $text-color-regular;
           font-family: 'DIN Alternate', sans-serif;
         }
       }
 
       .address-detail {
-        font-size: 28rpx;
-        color: #646566;
+        font-size: 28px;
+        color: $text-color-regular;
         line-height: 1.6;
       }
     }
   }
 
-  .product-card {
-    background: #fff;
-    padding: 32rpx;
-    margin: 0 24rpx 24rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  .order-product-card {
+    background: $white;
+    padding: 32px;
+    margin: 0 24px 24px;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
 
     .product-item {
       display: flex;
 
       .product-image {
-        width: 160rpx;
-        height: 160rpx;
-        border-radius: 16rpx;
-        margin-right: 24rpx;
-        background: #F7F8FA;
+        width: 160px;
+        height: 160px;
+        border-radius: 16px;
+        margin-right: 24px;
+        background: $background-color-base;
         object-fit: cover;
       }
 
@@ -164,11 +167,11 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 4rpx 0;
+        padding: 4px 0;
 
         .product-name {
-          font-size: 28rpx;
-          color: #333;
+          font-size: 28px;
+          color: $text-color-base;
           line-height: 1.4;
           font-weight: 500;
           display: -webkit-box;
@@ -178,9 +181,9 @@
         }
 
         .product-spec {
-          font-size: 24rpx;
-          color: #969799;
-          margin-top: 6rpx;
+          font-size: 24px;
+          color: $text-color-secondary;
+          margin-top: 6px;
         }
 
         .product-bottom {
@@ -189,21 +192,21 @@
           align-items: flex-end;
 
           .product-price {
-            font-size: 32rpx;
+            font-size: 32px;
             font-weight: bold;
-            color: #333;
+            color: $text-color-base;
             font-family: 'DIN Alternate', sans-serif;
             
             &::before {
               content: '¥';
-              font-size: 24rpx;
-              margin-right: 2rpx;
+              font-size: 24px;
+              margin-right: 2px;
             }
           }
 
           .product-quantity {
-            font-size: 26rpx;
-            color: #969799;
+            font-size: 26px;
+            color: $text-color-secondary;
             font-family: 'DIN Alternate', sans-serif;
           }
         }
@@ -212,17 +215,17 @@
   }
 
   .info-card {
-    background: #fff;
-    padding: 32rpx;
-    margin: 0 24rpx 24rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $white;
+    padding: 32px;
+    margin: 0 24px 24px;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
 
     .info-row {
       display: flex;
       justify-content: space-between;
-      padding: 24rpx 0;
-      border-bottom: 1rpx solid #f5f6f7;
+      padding: 24px 0;
+      border-bottom: 1px solid $background-color-base;
 
       &:last-child {
         border-bottom: none;
@@ -234,14 +237,14 @@
       }
 
       .info-label {
-        font-size: 28rpx;
-        color: #646566;
+        font-size: 28px;
+        color: $text-color-regular;
       }
 
       .info-value {
-        font-size: 28rpx;
-        color: #323233;
-        max-width: 400rpx;
+        font-size: 28px;
+        color: $text-color-base;
+        max-width: 400px;
         text-align: right;
         word-break: break-all;
         font-family: 'DIN Alternate', sans-serif;
@@ -254,15 +257,15 @@
         flex: 1;
         
         .info-value {
-          margin-right: 12rpx;
+          margin-right: 12px;
         }
         
         .copy-tag {
-          font-size: 20rpx;
-          color: #1989FA;
-          background: rgba(25, 137, 250, 0.1);
-          padding: 4rpx 12rpx;
-          border-radius: 8rpx;
+          font-size: 20px;
+          color: $primary-color;
+          background: rgba($primary-color, 0.1);
+          padding: 4px 12px;
+          border-radius: 8px;
           line-height: 1.2;
         }
       }
@@ -270,49 +273,49 @@
   }
 
   .price-card {
-    background: #fff;
-    padding: 32rpx;
-    margin: 0 24rpx 24rpx;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $white;
+    padding: 32px;
+    margin: 0 24px 24px;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-sm;
 
     .price-row {
       display: flex;
       justify-content: space-between;
-      padding: 16rpx 0;
+      padding: 16px 0;
 
       .price-label {
-        font-size: 28rpx;
-        color: #646566;
+        font-size: 28px;
+        color: $text-color-regular;
       }
 
       .price-value {
-        font-size: 28rpx;
-        color: #323233;
+        font-size: 28px;
+        color: $text-color-base;
         font-family: 'DIN Alternate', sans-serif;
       }
 
       &.total {
-        border-top: 1rpx solid #f5f6f7;
-        padding-top: 24rpx;
-        margin-top: 16rpx;
+        border-top: 1px solid $background-color-base;
+        padding-top: 24px;
+        margin-top: 16px;
 
         .price-label {
-          font-size: 30rpx;
+          font-size: 30px;
           font-weight: bold;
-          color: #333;
+          color: $text-color-base;
         }
 
         .price-value {
-          font-size: 36rpx;
+          font-size: 36px;
           font-weight: bold;
-          color: #333;
+          color: $text-color-base;
           font-family: 'DIN Alternate', sans-serif;
           
           &::before {
             content: '¥';
-            font-size: 26rpx;
-            margin-right: 2rpx;
+            font-size: 26px;
+            margin-right: 2px;
           }
         }
       }
@@ -320,7 +323,7 @@
   }
 
   .bottom-placeholder {
-    height: 40rpx;
+    height: 40px;
   }
 
   .footer-bar {
@@ -328,73 +331,73 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 100rpx;
+    height: 100px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    padding: 0 30rpx;
+    padding: 0 30px;
     padding-bottom: env(safe-area-inset-bottom);
-    box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
     z-index: 100;
 
     .cancel-btn {
-      height: 72rpx;
-      padding: 0 40rpx;
+      height: 72px;
+      padding: 0 40px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28rpx;
-      color: #646566;
-      border: 1rpx solid #EBEDF0;
-      border-radius: 36rpx;
-      margin-right: 20rpx;
+      font-size: 28px;
+      color: $text-color-regular;
+      border: 1px solid $border-color;
+      border-radius: 36px;
+      margin-right: 20px;
       transition: all 0.2s;
 
       &:active {
-        background: #F7F8FA;
+        background: $background-color-base;
       }
     }
 
     .pay-btn {
-      height: 72rpx;
-      padding: 0 60rpx;
+      height: 72px;
+      padding: 0 60px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28rpx;
+      font-size: 28px;
       font-weight: 600;
-      color: #fff;
-      background: linear-gradient(135deg, #FF6034 0%, #EE0A24 100%);
-      border-radius: 36rpx;
-      box-shadow: 0 4rpx 12rpx rgba(255, 96, 52, 0.4);
+      color: $white;
+      background: linear-gradient(135deg, $warning-color 0%, $danger-color 100%);
+      border-radius: 36px;
+      box-shadow: 0 4px 12px rgba($danger-color, 0.4);
       transition: all 0.2s;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 2rpx 8rpx rgba(255, 96, 52, 0.4);
+        box-shadow: 0 2px 8px rgba($danger-color, 0.4);
       }
     }
 
     .return-tracking-btn {
-      height: 72rpx;
-      padding: 0 60rpx;
+      height: 72px;
+      padding: 0 60px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28rpx;
+      font-size: 28px;
       font-weight: 600;
-      color: #fff;
+      color: $white;
       background: linear-gradient(135deg, #7232dd 0%, #5a20c9 100%);
-      border-radius: 36rpx;
-      margin-left: 20rpx;
-      box-shadow: 0 4rpx 12rpx rgba(114, 50, 221, 0.4);
+      border-radius: 36px;
+      margin-left: 20px;
+      box-shadow: 0 4px 12px rgba(114, 50, 221, 0.4);
       transition: all 0.2s;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 2rpx 8rpx rgba(114, 50, 221, 0.4);
+        box-shadow: 0 2px 8px rgba(114, 50, 221, 0.4);
       }
     }
   }

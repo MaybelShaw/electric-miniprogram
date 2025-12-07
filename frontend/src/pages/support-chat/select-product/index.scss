@@ -1,35 +1,40 @@
+@import "../../../styles/variables.scss";
+@import "../../../styles/mixins.scss";
+
 .select-product-page {
   height: 100vh;
-  background-color: #f7f8fa;
+  background-color: $background-color-base;
   
   .product-list {
     height: 100%;
-    padding: 20rpx;
+    padding: $spacing-md;
     box-sizing: border-box;
   }
 
   .loading, .empty {
     text-align: center;
-    padding: 40rpx;
-    color: #999;
-    font-size: 28rpx;
+    padding: $spacing-lg;
+    color: $text-color-placeholder;
+    font-size: $font-size-md;
   }
 
   .product-item {
-    background: #fff;
-    border-radius: 12rpx;
-    padding: 24rpx;
-    margin-bottom: 20rpx;
+    background: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-md;
+    margin-bottom: $spacing-md;
     display: flex;
     align-items: center;
+    box-shadow: $shadow-sm;
     
     .product-img {
-      width: 120rpx;
-      height: 120rpx;
-      border-radius: 8rpx;
-      background: #f8f8f8;
-      margin-right: 20rpx;
+      width: $product-thumb-size;
+      height: $product-thumb-size;
+      border-radius: $border-radius-md;
+      background: $background-color-base;
+      margin-right: $spacing-md;
       flex-shrink: 0;
+      border: 1px solid $border-color;
     }
     
     .info {
@@ -37,11 +42,11 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 120rpx;
+      height: $product-thumb-size;
       
       .name {
-        font-size: 28rpx;
-        color: #333;
+        font-size: $font-size-md;
+        color: $text-color-base;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -49,8 +54,8 @@
       }
       
       .price {
-        font-size: 32rpx;
-        color: #fa4126;
+        font-size: $font-size-lg;
+        color: $danger-color;
         font-weight: bold;
       }
     }

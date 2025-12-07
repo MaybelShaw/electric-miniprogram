@@ -1,3 +1,6 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .page-container {
   display: flex;
   flex-direction: column;
@@ -8,45 +11,45 @@
 .statement-detail-page {
   flex: 1;
   height: 0;
-  background-color: #F7F8FA;
-  padding: 24rpx;
+  background-color: $background-color-base;
+  padding: $spacing-md;
   box-sizing: border-box;
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
 
   .loading,
   .empty {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 100rpx 20rpx;
+    padding: $spacing-xl $spacing-sm;
     text-align: center;
-    font-size: 28rpx;
-    color: #969799;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
   }
 
   .detail-section {
-    background-color: #fff;
-    border-radius: 24rpx;
-    padding: 32rpx 24rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background-color: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-sm $spacing-md;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
   }
 
   .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24rpx;
-    padding-bottom: 20rpx;
-    border-bottom: 1rpx solid #F7F8FA;
+    margin-bottom: $spacing-md;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color-light;
   }
 
   .section-title {
-    font-size: 32rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #323233;
+    color: $text-color-base;
     position: relative;
-    padding-left: 20rpx;
+    padding-left: $spacing-sm;
 
     &::before {
       content: '';
@@ -54,37 +57,37 @@
       left: 0;
       top: 50%;
       transform: translateY(-50%);
-      width: 6rpx;
-      height: 28rpx;
-      background: linear-gradient(180deg, #3D7EFF 0%, #1989FA 100%);
-      border-radius: 4rpx;
+      width: 4px;
+      height: 28px;
+      background: linear-gradient(180deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      border-radius: 2px;
     }
   }
 
   .section-count {
-    font-size: 26rpx;
-    color: #969799;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
   }
 
   .status-tag {
-    padding: 6rpx 16rpx;
-    border-radius: 8rpx;
-    font-size: 24rpx;
+    padding: 4px $spacing-xs;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
     font-weight: 500;
 
     &.draft {
-      background: #F7F8FA;
-      color: #969799;
+      background: $background-color-base;
+      color: $text-color-secondary;
     }
 
     &.confirmed {
-      background: #EBF4FF;
-      color: #1989FA;
+      background: rgba($primary-color, 0.1);
+      color: $primary-color;
     }
 
     &.settled {
-      background: #E8F7E6;
-      color: #07C160;
+      background: rgba($success-color, 0.1);
+      color: $success-color;
     }
   }
 
@@ -92,8 +95,8 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 16rpx 0;
-    border-bottom: 1rpx solid #F7F8FA;
+    padding: $spacing-xs 0;
+    border-bottom: 1px solid $border-color-light;
 
     &:last-child {
       border-bottom: none;
@@ -101,15 +104,15 @@
   }
 
   .info-label {
-    font-size: 28rpx;
-    color: #969799;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
     flex-shrink: 0;
-    margin-right: 24rpx;
+    margin-right: $spacing-md;
   }
 
   .info-value {
-    font-size: 28rpx;
-    color: #323233;
+    font-size: $font-size-md;
+    color: $text-color-base;
     text-align: right;
     flex: 1;
     word-break: break-all;
@@ -119,49 +122,49 @@
   .summary-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 24rpx;
-    margin-bottom: 24rpx;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
   }
 
   .summary-item {
     display: flex;
     flex-direction: column;
-    background: #F7F8FA;
-    padding: 20rpx;
-    border-radius: 16rpx;
+    background: $background-color-base;
+    padding: 20px;
+    border-radius: $border-radius-lg;
   }
 
   .summary-label {
-    font-size: 24rpx;
-    color: #969799;
-    margin-bottom: 12rpx;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+    margin-bottom: 12px;
   }
 
   .summary-value {
-    font-size: 32rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #323233;
+    color: $text-color-base;
     font-family: "DIN Alternate", sans-serif;
 
     &.paid {
-      color: #07C160;
+      color: $success-color;
     }
 
     &.debt {
-      color: #FF4D4F;
+      color: $danger-color;
     }
 
     &.overdue {
-      color: #FF4D4F;
+      color: $danger-color;
     }
   }
 
   .summary-highlight {
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    border-radius: 24rpx;
-    padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.2);
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    box-shadow: 0 8px 20px rgba(25, 137, 250, 0.2);
   }
 
   .highlight-item {
@@ -171,27 +174,27 @@
   }
 
   .highlight-label {
-    font-size: 28rpx;
+    font-size: $font-size-md;
     color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 16rpx;
+    margin-bottom: $spacing-sm;
   }
 
   .highlight-value {
-    font-size: 56rpx;
+    font-size: 56px;
     font-weight: bold;
-    color: #fff;
+    color: $white;
     font-family: "DIN Alternate", sans-serif;
 
     &.debt {
-      color: #fff;
+      color: $white;
     }
   }
 
   .transaction-item {
-    background-color: #F7F8FA;
-    border-radius: 16rpx;
-    padding: 24rpx;
-    margin-bottom: 20rpx;
+    background-color: $background-color-base;
+    border-radius: $border-radius-lg;
+    padding: $spacing-md;
+    margin-bottom: 20px;
     transition: all 0.3s;
 
     &:last-child {
@@ -207,37 +210,37 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 16rpx;
-    padding-bottom: 16rpx;
-    border-bottom: 1rpx solid rgba(0, 0, 0, 0.05);
+    margin-bottom: $spacing-sm;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   }
 
   .transaction-type {
-    font-size: 28rpx;
+    font-size: $font-size-md;
     font-weight: 500;
-    color: #323233;
+    color: $text-color-base;
     flex: 1;
-    margin-right: 24rpx;
+    margin-right: $spacing-md;
     word-break: break-all;
   }
 
   .transaction-amount {
-    font-size: 32rpx;
+    font-size: $font-size-lg;
     font-weight: bold;
-    color: #1989FA;
+    color: $primary-color;
     flex-shrink: 0;
     font-family: "DIN Alternate", sans-serif;
   }
 
   .transaction-date {
-    font-size: 24rpx;
-    color: #969799;
-    margin-bottom: 8rpx;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+    margin-bottom: $spacing-xs;
   }
 
   .transaction-no {
-    font-size: 24rpx;
-    color: #C8C9CC;
+    font-size: $font-size-sm;
+    color: $text-color-placeholder;
   }
 }
 
@@ -246,23 +249,23 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
-  padding: 20rpx 32rpx;
-  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.05);
+  background: $white;
+  padding: $spacing-sm $spacing-md;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  box-shadow: $shadow-top;
   z-index: 100;
 
   .confirm-btn {
     width: 100%;
-    height: 88rpx;
-    line-height: 88rpx;
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    color: #fff;
-    font-size: 32rpx;
+    height: $button-height;
+    line-height: $button-height;
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    color: $white;
+    font-size: $font-size-lg;
     font-weight: 600;
-    border-radius: 44rpx;
+    border-radius: 44px;
     border: none;
-    box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.25);
+    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
     transition: all 0.3s;
 
     &:active {

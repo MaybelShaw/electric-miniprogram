@@ -7,6 +7,7 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   data?: any
   needAuth?: boolean
+  showError?: boolean
 }
 
 interface ApiResponse<T = any> {
@@ -60,7 +61,7 @@ export const TokenManager = {
 
 // 统一请求方法
 export async function request<T = any>(options: RequestOptions): Promise<T> {
-  const { url, method = 'GET', data, needAuth = true } = options
+  const { url, method = 'GET', data, needAuth = true, showError = true } = options
   
   const header: any = {}
   
@@ -99,7 +100,9 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       } else {
         // 刷新失败，跳转登录
         TokenManager.clearTokens()
-        Taro.showToast({ title: '登录已过期', icon: 'none' })
+        if (showError) {
+          Taro.showToast({ title: '登录已过期', icon: 'none' })
+        }
         Taro.navigateTo({ url: '/pages/login/index' })
         throw new Error('UNAUTHORIZED')
       }
@@ -110,21 +113,36 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       const errorData = res.data as ApiResponse
       const errorMsg = errorData.message || '请求失败'
       
-      // 429 限流错误
-      if (res.statusCode === 429) {
-        Taro.showToast({ title: '请求过于频繁，请稍后再试', icon: 'none', duration: 2000 })
-      } else {
-        Taro.showToast({ title: errorMsg, icon: 'none', duration: 2000 })
+      if (showError) {
+        // 429 限流错误
+        if (res.statusCode === 429) {
+          Taro.showToast({ title: '请求过于频繁，请稍后再试', icon: 'none', duration: 2000 })
+        } else {
+          Taro.showToast({ title: errorMsg, icon: 'none', duration: 2000 })
+        }
       }
       
-      throw new Error(errorMsg)
+      const error = new Error(errorMsg)
+      // 标记为已处理的API错误
+      ;(error as any).isApiError = true
+      throw error
     }
     
     return res.data as T
   } catch (error: any) {
     Taro.hideLoading()
     
-    if (error.message !== 'UNAUTHORIZED') {
+    if (error.message === 'UNAUTHORIZED') {
+      throw error
+    }
+    
+    // 如果是API错误，且已经处理过（showError=true时已弹窗），直接抛出
+    if (error.isApiError) {
+      throw error
+    }
+    
+    // 网络错误或其他未处理的错误
+    if (showError) {
       Taro.showToast({ title: '网络错误，请重试', icon: 'none' })
     }
     
@@ -134,7 +152,18 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
 
 // 便捷方法
 export const http = {
-  get: <T = any>(url: string, params?: any, needAuth = true) => {
+  get: <T = any>(url: string, params?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
+    // 处理 options 参数
+    let needAuth = true
+    let showError = true
+    
+    if (typeof options === 'boolean') {
+      needAuth = options
+    } else {
+      if (options.needAuth !== undefined) needAuth = options.needAuth
+      if (options.showError !== undefined) showError = options.showError
+    }
+
     // GET 请求需要将参数转换为查询字符串
     let fullUrl = url
     if (params && Object.keys(params).length > 0) {
@@ -144,18 +173,54 @@ export const http = {
         .join('&')
       fullUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`
     }
-    return request<T>({ url: fullUrl, method: 'GET', needAuth })
+    return request<T>({ url: fullUrl, method: 'GET', needAuth, showError })
   },
   
-  post: <T = any>(url: string, data?: any, needAuth = true) =>
-    request<T>({ url, method: 'POST', data, needAuth }),
+  post: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
+    let needAuth = true
+    let showError = true
+    if (typeof options === 'boolean') {
+      needAuth = options
+    } else {
+      if (options.needAuth !== undefined) needAuth = options.needAuth
+      if (options.showError !== undefined) showError = options.showError
+    }
+    return request<T>({ url, method: 'POST', data, needAuth, showError })
+  },
   
-  put: <T = any>(url: string, data?: any, needAuth = true) =>
-    request<T>({ url, method: 'PUT', data, needAuth }),
+  put: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
+    let needAuth = true
+    let showError = true
+    if (typeof options === 'boolean') {
+      needAuth = options
+    } else {
+      if (options.needAuth !== undefined) needAuth = options.needAuth
+      if (options.showError !== undefined) showError = options.showError
+    }
+    return request<T>({ url, method: 'PUT', data, needAuth, showError })
+  },
   
-  patch: <T = any>(url: string, data?: any, needAuth = true) =>
-    request<T>({ url, method: 'PATCH', data, needAuth }),
+  patch: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
+    let needAuth = true
+    let showError = true
+    if (typeof options === 'boolean') {
+      needAuth = options
+    } else {
+      if (options.needAuth !== undefined) needAuth = options.needAuth
+      if (options.showError !== undefined) showError = options.showError
+    }
+    return request<T>({ url, method: 'PATCH', data, needAuth, showError })
+  },
   
-  delete: <T = any>(url: string, data?: any, needAuth = true) =>
-    request<T>({ url, method: 'DELETE', data, needAuth })
+  delete: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
+    let needAuth = true
+    let showError = true
+    if (typeof options === 'boolean') {
+      needAuth = options
+    } else {
+      if (options.needAuth !== undefined) needAuth = options.needAuth
+      if (options.showError !== undefined) showError = options.showError
+    }
+    return request<T>({ url, method: 'DELETE', data, needAuth, showError })
+  }
 }

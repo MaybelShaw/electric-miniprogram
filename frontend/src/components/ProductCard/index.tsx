@@ -25,7 +25,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <Image 
           className='product-image' 
           src={product.main_images?.[0] || 'https://via.placeholder.com/330x330/FFFFFF/CCCCCC?text=No+Image'} 
-          mode='aspectFit' 
+          mode='aspectFill' 
         />
       </View>
 
@@ -39,7 +39,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           <View className='price-wrapper'>
             <Text className='currency'>¥</Text>
             <Text className='current-price'>{Number(sellingPrice)}</Text>
-            <Text className='price-unit'>/台</Text>
           </View>
         </View>
       </View>

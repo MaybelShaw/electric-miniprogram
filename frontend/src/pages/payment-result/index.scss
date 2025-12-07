@@ -1,100 +1,119 @@
+@import '../../styles/variables.scss';
+@import '../../styles/mixins.scss';
+
 .payment-result-page {
   min-height: 100vh;
-  padding: 40px 32px 80px;
-  background: linear-gradient(180deg, #f7f8fa 0%, #ffffff 60%);
+  padding: $spacing-xxl $spacing-lg calc(80px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, $background-color-base 0%, $white 60%);
   box-sizing: border-box;
 }
 
 .result-card {
-  background: #fff;
-  border-radius: 24px;
-  padding: 32px 24px;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+  background: $white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-lg $spacing-md;
+  box-shadow: $shadow-md;
   text-align: center;
 }
 
 .result-icon {
   width: 96px;
   height: 96px;
-  margin: 0 auto 16px;
+  margin: 0 auto $spacing-sm;
 }
 
 .result-title {
-  font-size: 34px;
+  font-size: $font-size-xl;
   font-weight: 600;
-  color: #323233;
+  color: $text-color-base;
 }
 
 .result-reason {
   display: block;
-  margin-top: 8px;
-  color: #f56c6c;
-  font-size: 26px;
+  margin-top: $spacing-xs;
+  color: $danger-color;
+  font-size: $font-size-md;
 }
 
 .result-info {
-  margin-top: 24px;
-  border-top: 1px solid #f0f2f5;
-  padding-top: 12px;
+  margin-top: $spacing-md;
+  border-top: 1px solid $border-color;
+  padding-top: $spacing-sm;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: $spacing-xs 0;
 }
 
 .label {
-  color: #969799;
-  font-size: 26px;
+  color: $text-color-secondary;
+  font-size: $font-size-md;
 }
 
 .value {
-  color: #323233;
-  font-size: 28px;
+  color: $text-color-base;
+  font-size: $font-size-md;
 }
 
 .value.price {
-  color: #ff6034;
+  color: $danger-color;
   font-weight: 600;
+  font-family: 'DIN Alternate', sans-serif;
 }
 
 .actions {
-  margin-top: 32px;
+  margin-top: $spacing-lg;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: $spacing-sm;
 }
 
 .primary-btn,
 .secondary-btn,
 .ghost-btn {
-  height: 88px;
-  line-height: 88px;
-  border-radius: 16px;
+  height: $button-height;
+  line-height: $button-height;
+  border-radius: $border-radius-lg;
   text-align: center;
-  font-size: 30px;
+  font-size: $font-size-lg;
   font-weight: 600;
 }
 
 .primary-btn {
-  background: #1989fa;
-  color: #fff;
+  background: $primary-color;
+  color: $white;
+  box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+
+  &:active {
+    opacity: 0.9;
+  }
 }
 
 .primary-btn.disabled {
   opacity: 0.7;
+  background: $text-color-placeholder;
+  box-shadow: none;
 }
 
 .secondary-btn {
-  background: #fff;
-  color: #1989fa;
-  border: 1px solid #1989fa;
+  background: $white;
+  color: $primary-color;
+  border: 1px solid $primary-color;
+
+  &:active {
+    background: $primary-light;
+  }
 }
 
 .ghost-btn {
   background: transparent;
-  color: #323233;
-  border: 1px solid #e5e5e5;
+  color: $text-color-base;
+  border: 1px solid $border-color;
+
+  &:active {
+    background: $background-color-base;
+  }
 }

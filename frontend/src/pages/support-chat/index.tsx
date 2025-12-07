@@ -522,7 +522,7 @@ export default function SupportChat() {
             </View>
           )
         })}
-        <View id="bottom-anchor" style={{ height: showPanel ? 'calc(500rpx + 120rpx + env(safe-area-inset-bottom))' : 'calc(120rpx + env(safe-area-inset-bottom))' }}></View>
+        <View id="bottom-anchor" style={{ height: showPanel ? 'calc(320px + 120rpx + env(safe-area-inset-bottom))' : 'calc(120rpx + env(safe-area-inset-bottom))' }}></View>
       </ScrollView>
       
       <View className={`chat-footer ${showPanel ? 'has-panel' : ''}`}>
@@ -536,9 +536,15 @@ export default function SupportChat() {
             placeholder='请输入消息...'
             confirmType='send'
           />
-          <View className='media-btn' onClick={handleTogglePanel}>
-            <Text className='plus-icon'>+</Text>
-          </View>
+          {inputValue.trim() ? (
+            <View className='send-btn' onClick={handleSend}>
+              发送
+            </View>
+          ) : (
+            <View className='media-btn' onClick={handleTogglePanel}>
+              <Text className='plus-icon'>+</Text>
+            </View>
+          )}
         </View>
 
         {showPanel && (

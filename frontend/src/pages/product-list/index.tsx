@@ -178,7 +178,6 @@ export default function ProductListPage() {
                     <View className='price-row'>
                       <View className='price'>
                         ¥{product.price}
-                        <Text className='unit'>/台</Text>
                       </View>
                       <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>+</View>
                     </View>

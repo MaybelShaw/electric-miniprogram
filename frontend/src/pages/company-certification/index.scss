@@ -1,84 +1,105 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .company-certification {
   min-height: 100vh;
-  background: #F7F8FA;
-  padding: 24rpx;
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  background: $background-color-base;
+  padding: $spacing-md;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24rpx;
+    margin-bottom: $spacing-md;
 
     .page-title {
-      font-size: 36rpx;
+      font-size: $font-size-lg;
       font-weight: bold;
-      color: #333;
+      color: $text-color-base;
     }
 
     .status-badge {
-      padding: 8rpx 20rpx;
-      border-radius: 24rpx;
-      font-size: 24rpx;
+      padding: 4px $spacing-sm;
+      border-radius: $border-radius-lg;
+      font-size: $font-size-sm;
       font-weight: 500;
 
       &.status-pending {
         background: #FFF7E6;
-        color: #FA8C16;
+        color: $warning-color;
       }
 
       &.status-approved {
         background: #F6FFED;
-        color: #52C41A;
+        color: $success-color;
       }
 
       &.status-rejected {
         background: #FFF1F0;
-        color: #FF4D4F;
+        color: $danger-color;
       }
     }
   }
 
   .info-banner {
-    padding: 24rpx 32rpx;
-    border-radius: 24rpx;
-    margin-bottom: 24rpx;
-    font-size: 28rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    padding: $spacing-md $spacing-lg;
+    border-radius: $border-radius-lg;
+    margin-bottom: $spacing-md;
+    font-size: $font-size-md;
+    box-shadow: $shadow-sm;
 
     &.success {
       background: #F6FFED;
-      color: #52C41A;
-      border: 1rpx solid #B7EB8F;
+      color: $success-color;
+      border: 1px solid #B7EB8F;
     }
 
     &.error {
       background: #FFF1F0;
-      color: #FF4D4F;
-      border: 1rpx solid #FFA39E;
+      color: $danger-color;
+      border: 1px solid #FFA39E;
     }
 
     &.warning {
       background: #FFF7E6;
-      color: #FA8C16;
-      border: 1rpx solid #FFD591;
+      color: $warning-color;
+      border: 1px solid #FFD591;
     }
+  }
+
+  .status-text {
+    font-size: $font-size-md;
+    color: $text-color-base;
+    margin-top: $spacing-md;
+    margin-bottom: $spacing-xs;
+  }
+
+  .status-desc {
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+    line-height: 1.5;
+  }
+
+  .error-text {
+    font-size: $font-size-md;
+    color: $text-color-secondary;
   }
 
   .form {
     .form-section {
-      background: #fff;
-      border-radius: 24rpx;
-      padding: 32rpx 24rpx;
-      margin-bottom: 24rpx;
-      box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+      background: $white;
+      border-radius: $border-radius-lg;
+      padding: $spacing-lg $spacing-md;
+      margin-bottom: $spacing-md;
+      box-shadow: $shadow-sm;
 
       .section-title {
-        font-size: 32rpx;
+        font-size: $font-size-lg;
         font-weight: bold;
-        color: #333;
-        margin-bottom: 32rpx;
-        padding-left: 16rpx;
+        color: $text-color-base;
+        margin-bottom: $spacing-lg;
+        padding-left: $spacing-sm;
         position: relative;
 
         &::before {
@@ -87,59 +108,59 @@
           left: 0;
           top: 50%;
           transform: translateY(-50%);
-          width: 6rpx;
-          height: 28rpx;
-          background: linear-gradient(to bottom, #3D7EFF, #1989FA);
-          border-radius: 3rpx;
+          width: 3px;
+          height: 14px;
+          background: linear-gradient(to bottom, lighten-c($primary-color, 10%), $primary-color);
+          border-radius: 1.5px;
         }
       }
 
       .form-item {
-        margin-bottom: 32rpx;
+        margin-bottom: $spacing-lg;
 
         &:last-child {
           margin-bottom: 0;
         }
 
         .label {
-          font-size: 28rpx;
-          color: #666;
-          margin-bottom: 16rpx;
+          font-size: $font-size-md;
+          color: $text-color-secondary;
+          margin-bottom: $spacing-sm;
 
           &.required::before {
             content: '*';
-            color: #FF4D4F;
-            margin-right: 8rpx;
+            color: $danger-color;
+            margin-right: $spacing-xs;
           }
         }
 
         .input {
           width: 100%;
-          height: 88rpx;
-          padding: 0 24rpx;
-          font-size: 28rpx;
-          border: 1rpx solid #E5E5E5;
-          border-radius: 12rpx;
+          height: $input-height;
+          padding: 0 $spacing-md;
+          font-size: $font-size-md;
+          border: 1px solid $border-color;
+          border-radius: $border-radius-md;
           background: #F9F9F9;
-          color: #333;
+          color: $text-color-base;
           box-sizing: border-box;
           transition: all 0.3s;
 
           &:focus {
-            border-color: #1989FA;
-            background: #fff;
+            border-color: $primary-color;
+            background: $white;
           }
 
           &:disabled {
-            background: #F5F5F5;
-            color: #999;
-            border-color: #E5E5E5;
+            background: $background-color-base;
+            color: $text-color-placeholder;
+            border-color: $border-color;
           }
 
           &.textarea {
             height: auto;
-            min-height: 160rpx;
-            padding: 20rpx 24rpx;
+            min-height: 160px;
+            padding: $spacing-sm $spacing-md;
             line-height: 1.5;
           }
         }
@@ -147,19 +168,19 @@
     }
 
     .form-actions {
-      margin-top: 48rpx;
+      margin-top: $spacing-lg;
 
       .submit-btn {
         width: 100%;
-        height: 88rpx;
-        line-height: 88rpx;
-        font-size: 32rpx;
+        height: $button-height;
+        line-height: $button-height;
+        font-size: $font-size-lg;
         font-weight: 600;
-        border-radius: 44rpx;
-        background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-        color: #fff;
+        border-radius: 44px;
+        background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+        color: $white;
         border: none;
-        box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.25);
+        box-shadow: 0 4px 10px rgba($primary-color, 0.25);
         transition: all 0.3s;
 
         &:active {

@@ -1,24 +1,27 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .invoice-request {
-  padding: 24rpx;
-  background: #F7F8FA;
+  padding: $spacing-md;
+  background: $background-color-base;
   min-height: 100vh;
   box-sizing: border-box;
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(#{$spacing-lg} + env(safe-area-inset-bottom));
 
   .form {
-    background: #fff;
-    border-radius: 24rpx;
-    padding: 0 24rpx;
-    margin-bottom: 48rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $white;
+    border-radius: $border-radius-lg;
+    padding: 0 $spacing-md;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
     overflow: hidden;
 
     .form-item {
       display: flex;
       align-items: center;
-      min-height: 112rpx;
-      border-bottom: 1rpx solid #F5F5F5;
-      padding: 24rpx 0;
+      min-height: 112px;
+      border-bottom: 1px solid $border-color-light;
+      padding: $spacing-md 0;
       box-sizing: border-box;
 
       &:last-child {
@@ -26,31 +29,31 @@
       }
 
       .label {
-        width: 200rpx;
-        font-size: 28rpx;
-        color: #333;
+        width: 200px;
+        font-size: $font-size-md;
+        color: $text-color-base;
         display: flex;
         align-items: center;
         position: relative;
-        padding-left: 24rpx;
+        padding-left: $spacing-sm;
         box-sizing: border-box;
         flex-shrink: 0;
 
         .required {
-          color: #FF4D4F;
+          color: $danger-color;
           position: absolute;
           left: 0;
           top: 50%;
           transform: translateY(-50%);
-          font-size: 32rpx;
+          font-size: $font-size-lg;
           line-height: 1;
         }
       }
 
       .input {
         flex: 1;
-        font-size: 28rpx;
-        color: #333;
+        font-size: $font-size-md;
+        color: $text-color-base;
         text-align: right;
         height: 100%;
       }
@@ -59,21 +62,21 @@
         flex: 1;
         display: flex;
         justify-content: flex-end;
-        gap: 20rpx;
+        gap: $spacing-md;
 
         .type-item {
-          padding: 12rpx 32rpx;
-          font-size: 26rpx;
-          color: #666;
-          background: #F7F8FA;
-          border-radius: 32rpx;
-          border: 2rpx solid transparent;
+          padding: $spacing-xs $spacing-md;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          background: $background-color-base;
+          border-radius: $border-radius-lg;
+          border: 1px solid transparent;
           transition: all 0.3s;
 
           &.active {
-            color: #1989FA;
-            background: rgba(25, 137, 250, 0.08);
-            border-color: #1989FA;
+            color: $primary-color;
+            background: rgba($primary-color, 0.08);
+            border-color: $primary-color;
             font-weight: 500;
           }
         }
@@ -82,21 +85,27 @@
   }
 
   .submit-btn {
-    margin: 32rpx 24rpx;
-    height: 88rpx;
-    line-height: 88rpx;
+    margin: $spacing-lg $spacing-md;
+    height: $button-height;
+    line-height: $button-height;
     text-align: center;
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    color: #fff;
-    font-size: 32rpx;
-    border-radius: 44rpx;
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    color: $white;
+    font-size: $font-size-lg;
+    border-radius: calc($button-height / 2);
     font-weight: 600;
-    box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.25);
+    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
     transition: all 0.3s;
 
     &:active {
       transform: scale(0.98);
       opacity: 0.9;
     }
+  }
+
+  .empty-text {
+    font-size: $font-size-md;
+    color: $text-color-secondary;
+    margin-top: $spacing-md;
   }
 }

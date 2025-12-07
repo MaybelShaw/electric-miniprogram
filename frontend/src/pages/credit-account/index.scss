@@ -1,7 +1,10 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .credit-account-page {
   min-height: 100vh;
-  background-color: #F7F8FA;
-  padding: 24rpx;
+  background-color: $background-color-base;
+  padding: $spacing-md;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom);
 
@@ -11,27 +14,27 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 100rpx 20rpx;
+    padding: 50px $spacing-sm;
     text-align: center;
   }
 
   .empty-text {
-    font-size: 32rpx;
-    color: #969799;
-    margin-bottom: 20rpx;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
+    margin-top: $spacing-md;
   }
 
   .empty-hint {
-    font-size: 28rpx;
-    color: #C8C9CC;
+    font-size: $font-size-sm;
+    color: $text-color-placeholder;
   }
 
   .account-card {
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    border-radius: 24rpx;
-    padding: 40rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.25);
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
     position: relative;
     overflow: hidden;
 
@@ -51,38 +54,38 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 40rpx;
+    margin-bottom: $spacing-lg;
     position: relative;
     z-index: 1;
   }
 
   .account-title {
-    font-size: 32rpx;
+    font-size: $font-size-lg;
     font-weight: bold;
-    color: #fff;
+    color: $white;
   }
 
   .account-status {
-    padding: 8rpx 20rpx;
-    border-radius: 32rpx;
-    font-size: 24rpx;
+    padding: 4px $spacing-sm;
+    border-radius: 16px;
+    font-size: $font-size-sm;
     font-weight: 500;
 
     &.active {
       background-color: rgba(255, 255, 255, 0.2);
-      color: #fff;
-      border: 1rpx solid rgba(255, 255, 255, 0.3);
+      color: $white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
     &.inactive {
       background-color: rgba(255, 77, 79, 0.2);
-      color: #fff;
-      border: 1rpx solid rgba(255, 77, 79, 0.3);
+      color: $white;
+      border: 1px solid rgba(255, 77, 79, 0.3);
     }
   }
 
   .account-balance {
-    margin-bottom: 40rpx;
+    margin-bottom: $spacing-lg;
     position: relative;
     z-index: 1;
   }
@@ -95,32 +98,32 @@
 
   .balance-label {
     display: block;
-    font-size: 28rpx;
+    font-size: $font-size-lg;
     color: rgba(255, 255, 255, 0.9);
-    margin-bottom: 12rpx;
+    margin-bottom: $spacing-xs;
   }
 
   .balance-value {
     display: block;
-    font-size: 64rpx;
+    font-size: 32px;
     font-weight: bold;
-    color: #fff;
+    color: $white;
     font-family: "DIN Alternate", sans-serif;
 
     &.available {
-      color: #fff;
+      color: $white;
     }
 
     &.debt {
-      color: #FF4D4F;
+      color: $danger-color;
     }
   }
 
   .account-details {
     display: flex;
     justify-content: space-between;
-    padding-top: 30rpx;
-    border-top: 1rpx solid rgba(255, 255, 255, 0.2);
+    padding-top: $spacing-md;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     position: relative;
     z-index: 1;
   }
@@ -136,7 +139,7 @@
       right: 0;
       top: 20%;
       height: 60%;
-      width: 1rpx;
+      width: 1px;
       background: rgba(255, 255, 255, 0.2);
     }
 
@@ -147,50 +150,50 @@
 
   .detail-label {
     display: block;
-    font-size: 24rpx;
+    font-size: $font-size-md;
     color: rgba(255, 255, 255, 0.8);
-    margin-bottom: 8rpx;
+    margin-bottom: $spacing-xs;
   }
 
   .detail-value {
     display: block;
-    font-size: 32rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #fff;
+    color: $white;
     font-family: "DIN Alternate", sans-serif;
 
     &.debt {
-      color: #fff;
+      color: $white;
     }
   }
 
   .menu-list {
-    background-color: #fff;
-    border-radius: 24rpx;
+    background-color: $white;
+    border-radius: $border-radius-lg;
     overflow: hidden;
-    margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
   }
 
   .menu-item {
     display: flex;
     align-items: center;
-    padding: 32rpx 24rpx;
+    padding: $spacing-lg $spacing-md;
     position: relative;
     transition: all 0.3s;
 
     &:active {
-      background-color: #F7F8FA;
+      background-color: $background-color-base;
     }
 
     &::after {
       content: '';
       position: absolute;
-      left: 24rpx;
-      right: 24rpx;
+      left: $spacing-md;
+      right: $spacing-md;
       bottom: 0;
-      height: 1rpx;
-      background: #F7F8FA;
+      height: 1px;
+      background: $background-color-base;
     }
 
     &:last-child::after {
@@ -199,11 +202,11 @@
   }
 
   .menu-icon {
-    font-size: 48rpx;
-    margin-right: 24rpx;
-    width: 80rpx;
-    height: 80rpx;
-    background: #F7F8FA;
+    font-size: 24px;
+    margin-right: $spacing-md;
+    width: 40px;
+    height: 40px;
+    background: $background-color-base;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -217,54 +220,54 @@
   }
 
   .menu-title {
-    font-size: 30rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #323233;
-    margin-bottom: 8rpx;
+    color: $text-color-base;
+    margin-bottom: 4px;
   }
 
   .menu-desc {
-    font-size: 24rpx;
-    color: #969799;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
   }
 
   .menu-arrow {
-    font-size: 32rpx;
-    color: #C8C9CC;
+    font-size: 16px;
+    color: $text-color-placeholder;
   }
 
   .tips {
-    background-color: #fff;
-    border-radius: 24rpx;
-    padding: 32rpx 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background-color: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg $spacing-md;
+    box-shadow: $shadow-sm;
   }
 
   .tips-title {
     display: block;
-    font-size: 28rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #323233;
-    margin-bottom: 16rpx;
+    color: $text-color-base;
+    margin-bottom: $spacing-sm;
     display: flex;
     align-items: center;
 
     &::before {
       content: '';
-      width: 6rpx;
-      height: 24rpx;
-      background: #1989FA;
-      border-radius: 4rpx;
-      margin-right: 12rpx;
+      width: 3px;
+      height: 12px;
+      background: $primary-color;
+      border-radius: 2px;
+      margin-right: 6px;
     }
   }
 
   .tips-text {
     display: block;
-    font-size: 24rpx;
-    color: #969799;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
     line-height: 1.6;
-    margin-bottom: 8rpx;
-    padding-left: 18rpx;
+    margin-bottom: 4px;
+    padding-left: 9px;
   }
 }

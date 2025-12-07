@@ -1,7 +1,10 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .transactions-page {
   width: 100%;
   min-height: 100vh;
-  background-color: #F7F8FA;
+  background-color: $background-color-base;
   overflow: hidden;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom);
@@ -12,36 +15,36 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 100rpx 20rpx;
+    padding: 50px $spacing-sm;
     text-align: center;
   }
 
   .empty-text {
-    font-size: 28rpx;
-    color: #969799;
-    margin-top: 20rpx;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
+    margin-top: $spacing-md;
   }
 
   .transactions-list {
     width: 100%;
     height: 100vh;
-    padding: 24rpx;
+    padding: $spacing-md;
     box-sizing: border-box;
   }
 
   .transaction-card {
     width: 100%;
-    background-color: #fff;
-    border-radius: 24rpx;
-    padding: 32rpx 24rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background-color: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg $spacing-md;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
     box-sizing: border-box;
     transition: all 0.3s;
 
     &:active {
       transform: scale(0.99);
-      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
+      box-shadow: $shadow-sm;
     }
   }
 
@@ -49,7 +52,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 24rpx;
+    gap: $spacing-md;
   }
 
   .transaction-left {
@@ -57,18 +60,18 @@
     align-items: flex-start;
     flex: 1;
     min-width: 0;
-    gap: 24rpx;
+    gap: $spacing-md;
   }
 
   .transaction-icon {
-    width: 80rpx;
-    height: 80rpx;
-    background: #F7F8FA;
+    width: 40px;
+    height: 40px;
+    background: $background-color-base;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 40rpx;
+    font-size: $font-size-lg;
     flex-shrink: 0;
   }
 
@@ -80,25 +83,25 @@
   }
 
   .transaction-type {
-    font-size: 30rpx;
+    font-size: $font-size-lg;
     font-weight: 600;
-    color: #323233;
-    margin-bottom: 8rpx;
+    color: $text-color-base;
+    margin-bottom: $spacing-xs;
     word-break: break-all;
   }
 
   .transaction-date {
-    font-size: 24rpx;
-    color: #969799;
-    margin-bottom: 8rpx;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+    margin-bottom: $spacing-xs;
   }
 
   .transaction-order {
-    font-size: 24rpx;
-    color: #1989FA;
-    background: #EBF4FF;
-    padding: 4rpx 12rpx;
-    border-radius: 8rpx;
+    font-size: $font-size-sm;
+    color: $primary-color;
+    background: rgba($primary-color, 0.1);
+    padding: 2px $spacing-xs;
+    border-radius: $border-radius-sm;
     align-self: flex-start;
     word-break: break-all;
   }
@@ -111,52 +114,52 @@
   }
 
   .transaction-amount {
-    font-size: 36rpx;
+    font-size: $font-size-xl;
     font-weight: bold;
-    color: #323233;
-    margin-bottom: 12rpx;
+    color: $text-color-base;
+    margin-bottom: $spacing-xs;
     word-break: break-all;
     text-align: right;
     font-family: "DIN Alternate", sans-serif;
   }
 
   .payment-status {
-    padding: 6rpx 16rpx;
-    border-radius: 8rpx;
-    font-size: 22rpx;
+    padding: 3px $spacing-xs;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
     white-space: nowrap;
     font-weight: 500;
 
     &.unpaid {
-      background: #FFF7E6;
-      color: #FA8C16;
+      background: lighten-c($warning-color, 35%);
+      color: $warning-color;
     }
 
     &.paid {
-      background: #E8F7E6;
-      color: #07C160;
+      background: lighten-c($secondary-color, 45%);
+      color: $success-color;
     }
 
     &.overdue {
-      background: #FFF1F0;
-      color: #FF4D4F;
+      background: lighten-c($danger-color, 45%);
+      color: $danger-color;
     }
   }
 
   .order-info {
-    margin-top: 24rpx;
-    padding: 24rpx;
-    background-color: #F7F8FA;
-    border-radius: 16rpx;
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    background-color: $background-color-base;
+    border-radius: $border-radius-md;
   }
 
   .order-info-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 4rpx 0;
-    gap: 24rpx;
-    margin-bottom: 8rpx;
+    padding: 2px 0;
+    gap: $spacing-md;
+    margin-bottom: $spacing-xs;
 
     &:last-child {
       margin-bottom: 0;
@@ -164,14 +167,14 @@
   }
 
   .order-info-label {
-    font-size: 24rpx;
-    color: #969799;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
     flex-shrink: 0;
   }
 
   .order-info-value {
-    font-size: 26rpx;
-    color: #323233;
+    font-size: $font-size-sm;
+    color: $text-color-base;
     font-weight: 500;
     text-align: right;
     flex: 1;
@@ -181,28 +184,28 @@
   }
 
   .transaction-details {
-    margin-top: 24rpx;
-    padding-top: 24rpx;
-    border-top: 1rpx dashed #EBEDF0;
+    margin-top: $spacing-md;
+    padding-top: $spacing-md;
+    border-top: 1px dashed $border-color-light;
   }
 
   .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 8rpx 0;
-    gap: 24rpx;
+    padding: 4px 0;
+    gap: $spacing-md;
   }
 
   .detail-label {
-    font-size: 24rpx;
-    color: #969799;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
     flex-shrink: 0;
   }
 
   .detail-value {
-    font-size: 24rpx;
-    color: #323233;
+    font-size: $font-size-sm;
+    color: $text-color-base;
     text-align: right;
     flex: 1;
     min-width: 0;
@@ -212,8 +215,8 @@
   .loading-more,
   .no-more {
     text-align: center;
-    padding: 30rpx 0;
-    font-size: 24rpx;
-    color: #969799;
+    padding: 15px 0;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
   }
 }

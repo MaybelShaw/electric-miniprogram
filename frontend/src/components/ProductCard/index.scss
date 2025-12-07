@@ -1,14 +1,15 @@
+@import '../../styles/variables.scss';
+
 .product-card {
-  width: 330rpx;
-  background: #fff;
-  border-radius: 16rpx;
+  width: $product-card-width;
+  background: $background-color-light;
+  border-radius: $border-radius-lg;
   overflow: hidden;
-  margin-bottom: 24rpx;
+  margin-bottom: $spacing-md;
   position: relative;
   display: flex;
   flex-direction: column;
-  /* 移除显式阴影，让界面更干净，或者保留极淡的阴影 */
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.02); 
+  box-shadow: $shadow-sm;
 
   &:active {
     opacity: 0.9;
@@ -16,10 +17,10 @@
 
   .product-image-wrapper {
     width: 100%;
-    height: 330rpx;
-    background: #fff; /* 纯白背景 */
+    height: $product-image-height;
+    background: $background-color-light;
     position: relative;
-    padding: 20rpx; /* 给图片一些内边距，避免顶格 */
+    padding: 0;
     box-sizing: border-box;
 
     .product-image {
@@ -30,24 +31,24 @@
   }
 
   .product-info {
-    padding: 16rpx 16rpx 24rpx; /* 底部稍微多一点padding */
+    padding: $spacing-sm $spacing-sm $spacing-md;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     flex: 1;
 
     .product-name {
-      font-size: 30rpx; /* 稍微大一点 */
-      font-weight: 500; /* 加粗 */
-      color: #333;
-      line-height: 42rpx;
-      height: 84rpx; /* 2 lines */
+      font-size: $font-size-md;
+      font-weight: 500;
+      color: $text-color-base;
+      line-height: 1.5;
+      height: 84px;
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
-      margin-bottom: 16rpx;
+      margin-bottom: $spacing-sm;
     }
 
     .product-bottom {
@@ -58,25 +59,25 @@
       .price-wrapper {
         display: flex;
         align-items: baseline;
-        color: #e1251b; /* 京东红/电商红 */
+        color: $danger-color;
         font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
 
         .currency {
-          font-size: 24rpx;
-          margin-right: 4rpx;
+          font-size: $font-size-sm;
+          margin-right: 4px;
           font-weight: bold;
         }
 
         .current-price {
-          font-size: 36rpx; /* 价格数字加大 */
+          font-size: $font-size-xl;
           font-weight: bold;
           line-height: 1;
         }
 
         .price-unit {
-          font-size: 24rpx;
-          color: #333; /* 截图里单位是黑色的，不是灰色的 */
-          margin-left: 4rpx;
+          font-size: $font-size-sm;
+          color: $text-color-base;
+          margin-left: 4px;
           font-weight: normal;
         }
       }

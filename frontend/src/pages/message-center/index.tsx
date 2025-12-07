@@ -10,12 +10,12 @@ const TYPE_META: Record<
   Notification['type'],
   { label: string; color: string; bg: string }
 > = {
-  payment: { label: '支付', color: '#2B6DE5', bg: '#E8F1FF' },
-  order: { label: '订单', color: '#1F9F6E', bg: '#E6FFF5' },
-  refund: { label: '退款', color: '#E67E22', bg: '#FFF3E6' },
-  return: { label: '退货', color: '#D4380D', bg: '#FFF1E6' },
+  payment: { label: '支付', color: '#1989FA', bg: '#E6F3FF' },
+  order: { label: '订单', color: '#07C160', bg: '#E6FFF5' },
+  refund: { label: '退款', color: '#FF976A', bg: '#FFF3E6' },
+  return: { label: '退货', color: '#EE0A24', bg: '#FFF1E6' },
   statement: { label: '对账', color: '#722ED1', bg: '#F5EDFF' },
-  system: { label: '系统', color: '#4A5568', bg: '#F2F3F5' }
+  system: { label: '系统', color: '#646566', bg: '#F2F3F5' }
 }
 
 const formatTime = (value?: string | null) => {
@@ -143,7 +143,7 @@ export default function MessageCenter() {
         Taro.showToast({ title: '暂无可用的订阅模板', icon: 'none' })
         return
       }
-      const res = await Taro.requestSubscribeMessage({ tmplIds })
+      const res = await Taro.requestSubscribeMessage({ tmplIds } as any)
       const accepted = tmplIds.some(id => (res as any)[id] === 'accept')
       Taro.showToast({
         title: accepted ? '订阅成功' : '用户未授权订阅',
@@ -158,23 +158,27 @@ export default function MessageCenter() {
     const meta = TYPE_META[item.type] || TYPE_META.system
     return (
       <View key={item.id} className={`notice-card ${item.is_read ? 'read' : ''}`} onTap={() => handleCardClick(item)}>
-        <View className='card-type' style={{ background: meta.bg, color: meta.color }}>
-          <Text className='type-label'>{meta.label}</Text>
-          {!item.is_read && <View className='dot' />}
-        </View>
-        <View className='card-body'>
-          <View className='card-title-row'>
+        <View className='card-header'>
+          <View className='header-left'>
+            {!item.is_read && <View className='unread-dot' />}
+            <Text className='type-tag' style={{ color: meta.color, backgroundColor: meta.bg }}>
+              {meta.label}
+            </Text>
             <Text className='card-title'>{item.title}</Text>
-            <Text className='card-time'>{formatTime(item.created_at)}</Text>
           </View>
+          <Text className='card-time'>{formatTime(item.created_at)}</Text>
+        </View>
+        
+        <View className='card-body'>
           <View className='card-content'>{item.content}</View>
-          <View className='card-footer'>
-            <Text className={`status status-${item.status}`}>{item.status_display || item.status}</Text>
-            {item.metadata?.order_number && (
-              <Text className='tag'>订单 {item.metadata.order_number}</Text>
-            )}
-            {item.metadata?.amount && <Text className='tag'>金额 ¥{item.metadata.amount}</Text>}
-          </View>
+        </View>
+
+        <View className='card-footer'>
+          <Text className={`status status-${item.status}`}>{item.status_display || item.status}</Text>
+          {item.metadata?.order_number && (
+            <Text className='tag'>订单 {item.metadata.order_number}</Text>
+          )}
+          {item.metadata?.amount && <Text className='tag'>金额 ¥{item.metadata.amount}</Text>}
         </View>
       </View>
     )

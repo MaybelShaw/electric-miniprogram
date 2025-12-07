@@ -1,6 +1,8 @@
+@import '../../styles/variables.scss';
+
 .cart {
   height: 100vh;
-  background: #F7F8FA;
+  background: $background-color-base;
   display: flex;
   flex-direction: column;
 
@@ -12,28 +14,28 @@
       text-align: center;
 
       .empty-icon {
-        width: 300rpx;
-        height: 300rpx;
+        width: 300px;
+        height: 300px;
         opacity: 0.5;
       }
 
       .empty-text {
         display: block;
-        margin-top: 40rpx;
-        font-size: 28rpx;
-        color: #969799;
+        margin-top: $spacing-xl;
+        font-size: $font-size-md;
+        color: $text-color-secondary;
       }
 
       .login-btn,
       .go-shopping-btn {
-        margin-top: 40rpx;
-        padding: 20rpx 60rpx;
-        background: linear-gradient(135deg, #1989FA 0%, #5DADFF 100%);
-        color: #fff;
-        font-size: 28rpx;
-        border-radius: 40rpx;
+        margin-top: $spacing-xl;
+        padding: 20px 60px;
+        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        color: $white;
+        font-size: $font-size-md;
+        border-radius: 40px;
         display: inline-block;
-        box-shadow: 0 4rpx 12rpx rgba(25, 137, 250, 0.3);
+        box-shadow: 0 4px 12px rgba($primary-color, 0.3);
         
         &:active {
           transform: scale(0.96);
@@ -44,35 +46,35 @@
 
   .cart-list {
     flex: 1;
-    padding-bottom: 140rpx;
+    padding-bottom: 140px;
 
     .cart-item {
       display: flex;
       align-items: center;
-      padding: 30rpx;
-      background: #fff;
-      margin: 24rpx 24rpx 0;
-      border-radius: 24rpx;
-      box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+      padding: $spacing-lg;
+      background: $background-color-light;
+      margin: $spacing-md $spacing-md 0;
+      border-radius: $spacing-md;
+      box-shadow: $shadow-sm;
       position: relative;
       transition: all 0.3s;
 
       &:last-child {
-        margin-bottom: 24rpx;
+        margin-bottom: $spacing-md;
       }
 
       .checkbox {
-        width: 40rpx;
-        height: 40rpx;
-        border: 2rpx solid #C8C9CC;
+        width: 40px;
+        height: 40px;
+        border: 2px solid $text-color-placeholder;
         border-radius: 50%;
-        margin-right: 24rpx;
+        margin-right: $spacing-md;
         flex-shrink: 0;
         transition: all 0.2s;
 
         &.checked {
-          background: #1989FA;
-          border-color: #1989FA;
+          background: $primary-color;
+          border-color: $primary-color;
           position: relative;
 
           &::after {
@@ -81,9 +83,9 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -60%) rotate(45deg);
-            width: 10rpx;
-            height: 20rpx;
-            border: 4rpx solid #fff;
+            width: 10px;
+            height: 20px;
+            border: 4px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -91,24 +93,25 @@
       }
 
       .product-image {
-        width: 180rpx;
-        height: 180rpx;
-        border-radius: 16rpx;
-        background: #F7F8FA;
+        width: 180px;
+        height: 180px;
+        border-radius: $border-radius-lg;
+        background: $background-color-base;
         flex-shrink: 0;
+        object-fit: cover;
       }
 
       .product-info {
         flex: 1;
-        margin-left: 24rpx;
+        margin-left: $spacing-md;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        height: 180rpx;
+        height: 180px;
 
         .product-name {
-          font-size: 28rpx;
-          color: #323233;
+          font-size: $font-size-md;
+          color: $text-color-base;
           line-height: 1.4;
           font-weight: 500;
           overflow: hidden;
@@ -119,9 +122,9 @@
         }
 
         .product-spec {
-          font-size: 24rpx;
-          color: #969799;
-          margin-top: 6rpx;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          margin-top: 6px;
         }
 
         .product-bottom {
@@ -130,30 +133,30 @@
           align-items: flex-end;
 
           .product-price {
-            font-size: 36rpx;
+            font-size: $font-size-xl;
             font-weight: bold;
-            color: #FF6034;
+            color: $danger-color;
             font-family: DIN;
           }
 
           .quantity-control {
             display: flex;
             align-items: center;
-            background: #F7F8FA;
-            border-radius: 8rpx;
-            padding: 4rpx;
+            background: $background-color-base;
+            border-radius: $border-radius-sm;
+            padding: 4px;
 
             .btn {
-              width: 52rpx;
-              height: 52rpx;
+              width: 52px;
+              height: 52px;
               display: flex;
               align-items: center;
               justify-content: center;
-              font-size: 32rpx;
-              color: #323233;
-              background: #fff;
-              border-radius: 6rpx;
-              box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.05);
+              font-size: $font-size-lg;
+              color: $text-color-base;
+              background: $background-color-light;
+              border-radius: 6px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
               transition: all 0.2s;
 
               &:active {
@@ -161,15 +164,15 @@
               }
 
               &.minus {
-                color: #323233;
+                color: $text-color-base;
               }
             }
 
             .quantity {
-              width: 70rpx;
+              width: 70px;
               text-align: center;
-              font-size: 26rpx;
-              color: #323233;
+              font-size: 26px;
+              color: $text-color-base;
               font-weight: 500;
             }
           }
@@ -178,13 +181,13 @@
 
       .delete-btn {
         position: absolute;
-        right: 30rpx;
-        top: 30rpx;
-        font-size: 24rpx;
-        color: #969799;
-        padding: 8rpx 16rpx;
-        background: #F7F8FA;
-        border-radius: 24rpx;
+        right: 30px;
+        top: 30px;
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
+        padding: 8px 16px;
+        background: $background-color-base;
+        border-radius: 24px;
       }
     }
   }
@@ -194,14 +197,14 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 110rpx;
+    height: 110px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 30rpx;
-    box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+    padding: 0 30px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
     z-index: 100;
 
     .footer-left {
@@ -209,16 +212,16 @@
       align-items: center;
 
       .checkbox {
-        width: 40rpx;
-        height: 40rpx;
-        border: 2rpx solid #C8C9CC;
+        width: 40px;
+        height: 40px;
+        border: 2px solid $text-color-placeholder;
         border-radius: 50%;
-        margin-right: 16rpx;
+        margin-right: $spacing-sm;
         transition: all 0.2s;
 
         &.checked {
-          background: #1989FA;
-          border-color: #1989FA;
+          background: $primary-color;
+          border-color: $primary-color;
           position: relative;
 
           &::after {
@@ -227,9 +230,9 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -60%) rotate(45deg);
-            width: 10rpx;
-            height: 20rpx;
-            border: 4rpx solid #fff;
+            width: 10px;
+            height: 20px;
+            border: 4px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -237,8 +240,8 @@
       }
 
       .select-all-text {
-        font-size: 28rpx;
-        color: #323233;
+        font-size: 28px;
+        color: $text-color-base;
       }
     }
 
@@ -247,33 +250,33 @@
       align-items: center;
 
       .total-price {
-        margin-right: 30rpx;
+        margin-right: 30px;
         text-align: right;
 
         .label {
-          font-size: 26rpx;
-          color: #646566;
+          font-size: 26px;
+          color: $text-color-regular;
         }
 
         .price {
-          font-size: 40rpx;
+          font-size: 40px;
           font-weight: bold;
-          color: #FF6034;
+          color: $danger-color;
           font-family: DIN;
         }
       }
 
       .checkout-btn {
-        padding: 0 48rpx;
-        height: 80rpx;
+        padding: 0 48px;
+        height: 80px;
         display: flex;
         align-items: center;
-        background: linear-gradient(135deg, #FF6034 0%, #EE0A24 100%);
-        color: #fff;
-        font-size: 28rpx;
+        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        color: $white;
+        font-size: 28px;
         font-weight: 600;
-        border-radius: 40rpx;
-        box-shadow: 0 4rpx 12rpx rgba(238, 10, 36, 0.2);
+        border-radius: 40px;
+        box-shadow: 0 4px 12px rgba($primary-color, 0.2);
         transition: all 0.2s;
         
         &:active {

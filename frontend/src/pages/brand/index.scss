@@ -1,6 +1,9 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .brand-page {
   min-height: 100vh;
-  background: #F7F8FA;
+  background: $background-color-base;
 
   .product-scroll {
     height: 100vh;
@@ -10,43 +13,39 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    padding: 24rpx;
+    padding: $spacing-md;
 
     .product-item {
-      width: 339rpx;
-      margin-bottom: 24rpx;
-      background: #fff;
-      border-radius: 24rpx;
+      width: calc((100% - $spacing-sm) / 2);
+      margin-bottom: $spacing-md;
+      background: $white;
+      border-radius: $border-radius-lg;
       overflow: hidden;
-      box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+      box-shadow: $shadow-sm;
       transition: all 0.3s;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
+        box-shadow: $shadow-sm;
       }
 
       .product-image {
         width: 100%;
-        height: 339rpx;
-        background: #F7F8FA;
+        aspect-ratio: 1;
+        background: $background-color-base;
       }
 
       .product-info {
-        padding: 24rpx;
+        padding: $spacing-md;
 
         .product-name {
-          font-size: 28rpx;
-          color: #333;
+          font-size: $font-size-md;
+          color: $text-color-base;
           line-height: 1.5;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          height: 84rpx;
-          margin-bottom: 16rpx;
+          height: 84px;
+          margin-bottom: $spacing-sm;
           font-weight: 500;
+          @include multi-line-ellipsis(2);
         }
 
         .product-bottom {
@@ -55,22 +54,22 @@
           align-items: flex-end;
 
           .product-price {
-            font-size: 36rpx;
+            font-size: $font-size-xl;
             font-weight: bold;
-            color: #FF4D4F;
+            color: $danger-color;
             font-family: 'DIN Alternate', sans-serif;
             line-height: 1;
             
             &::before {
               content: '¥';
-              font-size: 24rpx;
-              margin-right: 4rpx;
+              font-size: $font-size-sm;
+              margin-right: 4px;
             }
           }
 
           .product-sales {
-            font-size: 24rpx;
-            color: #999;
+            font-size: $font-size-sm;
+            color: $text-color-secondary;
           }
         }
       }
@@ -79,8 +78,9 @@
 
   .loading-text {
     text-align: center;
-    padding: 30rpx 0;
-    font-size: 26rpx;
-    color: #999;
+    padding: $spacing-sm 0;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
   }
 }
+

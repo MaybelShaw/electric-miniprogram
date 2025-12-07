@@ -387,7 +387,7 @@ export default function OrderDetail() {
         )}
 
         {/* 商品信息 */}
-        <View className='product-card'>
+        <View className='order-product-card'>
           {order.items && order.items.length > 0 ? (
             order.items.map(item => (
               <View key={item.id} className='product-item'>

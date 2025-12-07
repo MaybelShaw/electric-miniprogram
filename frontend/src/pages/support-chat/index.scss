@@ -1,43 +1,46 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: $background-color-base;
 
   .message-list {
     flex: 1;
-    padding: 24rpx;
+    padding: $spacing-md;
     box-sizing: border-box;
     
     .time-divider {
       text-align: center;
-      margin: 32rpx 0;
+      margin: $spacing-md 0;
       
       .time-text {
-        font-size: 24rpx;
-        color: #999;
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
         background-color: rgba(0,0,0,0.05);
-        padding: 4rpx 12rpx;
-        border-radius: 8rpx;
+        padding: 4px $spacing-sm;
+        border-radius: $border-radius-sm;
       }
     }
     
     .message-item {
       display: flex;
-      margin-bottom: 32rpx;
+      margin-bottom: $spacing-md;
       align-items: flex-start;
       
       .avatar {
-        width: 80rpx;
-        height: 80rpx;
-        border-radius: 12rpx;
-        background-color: #e0e0e0;
+        width: 80px;
+        height: 80px;
+        border-radius: $border-radius-md;
+        background-color: $border-color;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        font-size: 28rpx;
-        color: #666;
+        font-size: $font-size-md;
+        color: $text-color-secondary;
       }
       
       .content {
@@ -46,39 +49,39 @@
         flex-direction: column;
         
         .sender-name {
-          font-size: 24rpx;
-          color: #999;
-          margin-bottom: 8rpx;
-          margin-left: 4rpx;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          margin-bottom: $spacing-xs;
+          margin-left: $spacing-xs;
         }
 
         .bubble {
-          padding: 20rpx 24rpx;
-          border-radius: 12rpx;
-          font-size: 30rpx;
+          padding: $spacing-md;
+          border-radius: $border-radius-lg;
+          font-size: $font-size-md;
           line-height: 1.5;
           word-break: break-all;
           position: relative;
 
           .message-image {
-            max-width: 400rpx;
-            border-radius: 8rpx;
+            max-width: 400px;
+            border-radius: $border-radius-md;
             display: block;
           }
           
           .message-video {
-            width: 400rpx;
-            height: 225rpx;
-            border-radius: 8rpx;
+            width: 400px;
+            height: 225px;
+            border-radius: $border-radius-md;
             display: block;
           }
 
           .message-card {
-            background: #fff;
-            border-radius: 12rpx;
-            padding: 20rpx;
-            width: 440rpx;
-            box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+            background: $white;
+            border-radius: $border-radius-md;
+            padding: $spacing-md;
+            width: 440px;
+            box-shadow: $shadow-sm;
             transition: all 0.3s ease;
             
             &:active {
@@ -86,21 +89,21 @@
             }
             
             .card-header {
-              font-size: 22rpx;
-              color: #666;
-              margin-bottom: 16rpx;
-              padding-bottom: 16rpx;
-              border-bottom: 1rpx solid #f5f5f5;
+              font-size: $font-size-sm;
+              color: $text-color-secondary;
+              margin-bottom: $spacing-sm;
+              padding-bottom: $spacing-sm;
+              border-bottom: 1px solid $border-color;
               display: flex;
               justify-content: space-between;
               align-items: center;
 
               .order-tag {
-                background: #f0f9eb;
-                color: #52c41a;
-                padding: 2rpx 8rpx;
-                border-radius: 4rpx;
-                font-size: 20rpx;
+                background: rgba($secondary-color, 0.1);
+                color: $secondary-color;
+                padding: 2px $spacing-xs;
+                border-radius: $border-radius-sm;
+                font-size: $font-size-xs;
               }
             }
             
@@ -109,14 +112,14 @@
               align-items: flex-start;
               
               .card-img {
-                width: 120rpx;
-                height: 120rpx;
-                border-radius: 8rpx;
-                background: #f8f8f8;
-                margin-right: 20rpx;
+                width: 120px;
+                height: 120px;
+                border-radius: $border-radius-md;
+                background: $background-color-base;
+                margin-right: $spacing-md;
                 flex-shrink: 0;
                 object-fit: cover;
-                border: 1rpx solid #f0f0f0;
+                border: 1px solid $border-color;
               }
               
               .card-info {
@@ -124,12 +127,12 @@
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
-                height: 120rpx;
+                height: 120px;
                 overflow: hidden;
                 
                 .card-title {
-                  font-size: 26rpx;
-                  color: #333;
+                  font-size: $font-size-md;
+                  color: $text-color-base;
                   font-weight: 500;
                   display: -webkit-box;
                   -webkit-line-clamp: 2;
@@ -140,8 +143,8 @@
                 }
                 
                 .card-desc {
-                  font-size: 28rpx;
-                  color: #fa4126;
+                  font-size: $font-size-lg;
+                  color: $danger-color;
                   font-weight: bold;
                   text-align: left;
                   display: flex;
@@ -149,8 +152,8 @@
                   
                   &::before {
                     content: '¥';
-                    font-size: 22rpx;
-                    margin-right: 2rpx;
+                    font-size: $font-size-sm;
+                    margin-right: 2px;
                   }
                 }
               }
@@ -159,16 +162,16 @@
         }
         
         .status {
-          font-size: 20rpx;
-          margin-top: 8rpx;
+          font-size: $font-size-xs;
+          margin-top: 4px;
           text-align: right;
           
           &.error {
-            color: #ff4d4f;
+            color: $danger-color;
           }
           
           &.sending {
-            color: #999;
+            color: $text-color-secondary;
           }
         }
       }
@@ -177,18 +180,18 @@
         flex-direction: row-reverse;
         
         .avatar {
-          margin-left: 20rpx;
-          background-color: #1989fa;
-          color: #fff;
+          margin-left: $spacing-md;
+          background-color: $primary-color;
+          color: $white;
         }
         
         .content {
           align-items: flex-end;
           
           .bubble {
-            background-color: #1989fa;
-            color: #fff;
-            border-top-right-radius: 4rpx;
+            background-color: $primary-color;
+            color: $white;
+            border-top-right-radius: $border-radius-sm;
           }
         }
       }
@@ -197,16 +200,16 @@
         flex-direction: row;
         
         .avatar {
-          margin-right: 20rpx;
+          margin-right: $spacing-md;
         }
         
         .content {
           align-items: flex-start;
           
           .bubble {
-            background-color: #fff;
-            color: #333;
-            border-top-left-radius: 4rpx;
+            background-color: $white;
+            color: $text-color-base;
+            border-top-left-radius: $border-radius-sm;
           }
         }
       }
@@ -219,8 +222,8 @@
     left: 0;
     right: 0;
     z-index: 999;
-    background-color: #f7f7f7;
-    border-top: 1rpx solid #e5e5e5;
+    background-color: $background-color-base;
+    border-top: 1px solid $border-color-light;
     padding-bottom: env(safe-area-inset-bottom);
 
     &.has-panel {
@@ -229,82 +232,104 @@
   }
 
   .input-area {
-    background-color: #f7f7f7;
-    padding: 16rpx 24rpx;
+    background-color: $background-color-base;
+    padding: $spacing-xs $spacing-sm;
     display: flex;
     align-items: center;
     
     .chat-input {
       flex: 1;
-      background-color: #fff;
-      border-radius: 8rpx;
-      padding: 16rpx 20rpx;
-      min-height: 72rpx;
-      font-size: 30rpx;
+      background-color: $white;
+      border-radius: $border-radius-sm;
+      padding: $spacing-xs $spacing-sm;
+      min-height: 72px;
+      font-size: $font-size-md;
     }
 
     .media-btn {
-      width: 60rpx;
-      height: 60rpx;
-      margin-left: 20rpx;
+      width: 60px;
+      height: 60px;
+      margin-left: $spacing-sm;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 2rpx solid #999;
+      border: 1px solid $text-color-placeholder;
       border-radius: 50%;
-      color: #999;
+      color: $text-color-placeholder;
       flex-shrink: 0;
       
       .plus-icon {
-        font-size: 40rpx;
+        font-size: 40px;
         line-height: 1;
-        margin-top: -6rpx;
+        margin-top: -6px;
       }
 
       &:active {
         opacity: 0.7;
-        background-color: #e0e0e0;
+        background-color: $border-color;
+      }
+    }
+
+    .send-btn {
+      height: 60px;
+      padding: 0 24px;
+      margin-left: $spacing-sm;
+      background: $primary-color;
+      color: $white;
+      font-size: $font-size-md;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+      flex-shrink: 0;
+      transition: all 0.2s;
+
+      &:active {
+        background: darken-c($primary-color, 10%);
       }
     }
   }
 
   .action-panel {
-    height: 500rpx;
-    background-color: #f7f7f7;
-    padding: 40rpx 30rpx;
+    height: 320px;
+    background-color: $background-color-base;
+    padding: $spacing-md $spacing-sm;
     display: flex;
     flex-wrap: wrap;
-    border-top: 1rpx solid #e5e5e5;
+    border-top: 1px solid $border-color-light;
     box-sizing: border-box;
-    padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
     
     .action-item {
       width: 25%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      margin-bottom: 40rpx;
+      margin-bottom: $spacing-md;
       
       .icon-wrapper {
-        width: 110rpx;
-        height: 110rpx;
-        background-color: #fff;
-        border-radius: 24rpx;
+        width: 110px;
+        height: 110px;
+        background-color: $white;
+        border-radius: $border-radius-lg;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 16rpx;
-        box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.05);
+        margin-bottom: $spacing-xs;
+        box-shadow: $shadow-sm;
         
         .action-icon {
-          width: 64rpx;
-          height: 64rpx;
+          width: 32px;
+          height: 32px;
         }
       }
       
       .label {
-        font-size: 24rpx;
-        color: #666;
+        font-size: 24px;
+        color: $text-color-base;
+        font-weight: 500;
+        margin-top: 8px;
       }
       
       &:active {

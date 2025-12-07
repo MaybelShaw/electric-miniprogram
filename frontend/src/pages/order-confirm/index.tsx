@@ -248,8 +248,8 @@ export default function OrderConfirm() {
         </View>
 
         {/* 商品信息卡片 */}
-        <View className='product-card'>
-          {items.map((item, index) => (
+      <View className='order-confirm-product-card'>
+        {items.map((item, index) => (
             <View key={index} className='product-item'>
               <Image className='product-image' src={item.sku?.image || item.product!.main_images[0]} mode='aspectFill' />
               <View className='product-info'>

@@ -103,7 +103,7 @@ export default function AddressList() {
                   </View>
                 )}
                 <View 
-                  className='action-btn' 
+                  className='action-btn edit-btn' 
                   onClick={(e) => {
                     e.stopPropagation()
                     handleEdit(address.id)
@@ -112,7 +112,7 @@ export default function AddressList() {
                   编辑
                 </View>
                 <View 
-                  className='action-btn delete' 
+                  className='action-btn delete-btn' 
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDelete(address.id)
@@ -126,8 +126,10 @@ export default function AddressList() {
         ))}
       </ScrollView>
 
-      <View className='add-btn' onClick={handleAdd}>
-        新增收货地址
+      <View className='bottom-bar'>
+        <View className='add-btn' onClick={handleAdd}>
+          新增收货地址
+        </View>
       </View>
     </View>
   )

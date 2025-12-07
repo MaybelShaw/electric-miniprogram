@@ -1,16 +1,19 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .address-edit {
   min-height: 100vh;
-  background: #F7F8FA;
-  padding: 24rpx;
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  background: $background-color-base;
+  padding: $spacing-md;
+  padding-bottom: calc(140px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 
   .smart-parse-section {
-    background: #fff;
-    border-radius: 24rpx;
-    padding: 30rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    background: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
     transition: all 0.3s;
 
     &:active {
@@ -18,34 +21,34 @@
     }
 
     .section-title {
-      font-size: 30rpx;
+      font-size: $font-size-lg;
       font-weight: 600;
-      color: #323233;
-      margin-bottom: 24rpx;
+      color: $text-color-base;
+      margin-bottom: $spacing-md;
       display: flex;
       align-items: center;
       
       &::before {
         content: '';
-        width: 8rpx;
-        height: 32rpx;
-        background: linear-gradient(180deg, #3D7EFF 0%, #1989FA 100%);
-        border-radius: 4rpx;
-        margin-right: 16rpx;
+        width: 8px;
+        height: 32px;
+        background: linear-gradient(180deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+        border-radius: 4px;
+        margin-right: $spacing-sm;
       }
     }
 
     .parse-input-wrapper {
-      margin-bottom: 24rpx;
+      margin-bottom: $spacing-md;
 
       .parse-input {
         width: 100%;
-        min-height: 160rpx;
-        padding: 24rpx;
-        background: #F7F8FA;
-        border-radius: 16rpx;
-        font-size: 28rpx;
-        color: #323233;
+        min-height: 160px;
+        padding: $spacing-md;
+        background: $background-color-base;
+        border-radius: $border-radius-lg;
+        font-size: $font-size-md;
+        color: $text-color-base;
         line-height: 1.6;
         box-sizing: border-box;
       }
@@ -53,44 +56,44 @@
 
     .parse-btn {
       width: 100%;
-      height: 80rpx;
-      background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-      color: #fff;
-      font-size: 28rpx;
+      height: $button-height;
+      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      color: $white;
+      font-size: $font-size-lg;
       font-weight: 600;
-      border-radius: 40rpx;
+      border-radius: $button-height;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20rpx;
+      margin-bottom: $spacing-md;
       transition: all 0.3s;
-      box-shadow: 0 8rpx 20rpx rgba(25, 137, 250, 0.2);
+      box-shadow: 0 8px 20px rgba($primary-color, 0.2);
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 4rpx 10rpx rgba(25, 137, 250, 0.2);
+        box-shadow: 0 4px 10px rgba($primary-color, 0.2);
       }
     }
 
     .parse-tip {
-      font-size: 24rpx;
-      color: #969799;
+      font-size: $font-size-sm;
+      color: $text-color-secondary;
       line-height: 1.5;
       text-align: center;
     }
   }
 
   .form {
-    background: #fff;
-    border-radius: 24rpx;
+    background: $white;
+    border-radius: $border-radius-lg;
     overflow: hidden;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+    box-shadow: $shadow-sm;
 
     .form-item {
       display: flex;
       align-items: center;
-      padding: 32rpx;
-      border-bottom: 1rpx solid #f5f6f7;
+      padding: $spacing-lg;
+      border-bottom: 1px solid $border-color;
 
       &:last-child {
         border-bottom: none;
@@ -98,21 +101,22 @@
 
       &.switch-item {
         justify-content: space-between;
+
       }
 
       .label {
-        width: 160rpx;
-        font-size: 28rpx;
-        color: #646566;
+        width: 160px;
+        font-size: $font-size-md;
+        color: $text-color-regular;
         flex-shrink: 0;
       }
 
       .input {
         flex: 1;
-        font-size: 28rpx;
-        color: #323233;
-        height: 44rpx;
-        line-height: 44rpx;
+        font-size: $font-size-md;
+        color: $text-color-base;
+        height: $input-height;
+        line-height: $input-height;
         text-align: right;
       }
     }
@@ -120,25 +124,26 @@
 
   .submit-btn {
     position: fixed;
-    bottom: calc(40rpx + env(safe-area-inset-bottom));
-    left: 30rpx;
-    right: 30rpx;
-    height: 88rpx;
-    background: linear-gradient(135deg, #3D7EFF 0%, #1989FA 100%);
-    color: #fff;
-    font-size: 32rpx;
+    bottom: calc($spacing-xl + env(safe-area-inset-bottom));
+    left: $spacing-lg;
+    right: $spacing-lg;
+    height: $button-height;
+    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    color: $white;
+    font-size: $font-size-lg;
     font-weight: 600;
-    border-radius: 44rpx;
+    border-radius: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8rpx 24rpx rgba(25, 137, 250, 0.3);
+    box-shadow: 0 8px 24px rgba($primary-color, 0.3);
     transition: all 0.3s;
     z-index: 100;
     
     &:active {
       transform: scale(0.98);
-      box-shadow: 0 4rpx 12rpx rgba(25, 137, 250, 0.3);
+      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
     }
   }
 }
+

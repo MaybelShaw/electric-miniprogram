@@ -1,254 +1,309 @@
+@import "../../styles/variables.scss";
+@import "../../styles/mixins.scss";
+
 .message-center {
   min-height: 100vh;
-  background: #f6f8fb;
+  background: $background-color-base;
   display: flex;
   flex-direction: column;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .header {
-  margin: 24rpx;
-  padding: 32rpx;
-  border-radius: 32rpx;
-  background: linear-gradient(135deg, #153267 0%, #3f7ae0 100%);
-  color: #fff;
-  box-shadow: 0 10rpx 30rpx rgba(39, 88, 181, 0.3);
+  margin: $spacing-md;
+  padding: $spacing-lg;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(135deg, $primary-color 0%, darken-c($primary-color, 15%) 100%);
+  color: $white;
+  box-shadow: $shadow-lg;
+  position: relative;
+  overflow: hidden;
+
+  // Decorative circle
+  &::after {
+    content: '';
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba($white, 0.1);
+    pointer-events: none;
+  }
 
   .title-row {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    position: relative;
+    z-index: 1;
 
     .title {
       display: block;
-      font-size: 40rpx;
+      font-size: $font-size-xxl;
       font-weight: 700;
-      letter-spacing: 1rpx;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
     }
 
     .subtitle {
       display: block;
-      margin-top: 8rpx;
-      font-size: 24rpx;
-      color: rgba(255, 255, 255, 0.85);
+      font-size: $font-size-sm;
+      color: rgba($white, 0.85);
     }
 
     .badge {
-      background: rgba(255, 255, 255, 0.12);
-      padding: 12rpx 18rpx;
-      border-radius: 20rpx;
-      text-align: right;
+      background: rgba($white, 0.2);
+      backdrop-filter: blur(4px);
+      padding: 4px 12px;
+      border-radius: 20px;
+      text-align: center;
+      min-width: 60px;
 
       .badge-number {
         display: block;
-        font-size: 32rpx;
+        font-size: 20px;
         font-weight: 700;
+        line-height: 1.2;
       }
 
       .badge-label {
         display: block;
-        font-size: 22rpx;
-        opacity: 0.8;
+        font-size: 10px;
+        opacity: 0.9;
+        text-transform: uppercase;
       }
     }
   }
 
   .header-actions {
     display: flex;
-    gap: 16rpx;
-    margin-top: 20rpx;
+    gap: $spacing-sm;
+    margin-top: $spacing-lg;
+    position: relative;
+    z-index: 1;
 
     .action-btn {
       flex: 1;
-      padding: 20rpx;
-      border-radius: 20rpx;
-      border: 1rpx solid rgba(255, 255, 255, 0.35);
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
+      padding: $spacing-sm $spacing-md;
+      border-radius: $border-radius-md;
+      background: rgba($white, 0.15);
+      border: 1px solid rgba($white, 0.2);
+      color: $white;
       display: flex;
       flex-direction: column;
+      align-items: flex-start;
       justify-content: center;
-      line-height: 1.4;
+      transition: all 0.2s;
+
+      &:active {
+        background: rgba($white, 0.25);
+        transform: scale(0.98);
+      }
 
       &.primary {
-        background: #fff;
-        color: #153267;
+        background: $white;
+        color: $primary-color;
+        border: none;
+        
+        .action-desc {
+          color: rgba($primary-color, 0.7);
+        }
       }
 
       &.ghost {
-        border-style: dashed;
+        background: transparent;
+        border: 1px dashed rgba($white, 0.4);
+      }
+
+      text:first-child {
+        font-weight: 600;
+        font-size: $font-size-md;
       }
 
       .action-desc {
-        font-size: 22rpx;
-        opacity: 0.75;
-        margin-top: 6rpx;
+        font-size: 10px;
+        opacity: 0.8;
+        margin-top: 2px;
       }
     }
   }
 
   .header-meta {
-    margin-top: 16rpx;
-    font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.85);
+    margin-top: $spacing-md;
+    font-size: $font-size-xs;
+    color: rgba($white, 0.7);
     display: flex;
     align-items: center;
-    gap: 12rpx;
+    gap: $spacing-sm;
+    justify-content: center;
 
     .split {
-      opacity: 0.6;
+      opacity: 0.4;
     }
   }
 }
 
 .list {
   flex: 1;
-  padding: 0 24rpx 40rpx;
+  padding: 0 $spacing-md $spacing-lg;
   box-sizing: border-box;
 }
 
 .notice-card {
-  display: flex;
-  background: #fff;
-  border-radius: 24rpx;
-  margin-top: 18rpx;
-  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &:first-child {
-    margin-top: 0;
-  }
+  background: $white;
+  border-radius: $border-radius-lg;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-sm;
+  transition: all 0.2s;
+  border: 1px solid transparent;
 
   &:active {
-    transform: translateY(-4rpx);
-    box-shadow: 0 14rpx 28rpx rgba(0, 0, 0, 0.08);
+    transform: scale(0.99);
+    background: $background-color-light;
   }
 
   &.read {
-    opacity: 0.8;
+    opacity: 0.7;
+    background: #fafafa;
+    box-shadow: none;
+    border: 1px solid $border-color-light;
+    
+    .card-title {
+      color: $text-color-secondary;
+      font-weight: 400;
+    }
+    
+    .type-tag {
+      filter: grayscale(0.5);
+    }
   }
 
-  .card-type {
-    width: 140rpx;
-    padding: 20rpx 16rpx;
+  .card-header {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    position: relative;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: $spacing-sm;
 
-    .type-label {
-      font-size: 26rpx;
-      font-weight: 700;
+    .header-left {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      gap: $spacing-xs;
+      margin-right: $spacing-sm;
     }
 
-    .dot {
-      position: absolute;
-      top: 12rpx;
-      right: 12rpx;
-      width: 14rpx;
-      height: 14rpx;
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      background: $danger-color;
       border-radius: 50%;
-      background: #ff4d4f;
-      box-shadow: 0 0 0 8rpx rgba(255, 77, 79, 0.12);
+      flex-shrink: 0;
+    }
+
+    .type-tag {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .card-title {
+      font-size: $font-size-md;
+      font-weight: 600;
+      color: $text-color-base;
+      @include text-ellipsis;
+      line-height: 1.4;
+    }
+
+    .card-time {
+      font-size: 11px;
+      color: $text-color-secondary;
+      white-space: nowrap;
+      margin-top: 2px;
     }
   }
 
   .card-body {
-    flex: 1;
-    padding: 24rpx;
-
-    .card-title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12rpx;
-    }
-
-    .card-title {
-      font-size: 30rpx;
-      font-weight: 700;
-      color: #1f2937;
-      flex: 1;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    .card-time {
-      font-size: 24rpx;
-      color: #9aa0a6;
-      white-space: nowrap;
-    }
-
     .card-content {
-      margin-top: 10rpx;
-      font-size: 26rpx;
-      color: #3c4043;
+      font-size: $font-size-sm;
+      color: $text-color-secondary;
       line-height: 1.5;
+      @include multi-line-ellipsis(2);
+    }
+  }
+
+  .card-footer {
+    margin-top: $spacing-sm;
+    padding-top: $spacing-sm;
+    border-top: 1px solid $border-color-light;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: $spacing-xs;
+
+    .status {
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 500;
+      background: $background-color-base;
+      color: $text-color-regular;
+
+      &.status-pending {
+        background: rgba($warning-color, 0.1);
+        color: $warning-color;
+      }
+
+      &.status-sent {
+        background: rgba($success-color, 0.1);
+        color: $success-color;
+      }
+
+      &.status-failed {
+        background: rgba($danger-color, 0.1);
+        color: $danger-color;
+      }
     }
 
-    .card-footer {
-      margin-top: 14rpx;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12rpx;
-
-      .status {
-        padding: 6rpx 14rpx;
-        border-radius: 14rpx;
-        font-size: 22rpx;
-        font-weight: 600;
-        background: #f2f3f5;
-        color: #4a4a4a;
-
-        &.status-pending {
-          background: #fff7e6;
-          color: #d46b08;
-        }
-
-        &.status-sent {
-          background: #f6ffed;
-          color: #389e0d;
-        }
-
-        &.status-failed {
-          background: #fff1f0;
-          color: #cf1322;
-        }
-      }
-
-      .tag {
-        padding: 6rpx 12rpx;
-        background: #f2f3f5;
-        color: #555;
-        border-radius: 12rpx;
-        font-size: 22rpx;
-      }
+    .tag {
+      padding: 2px 8px;
+      background: $background-color-base;
+      color: $text-color-secondary;
+      border-radius: 10px;
+      font-size: 10px;
     }
   }
 }
 
 .empty {
-  margin-top: 120rpx;
-  text-align: center;
-  color: #9aa0a6;
+  padding-top: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: $text-color-secondary;
 
   .empty-icon {
-    font-size: 56rpx;
-    display: block;
-    margin-bottom: 12rpx;
+    font-size: 48px;
+    margin-bottom: $spacing-md;
+    opacity: 0.5;
   }
 
   .empty-text {
-    font-size: 26rpx;
+    font-size: $font-size-md;
+    color: $text-color-secondary;
   }
 }
 
 .loading {
   text-align: center;
-  padding: 24rpx;
-  color: #7a7f85;
-  font-size: 24rpx;
+  padding: $spacing-md;
+  color: $text-color-secondary;
+  font-size: $font-size-xs;
 }

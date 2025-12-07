@@ -3,7 +3,7 @@ import { http } from '../utils/request'
 export const companyService = {
   // 获取公司信息
   async getCompanyInfo() {
-    return http.get('/company-info/', {}, true)
+    return http.get('/company-info/', {}, { needAuth: true, showError: false })
   },
 
   // 创建公司信息

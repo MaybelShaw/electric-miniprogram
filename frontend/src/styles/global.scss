@@ -1,0 +1,61 @@
+@import './variables.scss';
+@import './mixins.scss';
+
+page {
+  background-color: $background-color-base;
+  color: $text-color-base;
+  font-size: $font-size-md;
+  line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
+    Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
+    sans-serif;
+}
+
+// Utility Classes
+.card {
+  background: $background-color-light;
+  border-radius: $border-radius-lg;
+  padding: $spacing-md;
+  margin: $spacing-md;
+  box-shadow: $shadow-sm;
+}
+
+.text-primary {
+  color: $primary-color;
+}
+
+.text-secondary {
+  color: $text-color-secondary;
+}
+
+.text-danger {
+  color: $danger-color;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.flex-center {
+  @include flex-center;
+}
+
+.flex-between {
+  @include flex-between;
+}
+
+.mt-sm {
+  margin-top: $spacing-sm;
+}
+
+.mt-md {
+  margin-top: $spacing-md;
+}
+
+.mb-sm {
+  margin-bottom: $spacing-sm;
+}
+
+.mb-md {
+  margin-bottom: $spacing-md;
+}

@@ -1,40 +1,44 @@
+@import "../../../styles/variables.scss";
+@import "../../../styles/mixins.scss";
+
 .select-order-page {
   height: 100vh;
-  background-color: #f7f8fa;
+  background-color: $background-color-base;
   
   .order-list {
     height: 100%;
-    padding: 20rpx;
+    padding: $spacing-md;
     box-sizing: border-box;
   }
 
   .loading, .empty {
     text-align: center;
-    padding: 40rpx;
-    color: #999;
-    font-size: 28rpx;
+    padding: $spacing-lg;
+    color: $text-color-placeholder;
+    font-size: $font-size-md;
   }
 
   .order-item {
-    background: #fff;
-    border-radius: 12rpx;
-    padding: 24rpx;
-    margin-bottom: 20rpx;
+    background: $white;
+    border-radius: $border-radius-lg;
+    padding: $spacing-md;
+    margin-bottom: $spacing-md;
+    box-shadow: $shadow-sm;
     
     .header {
       display: flex;
       justify-content: space-between;
-      font-size: 26rpx;
-      margin-bottom: 20rpx;
-      padding-bottom: 20rpx;
-      border-bottom: 1rpx solid #eee;
+      font-size: $font-size-sm;
+      margin-bottom: $spacing-sm;
+      padding-bottom: $spacing-sm;
+      border-bottom: 1px solid $border-color;
       
       .order-no {
-        color: #666;
+        color: $text-color-secondary;
       }
       
       .status {
-        color: #fa4126;
+        color: $danger-color;
         font-weight: bold;
       }
     }
@@ -43,11 +47,12 @@
       display: flex;
       
       .product-img {
-        width: 120rpx;
-        height: 120rpx;
-        border-radius: 8rpx;
-        background: #f8f8f8;
-        margin-right: 20rpx;
+        width: $product-thumb-size;
+        height: $product-thumb-size;
+        border-radius: $border-radius-md;
+        background: $background-color-base;
+        margin-right: $spacing-md;
+        border: 1px solid $border-color;
       }
       
       .info {
@@ -57,8 +62,8 @@
         justify-content: space-between;
         
         .name {
-          font-size: 28rpx;
-          color: #333;
+          font-size: $font-size-md;
+          color: $text-color-base;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
@@ -66,8 +71,8 @@
         }
         
         .meta {
-          font-size: 24rpx;
-          color: #999;
+          font-size: $font-size-sm;
+          color: $text-color-placeholder;
         }
       }
     }
