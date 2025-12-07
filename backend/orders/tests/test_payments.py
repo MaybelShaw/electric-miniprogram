@@ -68,3 +68,11 @@ class PaymentServiceTests(TestCase):
         # 通知已写入
         self.assertTrue(Notification.objects.filter(user=self.user, type='payment', status='pending').exists())
 
+    def test_validate_callback_amount_supports_wechat_amount_dict(self):
+        payment = Payment.create_for_order(self.order, method='wechat', ttl_minutes=5)
+        data = {'amount': {'total': int(payment.amount * 100)}}
+
+        ok, msg = PaymentService.validate_callback_amount(payment, data)
+
+        self.assertTrue(ok)
+        self.assertEqual(msg, '')

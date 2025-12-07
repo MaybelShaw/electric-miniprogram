@@ -1,12 +1,8 @@
 """
-Management command to reconcile pending/processing payments by querying provider status.
+Reconcile pending/processing payments by expiring overdue records.
 
-Since we are currently using a mock payment provider, this command simulates a
-simple reconciliation strategy:
-1. For payments still in init/processing and not expired, mark them as succeeded
-   if a mock "auto_success" flag is set on the order metadata (used for demos).
-2. Expire payments that have passed expires_at.
-3. Leave space to integrate real provider (e.g., WeChat Pay) query APIs.
+This command no longer performs any simulated success. Integrate real provider
+query APIs (e.g., WeChat Pay) when available to update statuses.
 
 Usage:
     python manage.py reconcile_payments
@@ -59,15 +55,6 @@ class Command(BaseCommand):
                     expired += 1
                 continue
 
-            # Simulated auto success hook for demos; replace with real provider query
-            auto_success = getattr(pay.order, 'auto_success', False) or pay.order.metadata.get('auto_success') if hasattr(pay.order, 'metadata') else False
-            if auto_success:
-                if dry_run:
-                    self.stdout.write(f'[DRY RUN] Would mark payment #{pay.id} as succeeded')
-                else:
-                    with transaction.atomic():
-                        PaymentService.process_payment_success(pay.id, transaction_id='reconcile-mock')
-                    succeeded += 1
+            # Placeholder for real provider query; no simulated success
 
         self.stdout.write(self.style.SUCCESS(f'Succeeded: {succeeded}, Expired: {expired}'))
-

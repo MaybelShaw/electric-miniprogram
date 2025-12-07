@@ -258,6 +258,16 @@ WECHAT_SUBSCRIBE_DEFAULT_PAGE = EnvironmentConfig.get_env('WECHAT_SUBSCRIBE_DEFA
 # WeChat Pay Configuration (for future use)
 WECHAT_PAY_MCHID = EnvironmentConfig.get_env('WECHAT_PAY_MCHID', '')
 WECHAT_PAY_SECRET = EnvironmentConfig.get_env('WECHAT_PAY_SECRET', '')
+WECHAT_PAY_API_V3_KEY = EnvironmentConfig.get_env('WECHAT_PAY_API_V3_KEY', '')
+WECHAT_PAY_SERIAL_NO = EnvironmentConfig.get_env('WECHAT_PAY_SERIAL_NO', '')
+WECHAT_PAY_PRIVATE_KEY_PATH = EnvironmentConfig.get_env('WECHAT_PAY_PRIVATE_KEY_PATH', '')
+WECHAT_PAY_PLATFORM_CERT_PATH = EnvironmentConfig.get_env('WECHAT_PAY_PLATFORM_CERT_PATH', '')
+WECHAT_PAY_PUBLIC_KEY_PATH = EnvironmentConfig.get_env('WECHAT_PAY_PUBLIC_KEY_PATH', '')
+WECHAT_PAY_PUBLIC_KEY_ID = EnvironmentConfig.get_env('WECHAT_PAY_PUBLIC_KEY_ID', '')
+WECHAT_PAY_NOTIFY_URL = EnvironmentConfig.get_env('WECHAT_PAY_NOTIFY_URL', '')
+WECHAT_PAY_REFUND_NOTIFY_URL = EnvironmentConfig.get_env('WECHAT_PAY_REFUND_NOTIFY_URL', '')
+# 控制是否启用真实微信统一下单，缺省为 False（使用模拟参数）；开启后需要上述密钥完整配置
+WECHAT_PAY_ENABLE_REAL = EnvironmentConfig.get_env('WECHAT_PAY_ENABLE_REAL', 'False').lower() in ('1', 'true', 'yes')
 
 # ============================================================================
 # Haier API Configuration (for product sync and pricing)

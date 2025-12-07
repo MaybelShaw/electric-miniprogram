@@ -1,6 +1,6 @@
 # 支付与通知（模拟版）说明
 
-当前项目的支付链路为 **模拟实现**，方便联调和演示，不会触发真实扣款。请在接入正式微信支付前参考下列说明。
+当前项目的支付链路默认为 **模拟实现**（未开启 `WECHAT_PAY_ENABLE_REAL`），方便联调和演示。若已配置商户号/证书并将 `WECHAT_PAY_ENABLE_REAL=true`，后端会调用微信支付 V3 JSAPI 下单并按官方要求验签+解密回调。
 
 ## 现有行为（模拟）
 - `POST /payments/{id}/start/`：返回本地生成的 JSAPI 参数（`prepay_id` 为随机值，签名使用本地密钥 HMAC），前端用 `wx.requestPayment` 拉起“假支付”。
@@ -49,6 +49,11 @@
 - 直接使用当前模拟接口，无需真实密钥。  
 - 触发过期清理：`python manage.py expire_payments --dry-run` 查看将要过期的支付，去掉 `--dry-run` 实际执行。  
 - 若要测试回调，可向 `/api/payments/callback/mock/` 或 `/api/payments/callback/wechat/` 发送包含 `payment_id` 与 `status=SUCCESS` 的 POST 请求（仅开发环境允许 mock）。
+
+## 开启真实微信支付（可选）
+- 环境变量需提供：`WECHAT_APPID`、`WECHAT_PAY_MCHID`、`WECHAT_PAY_SERIAL_NO`、`WECHAT_PAY_PRIVATE_KEY_PATH`、`WECHAT_PAY_API_V3_KEY`、`WECHAT_PAY_NOTIFY_URL`，并设置 `WECHAT_PAY_ENABLE_REAL=true`。验签可用 `WECHAT_PAY_PUBLIC_KEY_PATH`（微信支付公钥文件，需同时填 `WECHAT_PAY_PUBLIC_KEY_ID` 以比对 header `Wechatpay-Serial`），也可继续使用平台证书 `WECHAT_PAY_PLATFORM_CERT_PATH`。
+- 后端会在统一下单附带 `attach`（包含 `payment_id`），回调时通过公钥/平台证书头 `Wechatpay-*` 验签并用 APIv3 Key 解密 `resource`，校验商户号、appid、订单号与金额后再落库。
+- 处理成功会返回微信要求的 `{"code": "SUCCESS", "message": "成功"}` 响应，避免重复推送；校验失败会返回 `FAIL` 以便重试。
 
 ## 前端提示
 - 拉起支付使用返回的 `pay_params`；失败或取消会跳转支付结果页支持重试。  

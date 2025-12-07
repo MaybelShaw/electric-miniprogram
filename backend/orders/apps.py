@@ -21,6 +21,7 @@ class OrdersConfig(AppConfig):
 
         def _worker():
             from django.db import close_old_connections
+            from django.db import connection
             from datetime import timedelta
             from orders.models import Order
             from orders.state_machine import OrderStateMachine
@@ -28,6 +29,13 @@ class OrdersConfig(AppConfig):
             from django.conf import settings as dj_settings
             while True:
                 try:
+                    # 防止在迁移未执行时访问表导致报错
+                    table_names = set(connection.introspection.table_names())
+                    if 'orders_order' not in table_names:
+                        logger.warning('orders_order table not ready, skip auto-cancel loop')
+                        time.sleep(30)
+                        continue
+
                     now = timezone.now()
                     cutoff = now - timedelta(minutes=getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10))
                     qs = Order.objects.filter(status='pending', created_at__lt=cutoff).prefetch_related('payments')

@@ -105,6 +105,14 @@ export default function OrderDetail() {
     if (payParams.total !== undefined) {
       payload.total = payParams.total
     }
+    if (payload.total_fee === undefined || payload.total === undefined) {
+      const baseAmount = Number(
+        (order?.actual_amount || order?.total_amount || payParams.amount || '0')
+      )
+      const cents = Math.max(0, Math.round(baseAmount * 100))
+      if (payload.total_fee === undefined) payload.total_fee = cents
+      if (payload.total === undefined) payload.total = cents
+    }
     await Taro.requestPayment(payload)
   }
 
@@ -134,12 +142,6 @@ export default function OrderDetail() {
       }
 
       await requestWechatPayment(payParams)
-
-      // 支付成功后通知后端
-      await paymentService.succeedPayment(paymentRecord.id, {
-        transaction_id: payParams.prepay_id,
-        prepay_id: payParams.prepay_id,
-      })
 
       Taro.redirectTo({
         url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${paymentRecord.id}`

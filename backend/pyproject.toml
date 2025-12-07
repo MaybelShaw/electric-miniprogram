@@ -18,6 +18,7 @@ dependencies = [
     "requests>=2.32.5",
     "psycopg[binary]>=3.2.1",
     "psycopg2-binary>=2.9.11",
+    "cryptography>=42.0.0",
 ]
 
 [[tool.uv.index]]

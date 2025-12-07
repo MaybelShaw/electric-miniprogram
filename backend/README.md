@@ -159,6 +159,8 @@ python manage.py runserver
 - **商品搜索**: `GET /api/products/?search=关键词`
 - **搜索建议**: `GET /api/products/search_suggestions/?prefix=关键词前缀`
 - **热门关键词**: `GET /api/products/hot_keywords/`
+- **搜索历史**: `GET /api/search-logs/my_history/`（需登录，支持 `distinct`、`limit`）
+- **清空历史**: `POST /api/search-logs/clear_history/`（可选 `keyword` 参数仅删除指定词）
 
 ### 5. 购物车
 

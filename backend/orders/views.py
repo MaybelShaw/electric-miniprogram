@@ -1265,47 +1265,6 @@ class PaymentViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=True, methods=['post'])
-    def mock_pay(self, request, pk=None):
-        """
-        模拟支付回调（开发/测试使用）
-        
-        Body:
-            {
-              "status": "succeeded|failed|cancelled|expired|processing" (default succeeded),
-              "transaction_id": "mock-tx-123"
-            }
-        """
-        from .payment_service import PaymentService
-        import logging
-
-        logger = logging.getLogger(__name__)
-        payment = self.get_object()
-
-        # 简单权限：仅开发环境或管理员可调用
-        if not settings.DEBUG and not request.user.is_staff:
-            return Response({'detail': 'mock 支付仅限开发环境或管理员'}, status=status.HTTP_403_FORBIDDEN)
-
-        new_status = str(request.data.get('status') or 'succeeded').lower()
-        tx_id = request.data.get('transaction_id') or f'mock-{payment.id}'
-
-        if new_status == 'succeeded':
-            try:
-                PaymentService.process_payment_success(payment.id, transaction_id=tx_id, operator=request.user)
-            except Exception as e:
-                logger.error(f'mock 支付成功处理失败: {e}')
-                return Response({'detail': str(e)}, status=400)
-        elif new_status in ['failed', 'cancelled', 'expired']:
-            payment.status = new_status
-            payment.logs.append({'t': timezone.now().isoformat(), 'event': f'mock_{new_status}', 'tx': tx_id})
-            payment.save(update_fields=['status', 'logs', 'updated_at'])
-        else:
-            payment.status = 'processing'
-            payment.logs.append({'t': timezone.now().isoformat(), 'event': 'mock_processing'})
-            payment.save(update_fields=['status', 'logs', 'updated_at'])
-
-        return Response(self.get_serializer(payment).data)
-
-    @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         payment = self.get_object()
         from .payment_service import PaymentService
@@ -1341,6 +1300,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
         # 仅待支付订单可启动支付
         if payment.order.status not in ['pending', 'paid']:
             return Response({'detail': '订单状态不支持支付'}, status=status.HTTP_409_CONFLICT)
+        if not request.user.is_staff and payment.order.user_id != request.user.id:
+            return Response({'detail': '无权支付该订单'}, status=status.HTTP_403_FORBIDDEN)
 
         # 金额阈值校验
         ok_amount, msg_amount = PaymentService.check_amount_threshold(payment.order)
@@ -1358,57 +1319,43 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
         pay_params = None
         if provider == 'wechat':
-            pay_params = PaymentService.generate_wechat_jsapi_params(payment)
-            PaymentService.log_payment_event(
-                payment.id,
-                'wechat_jsapi_params_generated',
-                details={
-                    'package': pay_params.get('package'),
-                    'appId': pay_params.get('appId')
-                }
-            )
+            openid = getattr(request.user, 'openid', '') or request.data.get('openid') or ''
+            if not openid:
+                payment.status = 'init'
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'detail': 'missing_openid'
+                })
+                payment.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': '缺少 openid，无法发起微信支付'}, status=status.HTTP_400_BAD_REQUEST)
+            client_ip = PaymentService.extract_client_ip(request)
+            try:
+                pay_params = PaymentService.create_wechat_unified_order(payment, openid=openid, client_ip=client_ip)
+            except Exception as exc:
+                payment.status = 'init'
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'detail': f'wechat_order_error: {exc}'
+                })
+                payment.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': f'微信支付下单失败: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            if not pay_params:
+                payment.status = 'init'
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'detail': 'wechat_pay_params_empty'
+                })
+                payment.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': '微信支付未正确配置或下单失败'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         serializer_data = self.get_serializer(payment).data
         return Response({
             'payment': serializer_data,
             'pay_params': pay_params
         })
-
-    @action(detail=True, methods=['post'])
-    def succeed(self, request, pk=None):
-        from .payment_service import PaymentService
-
-        payment = self.get_object()
-        if payment.order.status not in ['pending', 'paid']:
-            return Response({'detail': '订单状态不支持标记支付成功'}, status=status.HTTP_409_CONFLICT)
-
-        # 金额阈值校验（防止人为构造成功接口）
-        ok_amount, msg_amount = PaymentService.check_amount_threshold(payment.order)
-        if not ok_amount:
-            return Response({'detail': msg_amount}, status=status.HTTP_400_BAD_REQUEST)
-
-        transaction_id = (
-            request.data.get('transaction_id') or
-            request.data.get('wx_transaction_id') or
-            request.data.get('prepay_id')
-        )
-
-        ok, reason = PaymentService.ensure_payment_succeed_allowed(payment)
-        if not ok:
-            return Response({'detail': reason}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            payment = PaymentService.process_payment_success(
-                payment.id,
-                transaction_id=transaction_id,
-                operator=request.user
-            )
-            serializer = self.get_serializer(payment)
-            return Response(serializer.data)
-        except ValueError as e:
-            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'detail': f'Failed to mark payment succeeded: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(tags=['Discounts'])
@@ -1671,44 +1618,90 @@ class PaymentCallbackView(APIView):
         import logging
         
         logger = logging.getLogger(__name__)
-        provider = (provider or 'mock').lower()
+        provider = (provider or 'wechat').lower()
+        if provider != 'wechat':
+            return Response({'detail': 'unsupported provider'}, status=400)
+
+        use_real_wechat = getattr(settings, 'WECHAT_PAY_ENABLE_REAL', False)
+        raw_body = ''
+        try:
+            raw_body = request.body.decode('utf-8')
+        except Exception:
+            raw_body = ''
+        logger.info(f'收到支付回调: provider={provider}, body={raw_body or request.data}')
+
+        payment = None
+        status_param = None
+        transaction_id = None
+        callback_amount = None
+        validation_data = None
         data = request.data or {}
 
-        # mock 回调仅在开发环境允许，微信回调在生产也允许
-        if not settings.DEBUG and provider == 'mock':
-            logger.warning('非开发环境不允许 mock 回调')
-            return Response({'detail': 'mock callback only enabled in development'}, status=403)
-
-        # 记录回调接收事件
-        logger.info(f'收到支付回调: provider={provider}, data={data}')
-
-        # 查找支付记录
-        payment = self._find_payment(data)
-        if payment is None:
-            logger.error(f'支付记录不存在: {data}')
-            return Response({'detail': 'payment not found'}, status=404)
-
-        # 验证回调签名（如果提供了签名）
-        signature = data.get('signature') or data.get('sign')
-        if signature:
-            if not self._verify_signature(provider, data, signature):
-                logger.error(f'签名验证失败: payment_id={payment.id}, provider={provider}')
-                PaymentService.log_payment_event(
-                    payment.id,
-                    'signature_verification_failed',
-                    details={'provider': provider},
-                    error='Signature verification failed'
-                )
-                return Response({'detail': 'signature verification failed'}, status=403)
-            
+        if use_real_wechat:
+            parsed, err = PaymentService.parse_wechat_callback(request)
+            if err:
+                logger.error(f'微信回调解析失败: {err}')
+                return Response({'code': 'FAIL', 'message': err}, status=status.HTTP_400_BAD_REQUEST)
+            payment = parsed['payment']
+            status_param = parsed.get('trade_state')
+            transaction_id = parsed.get('transaction_id')
+            callback_amount = parsed.get('amount_decimal')
+            validation_data = {'amount': parsed.get('amount_decimal')}
+            data = parsed.get('transaction') or {}
             PaymentService.log_payment_event(
                 payment.id,
                 'signature_verified',
+                details={'provider': provider, 'channel': 'wechat_v3'}
+            )
+        else:
+            payment = self._find_payment(data)
+            if payment is None:
+                logger.error(f'支付记录不存在: {data}')
+                return Response({'detail': 'payment not found'}, status=404)
+
+            signature = data.get('signature') or data.get('sign')
+            if signature:
+                if not self._verify_signature(provider, data, signature):
+                    logger.error(f'签名验证失败: payment_id={payment.id}, provider={provider}')
+                    PaymentService.log_payment_event(
+                        payment.id,
+                        'signature_verification_failed',
+                        details={'provider': provider},
+                        error='Signature verification failed'
+                    )
+                    return Response({'detail': 'signature verification failed'}, status=403)
+                
+                PaymentService.log_payment_event(
+                    payment.id,
+                    'signature_verified',
+                    details={'provider': provider}
+                )
+            validation_data = data
+
+        # 防止重复处理已成功的支付
+        if payment.status == 'succeeded':
+            logger.warning(f'支付记录已处理过: payment_id={payment.id}')
+            PaymentService.log_payment_event(
+                payment.id,
+                'duplicate_callback_ignored',
                 details={'provider': provider}
             )
+            if use_real_wechat:
+                return Response({'code': 'SUCCESS', 'message': 'OK', 'payment_id': payment.id})
+            return Response(PaymentSerializer(payment).data)
+        if payment.status in ['cancelled', 'expired', 'failed']:
+            logger.warning(f'回调被拒绝，支付状态不允许更新: payment_id={payment.id}, status={payment.status}')
+            PaymentService.log_payment_event(
+                payment.id,
+                'callback_rejected_by_status',
+                details={'provider': provider, 'status': payment.status}
+            )
+            if use_real_wechat:
+                return Response({'code': 'SUCCESS', 'message': '支付状态不可更新', 'payment_id': payment.id})
+            return Response({'detail': 'payment status not updatable'}, status=400)
 
         # 验证回调金额与支付单一致
-        ok_amount, reason_amount = PaymentService.validate_callback_amount(payment, data)
+        ok_amount, reason_amount = PaymentService.validate_callback_amount(payment, validation_data)
         if not ok_amount:
             logger.error(f'回调金额校验失败: payment_id={payment.id}, reason={reason_amount}')
             PaymentService.log_payment_event(
@@ -1719,28 +1712,10 @@ class PaymentCallbackView(APIView):
             )
             return Response({'detail': reason_amount}, status=400)
 
-        # 防止重复处理已成功的支付
-        if payment.status == 'succeeded':
-            logger.warning(f'支付记录已处理过: payment_id={payment.id}')
-            PaymentService.log_payment_event(
-                payment.id,
-                'duplicate_callback_ignored',
-                details={'provider': provider}
-            )
-            return Response(PaymentSerializer(payment).data)
-        if payment.status in ['cancelled', 'expired', 'failed']:
-            logger.warning(f'回调被拒绝，支付状态不允许更新: payment_id={payment.id}, status={payment.status}')
-            PaymentService.log_payment_event(
-                payment.id,
-                'callback_rejected_by_status',
-                details={'provider': provider, 'status': payment.status}
-            )
-            return Response({'detail': 'payment status not updatable'}, status=400)
-
         # 提取回调数据
-        status_param = data.get('status') or data.get('result_code') or data.get('trade_state')
-        transaction_id = data.get('transaction_id') or data.get('wx_transaction_id') or data.get('trans_id')
-        callback_amount = data.get('total_fee') or data.get('amount') or data.get('total')
+        status_param = status_param or data.get('status') or data.get('result_code') or data.get('trade_state')
+        transaction_id = transaction_id or data.get('transaction_id') or data.get('wx_transaction_id') or data.get('trans_id')
+        callback_amount = callback_amount or data.get('total_fee') or data.get('amount') or data.get('total')
 
         # 映射支付状态
         new_status = self._map_payment_status(provider, status_param)
@@ -1758,9 +1733,14 @@ class PaymentCallbackView(APIView):
                     ok_amount, reason_amt = PaymentService.check_amount_threshold(payment.order)
                     if not ok_amount:
                         raise ValueError(reason_amt)
-                    if callback_amount and str(callback_amount) != str(payment.amount):
-                        log_security('callback_amount_mismatch', '回调金额不一致', {'payment_id': payment.id, 'order_id': payment.order_id})
-                        raise ValueError('回调金额与支付单不一致')
+                    if callback_amount:
+                        try:
+                            cb_amount = Decimal(str(callback_amount))
+                        except Exception:
+                            cb_amount = None
+                        if cb_amount is not None and cb_amount != payment.amount:
+                            log_security('callback_amount_mismatch', '回调金额不一致', {'payment_id': payment.id, 'order_id': payment.order_id})
+                            raise ValueError('回调金额与支付单不一致')
 
                     PaymentService.process_payment_success(
                         payment.id,
@@ -1859,6 +1839,8 @@ class PaymentCallbackView(APIView):
             )
             return Response({'detail': 'callback processing failed'}, status=500)
 
+        if use_real_wechat:
+            return Response({'code': 'SUCCESS', 'message': '成功', 'payment_id': payment.id})
         return Response(PaymentSerializer(payment).data)
 
 
@@ -2110,7 +2092,13 @@ class RefundViewSet(viewsets.ModelViewSet):
         elif provider == 'wechat':
             # 微信支付状态映射
             val = str(status_param).upper() if status_param else ''
-            return 'succeeded' if val == 'SUCCESS' else 'failed'
+            if val == 'SUCCESS':
+                return 'succeeded'
+            if val in {'CLOSED', 'REVOKED'}:
+                return 'cancelled'
+            if val in {'USERPAYING', 'NOTPAY', 'ACCEPT'}:
+                return 'processing'
+            return 'failed'
         
         elif provider == 'alipay':
             # 支付宝状态映射

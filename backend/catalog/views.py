@@ -3,7 +3,7 @@ from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner
 from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Count, Max
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
@@ -840,6 +840,74 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
         
         hot_keywords = ProductSearchService.get_hot_keywords(limit, days)
         return Response({'hot_keywords': hot_keywords})
+
+    @extend_schema(
+        operation_id='search_logs_my_history',
+        parameters=[
+            OpenApiParameter('limit', OT.INT, OpenApiParameter.QUERY, description='Maximum number of records to return (default: 20)'),
+            OpenApiParameter('distinct', OT.BOOL, OpenApiParameter.QUERY, description='Return distinct keywords sorted by last searched time (default: true)'),
+        ],
+        description='Get current user search history. Supports distinct keyword mode and limit.',
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def my_history(self, request):
+        """
+        Return search history for the current authenticated user.
+        Supports:
+        - distinct mode: deduplicated keywords ordered by last searched time with count
+        - raw mode: latest search records
+        """
+        limit = parse_int(request.query_params.get('limit')) or 20
+        distinct = request.query_params.get('distinct')
+        use_distinct = True if distinct is None else to_bool(distinct)
+
+        base_qs = SearchLog.objects.filter(user=request.user)
+
+        if use_distinct:
+            history_qs = (
+                base_qs.values('keyword')
+                .annotate(last_searched_at=Max('created_at'), count=Count('id'))
+                .order_by('-last_searched_at')[:limit]
+            )
+            data = [
+                {
+                    'keyword': item['keyword'],
+                    'last_searched_at': item['last_searched_at'],
+                    'count': item['count'],
+                }
+                for item in history_qs
+            ]
+            total = base_qs.values('keyword').distinct().count()
+            return Response({'results': data, 'total': total})
+
+        history_qs = base_qs.order_by('-created_at')[:limit]
+        serializer = self.get_serializer(history_qs, many=True)
+        total = base_qs.count()
+        return Response({'results': serializer.data, 'total': total})
+
+    @extend_schema(
+        operation_id='search_logs_clear_history',
+        description='Clear search history for current user. Optionally provide keyword to delete a single keyword history.',
+        request=None,
+    )
+    @action(detail=False, methods=['post', 'delete'], permission_classes=[permissions.IsAuthenticated])
+    def clear_history(self, request):
+        """
+        Clear search history for the authenticated user.
+        If `keyword` is provided (body or query), only delete that keyword (case-insensitive).
+        """
+        keyword = (
+            request.data.get('keyword')
+            or request.query_params.get('keyword')
+            or ''
+        ).strip()
+
+        qs = SearchLog.objects.filter(user=request.user)
+        if keyword:
+            qs = qs.filter(keyword__iexact=keyword)
+
+        deleted, _ = qs.delete()
+        return Response({'cleared': deleted})
 
 
 @extend_schema(tags=['Media'])

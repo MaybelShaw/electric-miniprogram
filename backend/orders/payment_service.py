@@ -17,6 +17,14 @@ from django.conf import settings
 from django.core.cache import cache
 import logging
 import re
+import json
+import base64
+import pathlib
+import requests
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +99,7 @@ class PaymentService:
         """验证回调金额与支付单金额一致。"""
         from decimal import Decimal, InvalidOperation
 
-        amount_fields = ['amount', 'total_amount', 'total_fee', 'money']
+        amount_fields = ['amount', 'total_amount', 'total_fee', 'money', 'total']
         val = None
         for field in amount_fields:
             if data.get(field) is not None:
@@ -99,6 +107,15 @@ class PaymentService:
                 break
         if val is None:
             return True, ''  # 没有金额字段时跳过
+        if isinstance(val, dict):
+            for key in ['total', 'total_fee', 'payer_total']:
+                if val.get(key) is not None:
+                    try:
+                        cents = Decimal(str(val[key]))
+                        val = cents / Decimal('100')
+                    except (InvalidOperation, TypeError):
+                        return False, '回调金额解析失败'
+                    break
         try:
             amt = Decimal(str(val))
         except (InvalidOperation, TypeError):
@@ -108,56 +125,330 @@ class PaymentService:
         return True, ''
 
     @staticmethod
-    def generate_wechat_jsapi_params(payment) -> Dict:
-        """生成微信JSAPI支付参数（开发/测试用）
-
-        生成符合 wx.requestPayment 所需的参数结构，同时记录基本信息用于日志/对账。
-        在缺少真实微信商户配置时，使用占位的 appid/mchid/密钥生成签名，便于前后端联调。
-        """
-        app_id = getattr(settings, 'WECHAT_APPID', '') or 'mock-appid'
-        mch_id = getattr(settings, 'WECHAT_PAY_MCHID', '') or 'mock-mchid'
-        sign_key = getattr(settings, 'WECHAT_PAY_SECRET', '') or settings.SECRET_KEY
-        # 微信单位为分，保留整数
-        total_fee = int(Decimal(str(payment.amount)) * 100)
-
-        # 生成基础字段
+    # 删除模拟JSAPI生成函数
+    def _generate_mock_wechat_jsapi_params(payment) -> Dict:
+        """在未启用真实微信支付时生成本地模拟的 JSAPI 参数。"""
+        appid = getattr(settings, 'WECHAT_APPID', '') or 'mock-appid'
+        secret = getattr(settings, 'WECHAT_PAY_SECRET', '') or getattr(settings, 'SECRET_KEY', 'dev-secret')
         nonce_str = uuid.uuid4().hex
-        time_stamp = str(int(time.time()))
-        prepay_id = uuid.uuid4().hex  # 占位的prepay_id，真实环境应由微信返回
-        package = f'prepay_id={prepay_id}'
-        sign_type = 'HMAC-SHA256'
-
-        # 按微信签名规范拼接字符串并生成签名
-        sign_payload = '&'.join([
-            f'appId={app_id}',
-            f'timeStamp={time_stamp}',
-            f'nonceStr={nonce_str}',
-            f'package={package}',
-            f'signType={sign_type}',
-        ])
-        pay_sign = hmac.new(
-            sign_key.encode('utf-8'),
-            sign_payload.encode('utf-8'),
-            hashlib.sha256
-        ).hexdigest()
+        timestamp = str(int(time.time()))
+        prepay_id = f'mock_prepay_{uuid.uuid4().hex}'
+        pay_package = f'prepay_id={prepay_id}'
+        sign_str = f'appId={appid}&timeStamp={timestamp}&nonceStr={nonce_str}&package={pay_package}&signType=HMAC-SHA256'
+        pay_sign = hmac.new(secret.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
+        total = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
 
         return {
-            'appId': app_id,
-            'mch_id': mch_id,
-            'timeStamp': time_stamp,
+            'appId': appid,
+            'timeStamp': timestamp,
             'nonceStr': nonce_str,
-            'package': package,
-            'signType': sign_type,
+            'package': pay_package,
+            'signType': 'HMAC-SHA256',
             'paySign': pay_sign,
             'prepay_id': prepay_id,
-            'signPayload': sign_payload,
-            'payment_id': payment.id,
-            'order_number': getattr(payment.order, 'order_number', ''),
-            'amount': str(payment.amount),
-            'total_fee': total_fee,
-            'total': total_fee,
-            'mchId': mch_id,
+            'mchId': getattr(settings, 'WECHAT_PAY_MCHID', ''),
+            'total': total,
+            'total_fee': total,
+            'mock': True,
         }
+
+    @staticmethod
+    def _load_private_key():
+        key_path = getattr(settings, 'WECHAT_PAY_PRIVATE_KEY_PATH', '')
+        if not key_path:
+            return None
+        path = pathlib.Path(key_path)
+        if not path.exists():
+            return None
+        with path.open('rb') as f:
+            return serialization.load_pem_private_key(f.read(), password=None)
+
+    @staticmethod
+    def _sign_rsa(message: str) -> str:
+        private_key = PaymentService._load_private_key()
+        if not private_key:
+            raise RuntimeError('微信支付私钥未配置')
+        signature = private_key.sign(
+            message.encode('utf-8'),
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+        return base64.b64encode(signature).decode('utf-8')
+
+    @staticmethod
+    def create_wechat_unified_order(payment, openid: str, client_ip: str = '') -> Optional[Dict]:
+        """调用微信JSAPI统一下单，返回 prepay_id 和 wx.requestPayment 参数。
+        若未开启 WECHAT_PAY_ENABLE_REAL，则返回模拟参数。
+        """
+        if not getattr(settings, 'WECHAT_PAY_ENABLE_REAL', False):
+            return PaymentService._generate_mock_wechat_jsapi_params(payment)
+
+        if not openid:
+            raise ValueError('缺少 openid，无法发起微信支付')
+
+        appid = getattr(settings, 'WECHAT_APPID', '')
+        mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
+        notify_url = getattr(settings, 'WECHAT_PAY_NOTIFY_URL', '')
+        serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
+        if not (appid and mchid and notify_url and serial_no):
+            raise RuntimeError('微信支付配置不完整')
+
+        body = {
+            "appid": appid,
+            "mchid": mchid,
+            "description": f"订单{payment.order.order_number}",
+            "out_trade_no": payment.order.order_number,
+            "notify_url": notify_url,
+            "amount": {
+                "total": int(Decimal(payment.amount) * 100),
+                "currency": "CNY"
+            },
+            "payer": {"openid": openid},
+            "attach": json.dumps({"payment_id": payment.id}),
+        }
+        if client_ip:
+            body["scene_info"] = {"payer_client_ip": client_ip}
+
+        json_body = json.dumps(body, separators=(',', ':'))
+        nonce_str = uuid.uuid4().hex
+        timestamp = str(int(time.time()))
+        canonical_url = '/v3/pay/transactions/jsapi'
+        message = f"POST\n{canonical_url}\n{timestamp}\n{nonce_str}\n{json_body}\n"
+        signature = PaymentService._sign_rsa(message)
+
+        auth_header = (
+            'WECHATPAY2-SHA256-RSA2048 '
+            f'mchid="{mchid}",'
+            f'nonce_str="{nonce_str}",'
+            f'signature="{signature}",'
+            f'timestamp="{timestamp}",'
+            f'serial_no="{serial_no}"'
+        )
+
+        headers = {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Accept': 'application/json',
+            'Authorization': auth_header,
+        }
+
+        resp = requests.post(
+            'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi',
+            data=json_body,
+            headers=headers,
+            timeout=10
+        )
+        if resp.status_code >= 300:
+            raise RuntimeError(f'统一下单失败: {resp.status_code} {resp.text}')
+        prepay_id = resp.json().get('prepay_id')
+        if not prepay_id:
+            raise RuntimeError('统一下单未返回prepay_id')
+
+        pay_package = f'prepay_id={prepay_id}'
+        pay_message = f"{appid}\n{timestamp}\n{nonce_str}\n{pay_package}\n"
+        pay_sign = PaymentService._sign_rsa(pay_message)
+
+        return {
+            'appId': appid,
+            'timeStamp': timestamp,
+            'nonceStr': nonce_str,
+            'package': pay_package,
+            'signType': 'RSA',
+            'paySign': pay_sign,
+            'prepay_id': prepay_id,
+            'mchId': mchid,
+            'total': int(Decimal(payment.amount) * 100),
+            'total_fee': int(Decimal(payment.amount) * 100),
+        }
+
+    @staticmethod
+    def _load_wechat_public_key() -> tuple:
+        """加载微信支付回调验签所需的公钥或平台证书。
+
+        优先使用 WECHAT_PAY_PUBLIC_KEY_PATH（公钥文件），否则回退到 WECHAT_PAY_PLATFORM_CERT_PATH（证书）。
+        返回 (public_key, serial)；若从证书读取将附带序列号。
+        """
+        key_path = getattr(settings, 'WECHAT_PAY_PUBLIC_KEY_PATH', '') or getattr(settings, 'WECHAT_PAY_PLATFORM_CERT_PATH', '')
+        if not key_path:
+            raise RuntimeError('微信支付公钥未配置')
+        path = pathlib.Path(key_path)
+        if not path.exists():
+            raise RuntimeError(f'微信支付公钥文件不存在: {key_path}')
+        data = path.read_bytes()
+        # 尝试直接作为公钥加载
+        try:
+            pub = serialization.load_pem_public_key(data)
+            return pub, None
+        except Exception:
+            try:
+                pub = serialization.load_der_public_key(data)
+                return pub, None
+            except Exception:
+                pass
+        # 尝试作为证书加载（兼容原有平台证书方式）
+        try:
+            cert = x509.load_pem_x509_certificate(data)
+        except Exception:
+            cert = x509.load_der_x509_certificate(data)
+        serial = format(cert.serial_number, 'X').upper() if cert else None
+        return cert.public_key(), serial
+
+    @staticmethod
+    def verify_wechat_http_signature(headers: Dict[str, str], body: str) -> bool:
+        """使用平台证书验证微信回调 HTTP 头签名。"""
+        try:
+            normalized = {str(k).lower(): v for k, v in (headers or {}).items()}
+            signature = normalized.get('wechatpay-signature')
+            timestamp = normalized.get('wechatpay-timestamp')
+            nonce = normalized.get('wechatpay-nonce')
+            serial = normalized.get('wechatpay-serial')
+            if not all([signature, timestamp, nonce]):
+                return False
+
+            pub_key, cert_serial = PaymentService._load_wechat_public_key()
+            message = f"{timestamp}\n{nonce}\n{body}\n".encode('utf-8')
+            sig_bytes = base64.b64decode(signature)
+            pub_key.verify(
+                sig_bytes,
+                message,
+                padding.PKCS1v15(),
+                hashes.SHA256()
+            )
+
+            expected_serial = getattr(settings, 'WECHAT_PAY_PUBLIC_KEY_ID', '') or cert_serial
+            if serial and expected_serial and serial.upper() != expected_serial.upper():
+                logger.warning('微信平台公钥ID不匹配: header=%s expected=%s', serial, expected_serial)
+                return False
+            return True
+        except Exception as exc:
+            logger.error('微信回调验签失败: %s', exc)
+            return False
+
+    @staticmethod
+    def decrypt_wechat_resource(resource: Dict) -> Dict:
+        """解密微信支付回调 resource 数据。"""
+        api_key = getattr(settings, 'WECHAT_PAY_API_V3_KEY', '')
+        if not api_key:
+            raise RuntimeError('微信支付 APIv3 密钥未配置')
+        if not resource:
+            raise RuntimeError('缺少回调资源数据')
+        ciphertext = resource.get('ciphertext')
+        nonce = resource.get('nonce')
+        assoc = resource.get('associated_data')
+        if not (ciphertext and nonce):
+            raise RuntimeError('回调资源字段不完整')
+
+        aesgcm = AESGCM(api_key.encode('utf-8'))
+        plaintext = aesgcm.decrypt(
+            nonce=nonce.encode('utf-8'),
+            data=base64.b64decode(ciphertext),
+            associated_data=assoc.encode('utf-8') if assoc else None
+        )
+        return json.loads(plaintext.decode('utf-8'))
+
+    @staticmethod
+    def _extract_payment_from_attach(attach) -> Optional[int]:
+        """解析回调 attach 中的 payment_id."""
+        if attach is None:
+            return None
+        if isinstance(attach, dict):
+            pid = attach.get('payment_id') or attach.get('paymentId')
+            if pid:
+                try:
+                    return int(pid)
+                except Exception:
+                    return None
+        if isinstance(attach, str):
+            try:
+                parsed = json.loads(attach)
+                if isinstance(parsed, dict):
+                    return PaymentService._extract_payment_from_attach(parsed)
+            except Exception:
+                pass
+            if attach.isdigit():
+                return int(attach)
+            if 'payment_id=' in attach:
+                try:
+                    return int(attach.split('payment_id=')[-1].split('&')[0])
+                except Exception:
+                    return None
+        return None
+
+    @staticmethod
+    def parse_wechat_callback(request) -> tuple[Optional[Dict], Optional[str]]:
+        """
+        解析并验证微信支付回调，返回包含交易数据的字典。
+
+        返回 (result, error)，其中 result 包含:
+        {
+            'payment': Payment,
+            'transaction': dict,
+            'trade_state': str,
+            'transaction_id': str,
+            'amount_decimal': Decimal,
+        }
+        """
+        raw_body = request.body.decode('utf-8') if getattr(request, 'body', None) else ''
+        headers = getattr(request, 'headers', {}) or {}
+        if not raw_body:
+            return None, '回调体为空'
+        try:
+            payload = json.loads(raw_body)
+        except Exception:
+            return None, '回调内容不是有效的JSON'
+
+        if not PaymentService.verify_wechat_http_signature(headers, raw_body):
+            return None, '回调签名验证失败'
+
+        resource = payload.get('resource')
+        try:
+            transaction = PaymentService.decrypt_wechat_resource(resource)
+        except Exception as exc:
+            return None, f'回调资源解密失败: {exc}'
+
+        from .models import Payment, Order
+        mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
+        appid = getattr(settings, 'WECHAT_APPID', '')
+        if mchid and transaction.get('mchid') and transaction['mchid'] != mchid:
+            return None, '商户号不匹配'
+        if appid and transaction.get('appid') and transaction['appid'] != appid:
+            return None, 'appid 不匹配'
+
+        out_trade_no = transaction.get('out_trade_no')
+        attach = transaction.get('attach')
+        payment = None
+        pid = PaymentService._extract_payment_from_attach(attach)
+        if pid:
+            payment = Payment.objects.filter(id=pid).first()
+        if payment is None and out_trade_no:
+            try:
+                order = Order.objects.get(order_number=out_trade_no)
+                payment = Payment.objects.filter(order=order).order_by('-created_at').first()
+            except Order.DoesNotExist:
+                payment = None
+        if payment is None:
+            return None, '未找到对应的支付记录'
+
+        amount_total = None
+        try:
+            amount_total = transaction.get('amount', {}).get('total')
+            amount_decimal = (Decimal(str(amount_total)) / Decimal('100')) if amount_total is not None else None
+        except Exception:
+            return None, '金额字段解析失败'
+
+        if amount_decimal is not None and amount_decimal != payment.amount:
+            return None, '回调金额与支付记录不一致'
+
+        if out_trade_no and payment.order.order_number != out_trade_no:
+            return None, '订单号不匹配'
+
+        return {
+            'payment': payment,
+            'transaction': transaction,
+            'trade_state': transaction.get('trade_state'),
+            'transaction_id': transaction.get('transaction_id'),
+            'amount_decimal': amount_decimal,
+            'out_trade_no': out_trade_no,
+        }, None
 
     @staticmethod
     def ensure_payment_startable(payment) -> tuple[bool, str]:
