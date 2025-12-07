@@ -187,8 +187,8 @@
   - 直接聊天 Chat：
     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:156`
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
-      - 返回字段：消息数组 `{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, created_at }`
-      - 说明：系统为每个用户自动维护一个会话（内部复用工单模型）。
+      - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, attachment_type, attachment_url, order_info, product_info, created_at }`
+      - 说明：系统为每个用户自动维护一个会话。
     - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
       - 表单字段：

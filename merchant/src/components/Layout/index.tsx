@@ -44,7 +44,7 @@ export const adminMenuItems = [
 export const supportMenuItems = [
   { key: '/support/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   { key: '/support/invoices', icon: <FileTextOutlined />, label: '发票管理' },
-  { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '工单与消息' },
+  { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '消息' },
 ];
 
 interface LayoutProps {
@@ -73,7 +73,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
         if (lastCountRef.current !== null && count > lastCountRef.current) {
           notification.info({
             message: '新消息提醒',
-            description: `您有 ${count} 条待处理工单`,
+            description: `您有 ${count} 条待处理消息`,
             placement: 'bottomRight',
             onClick: () => {
               navigate('/support/tickets');

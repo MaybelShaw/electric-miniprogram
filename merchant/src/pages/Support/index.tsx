@@ -1,34 +1,21 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Select, Divider, Upload, Image as AntImage, Modal } from 'antd';
-import { EyeOutlined, SendOutlined, UserOutlined, UploadOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
-import { getSupportTickets, getSupportTicket, setSupportTicketStatus, assignSupportTicket, getProducts, getOrders } from '@/services/api';
+import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Divider, Upload, Image as AntImage, Modal } from 'antd';
+import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
+import { getConversations, getProducts, getOrders } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { SupportTicket, SupportMessage } from '@/services/types';
+import type { SupportConversation, SupportMessage } from '@/services/types';
 import { getUser } from '@/utils/auth';
 import { useSupportChat, ExtendedSupportMessage } from './useSupportChat';
-
-const statusMap: Record<string, { text: string; color: string }> = {
-  open: { text: '待处理', color: 'blue' },
-  pending: { text: '处理中', color: 'orange' },
-  resolved: { text: '已解决', color: 'green' },
-  closed: { text: '已关闭', color: 'gray' },
-};
-
-const priorityMap: Record<string, { text: string; color: string }> = {
-  low: { text: '低', color: 'blue' },
-  normal: { text: '普通', color: 'orange' },
-  high: { text: '高', color: 'red' },
-};
 
 export default function Support() {
   const actionRef = useRef<ActionType>();
   const [detailVisible, setDetailVisible] = useState(false);
-  const [currentTicket, setCurrentTicket] = useState<SupportTicket | null>(null);
+  const [currentConversation, setCurrentConversation] = useState<SupportConversation | null>(null);
   const [messageContent, setMessageContent] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentTicket?.user || null, currentTicket?.id || null);
+  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentConversation?.user || null, null);
   const messageListRef = useRef<HTMLDivElement>(null);
   
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -44,20 +31,17 @@ export default function Support() {
     setCurrentUser(getUser());
   }, []);
 
-  const handleViewDetail = async (record: SupportTicket) => {
-    try {
-      const res: any = await getSupportTicket(record.id);
-      setCurrentTicket(res);
-      setDetailVisible(true);
-    } catch (error) {
-      message.error('获取工单详情失败');
-    }
+  const handleViewDetail = (record: SupportConversation) => {
+    setCurrentConversation(record);
+    setDetailVisible(true);
   };
 
   const handleSendMessage = async () => {
-    if (!currentTicket || !messageContent.trim()) return;
+    if (!currentConversation || !messageContent.trim()) return;
+    setSending(true);
     await sendMessage(messageContent);
     setMessageContent('');
+    setSending(false);
   };
 
   const handleSendProduct = async (product: any) => {
@@ -68,8 +52,6 @@ export default function Support() {
       price: product.price,
       image: product.image
     };
-    // Using 'any' for sendMessage arguments to bypass TS check for now as we updated the hook but maybe not the type definition in this file's context if it was imported
-    // Actually we updated useSupportChat.ts, so it should be fine if TS picks it up.
     await sendMessage('', undefined, undefined, { product_id: product.id }, { product_info: productInfo });
   };
 
@@ -120,83 +102,41 @@ export default function Support() {
     return map[status] || status;
   };
 
-  const handleStatusChange = async (status: string) => {
-    if (!currentTicket) return;
-    try {
-      await setSupportTicketStatus(currentTicket.id, status);
-      message.success('状态更新成功');
-      const res: any = await getSupportTicket(currentTicket.id);
-      setCurrentTicket(res);
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || '操作失败');
-    }
-  };
-
-  const columns: ProColumns<SupportTicket>[] = [
+  const columns: ProColumns<SupportConversation>[] = [
     {
-      title: '工单ID',
+      title: '会话ID',
       dataIndex: 'id',
       width: 80,
       search: false,
     },
     {
-      title: '主题',
-      dataIndex: 'subject',
-      ellipsis: true,
-    },
-    {
-      title: '提交用户',
+      title: '用户',
       dataIndex: 'user_username',
-      width: 120,
-    },
-    {
-      title: '关联订单',
-      dataIndex: 'order_number',
       width: 150,
-      render: (text) => text || '-',
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      width: 100,
-      valueEnum: {
-        open: { text: '待处理' },
-        pending: { text: '处理中' },
-        resolved: { text: '已解决' },
-        closed: { text: '已关闭' },
-      },
+      title: '最新消息',
+      dataIndex: 'last_message',
+      ellipsis: true,
+      search: false,
       render: (_, record) => {
-        const status = statusMap[record.status];
-        return <Tag color={status?.color}>{status?.text}</Tag>;
-      },
-    },
-    {
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 100,
-      valueEnum: {
-        low: { text: '低' },
-        normal: { text: '普通' },
-        high: { text: '高' },
-      },
-      render: (_, record) => {
-        const priority = priorityMap[record.priority];
-        return <Tag color={priority?.color}>{priority?.text}</Tag>;
-      },
-    },
-    {
-      title: '指派给',
-      dataIndex: 'assigned_to_username',
-      width: 120,
-      render: (text) => text || '-',
+        const msg = record.last_message;
+        if (!msg) return '-';
+        if (msg.attachment_type === 'image') return '[图片]';
+        if (msg.attachment_type === 'video') return '[视频]';
+        if (msg.order_info) return '[订单]';
+        if (msg.product_info) return '[商品]';
+        return msg.content;
+      }
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
-      width: 160,
+      width: 180,
       valueType: 'dateTime',
       search: false,
+      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      defaultSortOrder: 'descend',
     },
     {
       title: '操作',
@@ -219,14 +159,14 @@ export default function Support() {
 
   return (
     <>
-      <ProTable<SupportTicket>
-        headerTitle="工单与消息列表"
-        tooltip="点击右侧“查看”按钮进入详情页进行聊天"
+      <ProTable<SupportConversation>
+        headerTitle="客服会话列表"
+        tooltip="点击右侧“查看”按钮进入会话"
         actionRef={actionRef}
         columns={columns}
         request={async (params) => {
           try {
-            const res: any = await getSupportTickets({
+            const res: any = await getConversations({
               page: params.current,
               page_size: params.pageSize,
               ...params,
@@ -246,69 +186,31 @@ export default function Support() {
       />
 
       <Drawer
-        title="工单详情与聊天"
+        title={`与 ${currentConversation?.user_username || '用户'} 的会话`}
         width={600}
         visible={detailVisible}
         onClose={() => setDetailVisible(false)}
         destroyOnClose
       >
-        {currentTicket && (
+        {currentConversation && (
           <>
-            <ProDescriptions column={2} dataSource={currentTicket}>
-              <ProDescriptions.Item label="ID" dataIndex="id" />
-              <ProDescriptions.Item label="状态">
-                <Space direction="vertical" size={5}>
-                  <Tag color={statusMap[currentTicket.status]?.color}>
-                    {statusMap[currentTicket.status]?.text}
-                  </Tag>
-                  {(currentUser?.is_staff || currentUser?.role === 'support') && (
-                    <Space size={5} wrap>
-                      {currentTicket.status === 'open' && (
-                        <>
-                          <Button size="small" type="primary" onClick={() => handleStatusChange('pending')}>开始处理</Button>
-                          <Button size="small" onClick={() => handleStatusChange('resolved')}>已解决</Button>
-                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
-                        </>
-                      )}
-                      {currentTicket.status === 'pending' && (
-                        <>
-                          <Button size="small" type="primary" onClick={() => handleStatusChange('resolved')}>已解决</Button>
-                          <Button size="small" onClick={() => handleStatusChange('open')}>放回待处理</Button>
-                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
-                        </>
-                      )}
-                      {currentTicket.status === 'resolved' && (
-                        <>
-                          <Button size="small" onClick={() => handleStatusChange('open')}>重新打开</Button>
-                          <Button size="small" danger onClick={() => handleStatusChange('closed')}>关闭</Button>
-                        </>
-                      )}
-                      {currentTicket.status === 'closed' && (
-                        <Button size="small" type="primary" onClick={() => handleStatusChange('open')}>重新打开</Button>
-                      )}
-                    </Space>
-                  )}
-                </Space>
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="提交用户" dataIndex="user_username" />
-              <ProDescriptions.Item label="优先级">
-                <Tag color={priorityMap[currentTicket.priority]?.color}>
-                  {priorityMap[currentTicket.priority]?.text}
-                </Tag>
-              </ProDescriptions.Item>
-              <ProDescriptions.Item label="关联订单" dataIndex="order_number" />
-              <ProDescriptions.Item label="创建时间" dataIndex="created_at" valueType="dateTime" />
-              <ProDescriptions.Item label="主题" span={2} dataIndex="subject" />
+            <ProDescriptions column={2} dataSource={currentConversation}>
+              <ProDescriptions.Item label="用户" dataIndex="user_username" />
+              <ProDescriptions.Item label="最后活跃" dataIndex="updated_at" valueType="dateTime" />
             </ProDescriptions>
 
             <Divider orientation="left">消息记录</Divider>
             
-            <div ref={messageListRef} style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px', padding: '0 10px' }}>
+            <div ref={messageListRef} style={{ height: 'calc(100vh - 350px)', overflowY: 'auto', marginBottom: '20px', padding: '0 10px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
               <List
                 loading={chatLoading}
                 dataSource={chatMessages}
                 renderItem={(msg: ExtendedSupportMessage) => {
-                  const isMe = msg.sender === currentUser?.id;
+                  const isMe = msg.sender === currentUser?.id || msg.role === 'support' || msg.role === 'admin';
+                  // Note: msg.sender is ID, currentUser.id is ID. 
+                  // If I am admin, my messages should be on right.
+                  // Messages from user should be on left.
+                  
                   return (
                     <List.Item style={{ 
                       display: 'flex', 
@@ -319,26 +221,27 @@ export default function Support() {
                       <div style={{ 
                         display: 'flex', 
                         flexDirection: isMe ? 'row-reverse' : 'row',
-                        maxWidth: '80%',
+                        maxWidth: '85%',
                         alignItems: 'flex-start',
                         opacity: msg.status === 'sending' ? 0.6 : 1
                       }}>
                         <Avatar 
                           icon={<UserOutlined />} 
                           style={{ 
-                            backgroundColor: msg.role === 'support' || msg.role === 'admin' ? '#87d068' : '#1890ff',
+                            backgroundColor: isMe ? '#87d068' : '#1890ff',
                             marginLeft: isMe ? 8 : 0,
-                            marginRight: isMe ? 0 : 8
+                            marginRight: isMe ? 0 : 8,
+                            flexShrink: 0
                           }} 
                         />
-                        <div>
+                        <div style={{ minWidth: 0 }}>
                           <div style={{ 
                             textAlign: isMe ? 'right' : 'left', 
                             fontSize: '12px', 
                             color: '#999', 
                             marginBottom: 4 
                           }}>
-                            {msg.sender_username} ({msg.role}) - {new Date(msg.created_at).toLocaleString()}
+                            {msg.sender_username || (isMe ? '我' : '用户')} - {new Date(msg.created_at).toLocaleString()}
                           </div>
                           <div style={{ 
                             backgroundColor: msg.status === 'error' ? '#ffccc7' : (isMe ? '#e6f7ff' : '#f5f5f5'), 
@@ -348,43 +251,43 @@ export default function Support() {
                           }}>
                             {msg.order_info ? (
                               <div 
-                                style={{ width: 200, cursor: 'pointer' }} 
+                                style={{ width: 220, cursor: 'pointer' }} 
                                 onClick={() => window.open(`/orders?id=${msg.order_info?.id}`, '_blank')}
                               >
-                                <div style={{ borderBottom: '1px solid #eee', paddingBottom: 4, marginBottom: 4, color: '#999', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                                <div style={{ borderBottom: '1px solid #ddd', paddingBottom: 4, marginBottom: 4, color: '#666', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
                                   <span>订单号: {msg.order_info.order_number}</span>
                                   <span style={{ backgroundColor: '#f6ffed', color: '#52c41a', padding: '0 4px', borderRadius: 2 }}>{getOrderStatusText(msg.order_info.status)}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
                                   <AntImage 
-                                    width={40} 
-                                    height={40} 
+                                    width={50} 
+                                    height={50} 
                                     src={msg.order_info.image} 
                                     preview={false}
-                                    style={{ borderRadius: 4, objectFit: 'cover' }}
+                                    style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
                                   />
                                   <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.order_info.product_name}</div>
-                                    <div style={{ color: '#fa4126', fontSize: 12 }}>¥{msg.order_info.total_amount}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.order_info.product_name}</div>
+                                    <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.order_info.total_amount}</div>
                                   </div>
                                 </div>
                               </div>
                             ) : msg.product_info ? (
                               <div 
-                                style={{ width: 200, cursor: 'pointer' }} 
+                                style={{ width: 220, cursor: 'pointer' }} 
                                 onClick={() => window.open(`/products?id=${msg.product_info?.id}`, '_blank')}
                               >
                                 <div style={{ display: 'flex', alignItems: 'center' }}>
                                   <AntImage 
-                                    width={40} 
-                                    height={40} 
+                                    width={50} 
+                                    height={50} 
                                     src={msg.product_info.image} 
                                     preview={false}
-                                    style={{ borderRadius: 4, objectFit: 'cover' }}
+                                    style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
                                   />
                                   <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.product_info.name}</div>
-                                    <div style={{ color: '#fa4126', fontSize: 12 }}>¥{msg.product_info.price}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.product_info.name}</div>
+                                    <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.product_info.price}</div>
                                   </div>
                                 </div>
                               </div>
@@ -432,6 +335,12 @@ export default function Support() {
                 onChange={(e) => setMessageContent(e.target.value)}
                 placeholder="请输入回复内容..."
                 style={{ marginBottom: 10 }}
+                onPressEnter={(e) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
               />
               <Button 
                 type="primary" 
@@ -492,8 +401,6 @@ export default function Support() {
           columns={[
              { title: '订单号', dataIndex: 'order_number' },
              { title: '金额', dataIndex: 'total_amount', render: (dom) => `¥${dom}` },
-             { title: '状态', dataIndex: 'status', valueEnum: { pending: { text: '待付款' }, paid: { text: '待发货' }, shipped: { text: '已发货' }, completed: { text: '已完成' }, cancelled: { text: '已取消' } } },
-             { title: '时间', dataIndex: 'created_at', valueType: 'dateTime' },
              { 
                title: '操作', 
                valueType: 'option',
@@ -501,14 +408,8 @@ export default function Support() {
              }
           ]}
           request={async (params) => {
-            if (!currentTicket?.user) return { data: [], success: true };
-            const res: any = await getOrders({ 
-              page: params.current, 
-              page_size: params.pageSize, 
-              user_id: currentTicket.user, 
-              ...params 
-            });
-            return { data: res.results, total: res.count, success: true };
+             const res: any = await getOrders({ page: params.current, page_size: params.pageSize, ...params });
+             return { data: res.results, total: res.count, success: true };
           }}
           pagination={{ pageSize: 5 }}
           options={false}

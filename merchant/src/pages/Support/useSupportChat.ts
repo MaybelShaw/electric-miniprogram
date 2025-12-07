@@ -146,6 +146,7 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
     const tempId = `temp_${Date.now()}`;
     const tempMsg: ExtendedSupportMessage = {
       id: -1, // Placeholder
+      conversation: 0,
       ticket: 0, // No longer tied to specific ticket ID on client side for chat display
       sender: user?.id || 0,
       sender_username: user?.username || 'Me',

@@ -40,13 +40,17 @@ def get_logging_config():
     Returns:
         dict: Logging configuration for Django
     """
-    # Determine log level based on environment
-    if EnvironmentConfig.is_production():
-        default_level = 'INFO'
-        django_level = 'INFO'
-    else:
-        default_level = 'DEBUG'
-        django_level = 'DEBUG'
+    def _resolve_level(env_key: str, default: str) -> str:
+        val = EnvironmentConfig.get_env(env_key, '').strip().upper()
+        if val:
+            return val
+        return default
+
+    is_prod = EnvironmentConfig.is_production()
+    # Lower default log level to INFO in non-production to avoid noisy DEBUG output unless explicitly enabled
+    default_level = _resolve_level('LOG_LEVEL', 'INFO' if not is_prod else 'INFO')
+    django_level = _resolve_level('DJANGO_LOG_LEVEL', default_level)
+    db_level = _resolve_level('DB_LOG_LEVEL', 'INFO')
 
     config = {
         'version': 1,
@@ -210,8 +214,9 @@ def get_logging_config():
             'propagate': False,
         },
         'django.db.backends': {
-            'handlers': ['db_queries'] if not EnvironmentConfig.is_production() else [],
-            'level': 'DEBUG' if not EnvironmentConfig.is_production() else 'INFO',
+            # Enable query logging only when DB_LOG_LEVEL=DEBUG
+            'handlers': ['db_queries'] if db_level == 'DEBUG' else [],
+            'level': db_level,
             'propagate': False,
         },
         'backend': {

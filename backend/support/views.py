@@ -1,260 +1,112 @@
-from rest_framework import viewsets, status, serializers
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.db.models import Prefetch, Subquery, OuterRef
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from django.db.models import Q
-from django.utils.dateparse import parse_datetime
-from django.utils import timezone
-from .models import SupportTicket, SupportMessage
-from orders.models import Order
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from catalog.models import Product
-from .serializers import SupportTicketSerializer, SupportMessageSerializer
 from common.serializers import AttachmentFileValidator
-
-
-class SupportTicketViewSet(viewsets.ModelViewSet):
-    queryset = SupportTicket.objects.all().order_by('-updated_at')
-    serializer_class = SupportTicketSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_staff or getattr(user, 'role', '') == 'support':
-            return self.queryset
-        return self.queryset.filter(user_id=user.id)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def add_message(self, request, pk=None):
-        ticket = self.get_object()
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or ticket.user_id == request.user.id):
-            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        content = request.data.get('content', '')
-        attachment = request.FILES.get('attachment')
-        attachment_type = request.data.get('attachment_type')
-        order_id = request.data.get('order_id')
-        product_id = request.data.get('product_id')
-        if not content and not attachment and not order_id and not product_id:
-            return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
-        if attachment:
-            try:
-                AttachmentFileValidator()(attachment)
-            except serializers.ValidationError as e:
-                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            if not attachment_type:
-                ct = getattr(attachment, 'content_type', '') or ''
-                if ct.startswith('image/'):
-                    attachment_type = 'image'
-                elif ct.startswith('video/'):
-                    attachment_type = 'video'
-            if attachment_type not in ('image', 'video'):
-                return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
-        if order_id and product_id:
-            return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
-        role = 'support' if (request.user.is_staff or getattr(request.user, 'role', '') == 'support') else 'user'
-        order_obj = None
-        product_obj = None
-        if order_id:
-            try:
-                oid = int(order_id)
-                order_obj = Order.objects.get(id=oid, user_id=ticket.user_id)
-            except Exception:
-                return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
-        if product_id:
-            try:
-                pid = int(product_id)
-                product_obj = Product.objects.get(id=pid)
-            except Exception:
-                return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
-        msg = SupportMessage.objects.create(
-            ticket=ticket,
-            sender=request.user,
-            role=role,
-            content=content or '',
-            attachment=attachment,
-            attachment_type=attachment_type,
-            order=order_obj,
-            product=product_obj,
-        )
-        if role == 'support':
-            if ticket.status == 'open':
-                ticket.status = 'pending'
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['status', 'updated_at'])
-            else:
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['updated_at'])
-        else:
-            if ticket.status != 'open':
-                ticket.status = 'open'
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['status', 'updated_at'])
-            else:
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['updated_at'])
-        return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def set_status(self, request, pk=None):
-        ticket = self.get_object()
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        status_value = request.data.get('status')
-        valid_status = [c[0] for c in SupportTicket._meta.get_field('status').choices]
-        if status_value not in valid_status:
-            return Response({'detail': 'invalid status'}, status=status.HTTP_400_BAD_REQUEST)
-        ticket.status = status_value
-        ticket.save(update_fields=['status'])
-        return Response(SupportTicketSerializer(ticket).data)
-
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
-    def assign(self, request, pk=None):
-        ticket = self.get_object()
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        assigned_to = request.data.get('user_id')
-        from users.models import User
-        try:
-            u = User.objects.get(id=assigned_to)
-        except User.DoesNotExist:
-            return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-        ticket.assigned_to = u
-        ticket.save(update_fields=['assigned_to'])
-        return Response(SupportTicketSerializer(ticket).data)
-
-    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
-    def messages(self, request, pk=None):
-        ticket = self.get_object()
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or ticket.user_id == request.user.id):
-            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        qs = ticket.messages.all().order_by('created_at')
-        after = request.query_params.get('after')
-        limit = request.query_params.get('limit')
-        if after:
-            dt = parse_datetime(after)
-            if dt is not None and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.get_current_timezone())
-            if dt is not None:
-                qs = qs.filter(created_at__gt=dt)
-        if limit:
-            try:
-                l = int(limit)
-                if l > 0:
-                    qs = qs[:l]
-            except ValueError:
-                pass
-        return Response(SupportMessageSerializer(qs, many=True, context={'request': request}).data)
-
-
-class SupportMessageViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = SupportMessage.objects.select_related('ticket', 'order', 'product').all().order_by('created_at')
-    serializer_class = SupportMessageSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_staff or getattr(user, 'role', '') == 'support':
-            base_qs = self.queryset
-        else:
-            base_qs = self.queryset.filter(Q(sender_id=user.id) | Q(ticket__user_id=user.id))
-
-        params = self.request.query_params
-        ticket_id = params.get('ticket')
-        after = params.get('after')
-        limit = params.get('limit')
-
-        if ticket_id:
-            try:
-                tid = int(ticket_id)
-                base_qs = base_qs.filter(ticket_id=tid)
-            except ValueError:
-                pass
-        if after:
-            dt = parse_datetime(after)
-            if dt is not None and timezone.is_naive(dt):
-                dt = timezone.make_aware(dt, timezone.get_current_timezone())
-            if dt is not None:
-                base_qs = base_qs.filter(created_at__gt=dt)
-        if limit:
-            try:
-                l = int(limit)
-                if l > 0:
-                    base_qs = base_qs[:l]
-            except ValueError:
-                pass
-
-        return base_qs
+from orders.models import Order
+from .models import SupportConversation, SupportMessage
+from .serializers import SupportConversationSerializer, SupportMessageSerializer
 
 
 class SupportChatViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SupportMessageSerializer
 
-    def _ensure_user_chat_ticket(self, user):
-        ticket = SupportTicket.objects.filter(user_id=user.id, status__in=['open', 'pending', 'resolved']).order_by('-updated_at').first()
-        if not ticket:
-            ticket = SupportTicket.objects.create(user=user, subject='会话', status='open', priority='normal')
-        return ticket
+    def _ensure_conversation(self, user):
+        conversation = (
+            SupportConversation.objects.filter(user=user).order_by('-updated_at', '-id').first()
+        )
+        if conversation:
+            return conversation
+        return SupportConversation.objects.create(user=user)
+
+    def _resolve_conversation(self, request):
+        conversation_id = request.query_params.get('conversation_id') or request.query_params.get('ticket_id')
+        user_id_raw = request.query_params.get('user_id')
+        is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+
+        if conversation_id:
+            try:
+                cid = int(conversation_id)
+            except ValueError:
+                return None, Response({'detail': 'invalid conversation_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                conv = SupportConversation.objects.select_related('user').get(id=cid)
+            except SupportConversation.DoesNotExist:
+                return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
+            if not is_support and conv.user_id != request.user.id:
+                return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            return conv, None
+
+        if user_id_raw:
+            if not is_support:
+                return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            try:
+                uid = int(user_id_raw)
+            except ValueError:
+                return None, Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+            from users.models import User
+            try:
+                target_user = User.objects.get(id=uid)
+            except User.DoesNotExist:
+                return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return self._ensure_conversation(target_user), None
+
+        return self._ensure_conversation(request.user), None
 
     @action(detail=False, methods=['get'])
     def conversations(self, request):
         if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        
-        qs = SupportTicket.objects.all().order_by('-updated_at')
-        
+
+        last_message_prefetch = Prefetch(
+            'messages',
+            queryset=SupportMessage.objects.select_related('sender').order_by('-created_at')[:1],
+            to_attr='last_message_list',
+        )
+
+        qs = (
+            SupportConversation.objects.select_related('user')
+            .prefetch_related(last_message_prefetch)
+            .order_by('-updated_at', '-id')
+        )
+
+        user_id_raw = request.query_params.get('user_id')
+        if user_id_raw:
+            try:
+                uid = int(user_id_raw)
+                qs = qs.filter(user_id=uid)
+            except ValueError:
+                return Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+
         status_param = request.query_params.get('status')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        else:
-            qs = qs.filter(status__in=['open', 'pending', 'resolved'])
+        if status_param == 'open':
+            last_msg_role = SupportMessage.objects.filter(
+                conversation=OuterRef('pk')
+            ).order_by('-created_at').values('role')[:1]
+            qs = qs.annotate(last_msg_role=Subquery(last_msg_role)).filter(last_msg_role='user')
 
         page = self.paginate_queryset(qs)
+        serializer = SupportConversationSerializer(page or qs, many=True, context={'request': request})
         if page is not None:
-            serializer = SupportTicketSerializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        serializer = SupportTicketSerializer(qs, many=True)
         return Response(serializer.data)
 
     def list(self, request):
-        ticket_id = request.query_params.get('ticket_id')
-        user_id = request.query_params.get('user_id')
+        conversation, error = self._resolve_conversation(request)
+        if error:
+            return error
 
-        if ticket_id:
-            try:
-                tid = int(ticket_id)
-            except ValueError:
-                return Response({'detail': 'invalid ticket_id'}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                ticket = SupportTicket.objects.get(id=tid)
-            except SupportTicket.DoesNotExist:
-                return Response({'detail': 'ticket not found'}, status=status.HTTP_404_NOT_FOUND)
-            # permission: non-support can only access own ticket
-            if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-                if ticket.user_id != request.user.id:
-                    return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        elif user_id:
-            if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-                return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-            try:
-                uid = int(user_id)
-            except ValueError:
-                return Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
-            from users.models import User
-            try:
-                target_user = User.objects.get(id=uid)
-            except User.DoesNotExist:
-                return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-            ticket = self._ensure_user_chat_ticket(target_user)
-        else:
-            ticket = self._ensure_user_chat_ticket(request.user)
-
-        qs = ticket.messages.all().order_by('created_at')
+        qs = conversation.messages.select_related('order', 'product', 'sender').order_by('created_at')
         after = request.query_params.get('after')
         limit = request.query_params.get('limit')
+
         if after:
             dt = parse_datetime(after)
             if dt is not None and timezone.is_naive(dt):
@@ -268,6 +120,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                     qs = qs[:l]
             except ValueError:
                 pass
+
         return Response(SupportMessageSerializer(qs, many=True, context={'request': request}).data)
 
     def create(self, request):
@@ -276,10 +129,16 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         attachment_type = request.data.get('attachment_type')
         order_id = request.data.get('order_id')
         product_id = request.data.get('product_id')
-        ticket_id = request.data.get('ticket_id')
+        explicit_conversation_id = request.data.get('conversation_id') or request.data.get('ticket_id')
+
         if not content and not attachment and not order_id and not product_id:
             return Response({'detail': 'content or attachment required'}, status=status.HTTP_400_BAD_REQUEST)
+
         if attachment:
+            try:
+                AttachmentFileValidator()(attachment)
+            except serializers.ValidationError as exc:
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             if not attachment_type:
                 ct = getattr(attachment, 'content_type', '') or ''
                 if ct.startswith('image/'):
@@ -288,67 +147,43 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                     attachment_type = 'video'
             if attachment_type not in ('image', 'video'):
                 return Response({'detail': 'unsupported attachment type'}, status=status.HTTP_400_BAD_REQUEST)
+
         if order_id and product_id:
             return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
 
-        user_id = request.data.get('user_id')
         is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
-        # Prefer explicit ticket when provided
-        ticket = None
         sender = request.user
-        role = 'user'
+        role = 'support' if is_support else 'user'
 
-        if ticket_id:
-            try:
-                tid = int(ticket_id)
-            except ValueError:
-                return Response({'detail': 'invalid ticket_id'}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                t = SupportTicket.objects.get(id=tid)
-            except SupportTicket.DoesNotExist:
-                return Response({'detail': 'ticket not found'}, status=status.HTTP_404_NOT_FOUND)
-            # permissions
-            if is_support:
-                ticket = t
-                role = 'support'
-            else:
-                if t.user_id != request.user.id:
-                    return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-                ticket = t
-                role = 'user'
-        elif user_id and is_support:
-            try:
-                uid = int(user_id)
-            except ValueError:
-                return Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
-            from users.models import User
-            try:
-                target_user = User.objects.get(id=uid)
-            except User.DoesNotExist:
-                return Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-            ticket = self._ensure_user_chat_ticket(target_user)
-            role = 'support'
-        else:
-            ticket = self._ensure_user_chat_ticket(request.user)
-            role = 'user'
+        conversation, error = self._resolve_conversation_from_body(request, explicit_conversation_id)
+        if error:
+            return error
 
         order_obj = None
         product_obj = None
+
         if order_id:
             try:
                 oid = int(order_id)
-                order_obj = Order.objects.get(id=oid, user_id=ticket.user_id)
-            except Exception:
+            except ValueError:
+                return Response({'detail': 'invalid order_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                order_obj = Order.objects.get(id=oid, user_id=conversation.user_id)
+            except Order.DoesNotExist:
                 return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+
         if product_id:
             try:
                 pid = int(product_id)
+            except ValueError:
+                return Response({'detail': 'invalid product_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
                 product_obj = Product.objects.get(id=pid)
-            except Exception:
+            except Product.DoesNotExist:
                 return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
 
         msg = SupportMessage.objects.create(
-            ticket=ticket,
+            conversation=conversation,
             sender=sender,
             role=role,
             content=content or '',
@@ -357,23 +192,40 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             order=order_obj,
             product=product_obj,
         )
-        if role == 'support':
-            if ticket.status == 'open':
-                ticket.status = 'pending'
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['status', 'updated_at'])
-            else:
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['updated_at'])
-        else:
-            if ticket.status != 'open':
-                ticket.status = 'open'
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['status', 'updated_at'])
-            else:
-                ticket.updated_at = timezone.now()
-                ticket.save(update_fields=['updated_at'])
+        SupportConversation.objects.filter(id=conversation.id).update(updated_at=timezone.now())
+
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    def _resolve_conversation_from_body(self, request, explicit_conversation_id=None):
+        is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+        user_id_raw = request.data.get('user_id')
+
+        if explicit_conversation_id:
+            try:
+                cid = int(explicit_conversation_id)
+            except ValueError:
+                return None, Response({'detail': 'invalid conversation_id'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                conv = SupportConversation.objects.select_related('user').get(id=cid)
+            except SupportConversation.DoesNotExist:
+                return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
+            if not is_support and conv.user_id != request.user.id:
+                return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            return conv, None
+
+        if user_id_raw and is_support:
+            try:
+                uid = int(user_id_raw)
+            except ValueError:
+                return None, Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
+            from users.models import User
+            try:
+                target_user = User.objects.get(id=uid)
+            except User.DoesNotExist:
+                return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+            return self._ensure_conversation(target_user), None
+
+        return self._ensure_conversation(request.user), None
 
 
 class SupportApiRootView(APIView):
@@ -383,6 +235,5 @@ class SupportApiRootView(APIView):
         base = request.build_absolute_uri('.')
         return Response({
             'chat': base + 'chat/',
-            'tickets': base + 'tickets/',
-            'messages': base + 'messages/',
+            'conversations': base + 'chat/conversations/',
         })

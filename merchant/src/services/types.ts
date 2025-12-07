@@ -124,7 +124,8 @@ export interface HomeBanner {
 
 export interface SupportMessage {
   id: number;
-  ticket: number;
+  conversation: number;
+  ticket?: number; // Backward compatibility
   sender: number;
   sender_username: string;
   role: string;
@@ -149,18 +150,14 @@ export interface SupportMessage {
   created_at: string;
 }
 
-export interface SupportTicket {
+export interface SupportConversation {
   id: number;
   user: number;
   user_username: string;
-  order: number | null;
-  order_number?: string;
-  subject: string;
-  status: 'open' | 'pending' | 'resolved' | 'closed';
-  priority: 'low' | 'normal' | 'high';
-  assigned_to: number | null;
-  assigned_to_username?: string;
   created_at: string;
   updated_at: string;
-  messages?: SupportMessage[];
+  last_message?: SupportMessage;
+  last_message_at?: string;
 }
+
+export type SupportTicket = SupportConversation; // Alias for backward compatibility during refactor

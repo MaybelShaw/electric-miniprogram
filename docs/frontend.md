@@ -110,11 +110,10 @@
 - 个人中心（`/pages/profile/index`）：资料展示与编辑、地址管理入口
 - 菜单调整：客服支持入口已移动到“信用账户”下方，以更符合用户使用习惯（经销商用户显示为：收货地址 → 经销商认证 → 信用账户 → 客服支持）。
 - 客服支持系统：
-  - **入口**：个人中心 -> 客服支持
+  - **入口**：个人中心 -> 客服支持（直接进入聊天页面，不再有工单列表）
   - **功能**：
-    - 工单列表（`/pages/support-list/index`）：查看所有工单状态
-    - 创建工单（`/pages/support-create/index`）：提交新问题，支持关联订单
-    - 聊天详情（`/pages/support-chat/index`）：实时聊天界面
+    - 实时聊天（`/pages/support-chat/index`）：与客服进行实时对话
+    - 消息发送：支持文本、图片、视频、关联订单、关联商品
   - **优化特性**：
     - **增量轮询**：使用 `after` 参数仅拉取新消息，节省流量
     - **本地缓存**：消息缓存在本地存储，进入页面秒开
@@ -122,12 +121,12 @@
     - **乐观更新**：发送消息立即上屏，提升体验
   - **消息类型**：文本、图片、视频、订单卡片、商品卡片（渲染见 `frontend/src/pages/support-chat/index.tsx:320`，视频样式见 `frontend/src/pages/support-chat/index.scss:69`）。
   - **选择订单/商品**：在聊天面板中点击“订单”或“商品”打开选择页：
-    - 订单选择页：`/pages/support-chat/select-order/index`（状态文案映射见 `frontend/src/pages/support-chat/select-order/index.tsx:45`）
+    - 订单选择页：`/pages/support-chat/select-order/index`
     - 商品选择页：`/pages/support-chat/select-product/index`
-    - 页面间通信：通过事件通道发送选择结果，稳定获取 `EventChannel` 使用 `Taro.getCurrentPages()`（实现见 `frontend/src/pages/support-chat/select-order/index.tsx:1`、`frontend/src/pages/support-chat/select-product/index.tsx:1`）。
-  - **消息发送**：统一封装在 `supportService.sendMessage`（`frontend/src/services/support.ts:31`），支持文本、图片、视频以及 `order_id`/`product_id`。聊天页面调用封装方法 `sendContent`（`frontend/src/pages/support-chat/index.tsx:307`）实现乐观更新与失败回滚。
-  - **动作面板**：为避免歧义，动作面板将“相册”重命名为“图片/视频”（`frontend/src/pages/support-chat/index.tsx:545`）。
-  - **卡片渲染**：订单/商品消息在聊天中以信息卡片展示，点击可跳转到详情页；订单卡片右上角显示状态标签（`frontend/src/pages/support-chat/index.tsx:475`，样式 `frontend/src/pages/support-chat/index.scss:98`）。
+    - 页面间通信：通过事件通道发送选择结果，稳定获取 `EventChannel` 使用 `Taro.getCurrentPages()`。
+  - **消息发送**：统一封装在 `supportService.sendMessage`（`frontend/src/services/support.ts:31`），支持文本、图片、视频以及 `order_id`/`product_id`。
+  - **动作面板**：为避免歧义，动作面板将“相册”重命名为“图片/视频”。
+  - **卡片渲染**：订单/商品消息在聊天中以信息卡片展示，点击可跳转到详情页；订单卡片右上角显示状态标签。
 - 信用账户与账务（`/pages/credit-account`、`/pages/account-statements`、`/pages/statement-detail`）：额度、账期、对账单与交易明细
   - 账期规则：固定月度账期，正常 `30` 天；采购的应付日期为“交易日 + 账期天数”所在月份的最后一天。
   - 对账明细中的“应付日期/付款状态”与后端同步，逾期状态按天更新。

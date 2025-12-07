@@ -141,9 +141,10 @@ export const uploadHomeBanner = (file: File, data?: any) => {
   return request.post('/catalog/home-banners/upload/', formData);
 };
 
-// 客服工单管理
-export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params });
-export const getSupportTicket = (id: number) => request.get(`/support/tickets/${id}/`); // 保留用于获取详情（如果有必要，但conversations列表已有大部分信息）
+// 客服会话管理
+export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params }); // Alias for getConversations
+export const getConversations = (params?: any) => request.get('/support/chat/conversations/', { params });
+
 // 新的聊天接口
 export const getChatMessages = (userId: number, params?: any) => request.get('/support/chat/', { params: { user_id: userId, ...params } });
 export const sendChatMessage = (userId: number, content: string, attachment?: File, attachmentType?: 'image' | 'video', extra?: { order_id?: number, product_id?: number, ticket_id?: number }) => {
@@ -153,7 +154,7 @@ export const sendChatMessage = (userId: number, content: string, attachment?: Fi
       content,
       order_id: extra?.order_id,
       product_id: extra?.product_id,
-      ticket_id: extra?.ticket_id
+      conversation_id: extra?.ticket_id // Compatible with ticket_id param
     });
   }
   
@@ -171,17 +172,8 @@ export const sendChatMessage = (userId: number, content: string, attachment?: Fi
     formData.append('product_id', extra.product_id.toString());
   }
   if (extra?.ticket_id) {
-    formData.append('ticket_id', String(extra.ticket_id));
+    formData.append('conversation_id', String(extra.ticket_id));
   }
   
   return request.post('/support/chat/', formData);
 };
-
-// 旧接口保留但标记（如果还需要）
-export const createSupportTicket = (data: any) => request.post('/support/tickets/', data);
-export const updateSupportTicket = (id: number, data: any) => request.patch(`/support/tickets/${id}/`, data);
-export const addSupportTicketMessage = (id: number, content: string) => request.post(`/support/tickets/${id}/add_message/`, { content });
-export const setSupportTicketStatus = (id: number, status: string) => request.post(`/support/tickets/${id}/set_status/`, { status });
-export const assignSupportTicket = (id: number, userId: number) => request.post(`/support/tickets/${id}/assign/`, { user_id: userId });
-export const getSupportTicketMessages = (id: number, params?: any) => request.get(`/support/tickets/${id}/messages/`, { params });
-export const getSupportMessages = (params?: any) => request.get('/support/messages/', { params });

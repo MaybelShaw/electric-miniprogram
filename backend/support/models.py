@@ -4,29 +4,23 @@ from orders.models import Order
 from catalog.models import Product
 
 
-class SupportTicket(models.Model):
+class SupportConversation(models.Model):
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_tickets')
-    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_tickets')
-    subject = models.CharField(max_length=200)
-    status = models.CharField(max_length=20, choices=[('open', 'open'), ('pending', 'pending'), ('resolved', 'resolved'), ('closed', 'closed')], default='open', db_index=True)
-    priority = models.CharField(max_length=20, choices=[('low', 'low'), ('normal', 'normal'), ('high', 'high')], default='normal', db_index=True)
-    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tickets')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_conversations')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-updated_at', '-id']
         indexes = [
-            models.Index(fields=['status']),
-            models.Index(fields=['priority']),
-            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['user'], name='support_conv_user_idx'),
+            models.Index(fields=['updated_at'], name='support_conv_updated_idx'),
         ]
 
 
 class SupportMessage(models.Model):
     id = models.BigAutoField(primary_key=True)
-    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE, related_name='messages')
+    conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_messages')
     role = models.CharField(max_length=20, default='', db_index=True)
     content = models.TextField(blank=True)
@@ -39,8 +33,8 @@ class SupportMessage(models.Model):
     class Meta:
         ordering = ['created_at']
         indexes = [
-            models.Index(fields=['ticket', 'created_at']),
-            models.Index(fields=['attachment_type']),
-            models.Index(fields=['order']),
-            models.Index(fields=['product']),
+            models.Index(fields=['conversation', 'created_at'], name='support_msg_conv_created_idx'),
+            models.Index(fields=['attachment_type'], name='support_sup_attachm_54bc2a_idx'),
+            models.Index(fields=['order'], name='support_sup_order_i_c35c9c_idx'),
+            models.Index(fields=['product'], name='support_sup_product_cd2223_idx'),
         ]

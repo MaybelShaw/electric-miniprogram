@@ -321,6 +321,7 @@ export default function SupportChat() {
     const tempId = `temp_${Date.now()}`
     const tempMsg: ExtendedSupportMessage = {
       id: -1,
+      conversation: 0,
       ticket: 0,
       sender: currentUser.id,
       sender_username: currentUser.username || 'Me',

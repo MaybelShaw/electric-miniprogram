@@ -19,6 +19,23 @@ class OrdersConfig(AppConfig):
             return
         logger = logging.getLogger(__name__)
 
+        def _wait_for_table():
+            from django.db import connection
+            missing_logged = False
+            while True:
+                try:
+                    table_names = set(connection.introspection.table_names())
+                    if 'orders_order' in table_names:
+                        if missing_logged:
+                            logger.info('orders_order table is ready, start auto-cancel loop')
+                        return
+                    if not missing_logged:
+                        logger.warning('orders_order table not ready, retry auto-cancel loop in 30s')
+                        missing_logged = True
+                except Exception as exc:
+                    logger.warning(f'orders_order table check failed: {exc}, retry in 30s')
+                time.sleep(30)
+
         def _worker():
             from django.db import close_old_connections
             from django.db import connection
@@ -27,15 +44,9 @@ class OrdersConfig(AppConfig):
             from orders.state_machine import OrderStateMachine
             from common.audit_logger import AuditLogger
             from django.conf import settings as dj_settings
+            _wait_for_table()
             while True:
                 try:
-                    # 防止在迁移未执行时访问表导致报错
-                    table_names = set(connection.introspection.table_names())
-                    if 'orders_order' not in table_names:
-                        logger.warning('orders_order table not ready, skip auto-cancel loop')
-                        time.sleep(30)
-                        continue
-
                     now = timezone.now()
                     cutoff = now - timedelta(minutes=getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10))
                     qs = Order.objects.filter(status='pending', created_at__lt=cutoff).prefetch_related('payments')

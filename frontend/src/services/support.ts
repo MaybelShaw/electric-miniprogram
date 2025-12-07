@@ -3,7 +3,8 @@ import Taro from '@tarojs/taro'
 
 export interface SupportMessage {
   id: number
-  ticket: number
+  conversation: number
+  ticket?: number
   sender: number
   sender_username: string
   role: string

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SupportTicket, SupportMessage
+from .models import SupportConversation, SupportMessage
 
 
 class SupportMessageSerializer(serializers.ModelSerializer):
@@ -7,11 +7,38 @@ class SupportMessageSerializer(serializers.ModelSerializer):
     attachment_url = serializers.SerializerMethodField()
     order_info = serializers.SerializerMethodField()
     product_info = serializers.SerializerMethodField()
+    conversation = serializers.IntegerField(source='conversation_id', read_only=True)
+    ticket = serializers.IntegerField(source='conversation_id', read_only=True)
 
     class Meta:
         model = SupportMessage
-        fields = ['id', 'ticket', 'sender', 'sender_username', 'role', 'content', 'attachment_type', 'attachment_url', 'order_info', 'product_info', 'created_at']
-        read_only_fields = ['id', 'sender', 'sender_username', 'role', 'attachment_type', 'attachment_url', 'order_info', 'product_info', 'created_at']
+        fields = [
+            'id',
+            'conversation',
+            'ticket',
+            'sender',
+            'sender_username',
+            'role',
+            'content',
+            'attachment_type',
+            'attachment_url',
+            'order_info',
+            'product_info',
+            'created_at',
+        ]
+        read_only_fields = [
+            'id',
+            'conversation',
+            'ticket',
+            'sender',
+            'sender_username',
+            'role',
+            'attachment_type',
+            'attachment_url',
+            'order_info',
+            'product_info',
+            'created_at',
+        ]
 
     def get_attachment_url(self, obj):
         if not obj.attachment:
@@ -66,16 +93,44 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         }
 
 
-class SupportTicketSerializer(serializers.ModelSerializer):
-    messages = SupportMessageSerializer(many=True, read_only=True)
+class SupportConversationSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True)
-    order_number = serializers.CharField(source='order.order_number', read_only=True)
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
+    last_message = serializers.SerializerMethodField()
+    last_message_at = serializers.SerializerMethodField()
 
     class Meta:
-        model = SupportTicket
+        model = SupportConversation
         fields = [
-            'id', 'user', 'user_username', 'order', 'order_number', 'subject', 'status', 'priority',
-            'assigned_to', 'assigned_to_username', 'created_at', 'updated_at', 'messages'
+            'id',
+            'user',
+            'user_username',
+            'created_at',
+            'updated_at',
+            'last_message',
+            'last_message_at',
         ]
-        read_only_fields = ['id', 'user', 'user_username', 'order_number', 'assigned_to_username', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id',
+            'user',
+            'user_username',
+            'created_at',
+            'updated_at',
+            'last_message',
+            'last_message_at',
+        ]
+
+    def _get_last_message(self, obj):
+        cached = getattr(obj, 'last_message_list', None)
+        if cached:
+            return cached[0]
+        return obj.messages.order_by('-created_at').first()
+
+    def get_last_message(self, obj):
+        msg = self._get_last_message(obj)
+        if not msg:
+            return None
+        return SupportMessageSerializer(msg, context=self.context).data
+
+    def get_last_message_at(self, obj):
+        msg = self._get_last_message(obj)
+        return getattr(msg, 'created_at', None)
