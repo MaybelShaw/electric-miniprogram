@@ -119,26 +119,42 @@ class OrderAnalytics:
         if cached is not None:
             return cached
         
-        qs = Order.objects.filter(status='completed')
-        if start_date:
-            qs = qs.filter(created_at__date__gte=start_date)
-        if end_date:
-            qs = qs.filter(created_at__date__lte=end_date)
         if product_id:
-            qs = qs.filter(product_id=product_id)
-        
-        qs = (
-            qs.values(region_name=F(region_field))
-            .annotate(
-                orders=Count('id'),
-                total_quantity=Sum('quantity'),
-                amount=Sum('total_amount'),
+            from orders.models import OrderItem
+            item_qs = OrderItem.objects.filter(order__status='completed', product_id=product_id)
+            if start_date:
+                item_qs = item_qs.filter(order__created_at__date__gte=start_date)
+            if end_date:
+                item_qs = item_qs.filter(order__created_at__date__lte=end_date)
+            item_qs = (
+                item_qs.values(region_name=F(f'order__{region_field}'))
+                .annotate(
+                    orders=Count('order', distinct=True),
+                    total_quantity=Sum('quantity'),
+                    amount=Sum('actual_amount'),
+                )
+                .exclude(region_name='')
+                .order_by(f'-{order_field}')
             )
-            .exclude(region_name='')
-            .order_by(f'-{order_field}')
-        )
-        
-        result = list(qs if limit is None else qs[:int(limit)])
+            result = list(item_qs if limit is None else item_qs[:int(limit)])
+        else:
+            qs = Order.objects.filter(status='completed')
+            if start_date:
+                qs = qs.filter(created_at__date__gte=start_date)
+            if end_date:
+                qs = qs.filter(created_at__date__lte=end_date)
+            
+            qs = (
+                qs.values(region_name=F(region_field))
+                .annotate(
+                    orders=Count('id'),
+                    total_quantity=Sum('quantity'),
+                    amount=Sum('total_amount'),
+                )
+                .exclude(region_name='')
+                .order_by(f'-{order_field}')
+            )
+            result = list(qs if limit is None else qs[:int(limit)])
         cache.set(cache_key, result, cls.CACHE_TIMEOUT)
         return result
     
@@ -188,18 +204,19 @@ class OrderAnalytics:
         if cached is not None:
             return cached
         
-        qs = Order.objects.filter(status='completed', product_id=product_id)
+        from orders.models import OrderItem
+        qs = OrderItem.objects.filter(order__status='completed', product_id=product_id)
         if start_date:
-            qs = qs.filter(created_at__date__gte=start_date)
+            qs = qs.filter(order__created_at__date__gte=start_date)
         if end_date:
-            qs = qs.filter(created_at__date__lte=end_date)
+            qs = qs.filter(order__created_at__date__lte=end_date)
         
         qs = (
-            qs.values(region_name=F(region_field))
+            qs.values(region_name=F(f'order__{region_field}'))
             .annotate(
-                orders=Count('id'),
+                orders=Count('order', distinct=True),
                 total_quantity=Sum('quantity'),
-                amount=Sum('total_amount'),
+                amount=Sum('actual_amount'),
             )
             .exclude(region_name='')
             .order_by(f'-{order_field}')
@@ -257,23 +274,24 @@ class OrderAnalytics:
         if cached is not None:
             return cached
         
-        qs = Order.objects.filter(status='completed')
+        from orders.models import OrderItem
+        qs = OrderItem.objects.filter(order__status='completed')
         
         # 地区过滤
-        filter_kwargs = {region_field: region_name}
+        filter_kwargs = {f'order__{region_field}': region_name}
         qs = qs.filter(**filter_kwargs)
         
         if start_date:
-            qs = qs.filter(created_at__date__gte=start_date)
+            qs = qs.filter(order__created_at__date__gte=start_date)
         if end_date:
-            qs = qs.filter(created_at__date__lte=end_date)
+            qs = qs.filter(order__created_at__date__lte=end_date)
         
         qs = (
             qs.values('product__id', 'product__name')
             .annotate(
-                orders=Count('id'),
+                orders=Count('order', distinct=True),
                 total_quantity=Sum('quantity'),
-                amount=Sum('total_amount'),
+                amount=Sum('actual_amount'),
             )
             .order_by(f'-{order_field}')
         )
@@ -311,15 +329,16 @@ class OrderAnalytics:
         since = timezone.now() - timedelta(days=days)
         
         # 查询热销商品
+        from orders.models import OrderItem
         result = list(
-            Order.objects.filter(
-                status='completed',
-                created_at__gte=since
+            OrderItem.objects.filter(
+                order__status='completed',
+                order__created_at__gte=since
             )
             .values('product__id', 'product__name')
             .annotate(
                 total_quantity=Sum('quantity'),
-                total_amount=Sum('total_amount')
+                total_amount=Sum('actual_amount')
             )
             .order_by('-total_quantity')[:limit]
         )

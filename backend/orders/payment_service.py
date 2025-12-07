@@ -117,6 +117,8 @@ class PaymentService:
         app_id = getattr(settings, 'WECHAT_APPID', '') or 'mock-appid'
         mch_id = getattr(settings, 'WECHAT_PAY_MCHID', '') or 'mock-mchid'
         sign_key = getattr(settings, 'WECHAT_PAY_SECRET', '') or settings.SECRET_KEY
+        # 微信单位为分，保留整数
+        total_fee = int(Decimal(str(payment.amount)) * 100)
 
         # 生成基础字段
         nonce_str = uuid.uuid4().hex
@@ -152,6 +154,8 @@ class PaymentService:
             'payment_id': payment.id,
             'order_number': getattr(payment.order, 'order_number', ''),
             'amount': str(payment.amount),
+            'total_fee': total_fee,
+            'total': total_fee,
             'mchId': mch_id,
         }
 
@@ -212,7 +216,8 @@ class PaymentService:
         if limit is None:
             return True, ''
         try:
-            if order.total_amount > Decimal(str(limit)):
+            order_amount = order.actual_amount or order.total_amount
+            if order_amount > Decimal(str(limit)):
                 return False, f'单笔金额超出限制（上限 {limit}）'
         except Exception:
             pass
@@ -283,7 +288,8 @@ class PaymentService:
                 payment_amount = Decimal(str(payment_amount))
             
             # 允许0.01元的误差
-            difference = abs(order.total_amount - payment_amount)
+            order_amount = order.actual_amount or order.total_amount
+            difference = abs(order_amount - payment_amount)
             return difference < Decimal('0.01')
         except Exception as e:
             logger.error(f'金额验证异常: {str(e)}')
@@ -444,7 +450,8 @@ class PaymentService:
         # 检查支付金额
         if payment_amount is not None:
             if not PaymentService.check_payment_amount(order, payment_amount):
-                return False, f'支付金额{payment_amount}与订单金额{order.total_amount}不一致'
+                order_amount = order.actual_amount or order.total_amount
+                return False, f'支付金额{payment_amount}与订单金额{order_amount}不一致'
         
         # 检查订单是否过期（订单创建超过24小时）
         from datetime import timedelta

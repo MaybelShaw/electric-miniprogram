@@ -265,8 +265,9 @@ export default function SupportChat() {
   }
 
   const sendOrder = async (order: any) => {
-    const product = order.product || {}
-    const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+    const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
+    const product = primaryItem?.product || order.product || {}
+    const image = primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || ''
     
     const orderInfo = {
       id: order.id,
@@ -274,7 +275,7 @@ export default function SupportChat() {
       status: order.status,
       quantity: order.quantity,
       total_amount: order.total_amount,
-      product_name: product.name || '',
+      product_name: primaryItem?.product_name || product.name || '',
       image: image
     }
     

@@ -5,6 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.core.validators import MinValueValidator
 from django.conf import settings
+from decimal import Decimal
 
 # Create your models here.
 def generate_order_number():
@@ -27,7 +28,7 @@ class Order(models.Model):
     id = models.BigAutoField(primary_key=True)
     order_number = models.CharField(max_length=100, unique=True,default=generate_order_number,verbose_name='订单号')
     user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='orders', verbose_name='用户')
-    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='orders', verbose_name='产品')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, null=True, blank=True, related_name='orders', verbose_name='产品')
     quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='总金额')
     discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
@@ -83,6 +84,21 @@ class Order(models.Model):
     def __str__(self):
         return self.order_number
     
+    @property
+    def primary_item(self):
+        return self.items.first()
+    
+    @property
+    def primary_product(self):
+        item = self.primary_item
+        return item.product if item else self.product
+    
+    @property
+    def total_quantity(self):
+        if hasattr(self, '_prefetched_objects_cache') and 'items' in self._prefetched_objects_cache:
+            return sum(item.quantity for item in self.items.all())
+        return self.items.aggregate(total=models.Sum('quantity')).get('total') or self.quantity
+    
     def prepare_haier_order_data(self, source_system='YOUR_SYSTEM', shop_name='默认店铺'):
         """
         准备推送到海尔的订单数据
@@ -94,6 +110,36 @@ class Order(models.Model):
         Returns:
             dict: 海尔订单数据格式
         """
+        item_list = []
+        total_qty = 0
+        for item in self.items.select_related('product', 'sku').all():
+            product_code = ''
+            if item.sku and item.sku.sku_code:
+                product_code = item.sku.sku_code
+            elif item.product and getattr(item.product, 'product_code', None):
+                product_code = item.product.product_code
+            item_list.append({
+                'productCode': product_code,
+                'itemQty': item.quantity,
+                'retailPrice': float(item.unit_price),
+                'discountAmount': float(item.discount_amount),
+                'actualPrice': float(item.actual_amount),
+                'isGift': False,
+            })
+            total_qty += item.quantity
+
+        # 兼容旧数据：没有 order items 时回退到单商品逻辑
+        if not item_list and self.product:
+            item_list.append({
+                'productCode': self.product.product_code,
+                'itemQty': self.quantity,
+                'retailPrice': float(self.product.market_price or self.product.price),
+                'discountAmount': float(self.discount_amount),
+                'actualPrice': float(self.actual_amount),
+                'isGift': False,
+            })
+            total_qty = self.quantity
+
         return {
             'sourceSystem': source_system,
             'shopName': shop_name,
@@ -103,7 +149,7 @@ class Order(models.Model):
             'onlineNo': self.order_number,
             'soId': self.haier_so_id or f"{self.order_number}-{self.id}",
             'remark': self.note,
-            'totalQty': self.quantity,
+            'totalQty': total_qty or self.quantity,
             'totalAmt': float(self.total_amount),
             'createTime': int(self.created_at.timestamp() * 1000),
             'province': self.snapshot_province,
@@ -115,16 +161,7 @@ class Order(models.Model):
             'installTime': int(self.install_time.timestamp() * 1000) if self.install_time else None,
             'governmentOrder': self.is_government_order,
             'deliveryInstall': str(self.is_delivery_install).lower(),
-            'itemList': [
-                {
-                    'productCode': self.product.product_code,
-                    'itemQty': self.quantity,
-                    'retailPrice': float(self.product.market_price or self.product.price),
-                    'discountAmount': float(self.discount_amount),
-                    'actualPrice': float(self.actual_amount),
-                    'isGift': False,
-                }
-            ]
+            'itemList': item_list
         }
     
     def update_from_haier_callback(self, callback_data: dict):
@@ -161,6 +198,42 @@ class Order(models.Model):
         self.updated_at = timezone.now()
         self.save()
 
+
+class OrderItem(models.Model):
+    """订单行项目"""
+    id = models.BigAutoField(primary_key=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items', verbose_name='订单')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='order_items', verbose_name='产品')
+    sku = models.ForeignKey('catalog.ProductSKU', on_delete=models.PROTECT, null=True, blank=True, related_name='order_items', verbose_name='SKU')
+    product_name = models.CharField(max_length=200, verbose_name='商品名称')
+    sku_specs = models.JSONField(default=dict, blank=True, verbose_name='规格信息')
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU编码')
+    quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='单价')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
+    actual_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='实付金额')
+    snapshot_image = models.URLField(max_length=500, blank=True, default='', verbose_name='商品主图')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '订单商品'
+        verbose_name_plural = '订单商品'
+        indexes = [
+            models.Index(fields=['order']),
+            models.Index(fields=['product']),
+            models.Index(fields=['sku']),
+        ]
+
+    def __str__(self):
+        return f'订单{self.order_id} - {self.product_name} x{self.quantity}'
+
+    @property
+    def specs_text(self):
+        if not self.sku_specs:
+            return ''
+        return ' / '.join([f'{k}:{v}' for k, v in self.sku_specs.items()])
+
+
 class Cart(models.Model):
     user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='cart', verbose_name='用户')
 
@@ -174,12 +247,13 @@ class Cart(models.Model):
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.PROTECT, related_name='items', verbose_name='购物车')
     product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='cart_items', verbose_name='产品')
+    sku = models.ForeignKey('catalog.ProductSKU', on_delete=models.PROTECT, null=True, blank=True, related_name='cart_items', verbose_name='SKU')
     quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
 
     class Meta:
         verbose_name = "购物车项"
         verbose_name_plural = "购物车项"
-        unique_together = ('cart', 'product')
+        unique_together = ('cart', 'product', 'sku')
 
 
 class Payment(models.Model):
@@ -224,9 +298,10 @@ class Payment(models.Model):
         now = timezone.now()
         from django.conf import settings as dj_settings
         ttl = ttl_minutes if ttl_minutes is not None else getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
+        amount = order.actual_amount or order.total_amount
         payment = cls.objects.create(
             order=order,
-            amount=order.total_amount,
+            amount=amount,
             method=method,
             status='init',
             expires_at=now + timedelta(minutes=ttl),

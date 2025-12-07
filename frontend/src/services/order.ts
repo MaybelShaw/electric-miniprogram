@@ -4,9 +4,11 @@ import { Order, CreateOrderResponse, PaginatedResponse } from '../types'
 export const orderService = {
   // 创建订单
   async createOrder(data: {
-    product_id: number
+    product_id?: number
     address_id: number
-    quantity: number
+    quantity?: number
+    items?: Array<{ product_id: number; quantity: number; sku_id?: number | null }>
+    sku_id?: number | null
     note?: string
     payment_method?: 'online' | 'credit'
     method?: 'wechat' | 'alipay' | 'bank'
@@ -16,14 +18,16 @@ export const orderService = {
 
   // 批量创建订单（购物车结算）
   async createBatchOrders(data: {
-    items: Array<{ product_id: number; quantity: number }>
+    items: Array<{ product_id: number; quantity: number; sku_id?: number | null }>
     address_id: number
     note?: string
     payment_method?: 'online' | 'credit'
     method?: 'wechat' | 'alipay' | 'bank'
   }): Promise<{
-    orders: Order[]
-    payments: any[]
+    order: Order
+    payment: any
+    orders?: Order[]
+    payments?: any[]
   }> {
     return http.post('/orders/create_batch_orders/', data)
   },

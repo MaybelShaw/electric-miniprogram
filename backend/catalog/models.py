@@ -264,6 +264,39 @@ class Product(models.Model):
         return self.is_sales == '1'
 
 
+class ProductSKU(models.Model):
+    """商品SKU，用于管理规格、价格与库存"""
+    id = models.BigAutoField(primary_key=True)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='skus', verbose_name='商品')
+    name = models.CharField(max_length=200, blank=True, default='', verbose_name='SKU名称')
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU编码')
+    specs = models.JSONField(default=dict, blank=True, verbose_name='规格参数')
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='售价')
+    stock = models.PositiveIntegerField(default=0, verbose_name='库存')
+    image = models.URLField(max_length=500, blank=True, default='', verbose_name='SKU主图')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '商品SKU'
+        verbose_name_plural = '商品SKU'
+        indexes = [
+            models.Index(fields=['product', 'is_active']),
+            models.Index(fields=['sku_code']),
+        ]
+        unique_together = [('product', 'sku_code')]
+
+    def __str__(self):
+        return self.name or self.sku_code or f'SKU#{self.id}'
+
+    @property
+    def specs_text(self):
+        if not self.specs:
+            return ''
+        return ' / '.join([f'{k}:{v}' for k, v in self.specs.items()])
+
+
 class MediaImage(models.Model):
     """
     媒体图片模型
@@ -375,6 +408,14 @@ class InventoryLog(models.Model):
         related_name='inventory_logs',
         verbose_name='商品'
     )
+    sku = models.ForeignKey(
+        'catalog.ProductSKU',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='inventory_logs',
+        verbose_name='SKU'
+    )
     change_type = models.CharField(
         max_length=20,
         choices=CHANGE_TYPE_CHOICES,
@@ -397,8 +438,12 @@ class InventoryLog(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['product', 'created_at']),
+            models.Index(fields=['sku', 'created_at']),
             models.Index(fields=['change_type']),
         ]
 
     def __str__(self):
-        return f'{self.product.name} - {self.get_change_type_display()} - {self.quantity}'
+        base = self.product.name
+        if self.sku_id:
+            base = f'{base} ({self.sku})'
+        return f'{base} - {self.get_change_type_display()} - {self.quantity}'

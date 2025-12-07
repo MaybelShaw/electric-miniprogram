@@ -6,13 +6,15 @@ import { productService } from '../../services/product'
 import { orderService } from '../../services/order'
 import { userService } from '../../services/user'
 import { creditService } from '../../services/credit'
-import { Address, Product, User } from '../../types'
+import { Address, Product, ProductSKU, User } from '../../types'
 import './index.scss'
 
 interface OrderItem {
   product_id: number
   quantity: number
+  sku_id?: number | null
   product?: Product
+  sku?: ProductSKU | null
 }
 
 export default function OrderConfirm() {
@@ -43,7 +45,8 @@ export default function OrderConfirm() {
     else if (params.productId) {
       const singleItem: OrderItem = {
         product_id: Number(params.productId),
-        quantity: Number(params.quantity) || 1
+        quantity: Number(params.quantity) || 1,
+        sku_id: params.skuId ? Number(params.skuId) : undefined
       }
       loadMultipleProducts([singleItem])
       setFromCart(params.fromCart === 'true')
@@ -94,7 +97,8 @@ export default function OrderConfirm() {
       // 将商品信息关联到订单项
       const itemsWithProducts = orderItems.map((item, index) => ({
         ...item,
-        product: products[index]
+        product: products[index],
+        sku: item.sku_id ? products[index].skus?.find((s) => s.id === item.sku_id) || null : null
       }))
       
       setItems(itemsWithProducts)
@@ -148,7 +152,8 @@ export default function OrderConfirm() {
       const res = await orderService.createBatchOrders({
         items: items.map(item => ({
           product_id: item.product_id,
-          quantity: item.quantity
+          quantity: item.quantity,
+          sku_id: item.sku_id
         })),
         address_id: address.id,
         note,
@@ -168,7 +173,7 @@ export default function OrderConfirm() {
           const { cartService } = await import('../../services/cart')
           // 删除所有已结算的商品
           for (const item of items) {
-            await cartService.removeItem(item.product_id)
+            await cartService.removeItem(item.product_id, item.sku_id)
           }
         } catch (error) {
           // 静默失败
@@ -177,9 +182,10 @@ export default function OrderConfirm() {
       
       // 如果只有一个订单，跳转到订单详情
       // 如果有多个订单，跳转到订单列表
+      const createdOrders = res.orders && res.orders.length > 0 ? res.orders : (res.order ? [res.order] : [])
       setTimeout(() => {
-        if (res.orders.length === 1) {
-          Taro.redirectTo({ url: `/pages/order-detail/index?id=${res.orders[0].id}` })
+        if (createdOrders.length === 1) {
+          Taro.redirectTo({ url: `/pages/order-detail/index?id=${createdOrders[0].id}` })
         } else {
           Taro.redirectTo({ url: `/pages/order-list/index` })
         }
@@ -199,15 +205,22 @@ export default function OrderConfirm() {
     )
   }
 
-  // 计算总金额
-  const finalAmount = items.reduce((sum, item) => {
+  const getItemPrice = (item: OrderItem) => {
+    if (item.sku && item.sku.price !== undefined) {
+      return Number(item.sku.price)
+    }
     if (item.product) {
-      const price = item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
+      return item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
         ? item.product.discounted_price
         : parseFloat(item.product.price)
-      return sum + price * item.quantity
     }
-    return sum
+    return 0
+  }
+
+  // 计算总金额
+  const finalAmount = items.reduce((sum, item) => {
+    const price = getItemPrice(item)
+    return sum + price * item.quantity
   }, 0)
 
   return (
@@ -238,16 +251,17 @@ export default function OrderConfirm() {
         <View className='product-card'>
           {items.map((item, index) => (
             <View key={index} className='product-item'>
-              <Image className='product-image' src={item.product!.main_images[0]} mode='aspectFill' />
+              <Image className='product-image' src={item.sku?.image || item.product!.main_images[0]} mode='aspectFill' />
               <View className='product-info'>
                 <View className='product-name'>{item.product!.name}</View>
+                {item.sku?.specs && (
+                  <View className='product-spec'>{Object.values(item.sku.specs).join(' / ')}</View>
+                )}
                 <View className='product-bottom'>
                   <View className='product-price'>
                     <Text className='price-symbol'>¥</Text>
                     <Text className='price-value'>
-                      {(item.product!.discounted_price && item.product!.discounted_price < parseFloat(item.product!.price)
-                        ? item.product!.discounted_price
-                        : parseFloat(item.product!.price)).toFixed(2)}
+                      {getItemPrice(item).toFixed(2)}
                     </Text>
                   </View>
                   <View className='quantity-text'>x{item.quantity}</View>

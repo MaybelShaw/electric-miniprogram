@@ -215,6 +215,49 @@
         }
       }
     }
+
+    .spec-options {
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+
+      .spec-option-row {
+        .spec-label {
+          font-size: 26rpx;
+          color: #646566;
+          margin-bottom: 12rpx;
+        }
+
+        .spec-values {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16rpx;
+
+          .spec-chip {
+            padding: 12rpx 24rpx;
+            border: 1rpx solid #dcdfe6;
+            border-radius: 999rpx;
+            font-size: 26rpx;
+            color: #323233;
+            background: #f7f8fa;
+            transition: all 0.2s ease;
+
+            &.active {
+              border-color: #1989FA;
+              color: #1989FA;
+              background: #E8F3FF;
+              box-shadow: 0 6rpx 12rpx rgba(25, 137, 250, 0.15);
+            }
+          }
+        }
+      }
+
+      .selected-spec-text {
+        font-size: 24rpx;
+        color: #969799;
+        margin-top: 8rpx;
+      }
+    }
   }
 
   .detail-section {
@@ -464,6 +507,12 @@
             color: #ff6034;
             margin-bottom: 8rpx;
             font-family: DIN;
+          }
+
+          .popup-spec-text {
+            font-size: 24rpx;
+            color: #646566;
+            margin-bottom: 6rpx;
           }
 
           .popup-stock-text {

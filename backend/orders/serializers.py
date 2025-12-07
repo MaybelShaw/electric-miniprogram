@@ -1,10 +1,36 @@
 from rest_framework import serializers
 from django.conf import settings
 from datetime import timedelta
-from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest
+from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest, OrderItem
 from catalog.models import Product
 from users.models import Address
-from catalog.serializers import ProductSerializer
+from catalog.serializers import ProductSerializer, ProductSKUSerializer
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product = ProductSerializer(read_only=True)
+    sku = ProductSKUSerializer(read_only=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    sku_id = serializers.IntegerField(source='sku.id', read_only=True, allow_null=True)
+
+    class Meta:
+        model = OrderItem
+        fields = [
+            'id',
+            'product',
+            'product_id',
+            'product_name',
+            'sku',
+            'sku_id',
+            'sku_specs',
+            'sku_code',
+            'quantity',
+            'unit_price',
+            'discount_amount',
+            'actual_amount',
+            'snapshot_image',
+            'created_at',
+        ]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -17,6 +43,8 @@ class OrderSerializer(serializers.ModelSerializer):
     invoice_info = serializers.SerializerMethodField()
     return_info = serializers.SerializerMethodField()
     expires_at = serializers.SerializerMethodField()
+    items = OrderItemSerializer(many=True, read_only=True)
+    quantity = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -54,7 +82,11 @@ class OrderSerializer(serializers.ModelSerializer):
             "is_government_order",
             "cancel_reason",
             "cancelled_at",
+            "items",
         ]
+
+    def get_quantity(self, obj: Order) -> int:
+        return obj.total_quantity
 
     def get_status_label(self, obj: Order) -> str:
         mapping = {
@@ -71,24 +103,28 @@ class OrderSerializer(serializers.ModelSerializer):
     
     def get_is_haier_order(self, obj: Order) -> bool:
         """判断是否为海尔订单"""
+        if obj.items.exists():
+            for item in obj.items.select_related('product').all():
+                if getattr(item.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier'):
+                    return True
+            return False
         if not obj.product:
             return False
-        # 只根据商品来源(source)判断
         return getattr(obj.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier')
     
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""
-        if not obj.product:
+        primary_product = obj.primary_product
+        if not primary_product:
             return None
-        # 只有海尔订单且存在 product_code 时才返回
-        if not self.get_is_haier_order(obj) or not obj.product.product_code:
+        if not self.get_is_haier_order(obj):
             return None
         
         return {
             'haier_order_no': obj.haier_order_no,
             'haier_so_id': obj.haier_so_id,
             'haier_status': obj.haier_status,
-            'product_code': obj.product.product_code,
+            'product_code': primary_product.product_code,
         }
     
     def get_logistics_info(self, obj: Order):
@@ -151,10 +187,32 @@ class OrderSerializer(serializers.ModelSerializer):
         return None
 
 
+class OrderCreateItemSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    sku_id = serializers.IntegerField(required=False, allow_null=True)
+    quantity = serializers.IntegerField(required=False, min_value=1, default=1)
+
+    def validate(self, attrs):
+        product_id = attrs.get('product_id')
+        sku_id = attrs.get('sku_id')
+        try:
+            Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            raise serializers.ValidationError("商品不存在")
+        if sku_id:
+            from catalog.models import ProductSKU
+            try:
+                ProductSKU.objects.get(id=sku_id, product_id=product_id)
+            except ProductSKU.DoesNotExist:
+                raise serializers.ValidationError("SKU不存在或不属于该商品")
+        return attrs
+
+
 class OrderCreateSerializer(serializers.ModelSerializer):
-    product_id = serializers.IntegerField(write_only=True)
+    product_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     address_id = serializers.IntegerField(write_only=True)
     quantity = serializers.IntegerField(write_only=True, required=False, min_value=1, default=1)
+    sku_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     note = serializers.CharField(write_only=True, required=False, allow_blank=True, max_length=500, default='')
     payment_method = serializers.ChoiceField(
         choices=['online', 'credit'],
@@ -163,8 +221,11 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         default='online',
         help_text='支付方式: online-在线支付, credit-信用支付'
     )
+    items = OrderCreateItemSerializer(many=True, required=False, write_only=True)
 
     def validate_product_id(self, value):
+        if value is None:
+            return value
         try:
             Product.objects.get(id=value)
         except Product.DoesNotExist:
@@ -196,20 +257,39 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("您的信用账户已停用")
         return value
 
+    def validate(self, attrs):
+        items = attrs.get('items') or []
+        product_id = attrs.get('product_id')
+        sku_id = attrs.get('sku_id')
+        if not items and not product_id:
+            raise serializers.ValidationError("请至少选择一种商品或SKU")
+        if sku_id and not product_id and not items:
+            raise serializers.ValidationError("sku_id 需要配合 product_id 使用")
+        if sku_id and product_id:
+            from catalog.models import ProductSKU
+            if not ProductSKU.objects.filter(id=sku_id, product_id=product_id).exists():
+                raise serializers.ValidationError("SKU不存在或不属于该商品")
+        return attrs
+
     class Meta:
         model = Order
         fields = [
             "product_id",
+            "sku_id",
             "address_id",
             "quantity",
             "note",
             "payment_method",
+            "items",
         ]
 
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     product_id = serializers.IntegerField()  # Remove write_only to include in response
+    sku = ProductSKUSerializer(read_only=True)
+    sku_id = serializers.IntegerField(required=False, allow_null=True)
+    sku_specs = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -217,8 +297,16 @@ class CartItemSerializer(serializers.ModelSerializer):
             "id",
             "product",
             "product_id",
+            "sku",
+            "sku_id",
+            "sku_specs",
             "quantity",
         ]
+
+    def get_sku_specs(self, obj: CartItem):
+        if obj.sku_id and obj.sku and obj.sku.specs:
+            return obj.sku.specs
+        return {}
 
 class CartSerializer(serializers.ModelSerializer):
     items = CartItemSerializer(many=True, read_only=True)
@@ -286,7 +374,7 @@ class RefundCreateSerializer(serializers.ModelSerializer):
 
 class InvoiceSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source='order.order_number', read_only=True)
-    product_name = serializers.CharField(source='order.product.name', read_only=True)
+    product_name = serializers.SerializerMethodField()
     username = serializers.CharField(source='user.username', read_only=True)
     status_label = serializers.SerializerMethodField()
 
@@ -305,6 +393,12 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'cancelled': '已取消',
         }
         return mapping.get(obj.status, obj.status)
+
+    def get_product_name(self, obj: Invoice) -> str:
+        order = obj.order
+        if hasattr(order, 'primary_item') and order.primary_item:
+            return order.primary_item.product_name
+        return order.product.name if order.product else ''
 
 
 class InvoiceCreateSerializer(serializers.ModelSerializer):

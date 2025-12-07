@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, MediaImage, SearchLog, HomeBanner
+from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner
 from orders.models import DiscountTarget
 from django.core.cache import cache
 from django.utils import timezone
@@ -88,6 +88,24 @@ class BrandSerializer(serializers.ModelSerializer):
         return value
 
 
+class ProductSKUSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductSKU
+        fields = [
+            'id',
+            'name',
+            'sku_code',
+            'specs',
+            'price',
+            'stock',
+            'image',
+            'is_active',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     # 读：显示名称和ID；写：通过 *_id 设置关联
     category = serializers.StringRelatedField(read_only=True)
@@ -96,6 +114,8 @@ class ProductSerializer(serializers.ModelSerializer):
     brand_id = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), source='brand')
     discounted_price = serializers.SerializerMethodField()
     originalPrice = serializers.SerializerMethodField()
+    skus = serializers.SerializerMethodField()
+    spec_options = serializers.SerializerMethodField()
     
     # 海尔相关字段（只读）
     is_haier_product = serializers.SerializerMethodField()
@@ -121,7 +141,16 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
-        extra_fields = ['discounted_price', 'originalPrice', 'category_id', 'brand_id', 'is_haier_product', 'haier_info']
+        extra_fields = [
+            'discounted_price',
+            'originalPrice',
+            'category_id',
+            'brand_id',
+            'is_haier_product',
+            'haier_info',
+            'skus',
+            'spec_options',
+        ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'last_sync_at', 'view_count', 'sales_count']
 
     def validate_main_images(self, value):
@@ -192,6 +221,21 @@ class ProductSerializer(serializers.ModelSerializer):
         
         # 价格字段：保留 price 作为商户对外售价，供价通过 supply_price 返回
         # 如果前端需要“显示价”为供价，可使用 rep['supply_price'] 或自行选择显示策略
+        # SKU 列表
+        rep['skus'] = self.get_skus(instance)
+        rep['spec_options'] = self.get_spec_options(instance)
+        # 如果存在SKU，用SKU聚合库存与价格
+        if rep['skus']:
+            try:
+                rep['stock'] = sum([int(s.get('stock') or 0) for s in rep['skus'] if s.get('is_active', True)])
+            except Exception:
+                pass
+            try:
+                prices = [float(s.get('price')) for s in rep['skus'] if s.get('is_active', True) and s.get('price') is not None]
+                if prices:
+                    rep['price'] = min(prices)
+            except Exception:
+                pass
         
         return rep
     
@@ -296,6 +340,29 @@ class ProductSerializer(serializers.ModelSerializer):
         if amount > base_price:
             amount = base_price
         return base_price - amount
+
+    def get_skus(self, obj: Product):
+        skus = getattr(obj, 'skus', None)
+        if skus is None:
+            return []
+        serializer = ProductSKUSerializer(
+            skus.filter(is_active=True),
+            many=True,
+            context=self.context
+        )
+        return serializer.data
+
+    def get_spec_options(self, obj: Product):
+        options = {}
+        for sku in obj.skus.all() if hasattr(obj, 'skus') else []:
+            if not sku.is_active or not sku.specs:
+                continue
+            for k, v in sku.specs.items():
+                if not k:
+                    continue
+                options.setdefault(k, set()).add(str(v))
+        # 转换为列表
+        return {k: sorted(list(v_set)) for k, v_set in options.items()}
     
 
 

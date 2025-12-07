@@ -48,9 +48,12 @@ export interface Product {
   brand_id: number
   price: string
   stock: number
+  total_stock?: number
   main_images: string[]
   detail_images: string[]
   specifications?: Record<string, any>  // 商品规格
+  spec_options?: Record<string, string[]>
+  skus?: ProductSKU[]
   is_active: boolean
   sales_count: number
   view_count: number
@@ -58,6 +61,17 @@ export interface Product {
   originalPrice: number  // 原价
   created_at: string
   updated_at: string
+}
+
+export interface ProductSKU {
+  id: number
+  name: string
+  sku_code?: string
+  specs: Record<string, string>
+  price: string | number
+  stock: number
+  image?: string
+  is_active: boolean
 }
 
 export interface ProductListResponse {
@@ -105,6 +119,9 @@ export interface CartItem {
   id: number
   product: Product
   product_id: number
+  sku?: ProductSKU | null
+  sku_id?: number | null
+  sku_specs?: Record<string, string>
   quantity: number
   selected?: boolean // 前端状态
 }
@@ -135,9 +152,12 @@ export interface Order {
   order_number: string
   user: number
   user_username: string
-  product: Product
+  product?: Product | null
+  items?: OrderLineItem[]
   quantity: number
   total_amount: string
+  discount_amount?: string
+  actual_amount?: string
   status: OrderStatus
   status_label: string
   note: string
@@ -161,6 +181,21 @@ export interface Order {
     invoice_number: string
   }
   return_info?: ReturnRequest
+}
+
+export interface OrderLineItem {
+  id: number
+  product: Product | null
+  product_name: string
+  sku?: ProductSKU | null
+  sku_id?: number | null
+  sku_specs?: Record<string, string>
+  sku_code?: string
+  snapshot_image?: string
+  quantity: number
+  unit_price: string
+  discount_amount: string
+  actual_amount: string
 }
 
 export interface ReturnRequest {
@@ -201,6 +236,8 @@ export interface WechatPayParams {
   payment_id?: number
   order_number?: string
   amount?: string
+  total_fee?: number
+  total?: number
 }
 
 export interface PaymentStartResponse {
@@ -210,7 +247,7 @@ export interface PaymentStartResponse {
 
 export interface CreateOrderResponse {
   order: Order
-  payment: Payment
+  payment: Payment | null
 }
 
 

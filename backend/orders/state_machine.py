@@ -230,12 +230,25 @@ class OrderStateMachine:
         from users.credit_services import CreditAccountService
         
         try:
-            InventoryService.release_stock(
-                product_id=order.product_id,
-                quantity=order.quantity,
-                reason='order_cancelled',
-                operator=operator
-            )
+            released = False
+            for item in order.items.select_related('product', 'sku').all():
+                released = True
+                if getattr(item.product, 'source', None) == getattr(item.product, 'SOURCE_HAIER', 'haier'):
+                    continue
+                InventoryService.release_stock(
+                    product_id=item.product_id,
+                    sku_id=item.sku_id,
+                    quantity=item.quantity,
+                    reason='order_cancelled',
+                    operator=operator
+                )
+            if not released and order.product_id:
+                InventoryService.release_stock(
+                    product_id=order.product_id,
+                    quantity=order.quantity,
+                    reason='order_cancelled',
+                    operator=operator
+                )
         except Exception as e:
             # 记录错误但不中断流程
             print(f'释放库存失败: {str(e)}')
@@ -246,7 +259,7 @@ class OrderStateMachine:
                 if hasattr(order.user, 'credit_account') and order.user.credit_account:
                     CreditAccountService.record_refund(
                         credit_account=order.user.credit_account,
-                        amount=order.total_amount,
+                        amount=getattr(order, 'actual_amount', None) or order.total_amount,
                         order_id=order.id,
                         description=f'订单取消退款 #{order.order_number}'
                     )
@@ -266,9 +279,15 @@ class OrderStateMachine:
         from django.db.models import F
         
         try:
-            Product.objects.filter(id=order.product_id).update(
-                sales_count=F('sales_count') + order.quantity
-            )
+            if order.items.exists():
+                for item in order.items.all():
+                    Product.objects.filter(id=item.product_id).update(
+                        sales_count=F('sales_count') + item.quantity
+                    )
+            elif order.product_id:
+                Product.objects.filter(id=order.product_id).update(
+                    sales_count=F('sales_count') + order.quantity
+                )
         except Exception as e:
             # 记录错误但不中断流程
             print(f'更新销量失败: {str(e)}')
@@ -286,12 +305,25 @@ class OrderStateMachine:
         from .services import InventoryService
         
         try:
-            InventoryService.release_stock(
-                product_id=order.product_id,
-                quantity=order.quantity,
-                reason='order_refunded',
-                operator=operator
-            )
+            released = False
+            for item in order.items.select_related('product', 'sku').all():
+                released = True
+                if getattr(item.product, 'source', None) == getattr(item.product, 'SOURCE_HAIER', 'haier'):
+                    continue
+                InventoryService.release_stock(
+                    product_id=item.product_id,
+                    sku_id=item.sku_id,
+                    quantity=item.quantity,
+                    reason='order_refunded',
+                    operator=operator
+                )
+            if not released and order.product_id:
+                InventoryService.release_stock(
+                    product_id=order.product_id,
+                    quantity=order.quantity,
+                    reason='order_refunded',
+                    operator=operator
+                )
         except Exception as e:
             # 记录错误但不中断流程
             print(f'释放库存失败: {str(e)}')

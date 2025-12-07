@@ -63,8 +63,9 @@ export default function SelectOrder() {
         {!loading && orders.length === 0 && <View className="empty">暂无订单</View>}
         
         {orders.map(order => {
-          const product = order.product || {}
-          const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+          const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
+          const product = primaryItem?.product || order.product || {}
+          const image = primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || ''
           
           return (
             <View key={order.id} className="order-item" onClick={() => handleSelect(order)}>
@@ -75,7 +76,7 @@ export default function SelectOrder() {
               <View className="content">
                 <Image src={image} mode="aspectFill" className="product-img" />
                 <View className="info">
-                  <Text className="name">{product.name || '商品'}</Text>
+                  <Text className="name">{primaryItem?.product_name || product.name || '商品'}</Text>
                   <Text className="meta">数量: {order.quantity} | 总价: ¥{order.total_amount}</Text>
                 </View>
               </View>

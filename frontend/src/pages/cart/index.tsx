@@ -103,23 +103,23 @@ export default function Cart() {
     setCartItems(cartItems.map(item => ({ ...item, selected: newSelected })))
   }
 
-  const handleUpdateQuantity = async (productId: number, quantity: number) => {
+  const handleUpdateQuantity = async (itemId: number, productId: number, quantity: number, skuId?: number | null) => {
     if (quantity <= 0) {
-      handleRemoveItem(productId)
+      handleRemoveItem(itemId, productId, skuId)
       return
     }
 
     try {
-      await cartService.updateItem(productId, quantity)
+      await cartService.updateItem(productId, quantity, skuId)
       setCartItems(cartItems.map(item =>
-        item.product_id === productId ? { ...item, quantity } : item
+        item.id === itemId ? { ...item, quantity } : item
       ))
     } catch (error) {
       Taro.showToast({ title: '更新失败', icon: 'none' })
     }
   }
 
-  const handleRemoveItem = async (productId: number) => {
+  const handleRemoveItem = async (itemId: number, productId: number, skuId?: number | null) => {
     const res = await Taro.showModal({
       title: '提示',
       content: '确定要删除该商品吗？'
@@ -127,8 +127,8 @@ export default function Cart() {
 
     if (res.confirm) {
       try {
-        await cartService.removeItem(productId)
-        setCartItems(cartItems.filter(item => item.product_id !== productId))
+        await cartService.removeItem(productId, skuId)
+        setCartItems(cartItems.filter(item => item.id !== itemId))
         Taro.showToast({ title: '删除成功', icon: 'success' })
       } catch (error) {
         Taro.showToast({ title: '删除失败', icon: 'none' })
@@ -163,7 +163,8 @@ export default function Cart() {
     // 将选中的商品信息传递给确认订单页面
     const items = selectedItems.map(item => ({
       product_id: item.product_id,
-      quantity: item.quantity
+      quantity: item.quantity,
+      sku_id: item.sku_id
     }))
     
     // 使用URL参数传递商品列表（JSON字符串）
@@ -182,14 +183,20 @@ export default function Cart() {
     Taro.switchTab({ url: '/pages/profile/index' })
   }
 
+  const getItemPrice = (item: CartItem) => {
+    if (item.sku && item.sku.price !== undefined) {
+      return Number(item.sku.price)
+    }
+    return item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
+      ? item.product.discounted_price
+      : parseFloat(item.product.price)
+  }
+
   // 计算总价
   const totalPrice = cartItems
     .filter(item => item.selected)
     .reduce((sum, item) => {
-      const price = item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
-        ? item.product.discounted_price
-        : parseFloat(item.product.price)
-      return sum + price * item.quantity
+      return sum + getItemPrice(item) * item.quantity
     }, 0)
 
   // 未登录状态
@@ -231,7 +238,7 @@ export default function Cart() {
             />
             <Image
               className='product-image'
-              src={item.product.main_images[0]}
+              src={item.sku?.image || item.product.main_images[0]}
               mode='aspectFill'
               onClick={() => goToDetail(item.product.id)}
             />
@@ -239,30 +246,31 @@ export default function Cart() {
               <View className='product-name' onClick={() => goToDetail(item.product.id)}>
                 {item.product.name}
               </View>
+              {((item.sku_specs && Object.keys(item.sku_specs).length > 0) || (item.sku?.specs && Object.keys(item.sku.specs).length > 0)) && (
+                <View className='product-spec'>{Object.values(item.sku_specs || item.sku?.specs || {}).join(' / ')}</View>
+              )}
               <View className='product-bottom'>
                 <View className='product-price'>
-                  {formatPrice(item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
-                    ? item.product.discounted_price
-                    : item.product.price)}
+                  {formatPrice(getItemPrice(item))}
                 </View>
                 <View className='quantity-control'>
                   <View
                     className='btn minus'
-                    onClick={() => handleUpdateQuantity(item.product_id, item.quantity - 1)}
+                    onClick={() => handleUpdateQuantity(item.id, item.product_id, item.quantity - 1, item.sku_id)}
                   >
                     -
                   </View>
                   <View className='quantity'>{item.quantity}</View>
                   <View
                     className='btn plus'
-                    onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
+                    onClick={() => handleUpdateQuantity(item.id, item.product_id, item.quantity + 1, item.sku_id)}
                   >
                     +
                   </View>
                 </View>
               </View>
             </View>
-            <View className='delete-btn' onClick={() => handleRemoveItem(item.product_id)}>
+            <View className='delete-btn' onClick={() => handleRemoveItem(item.id, item.product_id, item.sku_id)}>
               删除
             </View>
           </View>

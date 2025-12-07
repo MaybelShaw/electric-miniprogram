@@ -57,7 +57,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         qs = Order.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Order.objects.filter(user=user)
         
         # Optimize queries by prefetching related objects
-        qs = qs.select_related('user', 'product', 'return_request').prefetch_related('payments', 'status_history')
+        qs = qs.select_related('user', 'product', 'return_request').prefetch_related(
+            'payments',
+            'status_history',
+            'items__product',
+            'items__sku',
+        )
 
         # 订单状态筛选
         status_filter = self.request.query_params.get('status')
@@ -91,7 +96,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         product_name = self.request.query_params.get('product_name')
         if product_name:
             try:
-                qs = qs.filter(product__name__icontains=product_name)
+                qs = qs.filter(Q(product__name__icontains=product_name) | Q(items__product__name__icontains=product_name))
             except Exception:
                 pass
 
@@ -131,7 +136,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 except Exception:
                     pass
 
-        return qs.order_by('-created_at')
+        return qs.distinct().order_by('-created_at')
 
     @action(detail=True, methods=['patch'], permission_classes=[IsOwnerOrAdmin])
     def status(self, request, pk=None):
@@ -214,14 +219,22 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 payment_method = serializer.validated_data.get("payment_method", "online")
-                
+                items_payload = serializer.validated_data.get("items")
+                if not items_payload and serializer.validated_data.get("product_id"):
+                    items_payload = [{
+                        'product_id': serializer.validated_data.get("product_id"),
+                        'quantity': serializer.validated_data.get("quantity", 1),
+                        'sku_id': serializer.validated_data.get("sku_id"),
+                    }]
+
                 order = create_order(
                     user=target_user,
-                    product_id=serializer.validated_data["product_id"],
+                    product_id=serializer.validated_data.get("product_id"),
                     address_id=serializer.validated_data["address_id"],
                     quantity=serializer.validated_data.get("quantity", 1),
                     note=serializer.validated_data.get("note", ""),
                     payment_method=payment_method,
+                    items=items_payload,
                 )
                 
                 logger.info(f'订单创建成功: order_id={order.id}, user_id={target_user.id}, payment_method={payment_method}')
@@ -253,11 +266,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         # 返回订单和支付信息
         order_serializer = OrderSerializer(order)
-        pay_serializer = PaymentSerializer(payment)
+        pay_serializer = PaymentSerializer(payment) if payment else None
         
         return Response({
             'order': order_serializer.data, 
-            'payment': pay_serializer.data
+            'payment': pay_serializer.data if pay_serializer else None
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated])
@@ -296,42 +309,43 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         if not address_id:
             return Response({'detail': '地址ID不能为空'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # 合并同一商品的数量
-        product_quantities = {}
+
+        normalized_items = []
         for item in items:
-            product_id = item.get('product_id')
-            quantity = item.get('quantity', 1)
-            if product_id:
-                product_quantities[product_id] = product_quantities.get(product_id, 0) + quantity
+            try:
+                pid = int(item.get('product_id'))
+                qty = int(item.get('quantity', 1))
+                if qty <= 0:
+                    return Response({'detail': '商品数量必须大于0'}, status=status.HTTP_400_BAD_REQUEST)
+                normalized_items.append({
+                    'product_id': pid,
+                    'quantity': qty,
+                    'sku_id': item.get('sku_id')
+                })
+            except Exception:
+                return Response({'detail': '商品参数无效'}, status=status.HTTP_400_BAD_REQUEST)
         
-        orders = []
-        payments = []
+        payment = None
         
         try:
             with transaction.atomic():
-                # 为每个不同的商品创建订单
-                for product_id, quantity in product_quantities.items():
-                    order = create_order(
-                        user=request.user,
-                        product_id=product_id,
-                        address_id=address_id,
-                        quantity=quantity,
-                        note=note,
-                        payment_method=payment_method,
+                order = create_order(
+                    user=request.user,
+                    address_id=address_id,
+                    note=note,
+                    payment_method=payment_method,
+                    items=normalized_items,
+                )
+                
+                # 只有在线支付才创建支付记录
+                if payment_method == 'online':
+                    payment = Payment.create_for_order(
+                        order,
+                        method=online_method,
+                        ttl_minutes=settings.ORDER_PAYMENT_TIMEOUT_MINUTES
                     )
-                    orders.append(order)
-                    
-                    # 只有在线支付才创建支付记录
-                    if payment_method == 'online':
-                        payment = Payment.create_for_order(
-                            order,
-                            method=online_method,
-                            ttl_minutes=settings.ORDER_PAYMENT_TIMEOUT_MINUTES
-                        )
-                        payments.append(payment)
-                    
-                    logger.info(f'批量订单创建: order_id={order.id}, product_id={product_id}, quantity={quantity}')
+                
+                logger.info(f'批量订单创建: order_id={order.id}, item_count={len(normalized_items)}')
                 
         except ValueError as e:
             logger.warning(f'批量创建订单失败: {str(e)}')
@@ -343,13 +357,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-        # 返回订单和支付信息
-        order_serializers = [OrderSerializer(order).data for order in orders]
-        payment_serializers = [PaymentSerializer(payment).data for payment in payments]
+        order_data = OrderSerializer(order).data
+        payment_data = PaymentSerializer(payment).data if payment else None
         
         return Response({
-            'orders': order_serializers, 
-            'payments': payment_serializers
+            'order': order_data,
+            'payment': payment_data,
+            # 兼容旧结构
+            'orders': [order_data],
+            'payments': [payment_data] if payment_data else []
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
@@ -398,8 +414,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                 pass
             try:
                 from catalog.models import Product as CatalogProduct
+                primary_product = order.primary_product or order.product
                 is_haier_product = bool(
-                    order.product and getattr(order.product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
+                    primary_product and getattr(primary_product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
                 )
                 if is_haier_product and order.haier_so_id:
                     from integrations.ylhapi import YLHSystemAPI
@@ -781,7 +798,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if hasattr(order.user, 'credit_account') and order.user.credit_account:
                     CreditAccountService.record_refund(
                         credit_account=order.user.credit_account,
-                        amount=order.total_amount,
+                        amount=getattr(order, 'actual_amount', None) or order.total_amount,
                         order_id=order.id,
                         description=f'退货退款 #{order.order_number}'
                     )
@@ -801,14 +818,21 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         
         # 检查是否为海尔订单：只根据 product.source 判断
-        product = order.product
+        items = list(order.items.select_related('product').all())
+        product = order.product or (items[0].product if items else None)
         from catalog.models import Product as CatalogProduct
-        is_haier_product = bool(
-            product and getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
-        )
-        if not is_haier_product:
+        haier_items = [it for it in items if getattr(it.product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')]
+        if not haier_items and product:
+            if getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier'):
+                haier_items = items or [None]
+        if not haier_items:
             return Response(
                 {'detail': '该订单不是海尔产品订单，无需推送'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if items and len(haier_items) != len(items):
+            return Response(
+                {'detail': '订单含非海尔商品，暂不支持混合推送'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -947,7 +971,7 @@ class CartViewSet(viewsets.ViewSet):
         cart = get_or_create_cart(request.user)
         # Optimize cart query by prefetching related products
         from .models import CartItem
-        cart.items.all().select_related('product', 'product__category', 'product__brand')
+        cart.items.all().select_related('product', 'product__category', 'product__brand', 'sku')
         # 传入请求上下文以便 ProductSerializer 计算 discounted_price
         serializer = CartSerializer(cart, context={'request': request})
         return Response(serializer.data)
@@ -956,9 +980,14 @@ class CartViewSet(viewsets.ViewSet):
     def add_item(self,request):
         product_id = request.data.get('product_id')
         quantity = request.data.get('quantity', 1)
+        sku_id = request.data.get('sku_id')
         
         if not product_id:
             return Response({"detail": "product_id is required"}, status=400)
+        try:
+            sku_id = int(sku_id) if sku_id not in (None, '', False) else None
+        except (TypeError, ValueError):
+            return Response({"detail": "sku_id is invalid"}, status=400)
         
         try:
             quantity = int(quantity)
@@ -969,7 +998,7 @@ class CartViewSet(viewsets.ViewSet):
             return Response({"detail": "quantity must be positive"}, status=400)
         
         try:
-            add_to_cart(request.user, product_id, quantity)
+            add_to_cart(request.user, product_id, quantity, sku_id=sku_id)
             cart = get_or_create_cart(request.user)
             serializer = CartSerializer(cart, context={'request': request})
             return Response(serializer.data, status=201)
@@ -982,12 +1011,17 @@ class CartViewSet(viewsets.ViewSet):
     def remove_item(self, request):
         """移除购物车商品"""
         product_id = request.data.get('product_id')
+        sku_id = request.data.get('sku_id')
         
         if not product_id:
             return Response({"detail": "product_id is required"}, status=400)
+        try:
+            sku_id = int(sku_id) if sku_id not in (None, '', False) else None
+        except (TypeError, ValueError):
+            return Response({"detail": "sku_id is invalid"}, status=400)
         
         try:
-            remove_from_cart(request.user, product_id)
+            remove_from_cart(request.user, product_id, sku_id=sku_id)
             cart = get_or_create_cart(request.user)
             serializer = CartSerializer(cart, context={'request': request})
             return Response(serializer.data, status=200)
@@ -997,60 +1031,55 @@ class CartViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['post'])
     def update_item(self, request):
         """设置某商品的精确数量（不存在则创建）"""
-        # 添加调试日志
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"[购物车更新] Content-Type: {request.content_type}")
         logger.info(f"[购物车更新] request.data: {request.data}")
-        logger.info(f"[购物车更新] request.data type: {type(request.data)}")
-        logger.info(f"[购物车更新] request.data keys: {list(request.data.keys()) if hasattr(request.data, 'keys') else 'N/A'}")
         
         product_id = request.data.get('product_id')
         quantity_raw = request.data.get('quantity', 1)
+        sku_id = request.data.get('sku_id')
+        try:
+            sku_id = int(sku_id) if sku_id not in (None, '', False) else None
+        except (TypeError, ValueError):
+            return Response({"detail": "sku_id is invalid"}, status=400)
         
-        logger.info(f"[购物车更新] product_id={product_id} (type: {type(product_id)})")
-        logger.info(f"[购物车更新] quantity_raw={quantity_raw} (type: {type(quantity_raw)})")
-        
-        # 验证 product_id
         if not product_id:
             logger.error(f"[购物车更新] 缺少 product_id, request.data={request.data}")
             return Response({"detail": "product_id is required"}, status=400)
         
-        # 验证 quantity
         try:
             quantity = int(quantity_raw)
-            logger.info(f"[购物车更新] 数量转换成功: {quantity}")
         except (TypeError, ValueError) as e:
             logger.error(f"[购物车更新] 数量转换失败: quantity_raw={quantity_raw}, error={e}")
             return Response({"detail": f"quantity must be integer, got: {quantity_raw}"}, status=400)
         
-        # 如果数量 <= 0，移除商品
         if quantity <= 0:
-            remove_from_cart(request.user, product_id)
+            remove_from_cart(request.user, product_id, sku_id=sku_id)
             return Response({"detail": "Item removed"}, status=200)
 
         try:
-            logger.info(f"[购物车更新] 开始更新购物车")
             cart = get_or_create_cart(request.user)
-            logger.info(f"[购物车更新] 获取购物车成功: cart_id={cart.id}")
-            
             from .models import CartItem
             product = Product.objects.get(id=product_id)
-            logger.info(f"[购物车更新] 获取商品成功: product_id={product.id}, stock={product.stock}")
+            sku = None
+            stock_to_check = product.stock
+            if sku_id:
+                from catalog.models import ProductSKU
+                sku = ProductSKU.objects.get(id=sku_id, product=product)
+                stock_to_check = sku.stock
             
-            # 检查库存
-            if quantity > product.stock:
-                logger.warning(f"[购物车更新] 库存不足: quantity={quantity}, stock={product.stock}")
+            if quantity > stock_to_check:
+                logger.warning(f"[购物车更新] 库存不足: quantity={quantity}, stock={stock_to_check}")
                 return Response({
-                    "detail": f"库存不足，当前库存: {product.stock}"
+                    "detail": f"库存不足，当前库存: {stock_to_check}"
                 }, status=400)
             
-            item, created = CartItem.objects.get_or_create(cart=cart, product=product)
+            item, created = CartItem.objects.get_or_create(cart=cart, product=product, sku=sku)
             item.quantity = quantity
             item.save()
             logger.info(f"[购物车更新] 更新成功: item_id={item.id}, quantity={quantity}, created={created}")
             
-            # 返回更新后的购物车
             serializer = CartSerializer(cart, context={'request': request})
             return Response(serializer.data, status=200)
         except Product.DoesNotExist:
@@ -1094,7 +1123,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         qs = Payment.objects.filter(order__user=user) if not user.is_staff else Payment.objects.all()
         
         # Optimize queries by prefetching related order data
-        qs = qs.select_related('order', 'order__user', 'order__product')
+        qs = qs.select_related('order', 'order__user', 'order__product').prefetch_related('order__items__product', 'order__items__sku')
         
         from common.utils import parse_int
         order_id = self.request.query_params.get('order_id')
@@ -1155,6 +1184,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 {'detail': 'Order not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        payable_amount = order.actual_amount or order.total_amount
         
         # 验证支付金额（如果提供）
         payment_amount = request.data.get('amount')
@@ -1169,13 +1200,13 @@ class PaymentViewSet(viewsets.ModelViewSet):
             if not PaymentService.check_payment_amount(order, parsed_amount):
                 logger.warning(
                     f'支付金额不匹配: order_id={order_id}, '
-                    f'order_amount={order.total_amount}, '
+                    f'order_amount={payable_amount}, '
                     f'payment_amount={parsed_amount}'
                 )
                 return Response(
                     {
-                        'detail': f'Payment amount {parsed_amount} does not match order amount {order.total_amount}',
-                        'order_amount': str(order.total_amount),
+                        'detail': f'Payment amount {parsed_amount} does not match order amount {payable_amount}',
+                        'order_amount': str(payable_amount),
                         'payment_amount': str(parsed_amount)
                     },
                     status=status.HTTP_400_BAD_REQUEST
@@ -1217,7 +1248,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 'payment_created',
                 details={
                     'method': method,
-                    'amount': str(order.total_amount),
+                    'amount': str(payable_amount),
                     'user_id': request.user.id
                 }
             )
@@ -1232,6 +1263,47 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 {'detail': f'Failed to create payment: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    @action(detail=True, methods=['post'])
+    def mock_pay(self, request, pk=None):
+        """
+        模拟支付回调（开发/测试使用）
+        
+        Body:
+            {
+              "status": "succeeded|failed|cancelled|expired|processing" (default succeeded),
+              "transaction_id": "mock-tx-123"
+            }
+        """
+        from .payment_service import PaymentService
+        import logging
+
+        logger = logging.getLogger(__name__)
+        payment = self.get_object()
+
+        # 简单权限：仅开发环境或管理员可调用
+        if not settings.DEBUG and not request.user.is_staff:
+            return Response({'detail': 'mock 支付仅限开发环境或管理员'}, status=status.HTTP_403_FORBIDDEN)
+
+        new_status = str(request.data.get('status') or 'succeeded').lower()
+        tx_id = request.data.get('transaction_id') or f'mock-{payment.id}'
+
+        if new_status == 'succeeded':
+            try:
+                PaymentService.process_payment_success(payment.id, transaction_id=tx_id, operator=request.user)
+            except Exception as e:
+                logger.error(f'mock 支付成功处理失败: {e}')
+                return Response({'detail': str(e)}, status=400)
+        elif new_status in ['failed', 'cancelled', 'expired']:
+            payment.status = new_status
+            payment.logs.append({'t': timezone.now().isoformat(), 'event': f'mock_{new_status}', 'tx': tx_id})
+            payment.save(update_fields=['status', 'logs', 'updated_at'])
+        else:
+            payment.status = 'processing'
+            payment.logs.append({'t': timezone.now().isoformat(), 'event': 'mock_processing'})
+            payment.save(update_fields=['status', 'logs', 'updated_at'])
+
+        return Response(self.get_serializer(payment).data)
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):

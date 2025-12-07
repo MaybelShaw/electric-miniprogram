@@ -21,6 +21,10 @@ export default function OrderCard({
 }: OrderCardProps) {
   
   const [timeLeft, setTimeLeft] = useState('')
+  const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
+  const displayProduct = primaryItem?.product || order.product
+  const displayImage = primaryItem?.snapshot_image || displayProduct?.main_images?.[0] || '/assets/default-product.png'
+  const specsText = primaryItem?.sku_specs ? Object.values(primaryItem.sku_specs).join(' / ') : ''
 
   useEffect(() => {
     if (order.status !== 'pending' || !order.expires_at) return
@@ -105,13 +109,25 @@ export default function OrderCard({
       <View className='order-content'>
         <Image
           className='product-image'
-          src={order.product?.main_images?.[0] || '/assets/default-product.png'}
+          src={displayImage}
           mode='aspectFill'
         />
         <View className='product-info'>
-          <View className='product-name'>{order.product?.name || '商品'}</View>
+          <View className='product-name'>
+            {displayProduct?.name || '商品'}
+            {order.items && order.items.length > 1 ? (
+              <Text className='item-count'> 等{order.items.length}件</Text>
+            ) : null}
+          </View>
+          {specsText ? <View className='product-spec'>{specsText}</View> : null}
           <View className='product-bottom'>
-            <View className='product-price'>{Number(order.product?.price || 0).toFixed(2)}</View>
+            <View className='product-price'>
+              {formatPrice(
+                primaryItem
+                  ? primaryItem.unit_price
+                  : (order.product?.price || 0)
+              )}
+            </View>
             <View className='product-quantity'>x{order.quantity || 0}</View>
           </View>
         </View>
@@ -119,7 +135,7 @@ export default function OrderCard({
 
       <View className='order-total'>
         <Text className='label'>合计</Text>
-        <Text className='amount'>{formatPrice(order.total_amount)}</Text>
+        <Text className='amount'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
       </View>
       
       {hasActions && (

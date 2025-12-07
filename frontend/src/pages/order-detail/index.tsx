@@ -92,13 +92,20 @@ export default function OrderDetail() {
   }
 
   const requestWechatPayment = async (payParams: WechatPayParams) => {
-    await Taro.requestPayment({
+    const payload: any = {
       timeStamp: payParams.timeStamp,
       nonceStr: payParams.nonceStr,
       package: payParams.package,
       signType: payParams.signType as any,
       paySign: payParams.paySign,
-    })
+    }
+    if (payParams.total_fee !== undefined) {
+      payload.total_fee = payParams.total_fee
+    }
+    if (payParams.total !== undefined) {
+      payload.total = payParams.total
+    }
+    await Taro.requestPayment(payload)
   }
 
   const handlePay = async () => {
@@ -379,20 +386,42 @@ export default function OrderDetail() {
 
         {/* 商品信息 */}
         <View className='product-card'>
-          <View className='product-item'>
-            <Image
-              className='product-image'
-              src={order.product.main_images[0]}
-              mode='aspectFill'
-            />
-            <View className='product-info'>
-              <View className='product-name'>{order.product.name}</View>
-              <View className='product-bottom'>
-                <View className='product-price'>{Number(order.product.price).toFixed(2)}</View>
-                <View className='product-quantity'>x{order.quantity}</View>
+          {order.items && order.items.length > 0 ? (
+            order.items.map(item => (
+              <View key={item.id} className='product-item'>
+                <Image
+                  className='product-image'
+                  src={item.snapshot_image || item.product?.main_images?.[0] || ''}
+                  mode='aspectFill'
+                />
+                <View className='product-info'>
+                  <View className='product-name'>{item.product_name || item.product?.name}</View>
+                  {item.sku_specs && Object.keys(item.sku_specs).length > 0 && (
+                    <View className='product-spec'>{Object.values(item.sku_specs).join(' / ')}</View>
+                  )}
+                  <View className='product-bottom'>
+                    <View className='product-price'>{Number(item.unit_price || 0).toFixed(2)}</View>
+                    <View className='product-quantity'>x{item.quantity}</View>
+                  </View>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View className='product-item'>
+              <Image
+                className='product-image'
+                src={order.product?.main_images?.[0] || ''}
+                mode='aspectFill'
+              />
+              <View className='product-info'>
+                <View className='product-name'>{order.product?.name}</View>
+                <View className='product-bottom'>
+                  <View className='product-price'>{Number(order.product?.price || 0).toFixed(2)}</View>
+                  <View className='product-quantity'>x{order.quantity}</View>
+                </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
 
         {/* 订单信息 */}
@@ -475,11 +504,11 @@ export default function OrderDetail() {
         <View className='price-card'>
           <View className='price-row'>
             <Text className='price-label'>商品总价</Text>
-            <Text className='price-value'>{formatPrice(order.total_amount)}</Text>
+            <Text className='price-value'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
           </View>
           <View className='price-row total'>
             <Text className='price-label'>实付款</Text>
-            <Text className='price-value'>{Number(order.total_amount).toFixed(2)}</Text>
+            <Text className='price-value'>{Number(order.actual_amount || order.total_amount).toFixed(2)}</Text>
           </View>
         </View>
 
@@ -504,7 +533,7 @@ export default function OrderDetail() {
 
           {order.status === 'pending' && (
             <View className='pay-btn' onClick={handlePay}>
-              {paying ? '支付中...' : `立即支付 ${formatPrice(order.total_amount)}`}
+              {paying ? '支付中...' : `立即支付 ${formatPrice(order.actual_amount || order.total_amount)}`}
             </View>
           )}
           

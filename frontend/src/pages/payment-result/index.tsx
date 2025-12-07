@@ -46,13 +46,20 @@ export default function PaymentResult() {
   })
 
   const requestWechatPayment = async (payParams: WechatPayParams) => {
-    await Taro.requestPayment({
+    const payload: any = {
       timeStamp: payParams.timeStamp,
       nonceStr: payParams.nonceStr,
       package: payParams.package,
       signType: payParams.signType as any,
       paySign: payParams.paySign
-    })
+    }
+    if (payParams.total_fee !== undefined) {
+      payload.total_fee = payParams.total_fee
+    }
+    if (payParams.total !== undefined) {
+      payload.total = payParams.total
+    }
+    await Taro.requestPayment(payload)
   }
 
   const handleRetry = async () => {

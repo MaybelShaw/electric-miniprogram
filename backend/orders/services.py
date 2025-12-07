@@ -1,4 +1,4 @@
-from .models import Order, Cart, CartItem
+from .models import Order, Cart, CartItem, OrderItem
 from catalog.models import Product, InventoryLog
 from django.utils import timezone
 from .models import DiscountTarget
@@ -6,6 +6,7 @@ from users.models import Address
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import F
+from decimal import Decimal
 
 
 def get_best_active_discount(user, product):
@@ -179,83 +180,131 @@ def check_haier_stock(product, address, quantity):
     }
 
 
-def create_order(user, product_id, address_id, quantity, note='', payment_method='online'):
-    """创建订单并锁定库存
+def create_order(
+    user,
+    product_id=None,
+    address_id=None,
+    quantity=1,
+    note='',
+    payment_method='online',
+    items=None
+):
+    """创建订单并锁定库存（支持多商品、多SKU）
     
     Args:
         user: 用户对象
-        product_id: 商品ID
+        product_id: 商品ID（兼容旧接口）
         address_id: 地址ID
-        quantity: 订单数量
-        note: 订单备注（可选）
+        quantity: 订单数量（仅旧接口使用）
+        note: 订单备注
         payment_method: 支付方式 ('online' 或 'credit')
-        
-    Returns:
-        Order: 创建的订单对象
-        
-    Raises:
-        ValueError: 库存不足或信用额度不足时抛出异常
-        Product.DoesNotExist: 商品不存在时抛出异常
-        Address.DoesNotExist: 地址不存在时抛出异常
+        items: 新的下单商品列表 [{product_id, sku_id, quantity}]
     """
-    product = Product.objects.get(id=product_id)
+    if not address_id:
+        raise ValueError('缺少 address_id')
+
     address = Address.objects.get(id=address_id, user=user)
 
-    # 检查是否为海尔产品：只根据 source 字段判断
-    is_haier_product = getattr(product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier')
-    
-    # 如果是海尔产品，先检查海尔库存
-    if is_haier_product:
-        try:
-            haier_stock_info = check_haier_stock(product, address, quantity)
-            # 可以将海尔库存信息保存到订单备注或其他字段
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(f'海尔库存检查通过: {haier_stock_info}')
-        except ValueError as e:
-            # 海尔库存不足，直接抛出异常，不创建订单
-            raise e
+    # 兼容旧接口：未传 items 时使用 product_id/quantity
+    if not items:
+        if not product_id:
+            raise ValueError('商品信息不能为空')
+        items = [{
+            'product_id': product_id,
+            'quantity': quantity or 1,
+            'sku_id': None,
+        }]
+
+    if not isinstance(items, list) or len(items) == 0:
+        raise ValueError('商品列表不能为空')
 
     full_address = (
         f"{address.province} {address.city} {address.district} {address.detail}"
     )
-    # 折扣计算：选择一个有效折扣（最高优先级），硬性规则：折扣不得超过商品原价
-    discount_amount = get_best_active_discount(user, product)
 
-    unit_price = product.price - discount_amount
-    total_amount = unit_price * quantity
+    normalized_items = []
+    total_amount = Decimal('0')
+    total_discount = Decimal('0')
+    is_credit = payment_method == 'credit'
+
+    # 下单前校验与准备
+    for item in items:
+        product_id = item.get('product_id')
+        sku_id = item.get('sku_id')
+        qty = int(item.get('quantity') or 1)
+
+        if not product_id or qty <= 0:
+            raise ValueError('商品或数量无效')
+
+        product = Product.objects.get(id=product_id)
+        sku = None
+        if sku_id not in (None, '', False):
+            sku_id = int(sku_id)
+            from catalog.models import ProductSKU
+            sku = ProductSKU.objects.get(id=sku_id, product_id=product_id)
+
+        # 价格与折扣
+        base_price = sku.price if sku else product.price
+        discount_amount = Decimal(get_best_active_discount(user, product))
+        if discount_amount < 0:
+            discount_amount = Decimal('0')
+        if discount_amount > base_price:
+            discount_amount = base_price
+
+        unit_price = Decimal(base_price)
+        actual_unit_price = unit_price - discount_amount
+        line_total = actual_unit_price * qty
+        total_amount += unit_price * qty
+        total_discount += discount_amount * qty
+
+        normalized_items.append({
+            'product': product,
+            'sku': sku,
+            'quantity': qty,
+            'unit_price': unit_price,
+            'discount_amount': discount_amount * qty,
+            'actual_amount': line_total,
+            'sku_specs': sku.specs if sku else {},
+            'sku_code': getattr(sku, 'sku_code', '') or getattr(product, 'product_code', '') or '',
+            'product_name': product.name,
+            'snapshot_image': (sku.image or (product.main_images[0] if product.main_images else product.product_image_url or '')) if sku else (product.main_images[0] if product.main_images else product.product_image_url or ''),
+            'is_haier': getattr(product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier'),
+        })
+
+    actual_amount = total_amount - total_discount
 
     # 如果使用信用支付，检查信用额度
-    if payment_method == 'credit':
+    if is_credit:
         if user.role != 'dealer':
             raise ValueError('只有经销商可以使用信用支付')
-        
         if not hasattr(user, 'credit_account'):
             raise ValueError('您还没有信用账户')
-        
         credit_account = user.credit_account
-        if not credit_account.can_place_order(total_amount):
+        if not credit_account.can_place_order(actual_amount):
             raise ValueError(f'信用额度不足，可用额度: ¥{credit_account.available_credit}')
 
     # 在事务中创建订单并锁定库存
     with transaction.atomic():
-        # 对于非海尔产品，锁定本地库存
-        # 对于海尔产品，不锁定本地库存（因为库存在海尔系统）
-        if not is_haier_product:
-            # 先锁定库存，如果失败则抛出异常，订单不会被创建
-            InventoryService.lock_stock(
-                product_id=product_id,
-                quantity=quantity,
-                reason='order_created',
-                operator=user
-            )
-        
-        # 库存检查通过，创建订单
+        # 逐项锁定库存/校验海尔库存
+        for item in normalized_items:
+            if item['is_haier']:
+                check_haier_stock(item['product'], address, item['quantity'])
+            else:
+                InventoryService.lock_stock(
+                    product_id=item['product'].id,
+                    sku_id=item['sku'].id if item['sku'] else None,
+                    quantity=item['quantity'],
+                    reason='order_created',
+                    operator=user
+                )
+
         order = Order.objects.create(
             user=user,
-            product=product,
-            quantity=quantity,
+            product=normalized_items[0]['product'] if normalized_items else None,
+            quantity=sum(i['quantity'] for i in normalized_items),
             total_amount=total_amount,
+            discount_amount=total_discount,
+            actual_amount=actual_amount,
             snapshot_contact_name=address.contact_name,
             snapshot_phone=address.phone,
             snapshot_address=full_address,
@@ -264,19 +313,38 @@ def create_order(user, product_id, address_id, quantity, note='', payment_method
             snapshot_district=address.district,
             note=note,
         )
-        
-        # 如果使用信用支付，记录采购交易
-        if payment_method == 'credit':
+
+        # 创建订单行
+        order_items = []
+        for item in normalized_items:
+            order_items.append(
+                OrderItem(
+                    order=order,
+                    product=item['product'],
+                    sku=item['sku'],
+                    product_name=item['product_name'],
+                    sku_specs=item['sku_specs'],
+                    sku_code=item['sku_code'],
+                    quantity=item['quantity'],
+                    unit_price=item['unit_price'],
+                    discount_amount=item['discount_amount'],
+                    actual_amount=item['actual_amount'],
+                    snapshot_image=item['snapshot_image'],
+                )
+            )
+        OrderItem.objects.bulk_create(order_items)
+
+        # 信用支付直接记账并标记为已支付
+        if is_credit:
             from users.credit_services import CreditAccountService
             CreditAccountService.record_purchase(
                 credit_account=user.credit_account,
-                amount=total_amount,
+                amount=actual_amount,
                 order_id=order.id,
                 description=f'订单 #{order.order_number}'
             )
-            # 信用支付的订单直接标记为已支付
             order.status = 'paid'
-            order.save()
+            order.save(update_fields=['status', 'updated_at'])
         
         try:
             from .analytics import OrderAnalytics
@@ -292,12 +360,16 @@ def get_or_create_cart(user):
     return cart
 
 
-def add_to_cart(user, product_id, quantity=1):
+def add_to_cart(user, product_id, quantity=1, sku_id=None):
     cart = get_or_create_cart(user)
     product = Product.objects.get(id=product_id)
+    sku = None
+    if sku_id:
+        from catalog.models import ProductSKU
+        sku = ProductSKU.objects.get(id=sku_id, product=product)
 
     cart_item, created = CartItem.objects.get_or_create(
-        cart=cart, product=product, defaults={"quantity": quantity}
+        cart=cart, product=product, sku=sku, defaults={"quantity": quantity}
     )
 
     if not created:
@@ -307,9 +379,12 @@ def add_to_cart(user, product_id, quantity=1):
     return cart_item
 
 
-def remove_from_cart(user, product_id):
+def remove_from_cart(user, product_id, sku_id=None):
     cart = get_or_create_cart(user)
-    CartItem.objects.filter(cart=cart, product_id=product_id).delete()
+    qs = CartItem.objects.filter(cart=cart, product_id=product_id)
+    if sku_id:
+        qs = qs.filter(sku_id=sku_id)
+    qs.delete()
 
 
 class InventoryService:
@@ -321,7 +396,7 @@ class InventoryService:
 
     @staticmethod
     @transaction.atomic
-    def lock_stock(product_id: int, quantity: int, reason: str = 'order_created', operator=None) -> bool:
+    def lock_stock(product_id: int, quantity: int, reason: str = 'order_created', operator=None, sku_id: int = None) -> bool:
         """锁定库存（使用数据库行锁）
         
         Args:
@@ -329,6 +404,7 @@ class InventoryService:
             quantity: 锁定数量
             reason: 锁定原因
             operator: 操作人（可选）
+            sku_id: SKU ID（可选）
             
         Returns:
             bool: 锁定成功返回True
@@ -338,21 +414,27 @@ class InventoryService:
             Product.DoesNotExist: 商品不存在时抛出异常
         """
         # 使用select_for_update锁定行，防止并发问题
-        product = Product.objects.select_for_update().get(id=product_id)
-        
-        if product.stock < quantity:
-            raise ValueError(f'库存不足，当前库存: {product.stock}，需要: {quantity}')
-        
-        # 扣减库存
-        product.stock = F('stock') - quantity
-        product.save(update_fields=['stock'])
-        
-        # 刷新对象以获取最新的stock值
-        product.refresh_from_db()
+        if sku_id:
+            from catalog.models import ProductSKU
+            sku = ProductSKU.objects.select_for_update().get(id=sku_id, product_id=product_id)
+            if sku.stock < quantity:
+                raise ValueError(f'库存不足，当前库存: {sku.stock}，需要: {quantity}')
+            sku.stock = F('stock') - quantity
+            sku.save(update_fields=['stock'])
+            sku.refresh_from_db()
+            product = sku.product
+        else:
+            product = Product.objects.select_for_update().get(id=product_id)
+            if product.stock < quantity:
+                raise ValueError(f'库存不足，当前库存: {product.stock}，需要: {quantity}')
+            product.stock = F('stock') - quantity
+            product.save(update_fields=['stock'])
+            product.refresh_from_db()
         
         # 记录库存变更
         InventoryLog.objects.create(
             product=product,
+            sku_id=sku_id,
             change_type='lock',
             quantity=-quantity,
             reason=reason,
@@ -363,7 +445,7 @@ class InventoryService:
 
     @staticmethod
     @transaction.atomic
-    def release_stock(product_id: int, quantity: int, reason: str = 'order_cancelled', operator=None) -> bool:
+    def release_stock(product_id: int, quantity: int, reason: str = 'order_cancelled', operator=None, sku_id: int = None) -> bool:
         """释放库存
         
         Args:
@@ -371,6 +453,7 @@ class InventoryService:
             quantity: 释放数量
             reason: 释放原因
             operator: 操作人（可选）
+            sku_id: SKU ID（可选）
             
         Returns:
             bool: 释放成功返回True
@@ -378,18 +461,23 @@ class InventoryService:
         Raises:
             Product.DoesNotExist: 商品不存在时抛出异常
         """
-        product = Product.objects.select_for_update().get(id=product_id)
-        
-        # 增加库存
-        product.stock = F('stock') + quantity
-        product.save(update_fields=['stock'])
-        
-        # 刷新对象以获取最新的stock值
-        product.refresh_from_db()
+        if sku_id:
+            from catalog.models import ProductSKU
+            sku = ProductSKU.objects.select_for_update().get(id=sku_id, product_id=product_id)
+            sku.stock = F('stock') + quantity
+            sku.save(update_fields=['stock'])
+            sku.refresh_from_db()
+            product = sku.product
+        else:
+            product = Product.objects.select_for_update().get(id=product_id)
+            product.stock = F('stock') + quantity
+            product.save(update_fields=['stock'])
+            product.refresh_from_db()
         
         # 记录库存变更
         InventoryLog.objects.create(
             product=product,
+            sku_id=sku_id,
             change_type='release',
             quantity=quantity,
             reason=reason,
@@ -400,7 +488,7 @@ class InventoryService:
 
     @staticmethod
     @transaction.atomic
-    def adjust_stock(product_id: int, quantity: int, reason: str = 'manual_adjust', operator=None) -> bool:
+    def adjust_stock(product_id: int, quantity: int, reason: str = 'manual_adjust', operator=None, sku_id: int = None) -> bool:
         """调整库存（增加或减少）
         
         Args:
@@ -408,6 +496,7 @@ class InventoryService:
             quantity: 调整数量（正数增加，负数减少）
             reason: 调整原因
             operator: 操作人（可选）
+            sku_id: SKU ID（可选）
             
         Returns:
             bool: 调整成功返回True
@@ -416,22 +505,29 @@ class InventoryService:
             ValueError: 调整后库存为负数时抛出异常
             Product.DoesNotExist: 商品不存在时抛出异常
         """
-        product = Product.objects.select_for_update().get(id=product_id)
-        
-        new_stock = product.stock + quantity
-        if new_stock < 0:
-            raise ValueError(f'调整后库存不能为负数，当前库存: {product.stock}，调整: {quantity}')
-        
-        # 更新库存
-        product.stock = F('stock') + quantity
-        product.save(update_fields=['stock'])
-        
-        # 刷新对象以获取最新的stock值
-        product.refresh_from_db()
+        if sku_id:
+            from catalog.models import ProductSKU
+            sku = ProductSKU.objects.select_for_update().get(id=sku_id, product_id=product_id)
+            new_stock = sku.stock + quantity
+            if new_stock < 0:
+                raise ValueError(f'调整后库存不能为负数，当前库存: {sku.stock}，调整: {quantity}')
+            sku.stock = F('stock') + quantity
+            sku.save(update_fields=['stock'])
+            sku.refresh_from_db()
+            product = sku.product
+        else:
+            product = Product.objects.select_for_update().get(id=product_id)
+            new_stock = product.stock + quantity
+            if new_stock < 0:
+                raise ValueError(f'调整后库存不能为负数，当前库存: {product.stock}，调整: {quantity}')
+            product.stock = F('stock') + quantity
+            product.save(update_fields=['stock'])
+            product.refresh_from_db()
         
         # 记录库存变更
         InventoryLog.objects.create(
             product=product,
+            sku_id=sku_id,
             change_type='adjust',
             quantity=quantity,
             reason=reason,
@@ -475,12 +571,26 @@ def cancel_order(order):
     
     with transaction.atomic():
         # 释放库存
-        InventoryService.release_stock(
-            product_id=order.product_id,
-            quantity=order.quantity,
-            reason='order_cancelled',
-            operator=order.user
-        )
+        released = False
+        for item in order.items.select_related('product', 'sku').all():
+            released = True
+            if getattr(item.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier'):
+                # 海尔库存不需要释放
+                continue
+            InventoryService.release_stock(
+                product_id=item.product_id,
+                sku_id=item.sku_id,
+                quantity=item.quantity,
+                reason='order_cancelled',
+                operator=order.user
+            )
+        if not released and order.product_id:
+            InventoryService.release_stock(
+                product_id=order.product_id,
+                quantity=order.quantity,
+                reason='order_cancelled',
+                operator=order.user
+            )
         
         # 更新订单状态
         order.status = 'cancelled'
