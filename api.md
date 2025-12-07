@@ -350,6 +350,7 @@ Authorization: Bearer <access_token>
     - 生产环境：仅允许真实的微信回调
     - 支付成功时自动更新订单状态为 `paid`
     - 支付过期时自动更新订单状态为 `cancelled` 并释放库存
+    - 支付超时默认 `10` 分钟，可通过环境变量 `ORDER_PAYMENT_TIMEOUT_MINUTES` 调整
 
 ### 回调示例
 

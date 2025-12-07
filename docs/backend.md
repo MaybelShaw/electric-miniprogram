@@ -74,6 +74,11 @@
   WECHAT_SECRET=...
   ```
 
+### 订单与支付相关
+- `ORDER_PAYMENT_TIMEOUT_MINUTES`：未支付订单自动取消超时（单位分钟，默认 `10`）。
+- 自动取消实现：后台守护线程定期扫描并取消超时未支付订单，同时将相关支付记录置为 `expired` 并释放库存。
+- 手动执行：可运行命令 `python manage.py cancel_unpaid_orders --dry-run` 预览，去掉 `--dry-run` 实际执行。
+
 ## 路由入口
 - 路由入口：
 - 用户与认证：`backend/users/urls.py:25`

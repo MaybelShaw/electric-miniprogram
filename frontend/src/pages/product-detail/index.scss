@@ -344,6 +344,74 @@
     }
   }
 
+  .recommend-section {
+    background: #fff;
+    padding: 28rpx 24rpx 32rpx;
+    margin: 0 24rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+
+    .recommend-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20rpx;
+
+      .recommend-title {
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
+
+        .dot {
+          width: 10rpx;
+          height: 10rpx;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #1989FA, #6aa8ff);
+        }
+
+        .title-text {
+          font-size: 30rpx;
+          font-weight: 700;
+          color: #323233;
+        }
+
+        .category-chip {
+          padding: 6rpx 16rpx;
+          background: #E8F3FF;
+          color: #1989FA;
+          border-radius: 999rpx;
+          font-size: 22rpx;
+        }
+      }
+
+      .subtitle {
+        font-size: 24rpx;
+        color: #969799;
+      }
+    }
+
+    .recommend-scroll {
+      white-space: nowrap;
+      padding: 4rpx 4rpx 0;
+    }
+
+    .recommend-card {
+      display: inline-block;
+      margin-right: 20rpx;
+
+      &:last-child {
+        margin-right: 0;
+      }
+    }
+
+    .recommend-placeholder {
+      padding: 24rpx 0;
+      text-align: center;
+      font-size: 26rpx;
+      color: #969799;
+    }
+  }
+
   .footer-bar {
     position: fixed;
     bottom: 0;

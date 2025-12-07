@@ -5,7 +5,7 @@ import { productService } from '../../services/product'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
 import { Product, ProductSKU } from '../../types'
-import { formatPrice } from '../../utils/format'
+import ProductCard from '../../components/ProductCard'
 import './index.scss'
 
 export default function ProductDetail() {
@@ -17,6 +17,8 @@ export default function ProductDetail() {
   const [actionType, setActionType] = useState<'cart' | 'buy'>('cart')
   const [selectedSpecs, setSelectedSpecs] = useState<Record<string, string>>({})
   const [currentSku, setCurrentSku] = useState<ProductSKU | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [relatedLoading, setRelatedLoading] = useState(false)
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -34,6 +36,12 @@ export default function ProductDetail() {
     }
   }, [currentSku, product])
 
+  useEffect(() => {
+    if (product?.id) {
+      loadRelatedProducts(product.id, product.category_id)
+    }
+  }, [product?.id, product?.category_id])
+
   const loadProduct = async (id: number) => {
     setLoading(true)
     try {
@@ -44,6 +52,32 @@ export default function ProductDetail() {
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadRelatedProducts = async (id: number, categoryId?: number) => {
+    setRelatedLoading(true)
+    try {
+      const related = await productService.getRelatedProducts(id, 8)
+      if (related.length > 0) {
+        setRelatedProducts(related)
+        return
+      }
+
+      if (categoryId) {
+        const fallback = await productService.getRecommendations({
+          type: 'category',
+          category_id: categoryId,
+          limit: 8
+        })
+        setRelatedProducts(fallback.filter((item) => item.id !== id))
+      } else {
+        setRelatedProducts([])
+      }
+    } catch (error) {
+      setRelatedProducts([])
+    } finally {
+      setRelatedLoading(false)
     }
   }
 
@@ -287,7 +321,6 @@ export default function ProductDetail() {
         )}
 
         {/* 商品详情 */}
-        {/* 商品详情 */}
         <View className='detail-section'>
           <View className='section-title'>
             <View className='title-line' />
@@ -320,6 +353,32 @@ export default function ProductDetail() {
               <View className='no-detail-text'>暂无详细信息</View>
               <View className='no-detail-tip'>商品详情图片正在准备中</View>
             </View>
+          )}
+        </View>
+
+        {/* 同类推荐 */}
+        <View className='recommend-section'>
+          <View className='recommend-header'>
+            <View className='recommend-title'>
+              <View className='dot' />
+              <Text className='title-text'>同类推荐</Text>
+              <Text className='category-chip'>{product.category}</Text>
+            </View>
+            <Text className='subtitle'>看看同分类热销好货</Text>
+          </View>
+
+          {relatedLoading ? (
+            <View className='recommend-placeholder'>推荐加载中...</View>
+          ) : relatedProducts.length > 0 ? (
+            <ScrollView className='recommend-scroll' scrollX>
+              {relatedProducts.map((item) => (
+                <View key={item.id} className='recommend-card'>
+                  <ProductCard product={item} />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View className='recommend-placeholder'>暂无同类推荐</View>
           )}
         </View>
       </ScrollView>

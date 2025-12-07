@@ -440,38 +440,26 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     @extend_schema(
         operation_id='products_related',
-        parameters=[
-            OpenApiParameter('limit', OT.INT, OpenApiParameter.QUERY, description='Maximum number of related products (default: 10, max: 50)'),
-        ],
-        description='Get products related to a specific product from the same category.',
+        description='Get all products related to a specific product from the same category.',
     )
     @action(detail=True, methods=['get'])
     def related(self, request, pk=None):
         """
         Get products related to a specific product.
         
-        Returns products from the same category, excluding the current product.
-        
-        Query Parameters:
-        - limit: Maximum number of related products (default: 10, max: 50)
+        Returns all active products from the same category, excluding the current product.
         
         Returns:
         - List of related products
         """
         product = self.get_object()
-        
-        try:
-            limit = int(request.query_params.get('limit', 10))
-            limit = min(limit, 50)  # Cap at 50
-        except (ValueError, TypeError):
-            limit = 10
-        
-        # Get products from the same category, excluding current product
+
+        # Get products from the same category (by ID), excluding current product
         # Use select_related to optimize queries
         related_products = self.get_queryset().filter(
-            category=product.category,
+            category_id=product.category_id,
             is_active=True
-        ).exclude(id=product.id).order_by('-sales_count')[:limit]
+        ).exclude(id=product.id).order_by('-sales_count')
         
         serializer = self.get_serializer(related_products, many=True)
         return Response(serializer.data)
