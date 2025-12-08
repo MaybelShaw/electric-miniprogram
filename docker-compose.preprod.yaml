@@ -21,7 +21,7 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - /etc/electric-miniprogram/backend/.env.production
+      - ./backend/.env.production
     environment:
       - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,localhost,127.0.0.1
       - CORS_ALLOWED_ORIGINS=http://www.qxelectric.cn,http://qxelectric.cn
