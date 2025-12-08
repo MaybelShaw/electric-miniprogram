@@ -12,6 +12,7 @@ venv/
 *.log
 staticfiles/
 backend/media/*
+backend/backend/logs/*
 
 # Node/Taro (if present)
 node_modules/
