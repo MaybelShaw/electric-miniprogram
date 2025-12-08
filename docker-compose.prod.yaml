@@ -20,26 +20,8 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
-    environment:
-      - DJANGO_ENV=production
-      - DJANGO_SETTINGS_MODULE=backend.settings.production
-      - SECRET_KEY=please-change
-      - ALLOWED_HOSTS=localhost,127.0.0.1
-      - CORS_ALLOWED_ORIGINS=http://localhost
-      - POSTGRES_DB=electric_miniprogram
-      - POSTGRES_USER=electric
-      - POSTGRES_PASSWORD=electric
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - WECHAT_APPID=dummy
-      - WECHAT_SECRET=dummy
-      - YLH_CLIENT_ID=dummy
-      - YLH_CLIENT_SECRET=dummy
-      - YLH_CALLBACK_APP_KEY=dummy
-      - YLH_CALLBACK_SECRET=dummy
-      - PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
-      - PIP_TRUSTED_HOST=mirrors.aliyun.com
-      - UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
+    env_file:
+      - /Users/bobo/.envs/electric-miniprogram/.env.production
     depends_on:
       db:
         condition: service_healthy

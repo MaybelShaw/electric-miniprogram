@@ -20,27 +20,12 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+    env_file:
+      - /home/ubuntu/electric-miniprogram/backend/.env.production
     environment:
-      - DJANGO_ENV=production
-      - DJANGO_SETTINGS_MODULE=backend.settings.production
-      - SECRET_KEY=please-change
       - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,localhost,127.0.0.1
       - CORS_ALLOWED_ORIGINS=http://www.qxelectric.cn,http://qxelectric.cn
-      - POSTGRES_DB=electric_miniprogram
-      - POSTGRES_USER=electric
-      - POSTGRES_PASSWORD=electric
-      - POSTGRES_HOST=db
-      - POSTGRES_PORT=5432
-      - WECHAT_APPID=dummy
-      - WECHAT_SECRET=dummy
-      - YLH_CLIENT_ID=dummy
-      - YLH_CLIENT_SECRET=dummy
-      - YLH_CALLBACK_APP_KEY=dummy
-      - YLH_CALLBACK_SECRET=dummy
       - ORDER_PAYMENT_TIMEOUT_MINUTES=10
-      - PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
-      - PIP_TRUSTED_HOST=mirrors.aliyun.com
-      - UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
       - SECURE_SSL_REDIRECT=false
     depends_on:
       db:
