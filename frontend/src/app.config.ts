@@ -15,6 +15,8 @@ export default defineAppConfig({
     'pages/address-edit/index',
     'pages/profile-edit/index',
     'pages/search/index',
+    'pages/special-zone/index',
+    'pages/case-detail/index',
     'pages/brand/index',
     'pages/company-certification/index',
     'pages/credit-account/index',

@@ -66,6 +66,60 @@
     }
   }
 
+  .special-zones {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 $spacing-md;
+    margin-bottom: $spacing-md;
+
+    .zone-item {
+      flex: 1;
+      height: 160px;
+      border-radius: $spacing-md;
+      padding: $spacing-md;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: $shadow-sm;
+
+      &.gift-zone {
+        background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%);
+        margin-right: $spacing-sm;
+      }
+
+      &.designer-zone {
+        background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+        margin-left: $spacing-sm;
+      }
+
+      .zone-title {
+        font-size: $font-size-lg;
+        font-weight: bold;
+        color: #fff;
+        z-index: 2;
+      }
+
+      .zone-desc {
+        font-size: $font-size-sm;
+        color: rgba(255, 255, 255, 0.9);
+        margin-top: 8px;
+        z-index: 2;
+      }
+
+      .zone-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        width: 80px;
+        height: 80px;
+        opacity: 0.3;
+        z-index: 1;
+      }
+    }
+  }
+
   .category-nav {
     background: $background-color-light;
     padding: $spacing-lg 0;

@@ -1,0 +1,111 @@
+.special-zone {
+  min-height: 100vh;
+  background-color: #f7f8fa;
+  padding-bottom: 20px;
+
+  .scene-display {
+    background-color: #fff;
+    margin-bottom: 20px;
+    padding: 20px 0;
+
+    .section-title {
+      font-size: 32px;
+      font-weight: bold;
+      padding: 0 30px 20px;
+      color: #333;
+    }
+
+    .scene-swiper {
+      height: 400px;
+      width: 100%;
+
+      .scene-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
+      }
+      
+      swiper-item {
+        padding: 0 30px;
+        box-sizing: border-box;
+      }
+    }
+  }
+
+  .case-display {
+    background-color: #fff;
+    margin-bottom: 20px;
+    padding: 20px 0;
+
+    .section-title {
+      font-size: 32px;
+      font-weight: bold;
+      padding: 0 30px 20px;
+      color: #333;
+    }
+
+    .case-scroll {
+      width: 100%;
+      white-space: nowrap;
+      
+      .case-card {
+        display: inline-block;
+        width: 300px;
+        margin-right: 20px;
+        vertical-align: top;
+        
+        &:first-child {
+          margin-left: 30px;
+        }
+        
+        &:last-child {
+          margin-right: 30px;
+        }
+
+        .case-image {
+          width: 300px;
+          height: 200px;
+          border-radius: 12px;
+          background-color: #eee;
+          margin-bottom: 12px;
+        }
+
+        .case-title {
+          font-size: 28px;
+          color: #333;
+          white-space: normal;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          line-height: 1.4;
+        }
+      }
+    }
+  }
+
+  .product-display {
+    padding: 0 30px;
+
+    .section-title {
+      font-size: 32px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .product-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+  }
+  
+  .loading-wrapper, .empty-state, .no-more {
+    padding: 30px;
+    text-align: center;
+    color: #999;
+    font-size: 28px;
+  }
+}

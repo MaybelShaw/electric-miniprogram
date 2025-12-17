@@ -250,7 +250,27 @@ export interface CreateOrderResponse {
   payment: Payment | null
 }
 
+// 案例相关
+export interface CaseDetailBlock {
+  id?: number
+  block_type: 'text' | 'image'
+  text: string
+  image?: number | null
+  image_url?: string
+  order: number
+}
 
+export interface Case {
+  id: number
+  title: string
+  cover_image: number
+  cover_image_url?: string
+  order: number
+  is_active: boolean
+  detail_blocks: CaseDetailBlock[]
+  created_at: string
+  updated_at: string
+}
 
 // 分页响应
 export interface PaginatedResponse<T> {

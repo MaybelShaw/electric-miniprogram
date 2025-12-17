@@ -354,6 +354,89 @@ class HomeBanner(models.Model):
         return self.title or f'Banner {self.id}'
 
 
+class Case(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    title = models.CharField(max_length=200, verbose_name='标题')
+    cover_image = models.ForeignKey(
+        'catalog.MediaImage',
+        on_delete=models.PROTECT,
+        related_name='cases_as_cover',
+        verbose_name='展示图',
+    )
+    order = models.IntegerField(default=0, verbose_name='排序')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '案例'
+        verbose_name_plural = '案例'
+        ordering = ['order', '-id']
+        indexes = [
+            models.Index(fields=['is_active', 'order']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class CaseDetailBlock(models.Model):
+    TYPE_TEXT = 'text'
+    TYPE_IMAGE = 'image'
+    TYPE_CHOICES = [
+        (TYPE_TEXT, '文本'),
+        (TYPE_IMAGE, '图片'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    case = models.ForeignKey(
+        Case,
+        on_delete=models.CASCADE,
+        related_name='detail_blocks',
+        verbose_name='案例',
+    )
+    block_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default=TYPE_TEXT, verbose_name='类型')
+    text = models.TextField(blank=True, default='', verbose_name='文本内容')
+    image = models.ForeignKey(
+        'catalog.MediaImage',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='case_detail_blocks',
+        verbose_name='图片',
+    )
+    order = models.IntegerField(default=0, verbose_name='排序')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '案例详情块'
+        verbose_name_plural = '案例详情块'
+        ordering = ['order', 'id']
+        indexes = [
+            models.Index(fields=['case', 'order', 'id']),
+        ]
+
+    def __str__(self):
+        return f'{self.case_id}#{self.id}:{self.block_type}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.block_type == self.TYPE_TEXT:
+            if not (self.text or '').strip():
+                raise ValidationError({'text': '文本块必须填写文本内容'})
+            if self.image_id:
+                raise ValidationError({'image': '文本块不允许设置图片'})
+        if self.block_type == self.TYPE_IMAGE:
+            if not self.image_id:
+                raise ValidationError({'image': '图片块必须选择图片'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class SearchLog(models.Model):
     """
     搜索日志模型

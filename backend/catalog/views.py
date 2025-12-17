@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions, status
-from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner
-from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer
+from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, Case
+from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, CaseSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Count, Max
@@ -1240,3 +1240,21 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
             'image/bmp': 'bmp',
         }
         return mime_to_ext.get(mime_type, 'jpg')
+
+
+@extend_schema(tags=['Cases'])
+class CaseViewSet(viewsets.ModelViewSet):
+    queryset = Case.objects.all().order_by('order', '-id')
+    serializer_class = CaseSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        qs = (
+            super()
+            .get_queryset()
+            .select_related('cover_image')
+            .prefetch_related('detail_blocks__image')
+        )
+        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False):
+            return qs.filter(is_active=True)
+        return qs

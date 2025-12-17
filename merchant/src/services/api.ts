@@ -141,6 +141,13 @@ export const uploadHomeBanner = (file: File, data?: any) => {
   return request.post('/catalog/home-banners/upload/', formData);
 };
 
+// 案例管理
+export const getCases = (params?: any) => request.get('/catalog/cases/', { params });
+export const getCase = (id: number) => request.get(`/catalog/cases/${id}/`);
+export const createCase = (data: any) => request.post('/catalog/cases/', data);
+export const updateCase = (id: number, data: any) => request.patch(`/catalog/cases/${id}/`, data);
+export const deleteCase = (id: number) => request.delete(`/catalog/cases/${id}/`);
+
 // 客服会话管理
 export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params }); // Alias for getConversations
 export const getConversations = (params?: any) => request.get('/support/chat/conversations/', { params });

@@ -124,6 +124,11 @@ export default function Home() {
     Taro.navigateTo({ url: `/pages/brand/index?brand=${brand}` })
   }
 
+  // 跳转专区
+  const goToSpecialZone = (type: 'gift' | 'designer', title: string) => {
+    Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
+  }
+
   return (
     <View className='home'>
       {/* 搜索栏 */}
@@ -166,6 +171,20 @@ export default function Home() {
             </SwiperItem>
           ))}
         </Swiper>
+
+        {/* 特色专区 */}
+        <View className='special-zones'>
+          <View className='zone-item gift-zone' onClick={() => goToSpecialZone('gift', '礼品专区')}>
+            <View className='zone-title'>礼品专区</View>
+            <View className='zone-desc'>精选好礼</View>
+            <Image className='zone-icon' src='https://via.placeholder.com/100x100/FF6B6B/FFFFFF?text=Gift' mode='aspectFit' />
+          </View>
+          <View className='zone-item designer-zone' onClick={() => goToSpecialZone('designer', '设计师专区')}>
+            <View className='zone-title'>设计师专区</View>
+            <View className='zone-desc'>创意设计</View>
+            <Image className='zone-icon' src='https://via.placeholder.com/100x100/2C3E50/FFFFFF?text=Design' mode='aspectFit' />
+          </View>
+        </View>
 
         {/* 品类专区 (原空间专区) */}
         {majorCategories.length > 0 && (

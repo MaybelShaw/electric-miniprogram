@@ -161,3 +161,24 @@ export interface SupportConversation {
 }
 
 export type SupportTicket = SupportConversation; // Alias for backward compatibility during refactor
+
+export interface CaseDetailBlock {
+  id?: number;
+  block_type: 'text' | 'image';
+  text: string;
+  image?: number | null;
+  image_url?: string;
+  order: number;
+}
+
+export interface Case {
+  id: number;
+  title: string;
+  cover_image: number;
+  cover_image_url?: string;
+  order: number;
+  is_active: boolean;
+  detail_blocks: CaseDetailBlock[];
+  created_at: string;
+  updated_at: string;
+}

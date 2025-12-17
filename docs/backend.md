@@ -134,6 +134,13 @@
   - `POST /home-banners/upload/` 上传图片并创建轮播图（管理员） `backend/catalog/views.py`
     - 表单字段：`file`（必填）、`title`（可选）、`link_url`（可选）、`order`（可选，默认 `0`）、`is_active`（可选，默认 `true`）。
     - 返回：已创建轮播图数据，包含 `image_url` 为完整可访问地址。
+  - `GET /cases/` 案例列表（公开）`backend/catalog/urls.py`
+    - 返回字段：`{ id, title, order, is_active, cover_image_id, cover_image_url, created_at, updated_at }`
+    - 说明：非管理员默认只返回 `is_active=true` 的案例，并按 `order` 升序。
+  - `GET /cases/{id}/` 案例详情（公开）`backend/catalog/urls.py`
+    - 返回字段：在列表字段基础上包含 `detail_blocks`
+    - `detail_blocks`：图文详情块数组 `[{ id, block_type, text, order, image_id, image_url }]`
+    - 说明：详情块用于实现“详细（图文）”，支持文本块与图片块按 `order` 排序组合展示。
 - 订单与支付：
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`

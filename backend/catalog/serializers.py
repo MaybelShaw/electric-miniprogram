@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner
+from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, Case, CaseDetailBlock
 from orders.models import DiscountTarget
 from django.core.cache import cache
 from django.utils import timezone
@@ -483,3 +483,94 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         if not url:
             return ''
         return request.build_absolute_uri(url) if request else url
+
+
+class CaseDetailBlockSerializer(serializers.ModelSerializer):
+    image_id = serializers.PrimaryKeyRelatedField(
+        queryset=MediaImage.objects.all(),
+        source='image',
+        allow_null=True,
+        required=False
+    )
+    image_url = serializers.SerializerMethodField()
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = CaseDetailBlock
+        fields = [
+            'id',
+            'block_type',
+            'text',
+            'order',
+            'image_id',
+            'image_url',
+        ]
+        read_only_fields = ['image_url']
+
+    def get_image_url(self, obj: CaseDetailBlock):
+        request = self.context.get('request')
+        url = obj.image.file.url if obj.image and obj.image.file else ''
+        if not url:
+            return ''
+        return request.build_absolute_uri(url) if request else url
+
+
+class CaseSerializer(serializers.ModelSerializer):
+    cover_image_id = serializers.PrimaryKeyRelatedField(
+        queryset=MediaImage.objects.all(),
+        source='cover_image'
+    )
+    cover_image_url = serializers.SerializerMethodField()
+    detail_blocks = CaseDetailBlockSerializer(many=True, required=False)
+
+    class Meta:
+        model = Case
+        fields = [
+            'id',
+            'title',
+            'order',
+            'is_active',
+            'cover_image_id',
+            'cover_image_url',
+            'detail_blocks',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'cover_image_url']
+
+    def get_cover_image_url(self, obj: Case):
+        request = self.context.get('request')
+        url = obj.cover_image.file.url if obj.cover_image and obj.cover_image.file else ''
+        if not url:
+            return ''
+        return request.build_absolute_uri(url) if request else url
+
+    def create(self, validated_data):
+        blocks_data = validated_data.pop('detail_blocks', [])
+        case = Case.objects.create(**validated_data)
+        
+        for block_data in blocks_data:
+            CaseDetailBlock.objects.create(case=case, **block_data)
+        
+        return case
+
+    def update(self, instance, validated_data):
+        blocks_data = validated_data.pop('detail_blocks', None)
+        
+        # Update Case fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Update Blocks
+        if blocks_data is not None:
+            # 简单策略：全量删除重建
+            # 如果需要保留ID，逻辑会复杂很多，考虑到CaseBlock结构简单，重建是可接受的
+            instance.detail_blocks.all().delete()
+            for block_data in blocks_data:
+                # 移除可能存在的 id 字段（如果是从前端传回来的）
+                if 'id' in block_data:
+                    del block_data['id']
+                CaseDetailBlock.objects.create(case=instance, **block_data)
+                
+        return instance
