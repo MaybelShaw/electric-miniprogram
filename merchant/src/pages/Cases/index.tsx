@@ -9,6 +9,7 @@ import {
   ProFormSelect,
   ProFormTextArea,
   ProFormDependency,
+  ProFormField,
 } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Upload, Image, Card, Form, Spin } from 'antd';
 import { PlusOutlined, UploadOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -319,13 +320,13 @@ export default function Cases() {
                 {({ block_type, image_url }) => {
                   if (block_type === 'image') {
                     return (
-                      <Form.Item 
+                      <ProFormField 
                         name="image_id" 
                         label="图片" 
                         rules={[{ required: true, message: '请上传图片' }]}
                       >
                          <SingleImageUpload defaultUrl={image_url} />
-                      </Form.Item>
+                      </ProFormField>
                     );
                   }
                   return (
