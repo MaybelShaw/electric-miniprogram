@@ -23,7 +23,7 @@ services:
     env_file:
       - /etc/electric-miniprogram/.env.production
     environment:
-      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,localhost,127.0.0.1
+      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn,localhost,127.0.0.1
       - CORS_ALLOWED_ORIGINS=http://www.qxelectric.cn,http://qxelectric.cn
       - ORDER_PAYMENT_TIMEOUT_MINUTES=10
       - SECURE_SSL_REDIRECT=false

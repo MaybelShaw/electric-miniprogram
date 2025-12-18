@@ -22,6 +22,8 @@ services:
       - ./backend:/app
     env_file:
       - /etc/electric-miniprogram/.env.production
+    environment:
+      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn
     depends_on:
       db:
         condition: service_healthy
