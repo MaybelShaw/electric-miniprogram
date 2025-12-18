@@ -19,7 +19,6 @@ import type { Case } from '@/services/types';
 
 // 单图上传组件
 const SingleImageUpload = ({ 
-  value, 
   onChange, 
   defaultUrl,
   buttonText = "上传图片"

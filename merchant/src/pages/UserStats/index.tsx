@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button, message, Select, DatePicker, Table, Space, Checkbox, Typography, Statistic, Row, Col, Tabs, Empty, Progress, Tag } from 'antd';
+import { Button, message, Select, DatePicker, Table, Space, Checkbox, Statistic, Row, Col, Empty, Progress, Tag } from 'antd';
 import { DownloadOutlined, UserOutlined, PayCircleOutlined, ShoppingCartOutlined, RiseOutlined } from '@ant-design/icons';
 import { ProCard } from '@ant-design/pro-components';
 import { getUserTransactionStats, getCustomersTransactionStats, exportUserTransactionStats, exportCustomersTransactionStats, getUser, getUsers } from '@/services/api';

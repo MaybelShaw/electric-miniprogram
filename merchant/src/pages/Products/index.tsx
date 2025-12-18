@@ -445,7 +445,7 @@ export default function Products() {
       search={{
         labelWidth: 'auto',
         defaultCollapsed: false,
-        optionRender: (_: any, formProps: any, dom: any[]) => [
+        optionRender: (_: any, __: any, dom: any[]) => [
           ...dom.reverse(),
         ],
       }}

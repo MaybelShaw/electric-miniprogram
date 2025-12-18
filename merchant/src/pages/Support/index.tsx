@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Tag, Drawer, List, Avatar, Input, Space, Divider, Upload, Image as AntImage, Modal } from 'antd';
+import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal } from 'antd';
 import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
 import { getConversations, getProducts, getOrders } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { SupportConversation, SupportMessage } from '@/services/types';
+import type { SupportConversation } from '@/services/types';
 import { getUser } from '@/utils/auth';
 import { useSupportChat, ExtendedSupportMessage } from './useSupportChat';
 

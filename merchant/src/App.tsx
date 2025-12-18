@@ -18,7 +18,7 @@ import AccountTransactions from './pages/AccountTransactions';
 import HomeBanners from './pages/HomeBanners';
 import Cases from './pages/Cases';
 import Support from './pages/Support';
-import { getToken, getUser } from './utils/auth';
+import { getUser } from './utils/auth';
 
 const RootRedirect = () => {
   const user = getUser();

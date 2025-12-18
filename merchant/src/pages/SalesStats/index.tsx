@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, message, Select, DatePicker, Table, Space, Card, Tabs, Empty, Radio } from 'antd';
 import { ProCard } from '@ant-design/pro-components';
 import { Pie } from '@ant-design/plots';
 import { getRegionalSales, getProductRegionDistribution, getProducts, getRegionProductStats } from '@/services/api';
-import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
