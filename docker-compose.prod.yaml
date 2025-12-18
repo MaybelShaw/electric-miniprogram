@@ -24,6 +24,7 @@ services:
       - /etc/electric-miniprogram/.env.production
     environment:
       - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn
+      - SECURE_SSL_REDIRECT=false
     depends_on:
       db:
         condition: service_healthy
