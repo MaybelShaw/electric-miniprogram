@@ -35,6 +35,48 @@ from .models import HaierConfig, HaierSyncLog
 
 logger = logging.getLogger(__name__)
 
+def _truncate_text(value: str, max_len: int = 2000) -> str:
+    if value is None:
+        return ""
+    if len(value) <= max_len:
+        return value
+    return value[:max_len] + f"...(truncated,{len(value)} chars)"
+
+
+def _mask_sensitive_value(key: str, value):
+    key_lower = (key or "").lower()
+    if value is None:
+        return None
+    if any(token in key_lower for token in ["password", "secret", "token", "authorization"]):
+        return "***"
+    if "sign" in key_lower:
+        return "***"
+    if any(token in key_lower for token in ["mobile", "phone"]):
+        s = str(value)
+        if len(s) <= 4:
+            return "***"
+        return s[:3] + "****" + s[-4:]
+    if "address" in key_lower:
+        return "***"
+    return value
+
+
+def _sanitize_payload(obj):
+    if isinstance(obj, dict):
+        return {k: _sanitize_payload(_mask_sensitive_value(k, v)) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_payload(v) for v in obj]
+    if isinstance(obj, str):
+        return _truncate_text(obj)
+    return obj
+
+
+def _get_client_ip(request) -> str:
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
+
 
 class HaierConfigViewSet(viewsets.ModelViewSet):
     """
@@ -354,17 +396,55 @@ def ylh_callback_view(request):
     from .ylhapi import YLHCallbackHandler
     
     try:
-        # 解析表单数据
         form_data = {}
-        if request.content_type == 'application/x-www-form-urlencoded':
+        content_type = (request.content_type or "").lower()
+        if content_type.startswith('application/x-www-form-urlencoded'):
             form_data = request.POST.dict()
-        elif request.content_type == 'application/json':
-            # 兼容JSON格式
-            form_data = json.loads(request.body.decode('utf-8'))
+        elif content_type.startswith('application/json'):
+            form_data = json.loads((request.body or b"{}").decode('utf-8'))
         else:
             form_data = request.POST.dict()
         
-        logger.info(f"YLH Callback received: Method={form_data.get('Method')}, AppKey={form_data.get('AppKey')}")
+        data_value = form_data.get("Data")
+        parsed_data = None
+        if isinstance(data_value, str) and data_value.strip():
+            try:
+                parsed_data = json.loads(data_value)
+            except Exception:
+                parsed_data = None
+        elif isinstance(data_value, (dict, list)):
+            parsed_data = data_value
+
+        data_summary = {}
+        if isinstance(parsed_data, dict):
+            for k in ["ExtOrderNo", "PlatformOrderNo", "State", "FailMsg"]:
+                if k in parsed_data:
+                    data_summary[k] = parsed_data.get(k)
+
+        headers = {
+            "Content-Type": request.META.get("CONTENT_TYPE"),
+            "User-Agent": request.META.get("HTTP_USER_AGENT"),
+            "Host": request.META.get("HTTP_HOST"),
+            "X-Forwarded-For": request.META.get("HTTP_X_FORWARDED_FOR"),
+            "X-Real-IP": request.META.get("HTTP_X_REAL_IP"),
+        }
+
+        received_log = {
+            "event": "ylh_callback_received",
+            "path": request.path,
+            "method": request.method,
+            "client_ip": _get_client_ip(request),
+            "content_type": request.content_type,
+            "app_key": form_data.get("AppKey"),
+            "timestamp": form_data.get("TimeStamp"),
+            "callback_method": form_data.get("Method"),
+            "headers": _sanitize_payload(headers),
+            "form": _sanitize_payload({k: v for k, v in form_data.items() if k != "Data"}),
+            "data_summary": _sanitize_payload(data_summary),
+            "data": _sanitize_payload(parsed_data if parsed_data is not None else data_value),
+        }
+
+        logger.info("YLH Callback received: %s", json.dumps(received_log, ensure_ascii=False, default=str))
         
         # 创建回调处理器
         handler = YLHCallbackHandler.from_settings()
@@ -373,7 +453,16 @@ def ylh_callback_view(request):
         response_data = handler.route_callback(form_data)
         
         # 记录响应
-        logger.info(f"YLH Callback response: {response_data}")
+        response_log = {
+            "event": "ylh_callback_response",
+            "callback_method": form_data.get("Method"),
+            "app_key": form_data.get("AppKey"),
+            "timestamp": form_data.get("TimeStamp"),
+            "success": response_data.get("success") if isinstance(response_data, dict) else None,
+            "code": response_data.get("code") if isinstance(response_data, dict) else None,
+            "description": response_data.get("description") if isinstance(response_data, dict) else None,
+        }
+        logger.info("YLH Callback response: %s", json.dumps(_sanitize_payload(response_log), ensure_ascii=False, default=str))
         
         return JsonResponse(response_data)
         

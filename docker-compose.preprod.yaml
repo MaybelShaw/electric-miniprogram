@@ -44,7 +44,7 @@ services:
     volumes:
       - ./merchant:/app
       - merchant_dist:/app/dist
-    command: sh -c "npm ci || npm install && npm run build && tail -f /dev/null"
+    command: sh -c "(npm ci || npm install) && npm run build && tail -f /dev/null"
     restart: unless-stopped
 
   nginx:
