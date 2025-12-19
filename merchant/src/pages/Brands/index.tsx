@@ -1,14 +1,29 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormTextArea } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Modal } from 'antd';
+import { Button, Popconfirm, message, Tag, Modal, Form, Upload, Input } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { getBrands, createBrand, updateBrand, deleteBrand } from '@/services/api';
+import { getBrands, createBrand, updateBrand, deleteBrand, uploadImage } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 
 export default function Brands() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<any>(null);
+  const [logoUrl, setLogoUrl] = useState<string>('');
+  const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
+
+  useEffect(() => {
+    if (modalVisible) {
+      if (editingRecord) {
+        setLogoUrl(editingRecord.logo || '');
+        form.setFieldsValue(editingRecord);
+      } else {
+        setLogoUrl('');
+        form.resetFields();
+        form.setFieldsValue({ order: 0, is_active: true });
+      }
+    }
+  }, [modalVisible, editingRecord, form]);
 
   const handleDelete = async (id: number, force = false) => {
     try {
@@ -160,7 +175,7 @@ export default function Brands() {
         title={editingRecord ? '编辑品牌' : '新增品牌'}
         open={modalVisible}
         onOpenChange={setModalVisible}
-        initialValues={editingRecord || { order: 0, is_active: true }}
+        form={form}
         onFinish={async (values) => {
           try {
             if (editingRecord) {
@@ -178,7 +193,36 @@ export default function Brands() {
         }}
       >
         <ProFormText name="name" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]} />
-        <ProFormText name="logo" label="Logo URL" placeholder="请输入图片URL" />
+        <Form.Item label="Logo URL">
+          <Form.Item name="logo" noStyle hidden>
+            <Input />
+          </Form.Item>
+          <Upload
+            listType="picture-card"
+            maxCount={1}
+            showUploadList={false}
+            customRequest={async (options) => {
+              const { file, onSuccess, onError } = options;
+              try {
+                const res: any = await uploadImage(file as File);
+                const url = res.url || res.file;
+                setLogoUrl(url);
+                form.setFieldValue('logo', url);
+                onSuccess?.(res);
+              } catch (err) {
+                onError?.(err as Error);
+                message.error('上传失败');
+              }
+            }}
+          >
+            {logoUrl ? <img src={logoUrl} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : (
+              <div>
+                <PlusOutlined />
+                <div style={{ marginTop: 8 }}>上传</div>
+              </div>
+            )}
+          </Upload>
+        </Form.Item>
         <ProFormTextArea name="description" label="品牌描述" placeholder="请输入品牌描述" />
         <ProFormDigit name="order" label="排序" fieldProps={{ min: 0 }} />
         <ProFormSwitch name="is_active" label="是否启用" />
