@@ -1,5 +1,4 @@
 from django.db import migrations, models
-from django.db.models import Q
 
 
 class Migration(migrations.Migration):
@@ -16,16 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='category',
             constraint=models.UniqueConstraint(
-                fields=('level', 'name'),
-                condition=Q(parent__isnull=True),
-                name='unique_category_root_level_name',
-            ),
-        ),
-        migrations.AddConstraint(
-            model_name='category',
-            constraint=models.UniqueConstraint(
                 fields=('level', 'parent', 'name'),
-                condition=Q(parent__isnull=False),
                 name='unique_category_level_parent_name',
             ),
         ),

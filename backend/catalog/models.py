@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q
 from django.core.validators import MinValueValidator
 
 # Create your models here.
@@ -29,13 +28,7 @@ class Category(models.Model):
         ordering = ['order', 'id']
         constraints = [
             models.UniqueConstraint(
-                fields=['level', 'name'],
-                condition=Q(parent__isnull=True),
-                name='unique_category_root_level_name',
-            ),
-            models.UniqueConstraint(
                 fields=['level', 'parent', 'name'],
-                condition=Q(parent__isnull=False),
                 name='unique_category_level_parent_name',
             ),
         ]
@@ -46,21 +39,36 @@ class Category(models.Model):
     def clean(self):
         if self.name is not None:
             self.name = str(self.name).strip()
+        from django.core.exceptions import ValidationError
+
+        if self.level and self.name:
+            if self.parent_id is None:
+                exists = Category.objects.filter(
+                    level=self.level,
+                    parent__isnull=True,
+                    name=self.name,
+                ).exclude(pk=self.pk).exists()
+                if exists:
+                    raise ValidationError({'name': '同层级根分类名称已存在'})
+            else:
+                exists = Category.objects.filter(
+                    level=self.level,
+                    parent_id=self.parent_id,
+                    name=self.name,
+                ).exclude(pk=self.pk).exists()
+                if exists:
+                    raise ValidationError({'name': '同父分类下名称已存在'})
         # 品类（大类）不能有父类别
         if self.level == self.LEVEL_MAJOR and self.parent is not None:
-            from django.core.exceptions import ValidationError
             raise ValidationError({'parent': '品类不允许设置父类别'})
         # 子品类（小类）必须有父类别，且父类别必须是品类（大类）
         if self.level == self.LEVEL_MINOR:
             if self.parent is None:
-                from django.core.exceptions import ValidationError
                 raise ValidationError({'parent': '子品类必须设置父类别'})
             if getattr(self.parent, 'level', None) != self.LEVEL_MAJOR:
-                from django.core.exceptions import ValidationError
                 raise ValidationError({'parent': '子品类的父类别必须是品类'})
         # 品项必须有父类别，且父类别必须是子品类
         if self.level == self.LEVEL_ITEM:
-            from django.core.exceptions import ValidationError
             if self.parent is None:
                 raise ValidationError({'parent': '品项必须设置父类别'})
             if getattr(self.parent, 'level', None) != self.LEVEL_MINOR:
