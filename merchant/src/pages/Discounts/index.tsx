@@ -159,7 +159,13 @@ export default function Discounts() {
         columns={columns}
         request={async (params) => {
           try {
-            const res: any = await getDiscounts(params);
+            const { current, pageSize, ...rest } = params;
+            const queryParams: any = {
+                page: current,
+                page_size: pageSize,
+                ...rest
+            };
+            const res: any = await getDiscounts(queryParams);
             // 处理分页响应
             if (res.results) {
               return {

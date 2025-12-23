@@ -106,9 +106,12 @@ export default function MinorCategories() {
         columns={columns}
         request={async (params) => {
           try {
+            const { current, pageSize, ...rest } = params;
             const queryParams: any = {
                 level: 'minor',
-                ...params
+                page: current,
+                page_size: pageSize,
+                ...rest
             };
             
             if (params.name) queryParams.search = params.name;
@@ -116,7 +119,19 @@ export default function MinorCategories() {
 
             const res: any = await getCategories(queryParams);
             
-            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            let data = [];
+            let total = 0;
+            
+            if (res.results) {
+                data = res.results;
+                total = res.count || res.total || 0;
+            } else if (Array.isArray(res)) {
+                data = res;
+                total = res.length;
+            } else if (res.data) {
+                data = res.data;
+                total = res.total || res.length;
+            }
             
             // 移除 children 字段，避免 ProTable 自动渲染为树形结构
             const cleanData = data.map((item: any) => {
@@ -127,7 +142,7 @@ export default function MinorCategories() {
             return { 
               data: cleanData, 
               success: true,
-              total: cleanData.length 
+              total: total 
             };
           } catch (error) {
             message.error('加载子品类列表失败');

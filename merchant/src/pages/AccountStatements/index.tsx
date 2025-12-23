@@ -267,7 +267,7 @@ export default function AccountStatements() {
           return {
             data: response.results,
             success: true,
-            total: response.total,
+            total: response.pagination?.total || response.total || response.count || 0,
           };
         }}
         rowKey="id"

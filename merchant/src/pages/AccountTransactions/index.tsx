@@ -122,16 +122,13 @@ export default function AccountTransactions() {
           page_size: params.pageSize,
           transaction_type: params.transaction_type,
           payment_status: params.payment_status,
-          search: params.user_name || params.company_name, // ProTable search field mapping might need adjustment
+          search: params.user_name || params.company_name,
         };
         
         if (creditAccountId) {
           requestParams.credit_account = creditAccountId;
         }
         
-        // Mapping keyword search to 'search' param which backend likely supports for user/company
-        // If columns have dataIndex 'user_name', ProTable sends 'user_name' in params.
-        // We should check what backend supports. Assuming 'search' covers user/company.
         if (params.user_name) requestParams.search = params.user_name;
         if (params.company_name) requestParams.search = params.company_name;
 
@@ -139,7 +136,7 @@ export default function AccountTransactions() {
         return {
           data: response.results,
           success: true,
-          total: response.total,
+          total: response.pagination?.total || response.total || response.count || 0,
         };
       }}
       rowKey="id"

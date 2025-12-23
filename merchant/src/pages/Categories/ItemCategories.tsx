@@ -106,17 +106,32 @@ export default function ItemCategories() {
         columns={columns}
         request={async (params) => {
           try {
+            const { current, pageSize, ...rest } = params;
             const queryParams: any = {
                 level: 'item',
-                ...params
+                page: current,
+                page_size: pageSize,
+                ...rest
             };
             
             if (params.name) queryParams.search = params.name;
             
             const res: any = await getCategories(queryParams);
             
-            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            let data = [];
+            let total = 0;
             
+            if (res.results) {
+                data = res.results;
+                total = res.count || res.total || 0;
+            } else if (Array.isArray(res)) {
+                data = res;
+                total = res.length;
+            } else if (res.data) {
+                data = res.data;
+                total = res.total || res.length;
+            }
+
             const cleanData = data.map((item: any) => {
                 const { children, ...rest } = item;
                 return rest;
@@ -125,7 +140,7 @@ export default function ItemCategories() {
             return { 
               data: cleanData, 
               success: true,
-              total: cleanData.length 
+              total: total 
             };
           } catch (error) {
             message.error('加载品项列表失败');

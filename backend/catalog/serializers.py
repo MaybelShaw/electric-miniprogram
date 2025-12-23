@@ -25,6 +25,8 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ["id", "name", "order", "logo", "level", "parent_id", "children"]
+        # Disable default validators to allow custom duplicate check in validate()
+        validators = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,6 +60,34 @@ class CategorySerializer(serializers.ModelSerializer):
             }
             for c in qs
         ]
+
+    def validate(self, attrs):
+        name = attrs.get('name')
+        parent = attrs.get('parent')
+        level = attrs.get('level')
+        
+        # If updating, use existing values if not provided
+        if self.instance:
+            if 'name' not in attrs:
+                name = self.instance.name
+            if 'parent' not in attrs:
+                parent = self.instance.parent
+            if 'level' not in attrs:
+                level = self.instance.level
+        
+        # Check for duplicates
+        if level and name:
+            qs = Category.objects.filter(level=level, name=name, parent=parent)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            
+            if qs.exists():
+                if parent:
+                    raise serializers.ValidationError({'name': '同父分类下名称已存在'})
+                else:
+                    raise serializers.ValidationError({'name': '同层级根分类名称已存在'})
+        
+        return attrs
 
 
 class BrandSerializer(serializers.ModelSerializer):

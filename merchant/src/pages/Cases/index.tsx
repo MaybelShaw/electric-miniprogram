@@ -212,11 +212,17 @@ export default function Cases() {
         columns={columns}
         request={async (params) => {
           try {
-            const res: any = await getCases(params);
+            const { current, pageSize, ...rest } = params;
+            const queryParams: any = {
+              page: current,
+              page_size: pageSize,
+              ...rest
+            };
+            const res: any = await getCases(queryParams);
             return {
               data: res.results,
               success: true,
-              total: res.count,
+              total: res.pagination?.total || res.total || res.count || 0,
             };
           } catch (error) {
             return { data: [], success: false };

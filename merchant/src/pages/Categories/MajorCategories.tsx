@@ -87,8 +87,12 @@ export default function MajorCategories() {
         request={async (params) => {
           try {
             // 构建查询参数
+            const { current, pageSize, ...rest } = params;
             const queryParams: any = {
-                level: 'major'
+                level: 'major',
+                page: current,
+                page_size: pageSize,
+                ...rest
             };
             
             // 搜索关键词
@@ -98,8 +102,19 @@ export default function MajorCategories() {
 
             const res: any = await getCategories(queryParams);
             
-            // 后端返回的是数组，需要转换为 ProTable 期望的格式
-            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            let data = [];
+            let total = 0;
+            
+            if (res.results) {
+                data = res.results;
+                total = res.count || res.total || 0;
+            } else if (Array.isArray(res)) {
+                data = res;
+                total = res.length;
+            } else if (res.data) {
+                data = res.data;
+                total = res.total || res.length;
+            }
             
             // 移除 children 字段，避免 ProTable 自动渲染为树形结构
             const cleanData = data.map((item: any) => {
@@ -110,7 +125,7 @@ export default function MajorCategories() {
             return { 
               data: cleanData, 
               success: true,
-              total: cleanData.length 
+              total: total 
             };
           } catch (error) {
             message.error('加载品类列表失败');

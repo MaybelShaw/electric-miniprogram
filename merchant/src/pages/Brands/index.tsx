@@ -125,7 +125,12 @@ export default function Brands() {
         request={async (params) => {
           try {
             // 构建查询参数
-            const queryParams: any = {};
+            const { current, pageSize, ...rest } = params;
+            const queryParams: any = {
+              page: current,
+              page_size: pageSize,
+              ...rest
+            };
             
             // 搜索关键词
             if (params.name) {
@@ -139,12 +144,24 @@ export default function Brands() {
 
             const res: any = await getBrands(queryParams);
             
-            // 后端返回的是数组，需要转换为 ProTable 期望的格式
-            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            let data = [];
+            let total = 0;
+            
+            if (res.results) {
+                data = res.results;
+                total = res.count || res.total || 0;
+            } else if (Array.isArray(res)) {
+                data = res;
+                total = res.length;
+            } else if (res.data) {
+                data = res.data;
+                total = res.total || res.length;
+            }
+
             return { 
               data: data, 
               success: true,
-              total: data.length 
+              total: total 
             };
           } catch (error) {
             message.error('加载品牌列表失败');
