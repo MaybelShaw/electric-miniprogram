@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.core.validators import MinValueValidator
 
 # Create your models here.
@@ -27,13 +28,24 @@ class Category(models.Model):
         verbose_name_plural = '商品类别'
         ordering = ['order', 'id']
         constraints = [
-            models.UniqueConstraint(fields=['level', 'name'], name='unique_category_level_name')
+            models.UniqueConstraint(
+                fields=['level', 'name'],
+                condition=Q(parent__isnull=True),
+                name='unique_category_root_level_name',
+            ),
+            models.UniqueConstraint(
+                fields=['level', 'parent', 'name'],
+                condition=Q(parent__isnull=False),
+                name='unique_category_level_parent_name',
+            ),
         ]
 
     def __str__(self):
         return self.name
 
     def clean(self):
+        if self.name is not None:
+            self.name = str(self.name).strip()
         # 品类（大类）不能有父类别
         if self.level == self.LEVEL_MAJOR and self.parent is not None:
             from django.core.exceptions import ValidationError
