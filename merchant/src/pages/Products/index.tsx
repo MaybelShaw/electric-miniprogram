@@ -22,8 +22,8 @@ export default function Products() {
     const loadFilters = async () => {
       try {
         const [brandsRes, categoriesRes]: any = await Promise.all([
-          getBrands(),
-          getCategories({ level: 'item' }),
+          getBrands({ page_size: 1000 }),
+          getCategories({ level: 'item', page_size: 1000 }),
         ]);
         
         // 处理品牌数据

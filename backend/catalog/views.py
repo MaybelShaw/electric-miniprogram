@@ -13,6 +13,7 @@ from django.utils import timezone
 from django.conf import settings
 from common.permissions import IsAdminOrReadOnly, IsAdmin
 from common.utils import to_bool, parse_decimal, parse_int
+from common.pagination import LargeResultsSetPagination
 from .search import ProductSearchService
 from decimal import Decimal
 import uuid
