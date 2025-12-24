@@ -78,6 +78,8 @@
     - 筛选：支持按时间范围、行政级别筛选
   - API支持：`GET /analytics/regional_sales/`、`GET /analytics/product_region_distribution/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
+  - 新增/编辑商品表单中的“品牌/品项”下拉数据来自 `GET /api/catalog/brands/` 与 `GET /api/catalog/categories/?level=item`（接口默认分页）。实现位置：`merchant/src/pages/Products/index.tsx:1`
+  - 若数据库已有更多条目但下拉仅显示 20 条，优先在浏览器 Network 检查是否实际请求了下一页（或是否使用了旧的前端构建产物未更新）
   - **海尔商品查询**：在创建/编辑海尔来源的商品时，支持输入海尔产品编码并点击“查询”按钮，自动调用海尔API获取商品详情。
     - 自动填充：名称（自动映射型号）、价格（含供价/开票价/市场价/返利）、库存。
     - 优化体验：自动过滤库位编码、仓库等级、内部产品组等冗余字段，仅展示核心业务信息。

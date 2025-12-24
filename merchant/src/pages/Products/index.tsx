@@ -8,6 +8,49 @@ import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
 import type { Product, Brand, Category } from '@/services/types';
 
+async function fetchAllPaginated<T extends { id: number }>(
+  fetcher: (params?: any) => Promise<any>,
+  baseParams: Record<string, any>,
+  preferredPageSize: number,
+): Promise<T[]> {
+  const firstRes: any = await fetcher({ ...baseParams, page: 1, page_size: preferredPageSize });
+  if (Array.isArray(firstRes)) return firstRes as T[];
+
+  const firstPage: T[] = (firstRes?.results || []) as T[];
+  const itemsById = new Map<number, T>();
+  for (const item of firstPage) {
+    if (item && typeof item.id === 'number') itemsById.set(item.id, item);
+  }
+
+  const totalPages = Number(firstRes?.total_pages);
+  const hasNextFromFirst = typeof firstRes?.has_next === 'boolean' ? firstRes.has_next : Boolean(firstRes?.next);
+  if (!hasNextFromFirst && (!Number.isFinite(totalPages) || totalPages <= 1)) {
+    return Array.from(itemsById.values());
+  }
+
+  const maxPages = Number.isFinite(totalPages) && totalPages > 0 ? Math.min(totalPages, 200) : 200;
+  for (let page = 2; page <= maxPages; page += 1) {
+    const res: any = await fetcher({ ...baseParams, page, page_size: preferredPageSize });
+    if (Array.isArray(res)) {
+      for (const item of res as T[]) {
+        if (item && typeof item.id === 'number') itemsById.set(item.id, item);
+      }
+      break;
+    }
+
+    const pageItems: T[] = (res?.results || []) as T[];
+    for (const item of pageItems) {
+      if (item && typeof item.id === 'number') itemsById.set(item.id, item);
+    }
+
+    const hasNext = typeof res?.has_next === 'boolean' ? res.has_next : Boolean(res?.next);
+    const pageTotalPages = Number(res?.total_pages);
+    if (!hasNext && (!Number.isFinite(pageTotalPages) || page >= pageTotalPages)) break;
+  }
+
+  return Array.from(itemsById.values());
+}
+
 export default function Products() {
   const actionRef = useRef<ActionType>();
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -21,17 +64,11 @@ export default function Products() {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [brandsRes, categoriesRes]: any = await Promise.all([
-          getBrands({ page_size: 1000 }),
-          getCategories({ level: 'item', page_size: 1000 }),
+        const [brandData, categoryData] = await Promise.all([
+          fetchAllPaginated<Brand>(getBrands, {}, 1000),
+          fetchAllPaginated<Category>(getCategories, { level: 'item' }, 1000),
         ]);
-        
-        // 处理品牌数据
-        const brandData = Array.isArray(brandsRes) ? brandsRes : (brandsRes.results || []);
         setBrands(brandData);
-        
-        // 处理分类数据
-        const categoryData = Array.isArray(categoriesRes) ? categoriesRes : (categoriesRes.results || []);
         setCategories(categoryData);
       } catch (error) {
         // 静默失败

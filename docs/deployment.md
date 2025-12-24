@@ -16,14 +16,17 @@
    ```bash.
    docker compose -f docker-compose.dev.yaml up -d
    ```
-2. 访问：
+2. 代码更新后的生效方式（服务器开发环境常见）：
+   - 拉取代码后，前端容器一般会自动热更新；若浏览器仍看到旧行为，可执行 `docker compose -f docker-compose.dev.yaml restart merchant`。
+   - 后端代码更新后建议执行 `docker compose -f docker-compose.dev.yaml restart backend`；如涉及迁移再补充运行 `migrate`。
+3. 访问：
    - 后端：`http://localhost:8000`
    - 前端：`http://localhost:3001`
-3. 数据库迁移（如需手动）：
+4. 数据库迁移（如需手动）：
    ```bash
    docker compose -f docker-compose.dev.yaml exec backend uv run python manage.py migrate
    ```
-4. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。
+5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`
