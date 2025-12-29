@@ -114,6 +114,7 @@ export interface HomeBanner {
   id: number;
   title: string;
   link_url: string;
+  position: 'home' | 'gift' | 'designer';
   order: number;
   is_active: boolean;
   image_id: number;

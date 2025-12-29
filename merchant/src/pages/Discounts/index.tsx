@@ -4,6 +4,7 @@ import { Button, Popconfirm, message, Tag, Drawer, Descriptions } from 'antd';
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
+import { fetchAllPaginated } from '@/utils/request';
 
 export default function Discounts() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -18,14 +19,10 @@ export default function Discounts() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [usersRes, productsRes]: any = await Promise.all([
-          getUsers({ page_size: 1000 }),
-          getProducts({ page_size: 1000 }),
+        const [userData, productData] = await Promise.all([
+          fetchAllPaginated<any>(getUsers, {}, 100),
+          fetchAllPaginated<any>(getProducts, {}, 100),
         ]);
-        
-        const userData = usersRes.results || usersRes || [];
-        const productData = productsRes.results || productsRes || [];
-        
         setUsers(userData);
         setProducts(productData);
       } catch (error) {

@@ -1,4 +1,5 @@
-import { http } from '../utils/request'
+import { fetchAllPaginated, http } from '../utils/request'
+import { PaginatedResponse } from '../types'
 
 export interface CreditAccount {
   id: number
@@ -69,8 +70,12 @@ export const creditService = {
   },
 
   // 获取我的对账单列表
-  async getMyStatements(params?: any): Promise<{ results: AccountStatement[]; total: number }> {
-    return http.get<{ results: AccountStatement[]; total: number }>('/account-statements/my_statements/', params)
+  async getMyStatements(params?: any): Promise<PaginatedResponse<AccountStatement>> {
+    return http.get<PaginatedResponse<AccountStatement>>('/account-statements/my_statements/', params)
+  },
+
+  async getAllMyStatements(params?: any): Promise<AccountStatement[]> {
+    return fetchAllPaginated<AccountStatement>('/account-statements/my_statements/', params, 100, true)
   },
 
   // 获取对账单详情
@@ -79,8 +84,12 @@ export const creditService = {
   },
 
   // 获取我的交易记录
-  async getMyTransactions(params?: any): Promise<{ results: AccountTransaction[]; total: number }> {
-    return http.get<{ results: AccountTransaction[]; total: number }>('/account-transactions/my_transactions/', params)
+  async getMyTransactions(params?: any): Promise<PaginatedResponse<AccountTransaction>> {
+    return http.get<PaginatedResponse<AccountTransaction>>('/account-transactions/my_transactions/', params)
+  },
+
+  async getAllMyTransactions(params?: any): Promise<AccountTransaction[]> {
+    return fetchAllPaginated<AccountTransaction>('/account-transactions/my_transactions/', params, 100, true)
   },
 
   // 确认对账单

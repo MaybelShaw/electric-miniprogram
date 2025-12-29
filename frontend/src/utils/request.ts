@@ -224,3 +224,34 @@ export const http = {
     return request<T>({ url, method: 'DELETE', data, needAuth, showError })
   }
 }
+
+export async function fetchAllPaginated<T>(
+  url: string,
+  params?: Record<string, any>,
+  pageSize = 100,
+  options: boolean | { needAuth?: boolean; showError?: boolean } = false,
+): Promise<T[]> {
+  const first: any = await http.get<any>(url, { ...(params || {}), page: 1, page_size: pageSize }, options)
+  if (Array.isArray(first)) return first as T[]
+
+  const items: T[] = Array.isArray(first?.results) ? (first.results as T[]) : []
+  const totalPages = Number(first?.total_pages)
+  const hasNextFromFirst = typeof first?.has_next === 'boolean' ? first.has_next : Boolean(first?.next)
+  if (!hasNextFromFirst && (!Number.isFinite(totalPages) || totalPages <= 1)) return items
+
+  const out: T[] = [...items]
+  const maxPages = Number.isFinite(totalPages) && totalPages > 0 ? Math.min(totalPages, 200) : 200
+  for (let page = 2; page <= maxPages; page += 1) {
+    const res: any = await http.get<any>(url, { ...(params || {}), page, page_size: pageSize }, options)
+    if (Array.isArray(res)) {
+      out.push(...(res as T[]))
+      break
+    }
+    const pageItems: T[] = Array.isArray(res?.results) ? (res.results as T[]) : []
+    out.push(...pageItems)
+    const hasNext = typeof res?.has_next === 'boolean' ? res.has_next : Boolean(res?.next)
+    const pageTotalPages = Number(res?.total_pages)
+    if (!hasNext && (!Number.isFinite(pageTotalPages) || page >= pageTotalPages)) break
+  }
+  return out
+}

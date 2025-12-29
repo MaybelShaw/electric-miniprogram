@@ -3,22 +3,9 @@ import { View, Text, Image, Swiper, SwiperItem, ScrollView } from '@tarojs/compo
 import Taro, { useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { caseService } from '../../services/case'
-import { Product, Case } from '../../types'
+import { Product, Case, HomeBanner } from '../../types'
 import ProductCard from '../../components/ProductCard'
 import './index.scss'
-
-const MOCK_SCENES = {
-  gift: [
-    'https://via.placeholder.com/700x400/FF6B6B/FFFFFF?text=Gift+Scene+1',
-    'https://via.placeholder.com/700x400/4ECDC4/FFFFFF?text=Gift+Scene+2',
-    'https://via.placeholder.com/700x400/FFE66D/FFFFFF?text=Gift+Scene+3',
-  ],
-  designer: [
-    'https://via.placeholder.com/700x400/2C3E50/FFFFFF?text=Designer+Scene+1',
-    'https://via.placeholder.com/700x400/E74C3C/FFFFFF?text=Designer+Scene+2',
-    'https://via.placeholder.com/700x400/ECF0F1/000000?text=Designer+Scene+3',
-  ]
-}
 
 export default function SpecialZone() {
   const router = useRouter()
@@ -26,15 +13,26 @@ export default function SpecialZone() {
   
   const [products, setProducts] = useState<Product[]>([])
   const [cases, setCases] = useState<Case[]>([])
+  const [banners, setBanners] = useState<HomeBanner[]>([])
   const [loading, setLoading] = useState(false)
   
   useEffect(() => {
     Taro.setNavigationBarTitle({ title: decodeURIComponent(title) })
+    loadBanners()
     loadProducts()
     if (type === 'designer') {
       loadCases()
     }
   }, [type])
+
+  const loadBanners = async () => {
+    try {
+        const res = await productService.getHomeBanners(type as 'gift' | 'designer')
+        setBanners(res)
+    } catch (error) {
+        console.error('Failed to load banners:', error)
+    }
+  }
 
   const loadCases = async () => {
     try {
@@ -60,34 +58,46 @@ export default function SpecialZone() {
     }
   }
 
-  const scenes = MOCK_SCENES[type as keyof typeof MOCK_SCENES] || MOCK_SCENES.gift
-
   const goToCaseDetail = (id: number) => {
     Taro.navigateTo({ url: `/pages/case-detail/index?id=${id}` })
+  }
+
+  const handleBannerClick = (banner: HomeBanner) => {
+    if (banner.link_url) {
+        // 判断是否是内部页面
+        if (banner.link_url.startsWith('/')) {
+            Taro.navigateTo({ url: banner.link_url })
+        } else {
+            // 外部链接可能需要 webview 或复制链接
+            // 这里简单处理为不做操作或后续扩展
+        }
+    }
   }
 
   return (
     <View className='special-zone'>
       {/* 场景展示 */}
-      <View className='scene-display'>
-        <View className='section-title'>场景展示</View>
-        <Swiper
-          className='scene-swiper'
-          circular
-          indicatorDots
-          autoplay
-        >
-          {scenes.map((url, index) => (
-            <SwiperItem key={index}>
-              <Image 
-                src={url} 
-                className='scene-image' 
-                mode='aspectFill' 
-              />
-            </SwiperItem>
-          ))}
-        </Swiper>
-      </View>
+      {banners.length > 0 && (
+        <View className='scene-display'>
+            <View className='section-title'>场景展示</View>
+            <Swiper
+            className='scene-swiper'
+            circular
+            indicatorDots
+            autoplay
+            >
+            {banners.map((banner) => (
+                <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
+                <Image 
+                    src={banner.image_url} 
+                    className='scene-image' 
+                    mode='aspectFill' 
+                />
+                </SwiperItem>
+            ))}
+            </Swiper>
+        </View>
+      )}
 
       {/* 案例展示 */}
       {type === 'designer' && cases.length > 0 && (

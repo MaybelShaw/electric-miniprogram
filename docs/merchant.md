@@ -51,6 +51,8 @@
   - `/account-statements` 账务对账单
   - `/account-transactions` 账务交易记录
   - `/invoices` 发票管理
+  - `/home-banners` 轮播图管理
+  - `/cases` 案例管理
 
 ## 页面与操作流程
 - 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
@@ -78,8 +80,9 @@
     - 筛选：支持按时间范围、行政级别筛选
   - API支持：`GET /analytics/regional_sales/`、`GET /analytics/product_region_distribution/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
-  - 新增/编辑商品表单中的“品牌/品项”下拉数据来自 `GET /api/catalog/brands/` 与 `GET /api/catalog/categories/?level=item`（接口默认分页）。实现位置：`merchant/src/pages/Products/index.tsx:1`
-  - 若数据库已有更多条目但下拉仅显示 20 条，优先在浏览器 Network 检查是否实际请求了下一页（或是否使用了旧的前端构建产物未更新）
+- 新增/编辑商品表单中的“品牌/品项”下拉数据来自 `GET /api/catalog/brands/` 与 `GET /api/catalog/categories/?level=item`（接口默认分页）。实现位置：`merchant/src/pages/Products/index.tsx:1`
+- 下拉等“需要全量数据”的场景使用 `fetchAllPaginated` 拉取全部分页数据：`merchant/src/utils/request.ts:10`
+- 若数据库已有更多条目但下拉仅显示 20 条，优先在浏览器 Network 检查是否实际请求了下一页，或确认服务器已更新到最新前端构建产物（可通过重启对应容器/进程生效）
   - **海尔商品查询**：在创建/编辑海尔来源的商品时，支持输入海尔产品编码并点击“查询”按钮，自动调用海尔API获取商品详情。
     - 自动填充：名称（自动映射型号）、价格（含供价/开票价/市场价/返利）、库存。
     - 优化体验：自动过滤库位编码、仓库等级、内部产品组等冗余字段，仅展示核心业务信息。
@@ -101,6 +104,11 @@
       - 用户补充：`PATCH /api/orders/{id}/add_return_tracking/`
       - 管理员验收：`PATCH /api/orders/{id}/receive_return/`
       - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
+- 轮播图管理：
+  - 支持按位置管理轮播图：首页、礼品专区、设计师专区
+  - 功能：列表查看、新增、编辑、删除、启用/禁用
+  - 接口：`GET/POST/PATCH/DELETE /api/catalog/home-banners/`，`POST /api/catalog/home-banners/upload/`
+- 案例管理：
 - 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`
 - 信用账户：列表与编辑（额度、账期、激活状态） `merchant/src/services/api.ts:74`

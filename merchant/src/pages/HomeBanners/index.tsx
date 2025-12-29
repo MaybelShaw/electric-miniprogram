@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch } from '@ant-design/pro-components';
+import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { getHomeBanners, createHomeBanner, updateHomeBanner, deleteHomeBanner, uploadImage } from '@/services/api';
@@ -38,6 +38,7 @@ export default function HomeBanners() {
     form.setFieldsValue({
       title: record.title,
       link_url: record.link_url,
+      position: record.position,
       order: record.order,
       is_active: record.is_active,
     });
@@ -52,6 +53,7 @@ export default function HomeBanners() {
     form.setFieldsValue({
       order: 0,
       is_active: true,
+      position: 'home',
     });
   };
 
@@ -89,6 +91,17 @@ export default function HomeBanners() {
     {
       title: '标题',
       dataIndex: 'title',
+    },
+    {
+      title: '展示位置',
+      dataIndex: 'position',
+      valueType: 'select',
+      valueEnum: {
+        home: { text: '首页', status: 'Default' },
+        gift: { text: '礼品专区', status: 'Processing' },
+        designer: { text: '设计师专区', status: 'Success' },
+      },
+      width: 120,
     },
     {
       title: '跳转链接',
@@ -154,6 +167,9 @@ export default function HomeBanners() {
                 page_size: pageSize,
                 ...rest
             };
+            if (params.position) {
+                queryParams.position = params.position;
+            }
             const res: any = await getHomeBanners(queryParams);
             const data = Array.isArray(res) ? res : (res.results || []);
             return {
@@ -231,6 +247,18 @@ export default function HomeBanners() {
             )}
           </Upload>
         </Form.Item>
+
+        <ProFormSelect
+            name="position"
+            label="展示位置"
+            valueEnum={{
+                home: '首页',
+                gift: '礼品专区',
+                designer: '设计师专区',
+            }}
+            rules={[{ required: true, message: '请选择展示位置' }]}
+            initialValue="home"
+        />
 
         <ProFormText
           name="title"

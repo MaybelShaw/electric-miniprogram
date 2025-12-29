@@ -28,7 +28,7 @@ export default function BrandPage() {
 
     setLoading(true)
     try {
-      const res = await productService.getProductsByBrand(brandName)
+      const res = await productService.getProductsByBrand({ brand: brandName, page: pageNum, page_size: 20 })
       if (pageNum === 1) {
         setProducts(res.results)
       } else {

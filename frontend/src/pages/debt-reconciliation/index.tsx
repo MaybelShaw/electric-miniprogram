@@ -55,15 +55,15 @@ export default function DebtReconciliation() {
       // 并行获取信用账户、对账单和交易记录
       const [accountRes, statementsRes, transactionsRes] = await Promise.all([
         creditService.getMyAccount().catch(() => null),
-        creditService.getMyStatements({ start_date: startDate, end_date: endDate, page_size: 100 }),
-        creditService.getMyTransactions({ start_date: startDate, end_date: endDate, page_size: 100 })
+        creditService.getAllMyStatements({ start_date: startDate, end_date: endDate }),
+        creditService.getAllMyTransactions({ start_date: startDate, end_date: endDate })
       ])
       
       setCreditAccount(accountRes)
       
       // 计算统计数据
       const stats = {
-        totalStatements: statementsRes.results.length,
+        totalStatements: statementsRes.length,
         dueWithinTerm: 0,
         paidWithinTerm: 0,
         previousBalance: 0,
@@ -77,7 +77,7 @@ export default function DebtReconciliation() {
       const statementIds = new Set<number>()
       
       // 1. 统计对账单数据
-      statementsRes.results.forEach(statement => {
+      statementsRes.forEach(statement => {
         statementIds.add(statement.id)
         stats.dueWithinTerm += Number(statement.due_within_term)
         stats.paidWithinTerm += Number(statement.paid_within_term)
@@ -104,9 +104,9 @@ export default function DebtReconciliation() {
       })
       
       // 处理存量数据 (Balance)
-      if (statementsRes.results.length > 0) {
+      if (statementsRes.length > 0) {
         // 假设结果按时间倒序排列 (后端是 order_by('-period_end'))
-        const sortedStatements = [...statementsRes.results].sort((a, b) => 
+        const sortedStatements = [...statementsRes].sort((a, b) => 
           new Date(a.period_start).getTime() - new Date(b.period_start).getTime()
         )
         stats.previousBalance = Number(sortedStatements[0].previous_balance)
@@ -114,7 +114,7 @@ export default function DebtReconciliation() {
       }
       
       // 2. 统计未包含在对账单中的交易 (补漏)
-      const txs = transactionsRes.results || []
+      const txs = transactionsRes || []
       let unbilledPurchases = 0
       let unbilledPayments = 0
       

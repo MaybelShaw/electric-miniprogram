@@ -5,6 +5,7 @@ import { Button, message, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCreditAccounts, createCreditAccount, updateCreditAccount, getUsers } from '@/services/api';
+import { fetchAllPaginated } from '@/utils/request';
 
 export default function CreditAccounts() {
   const actionRef = useRef<ActionType>();
@@ -191,8 +192,7 @@ export default function CreditAccounts() {
           rules={[{ required: true, message: '请选择经销商' }]}
           request={async () => {
             try {
-              const response: any = await getUsers({ role: 'dealer' });
-              const results = response.results || (Array.isArray(response) ? response : []);
+              const results = await fetchAllPaginated<any>(getUsers, { role: 'dealer' }, 100);
               if (results.length === 0) {
                 message.warning('暂无经销商用户，请先审核通过经销商认证');
                 return [];

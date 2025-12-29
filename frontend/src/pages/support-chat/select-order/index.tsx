@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
-import { orderService } from '../../../services/order'
+import { fetchAllPaginated } from '../../../utils/request'
 import './index.scss'
 
 export default function SelectOrder() {
@@ -16,9 +16,8 @@ export default function SelectOrder() {
   const loadOrders = async () => {
     try {
       setLoading(true)
-      // Assuming pageSize is handled by page_size param
-      const res = await orderService.getMyOrders({ page: 1, page_size: 50 })
-      setOrders(res.results || [])
+      const data = await fetchAllPaginated<any>('/orders/my_orders/', {}, 100, true)
+      setOrders(data)
     } catch (e) {
       console.error(e)
       Taro.showToast({ title: '加载订单失败', icon: 'none' })

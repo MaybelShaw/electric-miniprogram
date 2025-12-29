@@ -3,7 +3,8 @@ import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormDateRangePicker, ProFormSelect, ProDescriptions } from '@ant-design/pro-components';
 import { Button, message, Tag, Drawer, Table } from 'antd';
 import { useRef, useState } from 'react';
-import { getAccountStatements, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, getCreditAccounts, getAccountStatement } from '@/services/api';
+import { getAccountStatements, getAccountStatement, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, getCreditAccounts } from '@/services/api';
+import { fetchAllPaginated } from '@/utils/request';
 
 export default function AccountStatements() {
   const actionRef = useRef<ActionType>();
@@ -306,8 +307,8 @@ export default function AccountStatements() {
           placeholder="请选择信用账户"
           rules={[{ required: true, message: '请选择信用账户' }]}
           request={async () => {
-            const response: any = await getCreditAccounts({ is_active: true });
-            return response.results.map((account: any) => ({
+            const accounts = await fetchAllPaginated<any>(getCreditAccounts, { is_active: true }, 100);
+            return accounts.map((account: any) => ({
               label: `${account.user_name} - ${account.company_name}`,
               value: account.id,
             }));

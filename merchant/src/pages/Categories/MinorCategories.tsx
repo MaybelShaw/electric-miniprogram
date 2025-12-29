@@ -3,6 +3,7 @@ import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect } from '@
 import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { getCategories, createCategory, updateCategory, deleteCategory, uploadImage } from '@/services/api';
+import { fetchAllPaginated } from '@/utils/request';
 import type { ActionType } from '@ant-design/pro-components';
 
 export default function MinorCategories() {
@@ -15,9 +16,8 @@ export default function MinorCategories() {
 
   useEffect(() => {
       if (modalVisible) {
-          getCategories({ level: 'major' }).then((res: any) => {
-              const data = Array.isArray(res) ? res : (res.results || res.data || []);
-              setMajorCategories(data.map((c: any) => ({ label: c.name, value: c.id })));
+          fetchAllPaginated<any>(getCategories, { level: 'major' }, 100).then((data) => {
+            setMajorCategories(data.map((c: any) => ({ label: c.name, value: c.id })));
           });
 
           if (editingRecord) {
@@ -61,8 +61,7 @@ export default function MinorCategories() {
         dataIndex: 'parent_id',
         valueType: 'select',
         request: async () => {
-            const res: any = await getCategories({ level: 'major' });
-            const data = Array.isArray(res) ? res : (res.results || res.data || []);
+            const data = await fetchAllPaginated<any>(getCategories, { level: 'major' }, 100);
             return data.map((c: any) => ({ label: c.name, value: c.id }));
         },
     },

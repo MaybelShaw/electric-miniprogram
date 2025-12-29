@@ -1,10 +1,11 @@
-import { http } from '../utils/request'
+import { fetchAllPaginated, http } from '../utils/request'
 import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../types/index'
 
 export const productService = {
   // 获取轮播图列表
-  async getHomeBanners(): Promise<HomeBanner[]> {
-    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', undefined, false)
+  async getHomeBanners(position?: 'home' | 'gift' | 'designer'): Promise<HomeBanner[]> {
+    const params = position ? { position } : undefined
+    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', params, false)
     return response.results || []
   },
 
@@ -34,20 +35,23 @@ export const productService = {
   },
   
   // 按品牌获取商品
-  async getProductsByBrand(brand: string): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/catalog/products/by_brand/', { brand }, false)
+  async getProductsByBrand(params: {
+    brand: string
+    sort_by?: 'relevance' | 'sales' | 'price_asc' | 'price_desc'
+    page?: number
+    page_size?: number
+  }): Promise<ProductListResponse> {
+    return http.get<ProductListResponse>('/catalog/products/by_brand/', params, false)
   },
   
   // 获取分类列表
-  async getCategories(params?: { level?: 'major' | 'minor'; parent_id?: number }): Promise<Category[]> {
-    const response = await http.get<{ count: number; results: Category[] }>('/catalog/categories/', params, false)
-    return response.results || []
+  async getCategories(params?: { level?: 'major' | 'minor' | 'item'; parent_id?: number }): Promise<Category[]> {
+    return fetchAllPaginated<Category>('/catalog/categories/', params)
   },
   
   // 获取品牌列表
   async getBrands(): Promise<Brand[]> {
-    const response = await http.get<{ count: number; results: Brand[] }>('/catalog/brands/', undefined, false)
-    return response.results || []
+    return fetchAllPaginated<Brand>('/catalog/brands/')
   },
   
 

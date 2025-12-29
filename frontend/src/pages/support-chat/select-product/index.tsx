@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
-import { productService } from '../../../services/product'
+import { fetchAllPaginated } from '../../../utils/request'
 import './index.scss'
 
 export default function SelectProduct() {
@@ -16,8 +16,8 @@ export default function SelectProduct() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const res = await productService.getProducts({ page: 1, page_size: 50 })
-      setProducts(res.results || [])
+      const data = await fetchAllPaginated<any>('/catalog/products/', {}, 100, false)
+      setProducts(data)
     } catch (e) {
       console.error(e)
       Taro.showToast({ title: '加载商品失败', icon: 'none' })

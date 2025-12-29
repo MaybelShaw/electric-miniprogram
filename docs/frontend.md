@@ -52,11 +52,13 @@
 
 ## 服务层接口清单
 - 商品服务：`frontend/src/services/product.ts:4`
+  - `getHomeBanners` 获取轮播图（支持 `position=home|gift|designer`）
   - `getProducts` 列表（分页/排序/搜索）`frontend/src/services/product.ts:6`
   - `getProductDetail` 详情 `frontend/src/services/product.ts:16`
   - `getProductsByCategory`/`getProductsByBrand` 分类/品牌筛选 `frontend/src/services/product.ts:21`
   - `getCategories`/`getBrands` 列表 `frontend/src/services/product.ts:36`
     - 分类层级：`level=major|minor|item`（品类/子品类/品项）
+    - 列表接口默认分页（常见为 20 条）；需要全量数据时通过 `fetchAllPaginated` 自动拉取全部分页：`frontend/src/utils/request.ts:229`
   - `getRecommendations`/`getRelatedProducts` 推荐/相关 `frontend/src/services/product.ts:49`
 - 订单服务：`frontend/src/services/order.ts:4`
   - `createOrder` 创建订单 `frontend/src/services/order.ts:6`
@@ -85,8 +87,9 @@
   - 分类、品牌、特色专区、轮播与商品列表，分页加载与下拉刷新
   - 加载商品列表：`frontend/src/pages/home/index.tsx:67`
 - 专区页（`/pages/special-zone/index`）：
-  - 场景展示（图片轮播）与商品列表展示
+  - 场景展示（通过 `position` 获取轮播图）与商品列表展示
   - 支持“礼品专区”与“设计师专区”两种模式，通过 `type` 参数控制
+  - 设计师专区展示精选案例（`Case`）
 - 分类页（`/pages/category/index`）：左侧分类 + 右侧商品列表，支持排序与分页
 - 搜索页（`/pages/search/index`）：关键词检索、热门关键词、搜索建议
 - 购物车（`/pages/cart/index`）：选中/数量/移除/结算，跳转确认订单（Token 保护）

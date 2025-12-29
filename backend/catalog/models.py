@@ -348,6 +348,15 @@ class HomeBanner(models.Model):
     
     通过关联已上传的媒体图片来管理首页展示的轮播图。
     """
+    POSITION_HOME = 'home'
+    POSITION_GIFT = 'gift'
+    POSITION_DESIGNER = 'designer'
+    POSITION_CHOICES = [
+        (POSITION_HOME, '首页'),
+        (POSITION_GIFT, '礼品专区'),
+        (POSITION_DESIGNER, '设计师专区'),
+    ]
+
     id = models.BigAutoField(primary_key=True)
     image = models.ForeignKey(
         'catalog.MediaImage',
@@ -357,6 +366,7 @@ class HomeBanner(models.Model):
     )
     title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
     link_url = models.URLField(max_length=500, blank=True, default='', verbose_name='跳转链接')
+    position = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_HOME, verbose_name='展示位置')
     order = models.IntegerField(default=0, verbose_name='排序')
     is_active = models.BooleanField(default=True, verbose_name='是否启用')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
@@ -368,6 +378,7 @@ class HomeBanner(models.Model):
         ordering = ['order', '-id']
         indexes = [
             models.Index(fields=['is_active', 'order']),
+            models.Index(fields=['position', 'is_active', 'order']),
         ]
 
     def __str__(self):

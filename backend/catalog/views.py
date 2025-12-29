@@ -1159,6 +1159,12 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        # position filter
+        position = self.request.query_params.get('position')
+        if position:
+            qs = qs.filter(position=position)
+
         # 公开接口默认只返回启用的轮播图
         if self.request and self.request.method == 'GET' and not self.request.user.is_staff:
             return qs.filter(is_active=True)
@@ -1175,6 +1181,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
         parameters=[
             OpenApiParameter('title', OT.STR, OpenApiParameter.QUERY, description='轮播图标题'),
             OpenApiParameter('link_url', OT.STR, OpenApiParameter.QUERY, description='跳转链接'),
+            OpenApiParameter('position', OT.STR, OpenApiParameter.QUERY, description='展示位置'),
             OpenApiParameter('order', OT.INT, OpenApiParameter.QUERY, description='排序值'),
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否启用'),
         ],
@@ -1209,6 +1216,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
 
         title = request.data.get('title') or request.query_params.get('title') or ''
         link_url = request.data.get('link_url') or request.query_params.get('link_url') or ''
+        position = request.data.get('position') or request.query_params.get('position') or 'home'
         try:
             order = int(request.data.get('order') or request.query_params.get('order') or 0)
         except (ValueError, TypeError):
@@ -1220,6 +1228,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
             image=media,
             title=title,
             link_url=link_url or '',
+            position=position,
             order=order,
             is_active=is_active,
         )

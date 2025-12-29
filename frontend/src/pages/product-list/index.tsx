@@ -18,6 +18,9 @@ export default function ProductListPage() {
   
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [activeCategoryName, setActiveCategoryName] = useState<string>('')
   
   // Sort
   const [sortBy, setSortBy] = useState<'relevance' | 'sales' | 'price_asc' | 'price_desc'>('relevance')
@@ -45,7 +48,8 @@ export default function ProductListPage() {
       // Find item name for search
       const item = items.find(i => i.id === activeItemId)
       if (item) {
-        loadProducts(item.name)
+        setActiveCategoryName(item.name)
+        loadProducts(item.name, 1)
       }
     }
   }, [activeItemId, sortBy, items])
@@ -95,19 +99,28 @@ export default function ProductListPage() {
     }
   }
 
-  const loadProducts = async (categoryName: string) => {
+  const loadProducts = async (categoryName: string, pageNum = 1) => {
     setLoading(true)
     try {
       const res = await productService.getProductsByCategory({
         category: categoryName,
         sort_by: sortBy,
-        page_size: 100 // Load enough for demo
+        page: pageNum,
+        page_size: 20
       })
-      setProducts(res.results)
+      setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
+      setHasMore(res.has_next || false)
+      setPage(pageNum)
     } catch (error) {
       console.error('Failed to load products', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const onLoadMore = () => {
+    if (!loading && hasMore && activeCategoryName) {
+      loadProducts(activeCategoryName, page + 1)
     }
   }
   
@@ -167,7 +180,7 @@ export default function ProductListPage() {
           </View>
 
           {/* Product List */}
-          <ScrollView className='products-scroll' scrollY>
+          <ScrollView className='products-scroll' scrollY onScrollToLower={onLoadMore}>
             {products.length > 0 ? (
               products.map(product => (
                 <View key={product.id} className='product-card' onClick={() => handleProductClick(product.id)}>

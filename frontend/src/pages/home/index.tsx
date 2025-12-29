@@ -27,7 +27,7 @@ export default function Home() {
   // 加载轮播图
   const loadBanners = async () => {
     try {
-      const data = await productService.getHomeBanners()
+      const data = await productService.getHomeBanners('home')
       setBanners(data)
     } catch (error) {
       // 静默失败
