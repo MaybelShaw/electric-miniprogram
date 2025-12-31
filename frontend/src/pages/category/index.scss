@@ -40,6 +40,7 @@
 
     .category-sidebar {
       width: 180px;
+      flex-shrink: 0;
       background-color: $background-color-base;
       height: 100%;
 
@@ -90,7 +91,7 @@
 
         .items-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: $spacing-md;
           
           .category-item-node {
