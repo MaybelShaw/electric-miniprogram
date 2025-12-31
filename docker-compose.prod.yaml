@@ -23,7 +23,7 @@ services:
       # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
       - ${ELECTRIC_ENV_FILE:-/etc/electric-miniprogram/.env.production}
     environment:
-      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn
+      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn,122.51.92.96
       - SECURE_SSL_REDIRECT=false
     depends_on:
       db:
