@@ -187,7 +187,10 @@ class ProductSerializer(serializers.ModelSerializer):
         return self._normalize_images(value)
     
     def validate_detail_images(self, value):
-        return self._normalize_images(value)
+        normalized = self._normalize_images(value)
+        if len(normalized) > 50:
+            raise serializers.ValidationError("详情图最多上传50张")
+        return normalized
     
     def _normalize_images(self, images):
         if not images:

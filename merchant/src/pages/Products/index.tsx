@@ -674,11 +674,11 @@ export default function Products() {
           <Form.Item
             name="detail_images"
             label="详情图"
-            tooltip="建议尺寸：750x1000，最多10张。编辑时上传或删除图片会立即保存"
+            tooltip="建议尺寸：750x1000，最多50张。编辑时上传或删除图片会立即保存"
             style={{ width: '100%' }}
           >
             <ImageUpload 
-              maxCount={10}
+              maxCount={50}
               productId={editingRecord?.id}
               fieldName="detail_images"
               onImageUpdate={editingRecord ? handleImageUpdate : undefined}
