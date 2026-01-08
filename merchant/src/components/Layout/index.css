@@ -7,3 +7,17 @@
   font-size: 18px;
   font-weight: bold;
 }
+
+.footer {
+  text-align: center;
+  background: #fff;
+  padding: 12px 0;
+}
+
+.footer a {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.footer a:hover {
+  color: rgba(0, 0, 0, 0.85);
+}

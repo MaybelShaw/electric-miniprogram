@@ -23,7 +23,7 @@ import { removeToken } from '@/utils/auth';
 import { getSupportTickets } from '@/services/api';
 import './index.css';
 
-const { Header, Sider, Content } = AntLayout;
+const { Header, Sider, Content, Footer } = AntLayout;
 
 export const adminMenuItems = [
   { key: '/admin/users', icon: <UserOutlined />, label: '用户管理' },
@@ -137,6 +137,11 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
         <Content style={{ margin: '24px', background: '#fff', padding: 24, minHeight: 280 }}>
           {children}
         </Content>
+        <Footer className="footer">
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">
+            皖ICP备2025107960号-1
+          </a>
+        </Footer>
       </AntLayout>
     </AntLayout>
   );
