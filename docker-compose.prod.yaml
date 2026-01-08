@@ -23,7 +23,7 @@ services:
       # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
       - ${ELECTRIC_ENV_FILE:-/etc/electric-miniprogram/.env.production}
     environment:
-      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,qxelectric.ypfq.cn,122.51.92.96
+      - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn
       - SECURE_SSL_REDIRECT=false
     depends_on:
       db:
@@ -69,10 +69,13 @@ services:
         condition: service_healthy
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - merchant_dist:/usr/share/nginx/html:ro
       - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./backend:/var/www/backend:ro
+      # 证书请放在宿主机 /etc/electric-miniprogram/certs/nginx 下
+      - /etc/electric-miniprogram/certs/nginx:/etc/nginx/certs:ro
     restart: unless-stopped
 
 volumes:
