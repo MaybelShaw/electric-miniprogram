@@ -13,6 +13,15 @@ from common.serializers import (
 )
 
 
+def _ensure_https(url: str) -> str:
+    """Force image URLs to use HTTPS."""
+    if not url:
+        return url
+    if url.startswith('http://'):
+        return 'https://' + url[len('http://'):]
+    return url
+
+
 class CategorySerializer(serializers.ModelSerializer):
     parent_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
@@ -159,11 +168,11 @@ class BrandSerializer(serializers.ModelSerializer):
         if not normalized_logo:
             return ''
         if normalized_logo.startswith('http://') or normalized_logo.startswith('https://'):
-            return normalized_logo
+            return _ensure_https(normalized_logo)
         request = self.context.get('request')
         if request:
             try:
-                return request.build_absolute_uri(normalized_logo)
+                return _ensure_https(request.build_absolute_uri(normalized_logo))
             except Exception:
                 pass
         return normalized_logo
@@ -344,10 +353,10 @@ class ProductSerializer(serializers.ModelSerializer):
                 continue
             if img_url.startswith('http://') or img_url.startswith('https://'):
                 # 已经是完整URL
-                result.append(img_url)
+                result.append(_ensure_https(img_url))
             elif request:
                 # 构建完整URL
-                result.append(request.build_absolute_uri(img_url))
+                result.append(_ensure_https(request.build_absolute_uri(img_url)))
             else:
                 result.append(img_url)
         
@@ -488,8 +497,8 @@ class MediaImageSerializer(serializers.ModelSerializer):
         """
         request = self.context.get('request')
         if request:
-            return request.build_absolute_uri(obj.file.url)
-        return obj.file.url
+            return _ensure_https(request.build_absolute_uri(obj.file.url))
+        return _ensure_https(obj.file.url)
     
     def create(self, validated_data):
         """
@@ -566,7 +575,7 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         url = obj.image.file.url if obj.image and obj.image.file else ''
         if not url:
             return ''
-        return request.build_absolute_uri(url) if request else url
+        return _ensure_https(request.build_absolute_uri(url) if request else url)
 
 
 class CaseDetailBlockSerializer(serializers.ModelSerializer):
@@ -596,7 +605,7 @@ class CaseDetailBlockSerializer(serializers.ModelSerializer):
         url = obj.image.file.url if obj.image and obj.image.file else ''
         if not url:
             return ''
-        return request.build_absolute_uri(url) if request else url
+        return _ensure_https(request.build_absolute_uri(url) if request else url)
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -627,7 +636,7 @@ class CaseSerializer(serializers.ModelSerializer):
         url = obj.cover_image.file.url if obj.cover_image and obj.cover_image.file else ''
         if not url:
             return ''
-        return request.build_absolute_uri(url) if request else url
+        return _ensure_https(request.build_absolute_uri(url) if request else url)
 
     def create(self, validated_data):
         blocks_data = validated_data.pop('detail_blocks', [])

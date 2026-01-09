@@ -2,6 +2,14 @@ from rest_framework import serializers
 from .models import SupportConversation, SupportMessage
 
 
+def _ensure_https(url: str) -> str:
+    if not url:
+        return url
+    if url.startswith('http://'):
+        return 'https://' + url[len('http://'):]
+    return url
+
+
 class SupportMessageSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source='sender.username', read_only=True)
     attachment_url = serializers.SerializerMethodField()
@@ -46,8 +54,8 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         url = obj.attachment.url
         if request is not None:
-            return request.build_absolute_uri(url)
-        return url
+            return _ensure_https(request.build_absolute_uri(url))
+        return _ensure_https(url)
 
     def get_order_info(self, obj):
         o = getattr(obj, 'order', None)
@@ -56,10 +64,10 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         p = getattr(o, 'product', None)
         image = ''
         if p and getattr(p, 'product_image_url', ''):
-            image = p.product_image_url
+            image = _ensure_https(p.product_image_url)
         elif p and getattr(p, 'main_images', None):
             try:
-                image = (p.main_images or [None])[0] or ''
+                image = _ensure_https((p.main_images or [None])[0] or '')
             except Exception:
                 image = ''
         return {
@@ -79,10 +87,10 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             return None
         image = ''
         if getattr(p, 'product_image_url', ''):
-            image = p.product_image_url
+            image = _ensure_https(p.product_image_url)
         elif getattr(p, 'main_images', None):
             try:
-                image = (p.main_images or [None])[0] or ''
+                image = _ensure_https((p.main_images or [None])[0] or '')
             except Exception:
                 image = ''
         return {
