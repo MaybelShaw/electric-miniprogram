@@ -7,6 +7,7 @@ from .views import (
     RefundViewSet,
     DiscountViewSet,
     PaymentCallbackView,
+    RefundCallbackView,
     AnalyticsViewSet,
     InvoiceViewSet,
 )
@@ -21,6 +22,7 @@ router.register(r'invoices', InvoiceViewSet, basename='invoices')
 router.register(r'analytics', AnalyticsViewSet, basename='analytics')
 urlpatterns = [
     path("", include(router.urls)),
-    # 第三方支付回调模拟：/api/payments/callback/<provider>/
+    # 微信支付、退款回调
     path("payments/callback/<str:provider>/", PaymentCallbackView.as_view(), name="payment-callback"),
+    path("payments/refund-callback/<str:provider>/", RefundCallbackView.as_view(), name="refund-callback"),
 ]

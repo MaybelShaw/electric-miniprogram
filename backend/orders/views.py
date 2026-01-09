@@ -35,6 +35,7 @@ from drf_spectacular.types import OpenApiTypes as OT
 from django.http import FileResponse
 from common.serializers import PDFOrImageFileValidator
 from common.logging import log_security
+import logging
 from decimal import Decimal
 from .payment_service import PaymentService
 
@@ -1376,7 +1377,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
         payment = self.get_object()
         if not request.user.is_staff and payment.order.user_id != request.user.id:
             return Response({'detail': '无权查询该支付'}, status=status.HTTP_403_FORBIDDEN)
-        from .payment_service import PaymentService
+
         try:
             result = PaymentService.query_wechat_transaction(payment)
         except Exception as exc:
@@ -1404,6 +1405,42 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'transaction': result
         })
 
+@extend_schema(tags=['Payments'])
+class RefundCallbackView(APIView):
+    """微信退款回调处理视图。"""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [PaymentRateThrottle]
+
+    def post(self, request, provider: str = 'wechat'):
+        provider = (provider or 'wechat').lower()
+        if provider != 'wechat':
+            return Response({'detail': 'unsupported provider'}, status=400)
+
+        parsed, err = PaymentService.parse_wechat_refund_callback(request)
+        if err:
+            logger = logging.getLogger(__name__)
+            logger.error(f'微信退款回调解析失败: {err}')
+            return Response({'code': 'FAIL', 'message': err}, status=status.HTTP_400_BAD_REQUEST)
+
+        refund = parsed['refund']
+        refund_status = str(parsed.get('refund_status') or '').upper()
+        transaction_id = parsed.get('transaction_id')
+
+        if refund_status == 'SUCCESS':
+            try:
+                PaymentService.process_refund_success(refund.id, transaction_id=transaction_id)
+            except Exception as exc:
+                return Response({'code': 'FAIL', 'message': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        elif refund_status in {'CLOSED', 'ABNORMAL'}:
+            refund.status = 'failed'
+            refund.logs.append({
+                't': timezone.now().isoformat(),
+                'event': 'refund_failed',
+                'reason': refund_status
+            })
+            refund.save(update_fields=['status', 'logs', 'updated_at'])
+
+        return Response({'code': 'SUCCESS', 'message': '成功'})
 
 @extend_schema(tags=['Discounts'])
 class DiscountViewSet(viewsets.ModelViewSet):
@@ -1697,9 +1734,7 @@ class PaymentCallbackView(APIView):
                 'duplicate_callback_ignored',
                 details={'provider': provider}
             )
-            if use_real_wechat:
-                return Response({'code': 'SUCCESS', 'message': 'OK', 'payment_id': payment.id})
-            return Response(PaymentSerializer(payment).data)
+            return Response({'code': 'SUCCESS', 'message': 'OK', 'payment_id': payment.id})
         if payment.status in ['cancelled', 'expired', 'failed']:
             logger.warning(f'回调被拒绝，支付状态不允许更新: payment_id={payment.id}, status={payment.status}')
             PaymentService.log_payment_event(
@@ -1707,9 +1742,7 @@ class PaymentCallbackView(APIView):
                 'callback_rejected_by_status',
                 details={'provider': provider, 'status': payment.status}
             )
-            if use_real_wechat:
-                return Response({'code': 'SUCCESS', 'message': '支付状态不可更新', 'payment_id': payment.id})
-            return Response({'detail': 'payment status not updatable'}, status=400)
+            return Response({'code': 'SUCCESS', 'message': '支付状态不可更新', 'payment_id': payment.id})
 
         # 验证回调金额与支付单一致
         ok_amount, reason_amount = PaymentService.validate_callback_amount(payment, validation_data)
@@ -1837,8 +1870,8 @@ class PaymentCallbackView(APIView):
                         'payment_processing',
                         details={'provider': provider}
                     )
-                    payment.save()
-                    logger.info(f'支付处理中: payment_id={payment.id}')
+                payment.save()
+                logger.info(f'支付处理中: payment_id={payment.id}')
         
         except Exception as e:
             logger.error(f'处理支付回调异常: {str(e)}')
@@ -1850,9 +1883,7 @@ class PaymentCallbackView(APIView):
             )
             return Response({'detail': 'callback processing failed'}, status=500)
 
-        if use_real_wechat:
-            return Response({'code': 'SUCCESS', 'message': '成功', 'payment_id': payment.id})
-        return Response(PaymentSerializer(payment).data)
+        return Response({'code': 'SUCCESS', 'message': '成功', 'payment_id': payment.id})
 
 
 @extend_schema(tags=['Refunds'])
