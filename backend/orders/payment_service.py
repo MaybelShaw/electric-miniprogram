@@ -245,6 +245,41 @@ class PaymentService:
         return pay_params
 
     @staticmethod
+    def query_wechat_transaction(payment):
+        """查询微信订单支付结果并返回交易信息。"""
+        appid = getattr(settings, 'WECHAT_APPID', '')
+        mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
+        serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
+        private_key = PaymentService._load_private_key()
+        if not (appid and mchid and serial_no and private_key):
+            raise RuntimeError('微信支付查询配置不完整')
+
+        path = f"/v3/pay/transactions/out-trade-no/{payment.order.order_number}?mchid={mchid}"
+        url = f"https://api.mch.weixin.qq.com{path}"
+        nonce_str = uuid.uuid4().hex
+        timestamp = str(int(time.time()))
+        message = f"GET\n{path}\n{timestamp}\n{nonce_str}\n\n"
+        signature = PaymentService._sign_rsa(message)
+        auth_header = (
+            'WECHATPAY2-SHA256-RSA2048 '
+            f'mchid="{mchid}",'
+            f'nonce_str="{nonce_str}",'
+            f'signature="{signature}",'
+            f'timestamp="{timestamp}",'
+            f'serial_no="{serial_no}"'
+        )
+        headers = {
+            'Authorization': auth_header,
+            'Accept': 'application/json'
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code >= 300:
+            raise RuntimeError(f'查单失败: {resp.status_code} {resp.text}')
+        data = resp.json()
+        PaymentService._log_debug('query transaction result', data)
+        return data
+
+    @staticmethod
     def _load_wechat_public_key() -> tuple:
         """加载微信支付回调验签所需的公钥或平台证书。
 

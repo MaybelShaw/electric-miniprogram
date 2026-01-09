@@ -1370,6 +1370,40 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'pay_params': pay_params
         })
 
+    @action(detail=True, methods=['post'])
+    def sync(self, request, pk=None):
+        """主动查询微信支付结果并同步支付/订单状态。"""
+        payment = self.get_object()
+        if not request.user.is_staff and payment.order.user_id != request.user.id:
+            return Response({'detail': '无权查询该支付'}, status=status.HTTP_403_FORBIDDEN)
+        from .payment_service import PaymentService
+        try:
+            result = PaymentService.query_wechat_transaction(payment)
+        except Exception as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        trade_state = result.get('trade_state')
+        transaction_id = result.get('transaction_id')
+        amount_total = result.get('amount', {}).get('total')
+        try:
+            amount_decimal = (Decimal(str(amount_total)) / Decimal('100')) if amount_total is not None else None
+        except Exception:
+            amount_decimal = None
+        if amount_decimal is not None and amount_decimal != payment.amount:
+            return Response({'detail': '查单金额与支付记录不一致'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if trade_state == 'SUCCESS' and payment.status != 'succeeded':
+            PaymentService.process_payment_success(payment.id, transaction_id=transaction_id, operator=request.user)
+        elif trade_state in {'CLOSED', 'REVOKED'} and payment.status not in ['succeeded', 'cancelled']:
+            payment.status = 'cancelled'
+            payment.save(update_fields=['status', 'updated_at'])
+
+        return Response({
+            'payment': self.get_serializer(payment).data,
+            'trade_state': trade_state,
+            'transaction': result
+        })
+
 
 @extend_schema(tags=['Discounts'])
 class DiscountViewSet(viewsets.ModelViewSet):
