@@ -20,6 +20,7 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+      - /etc/electric-miniprogram/certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
     env_file:
       - /etc/electric-miniprogram/.env.production
     environment:

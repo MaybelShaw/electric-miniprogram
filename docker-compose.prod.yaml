@@ -19,6 +19,7 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+      - /etc/electric-miniprogram/certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
     env_file:
       # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
       - ${ELECTRIC_ENV_FILE:-/etc/electric-miniprogram/.env.production}
