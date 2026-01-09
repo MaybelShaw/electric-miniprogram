@@ -228,7 +228,9 @@ export default function Home() {
             <ScrollView scrollX className='brand-scroll'>
               {brands.map(brand => (
                 <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
-                  <Image className='brand-logo' src={brand.logo} mode='aspectFit' />
+                  <View className='brand-logo'>
+                    <Image className='brand-logo-img' src={brand.logo} mode='aspectFit' />
+                  </View>
                   <View className='brand-name'>{brand.name}</View>
                 </View>
               ))}

@@ -127,6 +127,7 @@
     - 数据结构：`{ id, name, order, logo }`（`logo` 为可选的图片 URL）
   - `GET /brands/` 品牌列表 `backend/catalog/urls.py:9`
     - 返回的 `logo` 会自动补全为当前请求域名下的绝对 URL；提交 `/media/...` 或完整地址均可，后端会在保存时规范化路径。
+    - 若历史数据存有其他域名的媒体 URL（如旧 CDN 域名），响应时会剥离相同资源的域名并按当前请求域名重建绝对地址；外部/CDN 域名的完全外链则保持不变。
   - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
   - `GET/POST/... /home-banners/` 首页轮播图管理 `backend/catalog/urls.py:8`
     - GET（公开）：返回启用的轮播图列表，按 `order` 升序。
