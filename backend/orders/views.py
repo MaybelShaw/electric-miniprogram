@@ -1600,26 +1600,16 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
 @extend_schema(tags=['Payments'])
 class PaymentCallbackView(APIView):
-    """支付回调处理视图
-    
-    处理来自第三方支付服务商的支付回调。
-    支持多个支付提供商（mock、wechat等）。
-    
-    功能：
-    - 验证回调签名真实性
-    - 防止重复处理已成功的支付
-    - 记录完整的支付日志
-    - 使用事务处理支付状态更新
-    """
+    """支付回调处理视图（微信支付）。"""
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PaymentRateThrottle]
 
-    def post(self, request, provider: str = 'mock'):
+    def post(self, request, provider: str = 'wechat'):
         """处理支付回调
         
         Args:
             request: HTTP请求对象
-            provider: 支付提供商（mock、wechat等）
+            provider: 支付提供商（目前仅微信）
             
         Returns:
             Response: 支付记录序列化数据或错误信息
@@ -1632,7 +1622,6 @@ class PaymentCallbackView(APIView):
         if provider != 'wechat':
             return Response({'detail': 'unsupported provider'}, status=400)
 
-        use_real_wechat = getattr(settings, 'WECHAT_PAY_ENABLE_REAL', False)
         raw_body = ''
         try:
             raw_body = request.body.decode('utf-8')
@@ -1647,46 +1636,21 @@ class PaymentCallbackView(APIView):
         validation_data = None
         data = request.data or {}
 
-        if use_real_wechat:
-            parsed, err = PaymentService.parse_wechat_callback(request)
-            if err:
-                logger.error(f'微信回调解析失败: {err}')
-                return Response({'code': 'FAIL', 'message': err}, status=status.HTTP_400_BAD_REQUEST)
-            payment = parsed['payment']
-            status_param = parsed.get('trade_state')
-            transaction_id = parsed.get('transaction_id')
-            callback_amount = parsed.get('amount_decimal')
-            validation_data = {'amount': parsed.get('amount_decimal')}
-            data = parsed.get('transaction') or {}
-            PaymentService.log_payment_event(
-                payment.id,
-                'signature_verified',
-                details={'provider': provider, 'channel': 'wechat_v3'}
-            )
-        else:
-            payment = self._find_payment(data)
-            if payment is None:
-                logger.error(f'支付记录不存在: {data}')
-                return Response({'detail': 'payment not found'}, status=404)
-
-            signature = data.get('signature') or data.get('sign')
-            if signature:
-                if not self._verify_signature(provider, data, signature):
-                    logger.error(f'签名验证失败: payment_id={payment.id}, provider={provider}')
-                    PaymentService.log_payment_event(
-                        payment.id,
-                        'signature_verification_failed',
-                        details={'provider': provider},
-                        error='Signature verification failed'
-                    )
-                    return Response({'detail': 'signature verification failed'}, status=403)
-                
-                PaymentService.log_payment_event(
-                    payment.id,
-                    'signature_verified',
-                    details={'provider': provider}
-                )
-            validation_data = data
+        parsed, err = PaymentService.parse_wechat_callback(request)
+        if err:
+            logger.error(f'微信回调解析失败: {err}')
+            return Response({'code': 'FAIL', 'message': err}, status=status.HTTP_400_BAD_REQUEST)
+        payment = parsed['payment']
+        status_param = parsed.get('trade_state')
+        transaction_id = parsed.get('transaction_id')
+        callback_amount = parsed.get('amount_decimal')
+        validation_data = {'amount': parsed.get('amount_decimal')}
+        data = parsed.get('transaction') or {}
+        PaymentService.log_payment_event(
+            payment.id,
+            'signature_verified',
+            details={'provider': provider, 'channel': 'wechat_v3'}
+        )
 
         # 防止重复处理已成功的支付
         if payment.status == 'succeeded':
@@ -2007,74 +1971,6 @@ class RefundViewSet(viewsets.ModelViewSet):
             pass
         return Response(RefundSerializer(refund).data)
 
-    def _find_payment(self, data: Dict) -> Optional[Payment]:
-        """查找支付记录
-        
-        优先通过payment_id查找，其次通过order_number查找。
-        
-        Args:
-            data: 回调数据字典
-            
-        Returns:
-            Payment: 支付记录对象，如果不存在返回None
-        """
-        from common.utils import parse_int
-        payment_id = data.get('payment_id')
-        order_number = data.get('order_number') or data.get('out_trade_no')
-
-        if payment_id:
-            pid = parse_int(payment_id)
-            if pid is not None:
-                try:
-                    return Payment.objects.get(id=pid)
-                except Payment.DoesNotExist:
-                    pass
-
-        if order_number:
-            try:
-                order = Order.objects.get(order_number=order_number)
-                return (
-                    Payment.objects.filter(order=order)
-                    .order_by('-created_at')
-                    .first()
-                )
-            except Order.DoesNotExist:
-                pass
-
-        return None
-
-    def _verify_signature(self, provider: str, data: Dict, signature: str) -> bool:
-        """验证回调签名
-        
-        根据支付提供商调用相应的签名验证方法。
-        
-        Args:
-            provider: 支付提供商
-            data: 回调数据字典
-            signature: 签名值
-            
-        Returns:
-            bool: 签名验证成功返回True，否则返回False
-        """
-        from .payment_service import PaymentService
-        
-        if provider == 'wechat':
-            # 微信支付签名验证（简化版，开发测试用）
-            return PaymentService.verify_wechat_callback(data)
-        
-        elif provider == 'alipay':
-            # 支付宝签名验证
-            secret = settings.ALIPAY_SECRET if hasattr(settings, 'ALIPAY_SECRET') else None
-            if not secret:
-                return False
-            return PaymentService.verify_callback_signature(data, signature, secret)
-        
-        elif provider == 'mock':
-            # 开发环境mock支付，跳过签名验证
-            return True
-        
-        return False
-
     def _map_payment_status(self, provider: str, status_param: str) -> str:
         """映射支付状态
         
@@ -2087,19 +1983,7 @@ class RefundViewSet(viewsets.ModelViewSet):
         Returns:
             str: 统一的支付状态
         """
-        if provider == 'mock':
-            mapping = {
-                'succeeded': 'succeeded',
-                'success': 'succeeded',
-                'failed': 'failed',
-                'fail': 'failed',
-                'cancelled': 'cancelled',
-                'expired': 'expired',
-                'processing': 'processing',
-            }
-            return mapping.get(str(status_param).lower(), 'succeeded')
-        
-        elif provider == 'wechat':
+        if provider == 'wechat':
             # 微信支付状态映射
             val = str(status_param).upper() if status_param else ''
             if val == 'SUCCESS':

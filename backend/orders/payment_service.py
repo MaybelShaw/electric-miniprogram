@@ -8,7 +8,6 @@
 import hashlib
 import hmac
 import time
-import uuid
 from decimal import Decimal
 from typing import Dict, Optional
 from functools import lru_cache
@@ -139,35 +138,6 @@ class PaymentService:
             return False, f'回调金额不匹配: {amt} != {payment.amount}'
         return True, ''
 
-    @staticmethod
-    # 删除模拟JSAPI生成函数
-    def _generate_mock_wechat_jsapi_params(payment) -> Dict:
-        """在未启用真实微信支付时生成本地模拟的 JSAPI 参数。"""
-        appid = getattr(settings, 'WECHAT_APPID', '') or 'mock-appid'
-        secret = getattr(settings, 'WECHAT_PAY_SECRET', '') or getattr(settings, 'SECRET_KEY', 'dev-secret')
-        nonce_str = uuid.uuid4().hex
-        timestamp = str(int(time.time()))
-        prepay_id = f'mock_prepay_{uuid.uuid4().hex}'
-        pay_package = f'prepay_id={prepay_id}'
-        sign_str = f'appId={appid}&timeStamp={timestamp}&nonceStr={nonce_str}&package={pay_package}&signType=HMAC-SHA256'
-        pay_sign = hmac.new(secret.encode('utf-8'), sign_str.encode('utf-8'), hashlib.sha256).hexdigest()
-        total = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
-
-        return {
-            'appId': appid,
-            'timeStamp': timestamp,
-            'nonceStr': nonce_str,
-            'package': pay_package,
-            'signType': 'HMAC-SHA256',
-            'paySign': pay_sign,
-            'prepay_id': prepay_id,
-            'mchId': getattr(settings, 'WECHAT_PAY_MCHID', ''),
-            'total': total,
-            'total_fee': total,
-            'mock': True,
-        }
-
-    @staticmethod
     @lru_cache(maxsize=1)
     def _wechat_client():
         """创建 wechatpayv3 客户端实例。"""
@@ -235,11 +205,7 @@ class PaymentService:
     @staticmethod
     def create_wechat_unified_order(payment, openid: str, client_ip: str = '') -> Optional[Dict]:
         """调用微信JSAPI统一下单，返回 prepay_id 和 wx.requestPayment 参数。
-        若未开启 WECHAT_PAY_ENABLE_REAL，则返回模拟参数。
         """
-        if not getattr(settings, 'WECHAT_PAY_ENABLE_REAL', False):
-            return PaymentService._generate_mock_wechat_jsapi_params(payment)
-
         if not openid:
             raise ValueError('缺少 openid，无法发起微信支付')
 
@@ -425,9 +391,6 @@ class PaymentService:
         headers = getattr(request, 'headers', {}) or {}
         if not raw_body:
             return None, '回调体为空'
-
-        if not getattr(settings, 'WECHAT_PAY_ENABLE_REAL', False):
-            return None, '未开启真实微信支付'
 
         try:
             client = PaymentService._wechat_client()

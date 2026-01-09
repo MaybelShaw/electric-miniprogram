@@ -267,8 +267,6 @@ WECHAT_PAY_PUBLIC_KEY_ID = EnvironmentConfig.get_env('WECHAT_PAY_PUBLIC_KEY_ID',
 WECHAT_PAY_NOTIFY_URL = EnvironmentConfig.get_env('WECHAT_PAY_NOTIFY_URL', '')
 WECHAT_PAY_REFUND_NOTIFY_URL = EnvironmentConfig.get_env('WECHAT_PAY_REFUND_NOTIFY_URL', '')
 WECHAT_PAY_CERT_DIR = EnvironmentConfig.get_env('WECHAT_PAY_CERT_DIR', '')
-# 控制是否启用真实微信统一下单，缺省为 False（使用模拟参数）；开启后需要上述密钥完整配置
-WECHAT_PAY_ENABLE_REAL = EnvironmentConfig.get_env('WECHAT_PAY_ENABLE_REAL', 'False').lower() in ('1', 'true', 'yes')
 # 开启后输出微信支付调试日志（生产慎用）
 # WECHAT_PAY_DEBUG = EnvironmentConfig.get_env('WECHAT_PAY_DEBUG', 'False').lower() in ('1', 'true', 'yes')
 WECHAT_PAY_DEBUG = True
