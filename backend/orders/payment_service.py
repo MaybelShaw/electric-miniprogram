@@ -8,9 +8,9 @@
 import hashlib
 import hmac
 import time
+import uuid
 from decimal import Decimal
 from typing import Dict, Optional
-from functools import lru_cache
 from django.db import transaction
 from django.utils import timezone
 from django.conf import settings
@@ -20,19 +20,13 @@ import re
 import json
 import base64
 import pathlib
+import requests
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 logger = logging.getLogger(__name__)
-
-try:
-    from wechatpayv3 import WeChatPay, WeChatPayType
-    HAS_WECHATPAYV3 = True
-except Exception:
-    HAS_WECHATPAYV3 = False
-
 
 class PaymentService:
     """支付服务类
@@ -138,57 +132,6 @@ class PaymentService:
             return False, f'回调金额不匹配: {amt} != {payment.amount}'
         return True, ''
 
-    @lru_cache(maxsize=1)
-    def _wechat_client():
-        """创建 wechatpayv3 客户端实例。"""
-        if not HAS_WECHATPAYV3:
-            raise RuntimeError('wechatpayv3 未安装，请先安装该依赖')
-
-        appid = getattr(settings, 'WECHAT_APPID', '')
-        mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
-        api_v3_key = getattr(settings, 'WECHAT_PAY_API_V3_KEY', '')
-        serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
-        notify_url = getattr(settings, 'WECHAT_PAY_NOTIFY_URL', '')
-        cert_dir = getattr(settings, 'WECHAT_PAY_CERT_DIR', '') or None
-        private_key_path = getattr(settings, 'WECHAT_PAY_PRIVATE_KEY_PATH', '')
-
-        PaymentService._log_debug('wechat client config', {
-            'appid': bool(appid),
-            'mchid': bool(mchid),
-            'serial_no': bool(serial_no),
-            'notify_url': bool(notify_url),
-            'private_key_path': private_key_path,
-            'cert_dir': cert_dir,
-        })
-
-        if not (appid and mchid and api_v3_key and serial_no and notify_url and private_key_path):
-            raise RuntimeError('微信支付配置不完整，请检查商户号、appid、证书序列号、APIv3密钥和私钥路径')
-
-        path = pathlib.Path(private_key_path)
-        if not path.exists():
-            raise RuntimeError(f'微信支付私钥文件不存在: {private_key_path}')
-        private_key = path.read_text()
-
-        wechatpay_type = (
-            getattr(WeChatPayType, 'JSAPI', None)
-            or getattr(WeChatPayType, 'MINIAPP', None)
-            or getattr(WeChatPayType, 'NATIVE', None)
-        )
-        if not wechatpay_type:
-            raise RuntimeError('wechatpayv3 类型枚举缺失，无法创建客户端')
-
-        return WeChatPay(
-            wechatpay_type=wechatpay_type,
-            mchid=mchid,
-            private_key=private_key,
-            cert_serial_no=serial_no,
-            apiv3_key=api_v3_key,
-            appid=appid,
-            notify_url=notify_url,
-            cert_dir=cert_dir,
-        )
-
-    @staticmethod
     def _load_private_key():
         key_path = getattr(settings, 'WECHAT_PAY_PRIVATE_KEY_PATH', '')
         if not key_path:
@@ -213,25 +156,26 @@ class PaymentService:
 
     @staticmethod
     def create_wechat_unified_order(payment, openid: str, client_ip: str = '') -> Optional[Dict]:
-        """调用微信JSAPI统一下单，返回 prepay_id 和 wx.requestPayment 参数。
-        """
+        """调用微信JSAPI统一下单，返回 prepay_id 和 wx.requestPayment 参数。"""
         if not openid:
             raise ValueError('缺少 openid，无法发起微信支付')
 
-        try:
-            client = PaymentService._wechat_client()
-        except Exception as exc:
-            PaymentService._log_debug('wechat client init failed', {'error': str(exc)})
-            raise
+        appid = getattr(settings, 'WECHAT_APPID', '')
         mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
-        total_cents = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
+        notify_url = getattr(settings, 'WECHAT_PAY_NOTIFY_URL', '')
+        serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
+        private_key = PaymentService._load_private_key()
+        api_v3_key = getattr(settings, 'WECHAT_PAY_API_V3_KEY', '')
+        if not (appid and mchid and notify_url and serial_no and private_key and api_v3_key):
+            raise RuntimeError('微信支付配置不完整，请检查商户号、appid、notify_url、证书序列号、私钥及APIv3密钥')
 
+        total_cents = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
         body = {
-            "appid": getattr(settings, 'WECHAT_APPID', ''),
+            "appid": appid,
             "mchid": mchid,
             "description": f"订单{payment.order.order_number}",
             "out_trade_no": payment.order.order_number,
-            "notify_url": getattr(settings, 'WECHAT_PAY_NOTIFY_URL', ''),
+            "notify_url": notify_url,
             "amount": {
                 "total": total_cents,
                 "currency": "CNY"
@@ -242,26 +186,53 @@ class PaymentService:
         if client_ip:
             body["scene_info"] = {"payer_client_ip": client_ip}
 
+        json_body = json.dumps(body, separators=(',', ':'))
+        nonce_str = uuid.uuid4().hex
+        timestamp = str(int(time.time()))
+        canonical_url = '/v3/pay/transactions/jsapi'
+        message = f"POST\n{canonical_url}\n{timestamp}\n{nonce_str}\n{json_body}\n"
+        signature = PaymentService._sign_rsa(message)
+
+        auth_header = (
+            'WECHATPAY2-SHA256-RSA2048 '
+            f'mchid="{mchid}",'
+            f'nonce_str="{nonce_str}",'
+            f'signature="{signature}",'
+            f'timestamp="{timestamp}",'
+            f'serial_no="{serial_no}"'
+        )
+
+        headers = {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Accept': 'application/json',
+            'Authorization': auth_header,
+        }
+
         PaymentService._log_debug('jsapi request body', {'body': body, 'client_ip': client_ip})
 
-        code, message = client.pay.transactions.jsapi(body)
-        try:
-            status_code = int(code)
-        except Exception:
-            status_code = 0
-        if status_code < 200 or status_code >= 300:
-            raise RuntimeError(f'统一下单失败: {code} {message}')
-
-        resp_data = message if isinstance(message, dict) else {}
-        prepay_id = resp_data.get('prepay_id') or resp_data.get('prepayid')
+        resp = requests.post(
+            'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi',
+            data=json_body,
+            headers=headers,
+            timeout=10
+        )
+        if resp.status_code >= 300:
+            raise RuntimeError(f'统一下单失败: {resp.status_code} {resp.text}')
+        prepay_id = resp.json().get('prepay_id')
         if not prepay_id:
             raise RuntimeError('统一下单未返回prepay_id')
 
-        pay_params = client.pay.jsapi(openid, prepay_id)
-        if not pay_params:
-            raise RuntimeError('生成支付参数失败')
+        pay_package = f'prepay_id={prepay_id}'
+        pay_message = f"{appid}\n{timestamp}\n{nonce_str}\n{pay_package}\n"
+        pay_sign = PaymentService._sign_rsa(pay_message)
 
-        pay_params.update({
+        pay_params = {
+            'appId': appid,
+            'timeStamp': timestamp,
+            'nonceStr': nonce_str,
+            'package': pay_package,
+            'signType': 'RSA',
+            'paySign': pay_sign,
             'prepay_id': prepay_id,
             'mchId': mchid,
             'total': total_cents,
@@ -269,7 +240,7 @@ class PaymentService:
             'payment_id': payment.id,
             'order_number': payment.order.order_number,
             'amount': str(payment.amount),
-        })
+        }
         PaymentService._log_debug('jsapi pay params created', {'prepay_id': prepay_id, 'pay_params': pay_params})
         return pay_params
 
@@ -400,46 +371,28 @@ class PaymentService:
             'amount_decimal': Decimal,
         }
         """
-        raw_body = getattr(request, 'body', b'') or b''
+        raw_body = request.body.decode('utf-8') if getattr(request, 'body', None) else ''
         headers = getattr(request, 'headers', {}) or {}
         if not raw_body:
             return None, '回调体为空'
-
         try:
-            client = PaymentService._wechat_client()
-        except Exception as exc:
-            return None, str(exc)
-
-        try:
-            PaymentService._log_debug('wechat callback raw', {
-                'headers': dict(headers),
-                'body': raw_body.decode('utf-8', errors='ignore')
-            })
-            pay_callback_type = getattr(WeChatPayType, 'PAY', None)
-            if pay_callback_type:
-                code, message = client.callback(headers, raw_body, pay_callback_type)
-            else:
-                code, message = client.callback(headers, raw_body)
-        except Exception as exc:
-            return None, f'回调验签失败: {exc}'
-
-        try:
-            status_code = int(code)
+            payload = json.loads(raw_body)
         except Exception:
-            status_code = 0
-        if status_code < 200 or status_code >= 300:
-            return None, f'微信回调状态异常: {code} {message}'
+            return None, '回调内容不是有效的JSON'
 
-        transaction = None
-        if isinstance(message, dict):
-            transaction = message.get('resource') or message
-        else:
-            try:
-                transaction = json.loads(message)
-            except Exception:
-                transaction = None
-        if not transaction:
-            return None, '回调内容解析失败'
+        PaymentService._log_debug('wechat callback raw', {
+            'headers': dict(headers),
+            'body': raw_body
+        })
+
+        if not PaymentService.verify_wechat_http_signature(headers, raw_body):
+            return None, '回调签名验证失败'
+
+        resource = payload.get('resource')
+        try:
+            transaction = PaymentService.decrypt_wechat_resource(resource)
+        except Exception as exc:
+            return None, f'回调资源解密失败: {exc}'
         PaymentService._log_debug('wechat callback parsed', {'transaction': transaction})
 
         from .models import Payment, Order

@@ -19,7 +19,6 @@ dependencies = [
     "psycopg[binary]>=3.2.1",
     "psycopg2-binary>=2.9.11",
     "cryptography>=42.0.0",
-    "wechatpayv3>=1.2.30",
 ]
 
 [[tool.uv.index]]
