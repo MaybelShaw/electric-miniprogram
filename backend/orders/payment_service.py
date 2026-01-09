@@ -38,12 +38,21 @@ except Exception:
 class PaymentService:
     """支付服务类
     
-    负责处理支付相关的业务逻辑，包括：
-    - 支付回调签名验证
-    - 支付成功处理
-    - 支付金额验证
-    - 防止重复支付
-    """
+        负责处理支付相关的业务逻辑，包括：
+        - 支付回调签名验证
+        - 支付成功处理
+        - 支付金额验证
+        - 防止重复支付
+        """
+
+    @staticmethod
+    def _debug_enabled() -> bool:
+        return getattr(settings, 'WECHAT_PAY_DEBUG', False)
+
+    @staticmethod
+    def _log_debug(message: str, extra: Optional[Dict] = None):
+        if getattr(settings, 'WECHAT_PAY_DEBUG', False):
+            logger.info(f'[WECHAT_PAY_DEBUG] {message} | {extra or {}}')
     
     @staticmethod
     def verify_callback_signature(data: Dict, signature: str, secret: str) -> bool:
@@ -254,6 +263,8 @@ class PaymentService:
         if client_ip:
             body["scene_info"] = {"payer_client_ip": client_ip}
 
+        PaymentService._log_debug('jsapi request body', {'body': body, 'client_ip': client_ip})
+
         code, message = client.pay.transactions.jsapi(body)
         try:
             status_code = int(code)
@@ -280,6 +291,7 @@ class PaymentService:
             'order_number': payment.order.order_number,
             'amount': str(payment.amount),
         })
+        PaymentService._log_debug('jsapi pay params created', {'prepay_id': prepay_id, 'pay_params': pay_params})
         return pay_params
 
     @staticmethod
@@ -423,6 +435,10 @@ class PaymentService:
             return None, str(exc)
 
         try:
+            PaymentService._log_debug('wechat callback raw', {
+                'headers': dict(headers),
+                'body': raw_body.decode('utf-8', errors='ignore')
+            })
             pay_callback_type = getattr(WeChatPayType, 'PAY', None)
             if pay_callback_type:
                 code, message = client.callback(headers, raw_body, pay_callback_type)
@@ -448,6 +464,7 @@ class PaymentService:
                 transaction = None
         if not transaction:
             return None, '回调内容解析失败'
+        PaymentService._log_debug('wechat callback parsed', {'transaction': transaction})
 
         from .models import Payment, Order
         mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
