@@ -117,6 +117,55 @@ class BrandSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("品牌名称不能为空")
         return value
 
+    def validate_logo(self, value: str) -> str:
+        """Normalize logo path to avoid storing host-specific URLs."""
+        return self._normalize_logo_path(value)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['logo'] = self._build_full_logo_url(rep.get('logo'))
+        return rep
+
+    def _normalize_logo_path(self, logo: str) -> str:
+        if not logo:
+            return ''
+        # Keep external URLs unchanged
+        if logo.startswith('http://') or logo.startswith('https://'):
+            request = self.context.get('request')
+            if request:
+                try:
+                    parsed = urlparse(logo)
+                    if parsed.scheme in {'http', 'https'} and parsed.netloc == request.get_host():
+                        suffix = parsed.path or ''
+                        if parsed.query:
+                            suffix = f"{suffix}?{parsed.query}"
+                        if parsed.fragment:
+                            suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
+                        return suffix or logo
+                except Exception:
+                    pass
+            return logo
+        if logo.startswith(settings.MEDIA_URL):
+            return logo
+        if logo.startswith('/'):
+            return logo
+        media_prefix = settings.MEDIA_URL.rstrip('/')
+        return f"{media_prefix}/{logo.lstrip('/')}"
+
+    def _build_full_logo_url(self, logo: str) -> str:
+        normalized_logo = self._normalize_logo_path(logo)
+        if not normalized_logo:
+            return ''
+        if normalized_logo.startswith('http://') or normalized_logo.startswith('https://'):
+            return normalized_logo
+        request = self.context.get('request')
+        if request:
+            try:
+                return request.build_absolute_uri(normalized_logo)
+            except Exception:
+                pass
+        return normalized_logo
+
 
 class ProductSKUSerializer(serializers.ModelSerializer):
     class Meta:
