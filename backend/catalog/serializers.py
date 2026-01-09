@@ -135,13 +135,17 @@ class BrandSerializer(serializers.ModelSerializer):
         parsed = urlparse(logo)
         if parsed.scheme or parsed.netloc:
             path = parsed.path or ''
-            if path:
-                suffix = ''
-                if parsed.query:
-                    suffix = f"{suffix}?{parsed.query}"
-                if parsed.fragment:
-                    suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
+            suffix = ''
+            if parsed.query:
+                suffix = f"{suffix}?{parsed.query}"
+            if parsed.fragment:
+                suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
+            # Only strip host for our media paths or same-host URLs; keep external URLs unchanged
+            request = self.context.get('request')
+            request_host = request.get_host() if request else None
+            if path and (path.startswith(settings.MEDIA_URL) or parsed.netloc == request_host):
                 return f"{path}{suffix}"
+            return logo
         if logo.startswith('/'):
             return logo
         media_prefix = settings.MEDIA_URL.rstrip('/')
@@ -151,11 +155,11 @@ class BrandSerializer(serializers.ModelSerializer):
         """Build absolute URL like product images do."""
         if not logo:
             return ''
-        if logo.startswith('http://') or logo.startswith('https://'):
-            return logo
         normalized_logo = self._normalize_logo_path(logo)
         if not normalized_logo:
             return ''
+        if normalized_logo.startswith('http://') or normalized_logo.startswith('https://'):
+            return normalized_logo
         request = self.context.get('request')
         if request:
             try:
