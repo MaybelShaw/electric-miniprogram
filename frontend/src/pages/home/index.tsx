@@ -129,6 +129,16 @@ export default function Home() {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
+  // 查看全部品类
+  const goToAllCategories = () => {
+    Taro.switchTab({ url: '/pages/category/index' })
+  }
+
+  // 查看全部品牌
+  const goToAllBrands = () => {
+    Taro.navigateTo({ url: '/pages/brand-list/index' })
+  }
+
   return (
     <View className='home'>
       {/* 搜索栏 */}
@@ -189,7 +199,10 @@ export default function Home() {
         {/* 品类专区 (原空间专区) */}
         {majorCategories.length > 0 && (
           <View className='category-nav'>
-            <View className='category-title'>品类专区</View>
+            <View className='section-header-row'>
+              <View className='section-title'>品类专区</View>
+              <View className='more-btn' onClick={goToAllCategories}>更多 {'>'}</View>
+            </View>
             <ScrollView scrollX className='category-scroll'>
               {majorCategories.map(cat => (
                 <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
@@ -208,7 +221,10 @@ export default function Home() {
         {/* 品牌专区 */}
         {brands.length > 0 && (
           <View className='brand-section'>
-            <View className='section-title'>品牌专区</View>
+            <View className='section-header-row'>
+              <View className='section-title'>品牌专区</View>
+              <View className='more-btn' onClick={goToAllBrands}>更多 {'>'}</View>
+            </View>
             <ScrollView scrollX className='brand-scroll'>
               {brands.map(brand => (
                 <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>

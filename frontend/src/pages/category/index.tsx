@@ -15,11 +15,34 @@ export default function CategoryPage() {
   
   const [searchValue, setSearchValue] = useState('')
   const [loading, setLoading] = useState(false)
+  // 待选中的分类名称（用于从首页跳转）
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null)
 
   // 初始化：加载大类
   useEffect(() => {
     loadMajorCategories()
+    
+    // 监听分类选择事件
+    const handleSelectCategory = (categoryName: string) => {
+      setPendingCategory(categoryName)
+    }
+    Taro.eventCenter.on('selectCategory', handleSelectCategory)
+    
+    return () => {
+      Taro.eventCenter.off('selectCategory', handleSelectCategory)
+    }
   }, [])
+
+  // 处理待选中的分类
+  useEffect(() => {
+    if (pendingCategory && majorCategories.length > 0) {
+      const target = majorCategories.find(c => c.name === pendingCategory)
+      if (target) {
+        setActiveMajorId(target.id)
+        setPendingCategory(null)
+      }
+    }
+  }, [pendingCategory, majorCategories])
 
   // 当选中的大类变化时，加载子类
   useEffect(() => {

@@ -2,20 +2,20 @@
 
 .home {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh; // Fix height to viewport
   background: $background-color-base;
   display: flex;
   flex-direction: column;
+  overflow: hidden; // Prevent body scroll
 
   .search-bar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    // 使用 Flex 布局实现固定头部，不再使用 fixed 定位
+    position: relative;
     z-index: 100;
     background: $background-color-light;
     padding: $spacing-md $spacing-md;
     box-shadow: $shadow-sm;
+    flex-shrink: 0; // 防止被压缩
 
     .search-input {
       display: flex;
@@ -45,7 +45,8 @@
 
   .content {
     flex: 1;
-    margin-top: 100px;
+    height: 0; // 关键：在 Flex 容器中强制 ScrollView 计算高度
+    margin-top: 0;
     padding-bottom: 40px;
   }
 
@@ -127,12 +128,28 @@
     border-radius: $spacing-md;
     box-shadow: $shadow-sm;
 
-    .category-title {
-      font-size: $font-size-lg;
-      font-weight: bold;
-      color: $text-color-base;
-      text-align: center;
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 $spacing-md;
       margin-bottom: $spacing-md;
+
+      .section-title {
+        font-size: $font-size-lg;
+        font-weight: bold;
+        color: $text-color-base;
+      }
+
+      .more-btn {
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
+        padding: 4px 8px;
+        
+        &:active {
+          opacity: 0.7;
+        }
+      }
     }
 
     .category-scroll {
@@ -195,13 +212,27 @@
     border-radius: $spacing-md;
     box-shadow: $shadow-sm;
 
-    .section-title {
-      font-size: $font-size-lg;
-      font-weight: bold;
-      color: $text-color-base;
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: $spacing-md;
-      text-align: center;
-      display: block;
+
+      .section-title {
+        font-size: $font-size-lg;
+        font-weight: bold;
+        color: $text-color-base;
+      }
+
+      .more-btn {
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
+        padding: 4px 8px;
+        
+        &:active {
+          opacity: 0.7;
+        }
+      }
     }
 
     .brand-scroll {

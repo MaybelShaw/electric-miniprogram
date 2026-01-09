@@ -1,0 +1,74 @@
+@import '../../styles/variables.scss';
+
+.brand-list-page {
+  min-height: 100vh;
+  background: $background-color-base;
+  padding: $spacing-md;
+
+  .brand-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $spacing-md;
+    padding-bottom: 40px;
+
+    .brand-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #fff;
+      padding: $spacing-md;
+      border-radius: $spacing-md;
+      box-shadow: $shadow-sm;
+      transition: all 0.3s ease;
+      height: 100%; // Ensure equal height in grid
+      box-sizing: border-box;
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: none;
+      }
+
+      .brand-logo-wrapper {
+        width: 100%;
+        padding-top: 60%; // Fixed aspect ratio container
+        position: relative;
+        margin-bottom: $spacing-sm;
+        
+        .brand-logo {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: contain; // Maintain aspect ratio within container
+        }
+      }
+
+      .brand-name {
+        font-size: $font-size-sm;
+        color: $text-color-base;
+        text-align: center;
+        width: 100%;
+        // Allow up to 2 lines
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: normal; // Allow wrapping
+        line-height: 1.4;
+        min-height: 2.8em; // Reserve space for 2 lines to align grid
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+
+  .loading-state, .empty-state {
+    padding: 40px;
+    text-align: center;
+    color: $text-color-secondary;
+    font-size: $font-size-md;
+  }
+}

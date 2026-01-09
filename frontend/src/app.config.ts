@@ -18,6 +18,7 @@ export default defineAppConfig({
     'pages/special-zone/index',
     'pages/case-detail/index',
     'pages/brand/index',
+    'pages/brand-list/index',
     'pages/company-certification/index',
     'pages/credit-account/index',
     'pages/account-statements/index',
