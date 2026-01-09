@@ -1885,6 +1885,27 @@ class PaymentCallbackView(APIView):
 
         return Response({'code': 'SUCCESS', 'message': '成功', 'payment_id': payment.id})
 
+    @staticmethod
+    def _map_payment_status(provider: str, status_param: str) -> str:
+        """映射支付状态"""
+        if provider == 'wechat':
+            val = str(status_param).upper() if status_param else ''
+            if val == 'SUCCESS':
+                return 'succeeded'
+            if val in {'CLOSED', 'REVOKED'}:
+                return 'cancelled'
+            if val in {'USERPAYING', 'NOTPAY', 'ACCEPT'}:
+                return 'processing'
+            return 'failed'
+        if provider == 'alipay':
+            val = str(status_param).lower() if status_param else ''
+            if val == 'trade_success':
+                return 'succeeded'
+            if val == 'trade_closed':
+                return 'cancelled'
+            return 'failed'
+        return 'processing'
+
 
 @extend_schema(tags=['Refunds'])
 class RefundViewSet(viewsets.ModelViewSet):
@@ -2038,41 +2059,6 @@ class RefundViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
         return Response(RefundSerializer(refund).data)
-
-    def _map_payment_status(self, provider: str, status_param: str) -> str:
-        """映射支付状态
-        
-        将不同支付提供商的状态值映射到统一的支付状态。
-        
-        Args:
-            provider: 支付提供商
-            status_param: 支付提供商返回的状态值
-            
-        Returns:
-            str: 统一的支付状态
-        """
-        if provider == 'wechat':
-            # 微信支付状态映射
-            val = str(status_param).upper() if status_param else ''
-            if val == 'SUCCESS':
-                return 'succeeded'
-            if val in {'CLOSED', 'REVOKED'}:
-                return 'cancelled'
-            if val in {'USERPAYING', 'NOTPAY', 'ACCEPT'}:
-                return 'processing'
-            return 'failed'
-        
-        elif provider == 'alipay':
-            # 支付宝状态映射
-            val = str(status_param).lower() if status_param else ''
-            if val == 'trade_success':
-                return 'succeeded'
-            elif val == 'trade_closed':
-                return 'cancelled'
-            else:
-                return 'failed'
-        
-        return 'processing'
 
 
 class AnalyticsViewSet(viewsets.ViewSet):
