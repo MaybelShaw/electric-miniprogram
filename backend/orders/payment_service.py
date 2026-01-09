@@ -152,6 +152,15 @@ class PaymentService:
         cert_dir = getattr(settings, 'WECHAT_PAY_CERT_DIR', '') or None
         private_key_path = getattr(settings, 'WECHAT_PAY_PRIVATE_KEY_PATH', '')
 
+        PaymentService._log_debug('wechat client config', {
+            'appid': bool(appid),
+            'mchid': bool(mchid),
+            'serial_no': bool(serial_no),
+            'notify_url': bool(notify_url),
+            'private_key_path': private_key_path,
+            'cert_dir': cert_dir,
+        })
+
         if not (appid and mchid and api_v3_key and serial_no and notify_url and private_key_path):
             raise RuntimeError('微信支付配置不完整，请检查商户号、appid、证书序列号、APIv3密钥和私钥路径')
 
@@ -209,7 +218,11 @@ class PaymentService:
         if not openid:
             raise ValueError('缺少 openid，无法发起微信支付')
 
-        client = PaymentService._wechat_client()
+        try:
+            client = PaymentService._wechat_client()
+        except Exception as exc:
+            PaymentService._log_debug('wechat client init failed', {'error': str(exc)})
+            raise
         mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
         total_cents = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
 

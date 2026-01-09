@@ -1269,6 +1269,8 @@ class PaymentViewSet(viewsets.ModelViewSet):
         payment = self.get_object()
         from .payment_service import PaymentService
         from .models import Order
+        import logging
+        logger = logging.getLogger(__name__)
 
         ok, reason = PaymentService.ensure_payment_startable(payment)
         if not ok:
@@ -1333,6 +1335,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
             try:
                 pay_params = PaymentService.create_wechat_unified_order(payment, openid=openid, client_ip=client_ip)
             except Exception as exc:
+                logger.exception('微信统一下单失败', extra={'payment_id': payment.id, 'order_id': payment.order_id})
                 payment.status = 'init'
                 payment.logs.append({
                     't': timezone.now().isoformat(),
