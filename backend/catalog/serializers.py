@@ -127,37 +127,35 @@ class BrandSerializer(serializers.ModelSerializer):
         return rep
 
     def _normalize_logo_path(self, logo: str) -> str:
+        """Strip host info and normalize to media-relative path, mirroring product images."""
         if not logo:
             return ''
-        # Keep external URLs unchanged
-        if logo.startswith('http://') or logo.startswith('https://'):
-            request = self.context.get('request')
-            if request:
-                try:
-                    parsed = urlparse(logo)
-                    if parsed.scheme in {'http', 'https'} and parsed.netloc == request.get_host():
-                        suffix = parsed.path or ''
-                        if parsed.query:
-                            suffix = f"{suffix}?{parsed.query}"
-                        if parsed.fragment:
-                            suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
-                        return suffix or logo
-                except Exception:
-                    pass
-            return logo
         if logo.startswith(settings.MEDIA_URL):
             return logo
+        parsed = urlparse(logo)
+        if parsed.scheme or parsed.netloc:
+            path = parsed.path or ''
+            if path:
+                suffix = ''
+                if parsed.query:
+                    suffix = f"{suffix}?{parsed.query}"
+                if parsed.fragment:
+                    suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
+                return f"{path}{suffix}"
         if logo.startswith('/'):
             return logo
         media_prefix = settings.MEDIA_URL.rstrip('/')
         return f"{media_prefix}/{logo.lstrip('/')}"
 
     def _build_full_logo_url(self, logo: str) -> str:
+        """Build absolute URL like product images do."""
+        if not logo:
+            return ''
+        if logo.startswith('http://') or logo.startswith('https://'):
+            return logo
         normalized_logo = self._normalize_logo_path(logo)
         if not normalized_logo:
             return ''
-        if normalized_logo.startswith('http://') or normalized_logo.startswith('https://'):
-            return normalized_logo
         request = self.context.get('request')
         if request:
             try:
