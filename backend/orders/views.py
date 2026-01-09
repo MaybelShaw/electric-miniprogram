@@ -1350,6 +1350,16 @@ class PaymentViewSet(viewsets.ModelViewSet):
                 })
                 payment.save(update_fields=['status', 'logs', 'updated_at'])
                 return Response({'detail': '微信支付未正确配置或下单失败'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # 确保前端可以拿到金额字段（微信JSAPI报 total_fee 缺失时兜底用）
+            try:
+                cents = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
+                pay_params.setdefault('total_fee', cents)
+                pay_params.setdefault('total', cents)
+                pay_params.setdefault('amount', str(payment.amount))
+                pay_params.setdefault('payment_id', payment.id)
+                pay_params.setdefault('order_number', payment.order.order_number)
+            except Exception:
+                pass
 
         serializer_data = self.get_serializer(payment).data
         return Response({

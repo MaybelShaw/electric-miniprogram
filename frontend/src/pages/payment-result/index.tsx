@@ -45,6 +45,33 @@ export default function PaymentResult() {
     loadData()
   })
 
+  const resolveTotalCents = (payParams: WechatPayParams) => {
+    const toNumber = (val: any) => {
+      const num = Number(val)
+      return Number.isFinite(num) ? num : undefined
+    }
+
+    const centsFromParams = toNumber(
+      payParams.total_fee !== undefined && payParams.total_fee !== null
+        ? payParams.total_fee
+        : payParams.total
+    )
+    if (centsFromParams !== undefined) {
+      return Math.max(0, Math.round(centsFromParams))
+    }
+
+    const yuanAmount =
+      toNumber(payParams.amount) ??
+      toNumber(order?.actual_amount || order?.total_amount) ??
+      toNumber(payment?.amount)
+
+    if (yuanAmount !== undefined) {
+      return Math.max(0, Math.round(yuanAmount * 100))
+    }
+
+    return undefined
+  }
+
   const requestWechatPayment = async (payParams: WechatPayParams) => {
     const payload: any = {
       timeStamp: payParams.timeStamp,
@@ -53,19 +80,10 @@ export default function PaymentResult() {
       signType: payParams.signType as any,
       paySign: payParams.paySign
     }
-    if (payParams.total_fee !== undefined) {
-      payload.total_fee = payParams.total_fee
-    }
-    if (payParams.total !== undefined) {
-      payload.total = payParams.total
-    }
-    if (payload.total_fee === undefined || payload.total === undefined) {
-      const baseAmount = Number(
-        (order?.actual_amount || order?.total_amount || payParams.amount || '0')
-      )
-      const cents = Math.max(0, Math.round(baseAmount * 100))
-      if (payload.total_fee === undefined) payload.total_fee = cents
-      if (payload.total === undefined) payload.total = cents
+    const cents = resolveTotalCents(payParams)
+    if (cents !== undefined) {
+      payload.total_fee = cents
+      payload.total = cents
     }
     await Taro.requestPayment(payload)
   }

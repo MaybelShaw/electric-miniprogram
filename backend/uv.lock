@@ -39,6 +39,7 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "psycopg2-binary" },
     { name = "requests" },
+    { name = "wechatpayv3" },
 ]
 
 [package.metadata]
@@ -57,6 +58,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.1" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "requests", specifier = ">=2.32.5" },
+    { name = "wechatpayv3", specifier = ">=1.2.30" },
 ]
 
 [[package]]
@@ -814,6 +816,19 @@ source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
 sdist = { url = "https://mirrors.aliyun.com/pypi/packages/15/22/9ee70a2574a4f4599c47dd506532914ce044817c7752a79b6a51286319bc/urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760" }
 wheels = [
     { url = "https://mirrors.aliyun.com/pypi/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc" },
+]
+
+[[package]]
+name = "wechatpayv3"
+version = "2.0.1"
+source = { registry = "https://mirrors.aliyun.com/pypi/simple/" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "requests" },
+]
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/0b/44/2fc2dc2e1c7622271cdf21fb9e3eeffcc56ef19013043e4cb55bfa6d8727/wechatpayv3-2.0.1.tar.gz", hash = "sha256:9ed704cdca046691ffbf882c7ebe32b1ae9b66300d68dba45dd3ff8513cf603a" }
+wheels = [
+    { url = "https://mirrors.aliyun.com/pypi/packages/c1/fd/636287aed9f6520b55c19fcefcbd339e3d3e54d4df5d915b11ec5fa34079/wechatpayv3-2.0.1-py3-none-any.whl", hash = "sha256:137a0d616fcaf1e643dce7a5c0bfa3b52cc3dd424eb51695c65ced85d365cafc" },
 ]
 
 [[package]]
