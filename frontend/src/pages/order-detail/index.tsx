@@ -289,6 +289,8 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
   }
 
+  const canConfirmReceipt = order.status === 'shipped' && !order.return_info && !['refunding', 'refunded', 'cancelled'].includes(order.status)
+
   const getDisplayStatus = (order: Order) => {
     if (order.return_info) {
       const returnStatus = order.return_info.status;
@@ -560,7 +562,7 @@ export default function OrderDetail() {
             </View>
           )}
           
-          {order.status === 'shipped' && (
+          {canConfirmReceipt && (
             <View className='confirm-btn' onClick={handleConfirmReceipt}>
               确认收货
             </View>

@@ -380,6 +380,27 @@
       }
     }
 
+    .confirm-btn {
+      height: 72px;
+      padding: 0 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 600;
+      color: $white;
+      background: linear-gradient(135deg, #3ec5ff 0%, #0da6ff 100%);
+      border-radius: 36px;
+      margin-left: 20rpx;
+      box-shadow: 0 4px 12px rgba(13, 166, 255, 0.35);
+      transition: all 0.2s;
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 8px rgba(13, 166, 255, 0.35);
+      }
+    }
+
     .return-tracking-btn {
       height: 72px;
       padding: 0 60px;
