@@ -609,6 +609,61 @@ class PaymentService:
         return available if available > 0 else Decimal('0')
 
     @staticmethod
+    def start_order_refund(order, amount: Decimal, reason: str = '', operator=None, payment=None) -> tuple:
+        """创建退款记录并发起微信退款。
+
+        Returns (refund, error_message)
+        """
+        from .models import Refund
+        from decimal import Decimal, InvalidOperation
+
+        try:
+            amt = Decimal(str(amount))
+        except (InvalidOperation, TypeError):
+            return None, '退款金额无效'
+        if amt <= 0:
+            return None, '退款金额必须大于0'
+
+        refundable = PaymentService.calculate_refundable_amount(order)
+        if amt > refundable:
+            return None, f'退款金额超出可退金额，可退 {refundable}'
+
+        pay = payment or order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+        if pay is None:
+            return None, '未找到可退款的微信支付记录'
+
+        refund = Refund.objects.create(
+            order=order,
+            payment=pay,
+            amount=amt,
+            status='pending',
+            reason=reason or '退款',
+            operator=operator
+        )
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'refund_created',
+            'amount': str(amt),
+            'reason': refund.reason,
+            'operator': getattr(operator, 'username', '') or 'system'
+        })
+        refund.save(update_fields=['logs'])
+
+        try:
+            PaymentService.create_wechat_refund(refund, operator=operator)
+        except Exception as exc:
+            refund.status = 'failed'
+            refund.logs.append({
+                't': timezone.now().isoformat(),
+                'event': 'refund_start_failed',
+                'reason': str(exc)
+            })
+            refund.save(update_fields=['status', 'logs', 'updated_at'])
+            return refund, str(exc)
+
+        return refund, None
+
+    @staticmethod
     def _resolve_wechat_transaction_id(payment) -> str | None:
         """尝试从支付日志解析微信交易ID。"""
         if not payment or not payment.logs:

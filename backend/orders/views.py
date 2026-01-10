@@ -392,6 +392,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                 operator=user,
                 note=note
             )
+            # 自动退款（微信支付）
+            try:
+                refundable = PaymentService.calculate_refundable_amount(order)
+                pay = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+                if pay and refundable > 0:
+                    reason_text = order.cancel_reason or note or '订单取消自动退款'
+                    refund, err = PaymentService.start_order_refund(
+                        order,
+                        refundable,
+                        reason=reason_text,
+                        operator=user,
+                        payment=pay
+                    )
+                    if err:
+                        logging.getLogger(__name__).error(f'取消订单自动退款失败: order_id={order.id}, err={err}')
+                elif refundable > 0:
+                    logging.getLogger(__name__).info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
+            except Exception as refund_exc:
+                logging.getLogger(__name__).error(f'取消订单触发退款异常: {refund_exc}')
             try:
                 from users.services import create_notification
                 create_notification(
@@ -764,48 +783,105 @@ class OrderViewSet(viewsets.ModelViewSet):
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            from .state_machine import OrderStateMachine
-            OrderStateMachine.transition(order, 'refunded', operator=request.user, note=str(request.data.get('note', '') or ''))
-        except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"detail": f"退款完成失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        try:
-            from users.services import create_notification
-            create_notification(
-                order.user,
-                title='退款已完成',
-                content=f'订单 {order.order_number} 退款已完成，金额 ¥{order.actual_amount}',
-                ntype='refund',
-                metadata={
-                    'order_id': order.id,
-                    'order_number': order.order_number,
-                    'status': 'refunded',
-                    'amount': str(order.actual_amount),
-                    'page': f'pages/order-detail/index?id={order.id}',
-                    'subscription_data': {
-                        'thing1': {'value': f'订单 {order.order_number}'[:20]},
-                        'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
-                        'thing3': {'value': f'退款金额 ¥{order.actual_amount}'[:20]},
-                    },
-                }
+        from .state_machine import OrderStateMachine
+
+        # 计算可退金额
+        refundable = PaymentService.calculate_refundable_amount(order)
+        if refundable <= 0:
+            return Response({"detail": "暂无可退金额"}, status=status.HTTP_400_BAD_REQUEST)
+
+        refund = None
+        refund_err = None
+        pay = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+
+        if pay:
+            reason_text = str(request.data.get('note', '') or request.data.get('reason', '') or '退货退款')
+            refund, refund_err = PaymentService.start_order_refund(
+                order,
+                refundable,
+                reason=reason_text,
+                operator=request.user,
+                payment=pay
             )
-        except Exception:
-            pass
-        try:
-            if not order.payments.exists():
-                from users.credit_services import CreditAccountService
-                if hasattr(order.user, 'credit_account') and order.user.credit_account:
-                    CreditAccountService.record_refund(
-                        credit_account=order.user.credit_account,
-                        amount=getattr(order, 'actual_amount', None) or order.total_amount,
-                        order_id=order.id,
-                        description=f'退货退款 #{order.order_number}'
-                    )
-        except Exception:
-            pass
-        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+            if refund_err:
+                return Response({"detail": f"微信退款发起失败: {refund_err}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            try:
+                if OrderStateMachine.can_transition(order.status, 'refunding'):
+                    OrderStateMachine.transition(order, 'refunding', operator=request.user, note='退货退款处理中')
+            except Exception:
+                pass
+            try:
+                from users.services import create_notification
+                create_notification(
+                    order.user,
+                    title='退款处理中',
+                    content=f'订单 {order.order_number} 退款已提交微信处理，金额 ¥{refundable}',
+                    ntype='refund',
+                    metadata={
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'refund_id': refund.id if refund else None,
+                        'status': 'refunding',
+                        'amount': str(refundable),
+                        'page': f'pages/order-detail/index?id={order.id}',
+                        'subscription_data': {
+                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                            'time2': {'value': timezone.localtime(timezone.now()).strftime('%Y-%m-%d %H:%M')},
+                            'thing3': {'value': f'退款金额 ¥{refundable}'[:20]},
+                        },
+                    }
+                )
+            except Exception:
+                pass
+        else:
+            if order.payments.filter(status='succeeded').exists():
+                return Response({"detail": "当前支付方式暂不支持自动退款，请线下处理"}, status=status.HTTP_400_BAD_REQUEST)
+            # 信用账户/线下退款直接完结
+            try:
+                OrderStateMachine.transition(order, 'refunded', operator=request.user, note=str(request.data.get('note', '') or ''))
+            except ValueError as e:
+                return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({"detail": f"退款完成失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            try:
+                if not order.payments.exists():
+                    from users.credit_services import CreditAccountService
+                    if hasattr(order.user, 'credit_account') and order.user.credit_account:
+                        CreditAccountService.record_refund(
+                            credit_account=order.user.credit_account,
+                            amount=getattr(order, 'actual_amount', None) or order.total_amount,
+                            order_id=order.id,
+                            description=f'退货退款 #{order.order_number}'
+                        )
+            except Exception:
+                pass
+            try:
+                from users.services import create_notification
+                create_notification(
+                    order.user,
+                    title='退款已完成',
+                    content=f'订单 {order.order_number} 退款已完成，金额 ¥{order.actual_amount}',
+                    ntype='refund',
+                    metadata={
+                        'order_id': order.id,
+                        'order_number': order.order_number,
+                        'status': 'refunded',
+                        'amount': str(order.actual_amount),
+                        'page': f'pages/order-detail/index?id={order.id}',
+                        'subscription_data': {
+                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                            'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
+                            'thing3': {'value': f'退款金额 ¥{order.actual_amount}'[:20]},
+                        },
+                    }
+                )
+            except Exception:
+                pass
+
+        data = {'order': OrderSerializer(order).data}
+        if refund:
+            data['refund'] = RefundSerializer(refund).data
+        return Response(data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def push_to_haier(self, request, pk=None):
