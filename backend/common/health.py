@@ -160,10 +160,31 @@ def _check_cache():
             # Clean up
             cache.delete(test_key)
             
-            return {
-                'status': 'healthy',
-                'response_time_ms': round(response_time_ms, 2)
-            }
+    return {
+        'status': 'healthy',
+        'response_time_ms': round(response_time_ms, 2)
+    }
+
+
+def _check_wechatpay_config(strict: bool = False):
+    """Validate required WeChat Pay config to fail fast in logs."""
+    from django.conf import settings
+    required = {
+        'WECHAT_APPID': getattr(settings, 'WECHAT_APPID', ''),
+        'WECHAT_PAY_MCHID': getattr(settings, 'WECHAT_PAY_MCHID', ''),
+        'WECHAT_PAY_SERIAL_NO': getattr(settings, 'WECHAT_PAY_SERIAL_NO', ''),
+        'WECHAT_PAY_PRIVATE_KEY_PATH': getattr(settings, 'WECHAT_PAY_PRIVATE_KEY_PATH', ''),
+        'WECHAT_PAY_API_V3_KEY': getattr(settings, 'WECHAT_PAY_API_V3_KEY', ''),
+        'WECHAT_PAY_REFUND_NOTIFY_URL': getattr(settings, 'WECHAT_PAY_REFUND_NOTIFY_URL', ''),
+        'WECHAT_PAY_NOTIFY_URL': getattr(settings, 'WECHAT_PAY_NOTIFY_URL', ''),
+    }
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        msg = f'wechat pay config missing: {", ".join(missing)}'
+        if strict:
+            raise RuntimeError(msg)
+        logging.getLogger(__name__).warning(msg)
+    return True
         else:
             return {
                 'status': 'unhealthy',

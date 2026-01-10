@@ -104,6 +104,10 @@ export const exportAccountStatement = (id: number) => {
   return request.get(`/account-statements/${id}/export/`, { responseType: 'blob' });
 };
 
+// 退款管理
+export const getRefunds = (params?: any) => request.get('/refunds/', { params });
+export const startRefund = (id: number, data?: any) => request.post(`/refunds/${id}/start/`, data || {});
+
 // 交易记录管理
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
 

@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn } from '@/services/api';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
@@ -38,6 +38,8 @@ export default function Orders() {
   const [logisticsData, setLogisticsData] = useState<any>(null);
   const [loadingLogistics, setLoadingLogistics] = useState(false);
   const [shipModalVisible, setShipModalVisible] = useState(false);
+  const [refundModalVisible, setRefundModalVisible] = useState(false);
+  const [refundDetail, setRefundDetail] = useState<any>(null);
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
@@ -157,6 +159,56 @@ export default function Orders() {
       actionRef.current?.reload();
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '操作失败');
+    }
+  };
+
+  const handleRetryRefund = async (orderId: number, refundId?: number) => {
+    try {
+      let targetId = refundId;
+      if (!targetId) {
+        const list: any = await getRefunds({ order_id: orderId, page_size: 10 });
+        const refund = list?.results?.find((r: any) => r.status === 'failed' || r.status === 'processing') || list?.results?.[0];
+        targetId = refund?.id;
+      }
+      if (!targetId) {
+        message.warning('未找到退款记录');
+        return;
+      }
+      await startRefund(targetId, { provider: 'wechat' });
+      message.success('已重新发起微信退款');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || error?.message || '重试退款失败');
+    }
+  };
+
+  const handleViewRefund = async (orderId: number) => {
+    try {
+      const list: any = await getRefunds({ order_id: orderId, page_size: 10 });
+      if (!list?.results?.length) {
+        message.warning('未找到退款记录');
+        return;
+      }
+      setRefundDetail(list.results);
+      setRefundModalVisible(true);
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '获取退款信息失败');
+    }
+  };
+
+  const handleRetryRefund = async (orderId: number) => {
+    try {
+      const list: any = await getRefunds({ order_id: orderId, page_size: 1 });
+      const refund = list?.results?.[0];
+      if (!refund) {
+        message.warning('未找到退款记录');
+        return;
+      }
+      await startRefund(refund.id, { provider: 'wechat' });
+      message.success('已重新发起微信退款');
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || error?.message || '重试退款失败');
     }
   };
 
@@ -521,6 +573,44 @@ export default function Orders() {
               </Popconfirm>
             );
           }
+        }
+
+        // 退款中：提供重新发起退款
+        if (record.status === 'refunding') {
+          actions.push(
+            <Popconfirm
+              key="retry_refund"
+              title="重新发起微信退款？"
+              onConfirm={() => handleRetryRefund(record.id)}
+            >
+              <Button type="link" size="small" icon={<PayCircleOutlined />}>
+                重试退款
+              </Button>
+            </Popconfirm>
+          );
+          actions.push(
+            <Button
+              key="view_refund"
+              type="link"
+              size="small"
+              onClick={() => handleViewRefund(record.id)}
+            >
+              退款详情
+            </Button>
+          );
+        } else if (record.payment_method === 'credit' && ['paid', 'shipped'].includes(record.status)) {
+          // 信用支付退款入口：未发货可直接完成，已发货提示人工处理
+          actions.push(
+            <Popconfirm
+              key="credit_refund"
+              title={record.status === 'paid' ? '确认对信用账户执行退款？' : '已发货信用订单，需人工线下退款，确认标记退款完成？'}
+              onConfirm={() => handleCompleteRefund(record.id)}
+            >
+              <Button type="link" size="small" icon={<PayCircleOutlined />}>
+                {record.status === 'paid' ? '信用退款' : '标记信用退款'}
+              </Button>
+            </Popconfirm>
+          );
         }
 
         // 发票相关操作
@@ -908,6 +998,50 @@ export default function Orders() {
           </Upload>
         </Form.Item>
       </ModalForm>
+
+      {/* 退款详情 */}
+      <Modal
+        title="退款详情"
+        open={refundModalVisible}
+        onCancel={() => setRefundModalVisible(false)}
+        footer={null}
+        width={520}
+      >
+        {refundDetail ? (
+          Array.isArray(refundDetail) ? (
+            <ProDescriptions
+              column={1}
+              dataSource={refundDetail}
+              columns={[
+                { title: '退款ID', dataIndex: 'id' },
+                { title: '状态', dataIndex: 'status' },
+                { title: '金额', dataIndex: 'amount' },
+                { title: '原因', dataIndex: 'reason' },
+                { title: '交易号', dataIndex: 'transaction_id' },
+                { title: '创建时间', dataIndex: 'created_at' },
+                { title: '更新时间', dataIndex: 'updated_at' },
+              ]}
+            />
+          ) : (
+          <ProDescriptions
+            column={1}
+            dataSource={refundDetail}
+            columns={[
+              { title: '退款ID', dataIndex: 'id' },
+              { title: '订单', dataIndex: 'order_number' },
+              { title: '状态', dataIndex: 'status' },
+              { title: '金额', dataIndex: 'amount' },
+              { title: '原因', dataIndex: 'reason' },
+              { title: '交易号', dataIndex: 'transaction_id' },
+              { title: '创建时间', dataIndex: 'created_at' },
+              { title: '更新时间', dataIndex: 'updated_at' },
+              { title: '日志', render: () => <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(refundDetail.logs || [], null, 2)}</pre> },
+            ]}
+          />)
+        ) : (
+          <div>暂无数据</div>
+        )}
+      </Modal>
     </>
   );
 }

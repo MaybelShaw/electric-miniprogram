@@ -191,8 +191,19 @@ export default function OrderDetail() {
 
     if (res.confirm) {
       try {
-        await orderService.cancelOrder(order.id, { reason: (res as any).content })
-        Taro.showToast({ title: '取消成功', icon: 'success' })
+        const result: any = await orderService.cancelOrder(order.id, { reason: (res as any).content })
+        if (result?.refund_started) {
+          if (result?.refund_channel === 'credit') {
+            Taro.showToast({ title: '已取消，信用退款已冲减', icon: 'success' })
+          } else {
+            Taro.showToast({ title: '已取消，退款处理中', icon: 'success' })
+          }
+        } else if (result?.refund_error) {
+          const tip = result.refund_channel === 'credit' ? '信用支付需人工处理' : '请稍后重试或联系客户支持'
+          Taro.showToast({ title: `取消成功，退款失败：${result.refund_error}，${tip}`, icon: 'none' })
+        } else {
+          Taro.showToast({ title: '取消成功', icon: 'success' })
+        }
         loadOrderDetail(order.id)
       } catch (error) {
         Taro.showToast({ title: '取消失败', icon: 'none' })

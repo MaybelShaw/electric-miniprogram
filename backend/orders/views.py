@@ -397,6 +397,31 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
             refund = None
             refund_err = None
+            credit_refund_started = False
+            credit_refund_err = None
+
+            # 信用支付：未发货前自动冲减信用，发货后需人工处理
+            is_credit = getattr(order, 'payment_method', '') == 'credit'
+            if is_credit and order.status in ['pending', 'paid'] and order.status != 'shipped':
+                try:
+                    from users.credit_services import CreditAccountService
+                    if hasattr(order.user, 'credit_account') and order.user.credit_account:
+                        CreditAccountService.record_refund(
+                            credit_account=order.user.credit_account,
+                            amount=getattr(order, 'actual_amount', None) or order.total_amount,
+                            order_id=order.id,
+                            description=f'订单取消信用退款 #{order.order_number}'
+                        )
+                        credit_refund_started = True
+                    else:
+                        credit_refund_err = '未找到信用账户，需人工处理'
+                except Exception as exc:
+                    credit_refund_err = str(exc)
+                # 信用退款不走微信自动退款
+                should_refund = False
+            elif is_credit and order.status == 'shipped':
+                credit_refund_err = '信用支付订单已发货，需人工审核退款'
+                should_refund = False
 
             # 自动退款（微信支付）
             try:
@@ -414,11 +439,45 @@ class OrderViewSet(viewsets.ModelViewSet):
                     )
                     if refund_err:
                         logger.error(f'取消订单自动退款失败: order_id={order.id}, err={refund_err}', extra={'refund_id': refund.id if refund else None})
+                        try:
+                            from users.services import create_notification
+                            create_notification(
+                                order.user,
+                                title='退款发起失败',
+                                content=f'订单 {order.order_number} 退款发起失败，原因：{refund_err}',
+                                ntype='refund',
+                                metadata={
+                                    'order_id': order.id,
+                                    'order_number': order.order_number,
+                                    'refund_id': refund.id if refund else None,
+                                    'status': 'failed',
+                                    'page': f'pages/order-detail/index?id={order.id}',
+                                }
+                            )
+                        except Exception:
+                            pass
                 elif refundable > 0:
                     logger.info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
             except Exception as refund_exc:
                 refund_err = str(refund_exc)
                 logger.exception(f'取消订单触发退款异常: {refund_exc}')
+                try:
+                    from users.services import create_notification
+                    create_notification(
+                        order.user,
+                        title='退款发起失败',
+                        content=f'订单 {order.order_number} 退款发起失败，原因：{refund_err}',
+                        ntype='refund',
+                        metadata={
+                            'order_id': order.id,
+                            'order_number': order.order_number,
+                            'refund_id': refund.id if refund else None,
+                            'status': 'failed',
+                            'page': f'pages/order-detail/index?id={order.id}',
+                        }
+                    )
+                except Exception:
+                    pass
 
             # 状态机更新（根据退款结果）
             try:
@@ -481,7 +540,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                 import logging
                 logging.getLogger(__name__).error(f'同步易理货取消失败: {str(sync_err)}')
             serializer = self.get_serializer(order)
-            return Response(serializer.data, status=200)
+            resp = serializer.data
+            # 返回退款发起结果，便于前端提示
+            resp.update({
+                'refund_started': bool((should_refund and not refund_err and refund) or credit_refund_started),
+                'refund_id': refund.id if refund else None,
+                'refund_error': refund_err or credit_refund_err,
+                'refund_channel': 'wechat' if refund else ('credit' if credit_refund_started else None),
+            })
+            return Response(resp, status=200)
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -1528,6 +1595,8 @@ class RefundCallbackView(APIView):
             return Response({'code': 'FAIL', 'message': err}, status=status.HTTP_400_BAD_REQUEST)
 
         refund = parsed['refund']
+        if refund.status == 'succeeded':
+            return Response({'code': 'SUCCESS', 'message': 'OK'})
         refund_status = str(parsed.get('refund_status') or '').upper()
         transaction_id = parsed.get('transaction_id')
 
@@ -2138,7 +2207,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                     'reason': str(exc)
                 })
                 refund.save(update_fields=['status', 'logs', 'updated_at'])
-                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'detail': f'微信退款发起失败: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
             serializer = RefundSerializer(refund)
             return Response({'refund': serializer.data, 'wechat': data}, status=status.HTTP_200_OK)
 

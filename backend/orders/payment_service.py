@@ -699,14 +699,25 @@ class PaymentService:
         if payment.method != 'wechat':
             raise RuntimeError('当前退款仅支持微信支付订单')
 
+        # 配置检查
+        required = {
+            'appid': getattr(settings, 'WECHAT_APPID', ''),
+            'mchid': getattr(settings, 'WECHAT_PAY_MCHID', ''),
+            'serial_no': getattr(settings, 'WECHAT_PAY_SERIAL_NO', ''),
+            'notify_url': getattr(settings, 'WECHAT_PAY_REFUND_NOTIFY_URL', ''),
+            'private_key': PaymentService._load_private_key(),
+            'api_v3_key': getattr(settings, 'WECHAT_PAY_API_V3_KEY', ''),
+        }
+        missing = [k for k, v in required.items() if not v]
+        if missing:
+            raise RuntimeError(f'微信退款配置不完整，缺少: {", ".join(missing)}')
+
         appid = getattr(settings, 'WECHAT_APPID', '')
         mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
         serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
         notify_url = getattr(settings, 'WECHAT_PAY_REFUND_NOTIFY_URL', '')
         private_key = PaymentService._load_private_key()
         api_v3_key = getattr(settings, 'WECHAT_PAY_API_V3_KEY', '')
-        if not (appid and mchid and serial_no and notify_url and private_key and api_v3_key):
-            raise RuntimeError('微信退款配置不完整，请检查appid、商户号、证书序列号、私钥、APIv3密钥及退款通知地址')
 
         refundable = PaymentService.calculate_refundable_amount(order)
         if refund.amount > refundable:

@@ -17,14 +17,35 @@ export default function PaymentResult() {
   const statusParam = (params.status as StatusType) || 'success'
   const orderId = Number(params.orderId || 0)
   const paymentId = params.paymentId ? Number(params.paymentId) : undefined
-  const reason = params.reason ? decodeURIComponent(params.reason) : ''
+  const initialReason = params.reason ? decodeURIComponent(params.reason) : ''
 
   const [status, setStatus] = useState<StatusType>(statusParam)
+  const [reasonText, setReasonText] = useState<string>(initialReason)
   const [order, setOrder] = useState<Order | null>(null)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [refunding, setRefunding] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  const syncPaymentStatus = useCallback(
+    async (pid?: number) => {
+      if (!pid) return false
+      try {
+        const res = await paymentService.syncPayment(pid)
+        if (res.payment) {
+          setPayment(res.payment)
+          if (res.payment.status === 'succeeded') {
+            setStatus('success')
+            return true
+          }
+        }
+      } catch (e) {
+        // ignore sync errors
+      }
+      return false
+    },
+    []
+  )
 
   const loadData = useCallback(async () => {
     if (!orderId) return
@@ -35,16 +56,36 @@ export default function PaymentResult() {
       if (payRes.results && payRes.results.length > 0) {
         setPayment(payRes.results[0])
       }
-      // 订单已支付/已发货/已完成时，强制视为成功
+      if (!payRes.results?.length && paymentId) {
+        // 兜底拉取指定支付
+        try {
+          const detail = await paymentService.getPaymentDetail(paymentId)
+          setPayment(detail)
+        } catch (e) {
+          // ignore
+        }
+      }
+      // 订单已支付/已发货/已完成时，先同步支付状态确认
       if (orderRes.status && ['paid', 'shipped', 'completed'].includes(orderRes.status as any)) {
-        setStatus('success')
+        const pid = paymentId || payRes.results?.[0]?.id
+        const ok = await syncPaymentStatus(pid)
+        if (ok) {
+          setStatus('success')
+        } else {
+          setStatus('fail')
+          setReasonText('支付状态未确认，请稍后刷新订单或联系客服')
+        }
+      } else if (status === 'success') {
+        // 未确认支付成功时不展示成功态
+        setStatus('fail')
+        setReasonText('支付状态未确认，请稍后刷新订单或联系客服')
       }
     } catch (err) {
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
-  }, [orderId])
+  }, [orderId, paymentId, syncPaymentStatus])
 
   useEffect(() => {
     loadData()
@@ -126,16 +167,21 @@ export default function PaymentResult() {
       })
     } catch (error: any) {
       const msg = error?.errMsg || error?.message || '支付失败'
-      // 若订单后端已更新为成功/发货，则兜底展示成功页
-      if (order?.status && ['paid', 'shipped', 'completed'].includes(order.status as any)) {
-        setStatus('success')
-        Taro.redirectTo({
-          url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${payment?.id || ''}`
-        })
-        return
+      // 若订单/支付已在后端成功，兜底展示成功页
+      try {
+        const synced = await syncPaymentStatus(payment?.id)
+        if (synced) {
+          Taro.redirectTo({
+            url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${payment?.id || ''}`
+          })
+          return
+        }
+      } catch (e) {
+        // ignore sync errors
       }
-      Taro.showToast({ title: msg, icon: 'none' })
       setStatus('fail')
+      setReasonText(order?.status && ['paid', 'shipped', 'completed'].includes(order.status as any) ? '支付状态未确认，请稍后刷新订单或联系客服' : msg)
+      Taro.showToast({ title: msg, icon: 'none' })
     } finally {
       setRetrying(false)
     }
@@ -199,7 +245,7 @@ export default function PaymentResult() {
         <Text className='result-title'>
           {status === 'success' ? '支付成功' : '支付未完成'}
         </Text>
-        {status === 'fail' && reason && <Text className='result-reason'>{reason}</Text>}
+        {status === 'fail' && reasonText && <Text className='result-reason'>{reasonText}</Text>}
         <View className='result-info'>
           {order && (
             <>

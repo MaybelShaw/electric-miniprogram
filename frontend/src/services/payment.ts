@@ -24,10 +24,15 @@ export const paymentService = {
   async getPaymentDetail(id: number): Promise<Payment> {
     return http.get<Payment>(`/payments/${id}/`)
   },
-  
+
   // 开始支付
   async startPayment(id: number, data?: { provider?: 'wechat' | 'alipay' | 'bank' }): Promise<PaymentStartResponse> {
     return http.post<PaymentStartResponse>(`/payments/${id}/start/`, data)
+  },
+  
+  // 同步支付状态（查单）
+  async syncPayment(id: number): Promise<PaymentStartResponse> {
+    return http.post<PaymentStartResponse>(`/payments/${id}/sync/`)
   },
   
   // 支付失败
