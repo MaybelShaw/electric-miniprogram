@@ -742,6 +742,16 @@ class PaymentService:
         }
 
         PaymentService._log_debug('wechat refund request body', {'body': body})
+        logger.info(
+            '[WECHAT_REFUND] start refund',
+            extra={
+                'refund_id': refund.id,
+                'order_id': order.id,
+                'payment_id': payment.id if payment else None,
+                'out_refund_no': out_refund_no,
+                'amount_cents': refund_cents
+            }
+        )
 
         resp = requests.post(
             'https://api.mch.weixin.qq.com/v3/refund/domestic/refunds',
@@ -750,6 +760,14 @@ class PaymentService:
             timeout=10
         )
         if resp.status_code >= 300:
+            logger.error(
+                '[WECHAT_REFUND] request failed',
+                extra={
+                    'refund_id': refund.id,
+                    'status': resp.status_code,
+                    'text': resp.text
+                }
+            )
             raise RuntimeError(f'退款请求失败: {resp.status_code} {resp.text}')
         data = resp.json()
 

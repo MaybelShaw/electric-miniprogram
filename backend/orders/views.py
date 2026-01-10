@@ -2064,15 +2064,42 @@ class RefundViewSet(viewsets.ModelViewSet):
                 refund.save(update_fields=['status', 'logs', 'updated_at'])
                 return Response({'detail': '未找到可退款的微信支付记录'}, status=status.HTTP_400_BAD_REQUEST)
             if pay.status != 'succeeded':
-                refund.status = 'failed'
-                refund.logs.append({
-                    't': timezone.now().isoformat(),
-                    'event': 'start_failed',
-                    'reason': f'支付状态非已成功: {pay.status}'
-                })
-                refund.save(update_fields=['status', 'logs', 'updated_at'])
-                return Response({'detail': f'支付状态非已成功: {pay.status}'}, status=status.HTTP_400_BAD_REQUEST)
+                # 尝试主动查单同步支付状态
+                try:
+                    result = PaymentService.query_wechat_transaction(pay)
+                    trade_state = result.get('trade_state')
+                    transaction_id = result.get('transaction_id')
+                    if trade_state == 'SUCCESS':
+                        PaymentService.process_payment_success(pay.id, transaction_id=transaction_id, operator=request.user)
+                        pay.refresh_from_db()
+                    else:
+                        refund.status = 'failed'
+                        refund.logs.append({
+                            't': timezone.now().isoformat(),
+                            'event': 'start_failed',
+                            'reason': f'支付状态非已成功: {trade_state or pay.status}'
+                        })
+                        refund.save(update_fields=['status', 'logs', 'updated_at'])
+                        return Response({'detail': f'支付状态非已成功: {trade_state or pay.status}'}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as sync_exc:
+                    refund.status = 'failed'
+                    refund.logs.append({
+                        't': timezone.now().isoformat(),
+                        'event': 'start_failed',
+                        'reason': f'支付状态校验失败: {sync_exc}'
+                    })
+                    refund.save(update_fields=['status', 'logs', 'updated_at'])
+                    return Response({'detail': f'支付状态校验失败: {sync_exc}'}, status=status.HTTP_400_BAD_REQUEST)
             try:
+                logging.getLogger(__name__).info(
+                    '[REFUND_START] calling wechat refund',
+                    extra={
+                        'refund_id': refund.id,
+                        'order_id': refund.order_id,
+                        'payment_id': refund.payment_id,
+                        'amount': str(refund.amount)
+                    }
+                )
                 data = PaymentService.create_wechat_refund(refund, operator=request.user)
             except Exception as exc:
                 refund.status = 'failed'
