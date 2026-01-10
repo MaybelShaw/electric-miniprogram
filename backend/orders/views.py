@@ -2042,6 +2042,36 @@ class RefundViewSet(viewsets.ModelViewSet):
 
         provider = (request.data.get('provider') or (refund.payment.method if refund.payment else 'wechat')).lower()
         if provider == 'wechat':
+            refundable = PaymentService.calculate_refundable_amount(refund.order)
+            if refund.amount > refundable:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': f'退款金额超出可退金额，可退 {refundable}'
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': f'退款金额超出可退金额，可退 {refundable}'}, status=status.HTTP_400_BAD_REQUEST)
+
+            pay = refund.payment or refund.order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+            if not pay:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': '未找到可退款的微信支付记录'
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': '未找到可退款的微信支付记录'}, status=status.HTTP_400_BAD_REQUEST)
+            if pay.status != 'succeeded':
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': f'支付状态非已成功: {pay.status}'
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': f'支付状态非已成功: {pay.status}'}, status=status.HTTP_400_BAD_REQUEST)
             try:
                 data = PaymentService.create_wechat_refund(refund, operator=request.user)
             except Exception as exc:
@@ -2052,7 +2082,7 @@ class RefundViewSet(viewsets.ModelViewSet):
                     'reason': str(exc)
                 })
                 refund.save(update_fields=['status', 'logs', 'updated_at'])
-                return Response({'detail': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
             serializer = RefundSerializer(refund)
             return Response({'refund': serializer.data, 'wechat': data}, status=status.HTTP_200_OK)
 
