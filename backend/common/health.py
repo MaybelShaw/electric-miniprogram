@@ -76,8 +76,8 @@ def health_check(request):
     if overall_status_code != status.HTTP_200_OK:
         health_status['status'] = 'unhealthy'
     
-    # Log health check
-    logger.info(
+    # Log health check (debug to reduce noise in normal logs)
+    logger.debug(
         'Health check performed',
         extra={
             'health_status': health_status['status'],
