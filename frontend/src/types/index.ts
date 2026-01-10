@@ -246,6 +246,22 @@ export interface PaymentStartResponse {
   pay_params?: WechatPayParams | null
 }
 
+export interface Refund {
+  id: number
+  order: number
+  order_number?: string
+  payment?: number | null
+  payment_method?: 'wechat' | 'alipay' | 'bank'
+  amount: string
+  status: 'pending' | 'processing' | 'succeeded' | 'failed'
+  reason: string
+  transaction_id?: string
+  operator?: number | null
+  logs: Array<Record<string, any>>
+  created_at: string
+  updated_at: string
+}
+
 export interface CreateOrderResponse {
   order: Order
   payment: Payment | null

@@ -3,6 +3,7 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
+import { refundService } from '../../services/refund'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, formatTime } from '../../utils/format'
 import './index.scss'
@@ -22,6 +23,7 @@ export default function PaymentResult() {
   const [order, setOrder] = useState<Order | null>(null)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [refunding, setRefunding] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!orderId) return
@@ -133,11 +135,42 @@ export default function PaymentResult() {
     Taro.switchTab({ url: '/pages/home/index' })
   }
 
+  const handleRefund = async () => {
+    if (!order || refunding) return
+    if (!payment) {
+      Taro.showToast({ title: '未找到支付记录，无法退款', icon: 'none' })
+      return
+    }
+    setRefunding(true)
+    try {
+      const amount = String(order.actual_amount || order.total_amount || payment.amount)
+      const refund = await refundService.createRefund({
+        order: order.id,
+        payment: payment.id,
+        amount,
+        reason: '用户申请退款'
+      })
+      await refundService.startRefund(refund.id, { provider: 'wechat' })
+      Taro.showToast({ title: '退款申请已提交', icon: 'success' })
+      await loadData()
+    } catch (error: any) {
+      const msg = error?.message || '退款申请失败'
+      Taro.showToast({ title: msg, icon: 'none' })
+    } finally {
+      setRefunding(false)
+    }
+  }
+
   const showRetry =
     status === 'fail' &&
     order?.status === 'pending' &&
     payment?.status !== 'succeeded' &&
     payment?.status !== 'expired'
+
+  const showRefund =
+    status === 'success' &&
+    order?.status &&
+    ['paid', 'refunding'].includes(order.status)
 
   return (
     <View className='payment-result-page'>
@@ -182,6 +215,11 @@ export default function PaymentResult() {
         {showRetry && (
           <View className={`primary-btn ${retrying ? 'disabled' : ''}`} onClick={retrying ? undefined : handleRetry}>
             {retrying ? '重新支付中...' : '重新支付'}
+          </View>
+        )}
+        {showRefund && (
+          <View className={`primary-btn ${refunding ? 'disabled' : ''}`} onClick={refunding ? undefined : handleRefund}>
+            {refunding ? '退款申请中...' : '申请退款'}
           </View>
         )}
         <View className='secondary-btn' onClick={goOrderDetail}>

@@ -1961,6 +1961,23 @@ class RefundViewSet(viewsets.ModelViewSet):
         refund.logs.append({'t': timezone.now().isoformat(), 'event': 'start'})
         refund.operator = request.user
         refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+
+        provider = (request.data.get('provider') or (refund.payment.method if refund.payment else 'wechat')).lower()
+        if provider == 'wechat':
+            try:
+                data = PaymentService.create_wechat_refund(refund, operator=request.user)
+            except Exception as exc:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': str(exc)
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            serializer = RefundSerializer(refund)
+            return Response({'refund': serializer.data, 'wechat': data}, status=status.HTTP_200_OK)
+
         return Response(RefundSerializer(refund).data)
 
     @action(detail=True, methods=['post'])

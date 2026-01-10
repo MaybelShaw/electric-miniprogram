@@ -365,6 +365,33 @@ class PaymentService:
         return json.loads(plaintext.decode('utf-8'))
 
     @staticmethod
+    def _extract_refund_id(out_refund_no: str) -> Optional[int]:
+        """从自定义的 out_refund_no 中解析退款ID。
+
+        约定格式: <order_no>-R<refund_id>，或包含 refund-<id>/R<id> 片段。
+        """
+        if not out_refund_no:
+            return None
+        patterns = [
+            r'-R(\d+)$',
+            r'refund[-_]?(\d+)$',
+            r'R(\d+)$',
+        ]
+        for pat in patterns:
+            m = re.search(pat, str(out_refund_no))
+            if m:
+                try:
+                    return int(m.group(1))
+                except Exception:
+                    continue
+        if str(out_refund_no).isdigit():
+            try:
+                return int(out_refund_no)
+            except Exception:
+                return None
+        return None
+
+    @staticmethod
     def _extract_payment_from_attach(attach) -> Optional[int]:
         """解析回调 attach 中的 payment_id."""
         if attach is None:
@@ -476,6 +503,78 @@ class PaymentService:
         }, None
 
     @staticmethod
+    def parse_wechat_refund_callback(request) -> tuple[Optional[Dict], Optional[str]]:
+        """
+        解析并验证微信退款回调，返回包含退款数据的字典。
+
+        返回 (result, error)，其中 result 包含:
+        {
+            'refund': Refund,
+            'refund_status': str,
+            'transaction_id': str,  # 微信 refund_id
+            'out_refund_no': str,
+            'refund_data': dict,
+        }
+        """
+        raw_body = request.body.decode('utf-8') if getattr(request, 'body', None) else ''
+        headers = getattr(request, 'headers', {}) or {}
+        if not raw_body:
+            return None, '回调体为空'
+        try:
+            payload = json.loads(raw_body)
+        except Exception:
+            return None, '回调内容不是有效的JSON'
+
+        PaymentService._log_debug('wechat refund callback raw', {
+            'headers': dict(headers),
+            'body': raw_body
+        })
+
+        if not PaymentService.verify_wechat_http_signature(headers, raw_body):
+            return None, '回调签名验证失败'
+
+        resource = payload.get('resource')
+        try:
+            refund_data = PaymentService.decrypt_wechat_resource(resource)
+        except Exception as exc:
+            return None, f'回调资源解密失败: {exc}'
+        PaymentService._log_debug('wechat refund callback parsed', {'refund': refund_data})
+
+        out_refund_no = refund_data.get('out_refund_no')
+        refund_id = PaymentService._extract_refund_id(out_refund_no)
+        from .models import Refund
+        refund = Refund.objects.select_related('order', 'payment').filter(id=refund_id).first() if refund_id else None
+        if refund is None and out_refund_no and isinstance(out_refund_no, str):
+            # 兜底：根据订单号+最近创建时间匹配
+            from .models import Order
+            out_trade_no = refund_data.get('out_trade_no')
+            if out_trade_no:
+                try:
+                    order = Order.objects.get(order_number=out_trade_no)
+                    refund = Refund.objects.filter(order=order).order_by('-created_at').first()
+                except Order.DoesNotExist:
+                    refund = None
+        if refund is None:
+            return None, '未找到对应的退款记录'
+
+        try:
+            amount_refund = refund_data.get('amount', {}).get('refund')
+            amount_decimal = (Decimal(str(amount_refund)) / Decimal('100')) if amount_refund is not None else None
+        except Exception:
+            return None, '退款金额解析失败'
+
+        if amount_decimal is not None and amount_decimal != refund.amount:
+            return None, '回调退款金额与记录不一致'
+
+        return {
+            'refund': refund,
+            'refund_status': refund_data.get('refund_status'),
+            'transaction_id': refund_data.get('refund_id') or refund_data.get('transaction_id'),
+            'out_refund_no': out_refund_no,
+            'refund_data': refund_data,
+        }, None
+
+    @staticmethod
     def ensure_payment_startable(payment) -> tuple[bool, str]:
         """检查支付是否可开始/继续。
 
@@ -508,6 +607,111 @@ class PaymentService:
         refunded_amount = sum([r.amount for r in Refund.objects.filter(order=order, status='succeeded')])
         available = Decimal(str(paid_amount)) - Decimal(str(refunded_amount))
         return available if available > 0 else Decimal('0')
+
+    @staticmethod
+    def _resolve_wechat_transaction_id(payment) -> str | None:
+        """尝试从支付日志解析微信交易ID。"""
+        if not payment or not payment.logs:
+            return None
+        try:
+            for entry in payment.logs:
+                if isinstance(entry, dict) and entry.get('transaction_id'):
+                    return entry.get('transaction_id')
+        except Exception:
+            return None
+        return None
+
+    @staticmethod
+    def create_wechat_refund(refund, operator=None) -> Dict:
+        """调用微信退款接口，发起退款请求。"""
+        from .models import Payment
+
+        order = refund.order
+        payment: Payment | None = refund.payment or order.payments.filter(status='succeeded').order_by('-created_at').first()
+        if payment is None:
+            raise RuntimeError('未找到成功支付记录，无法退款')
+        if payment.method != 'wechat':
+            raise RuntimeError('当前退款仅支持微信支付订单')
+
+        appid = getattr(settings, 'WECHAT_APPID', '')
+        mchid = getattr(settings, 'WECHAT_PAY_MCHID', '')
+        serial_no = getattr(settings, 'WECHAT_PAY_SERIAL_NO', '')
+        notify_url = getattr(settings, 'WECHAT_PAY_REFUND_NOTIFY_URL', '')
+        private_key = PaymentService._load_private_key()
+        api_v3_key = getattr(settings, 'WECHAT_PAY_API_V3_KEY', '')
+        if not (appid and mchid and serial_no and notify_url and private_key and api_v3_key):
+            raise RuntimeError('微信退款配置不完整，请检查appid、商户号、证书序列号、私钥、APIv3密钥及退款通知地址')
+
+        refundable = PaymentService.calculate_refundable_amount(order)
+        if refund.amount > refundable:
+            raise RuntimeError(f'退款金额超出可退金额，可退 {refundable}')
+
+        total_cents = int((Decimal(payment.amount) * 100).quantize(Decimal('1')))
+        refund_cents = int((Decimal(refund.amount) * 100).quantize(Decimal('1')))
+        out_refund_no = f"{order.order_number}-R{refund.id}"
+        transaction_id = PaymentService._resolve_wechat_transaction_id(payment)
+
+        body = {
+            "out_trade_no": order.order_number,
+            "out_refund_no": out_refund_no,
+            "reason": refund.reason or "用户申请退款",
+            "notify_url": notify_url,
+            "amount": {
+                "refund": refund_cents,
+                "total": total_cents,
+                "currency": "CNY"
+            }
+        }
+        if transaction_id:
+            body["transaction_id"] = transaction_id
+
+        json_body = json.dumps(body, separators=(',', ':'))
+        nonce_str = uuid.uuid4().hex
+        timestamp = str(int(time.time()))
+        canonical_url = '/v3/refund/domestic/refunds'
+        message = f"POST\n{canonical_url}\n{timestamp}\n{nonce_str}\n{json_body}\n"
+        signature = PaymentService._sign_rsa(message)
+
+        auth_header = (
+            'WECHATPAY2-SHA256-RSA2048 '
+            f'mchid="{mchid}",'
+            f'nonce_str="{nonce_str}",'
+            f'signature="{signature}",'
+            f'timestamp="{timestamp}",'
+            f'serial_no="{serial_no}"'
+        )
+        headers = {
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Accept': 'application/json',
+            'Authorization': auth_header,
+        }
+
+        PaymentService._log_debug('wechat refund request body', {'body': body})
+
+        resp = requests.post(
+            'https://api.mch.weixin.qq.com/v3/refund/domestic/refunds',
+            data=json_body,
+            headers=headers,
+            timeout=10
+        )
+        if resp.status_code >= 300:
+            raise RuntimeError(f'退款请求失败: {resp.status_code} {resp.text}')
+        data = resp.json()
+
+        refund.status = 'processing'
+        refund.transaction_id = data.get('refund_id') or refund.transaction_id
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'wechat_refund_request',
+            'out_refund_no': out_refund_no,
+            'refund_id': data.get('refund_id'),
+            'response_status': data.get('status'),
+            'operator': getattr(operator, 'username', '') or 'system'
+        })
+        refund.save(update_fields=['status', 'transaction_id', 'logs', 'updated_at'])
+
+        PaymentService._log_debug('wechat refund response', data)
+        return data
 
     @staticmethod
     def check_user_payment_frequency(user, window_seconds: int = 5) -> tuple[bool, str]:
@@ -736,6 +940,69 @@ class PaymentService:
             pass
 
         return payment
+    
+    @staticmethod
+    @transaction.atomic
+    def process_refund_success(refund_id: int, transaction_id: str = None, operator=None):
+        """处理退款成功的业务逻辑。"""
+        from .models import Refund
+        from .state_machine import OrderStateMachine
+        from users.services import create_notification
+
+        refund = Refund.objects.select_for_update().select_related('order').get(id=refund_id)
+        if refund.status == 'succeeded':
+            return refund
+
+        # 防止超额
+        refundable = PaymentService.calculate_refundable_amount(refund.order)
+        if refund.amount > refundable + Decimal('0'):
+            raise ValueError('退款金额超出可退金额')
+
+        refund.status = 'succeeded'
+        if transaction_id:
+            refund.transaction_id = transaction_id
+        refund.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'refund_succeeded',
+            'transaction_id': refund.transaction_id,
+            'operator': getattr(operator, 'username', '') or 'system'
+        })
+        refund.save(update_fields=['status', 'transaction_id', 'logs', 'updated_at'])
+
+        total_refunded = sum([r.amount for r in refund.order.refunds.filter(status='succeeded')])
+        try:
+            if total_refunded >= (refund.order.actual_amount or refund.order.total_amount):
+                OrderStateMachine.transition(refund.order, 'refunded', operator=operator, note='退款完成')
+            elif refund.order.status != 'refunding':
+                OrderStateMachine.transition(refund.order, 'refunding', operator=operator, note='部分退款中')
+        except Exception:
+            pass
+
+        try:
+            create_notification(
+                refund.order.user,
+                title='退款成功',
+                content=f'订单 {refund.order.order_number} 退款成功，金额 ¥{refund.amount}',
+                ntype='refund',
+                metadata={
+                    'order_id': refund.order.id,
+                    'order_number': refund.order.order_number,
+                    'refund_id': refund.id,
+                    'payment_id': refund.payment_id,
+                    'status': refund.status,
+                    'amount': str(refund.amount),
+                    'page': f'pages/order-detail/index?id={refund.order.id}',
+                    'subscription_data': {
+                        'thing1': {'value': f'订单 {refund.order.order_number}'[:20]},
+                        'time2': {'value': timezone.localtime(refund.updated_at).strftime('%Y-%m-%d %H:%M') if refund.updated_at else ''},
+                        'thing3': {'value': f'退款金额 ¥{refund.amount}'[:20]},
+                    },
+                }
+            )
+        except Exception:
+            pass
+
+        return refund
     
     @staticmethod
     def validate_payment_creation(order, payment_amount: Decimal = None) -> tuple[bool, str]:
