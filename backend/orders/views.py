@@ -1867,6 +1867,8 @@ class PaymentCallbackView(APIView):
                         transaction_id=transaction_id,
                         operator=None
                     )
+                    # refresh local status to avoid后续误覆盖
+                    payment.status = 'succeeded'
                     logger.info(f'支付成功处理: payment_id={payment.id}, transaction_id={transaction_id}')
 
                 # 处理支付失败
@@ -1946,8 +1948,8 @@ class PaymentCallbackView(APIView):
                         'payment_processing',
                         details={'provider': provider}
                     )
-                payment.save()
-                logger.info(f'支付处理中: payment_id={payment.id}')
+                    payment.save()
+                    logger.info(f'支付处理中: payment_id={payment.id}')
         
         except Exception as e:
             logger.error(f'处理支付回调异常: {str(e)}')
