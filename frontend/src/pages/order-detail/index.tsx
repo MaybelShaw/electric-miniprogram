@@ -289,7 +289,7 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
   }
 
-  const canConfirmReceipt = order.status === 'shipped' && !order.return_info && !['refunding', 'refunded', 'cancelled'].includes(order.status)
+  const canConfirmReceipt = !!order && order.status === 'shipped' && !order.return_info && !['refunding', 'refunded', 'cancelled'].includes(order.status)
 
   const getDisplayStatus = (order: Order) => {
     if (order.return_info) {
@@ -543,15 +543,15 @@ export default function OrderDetail() {
       {/* 底部操作栏 */}
       {(['pending', 'paid', 'shipped', 'completed'].includes(order.status) || (order.return_info && order.return_info.status === 'requested')) && (
         <View className='footer-bar'>
-          {(order.status === 'pending' || order.status === 'paid') && (
+          {(['pending', 'paid'].includes(order.status)) && !order.return_info && (
             <View className='cancel-btn' onClick={handleCancelOrder}>
-              取消订单
+              {order.status === 'paid' ? '取消并退款' : '取消订单'}
             </View>
           )}
           
-          {/* 申请退货: paid, shipped, completed 且无退货申请 */}
-          {['paid', 'shipped', 'completed'].includes(order.status) && !order.return_info && (
-            <View className='cancel-btn' onClick={handleRequestReturn} style={{ marginLeft: '20rpx' }}>
+          {/* 申请退货: 仅已发货/已完成 且无退货申请 */}
+          {['shipped', 'completed'].includes(order.status) && !order.return_info && (
+            <View className='cancel-btn ghost' onClick={handleRequestReturn} style={{ marginLeft: '20rpx' }}>
               申请退货
             </View>
           )}

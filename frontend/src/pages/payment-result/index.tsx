@@ -24,6 +24,7 @@ export default function PaymentResult() {
   const [payment, setPayment] = useState<Payment | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [refunding, setRefunding] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     if (!orderId) return
@@ -34,8 +35,14 @@ export default function PaymentResult() {
       if (payRes.results && payRes.results.length > 0) {
         setPayment(payRes.results[0])
       }
+      // 订单已支付/已发货/已完成时，强制视为成功
+      if (orderRes.status && ['paid', 'shipped', 'completed'].includes(orderRes.status as any)) {
+        setStatus('success')
+      }
     } catch (err) {
       Taro.showToast({ title: '加载失败', icon: 'none' })
+    } finally {
+      setLoading(false)
     }
   }, [orderId])
 
@@ -119,6 +126,14 @@ export default function PaymentResult() {
       })
     } catch (error: any) {
       const msg = error?.errMsg || error?.message || '支付失败'
+      // 若订单后端已更新为成功/发货，则兜底展示成功页
+      if (order?.status && ['paid', 'shipped', 'completed'].includes(order.status as any)) {
+        setStatus('success')
+        Taro.redirectTo({
+          url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${payment?.id || ''}`
+        })
+        return
+      }
       Taro.showToast({ title: msg, icon: 'none' })
       setStatus('fail')
     } finally {
@@ -167,10 +182,8 @@ export default function PaymentResult() {
     payment?.status !== 'succeeded' &&
     payment?.status !== 'expired'
 
-  const showRefund =
-    status === 'success' &&
-    order?.status &&
-    ['paid', 'refunding'].includes(order.status)
+  // 支付结果页不直接暴露退款入口，避免干扰状态流转
+  const showRefund = false
 
   return (
     <View className='payment-result-page'>

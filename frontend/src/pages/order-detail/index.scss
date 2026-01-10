@@ -358,6 +358,11 @@
       &:active {
         background: $background-color-base;
       }
+
+      &.ghost {
+        background: rgba(255, 255, 255, 0.8);
+        color: $text-color-secondary;
+      }
     }
 
     .pay-btn {
