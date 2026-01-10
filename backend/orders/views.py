@@ -372,6 +372,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def cancel(self, request, pk=None):
         """取消订单：本人或管理员可取消，使用状态机进行状态转换"""
+        logger = logging.getLogger(__name__)
         order = self.get_object()
         user = request.user
         if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
@@ -382,6 +383,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
             reason = request.data.get('reason', '')
+            logger.info('[ORDER_CANCEL] start', extra={'order_id': order.id, 'user_id': user.id, 'reason': reason, 'note': note})
             if reason:
                 order.cancel_reason = reason
             order.cancelled_at = timezone.now()
@@ -396,6 +398,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             try:
                 refundable = PaymentService.calculate_refundable_amount(order)
                 pay = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+                logger.info('[ORDER_CANCEL] refund check', extra={'order_id': order.id, 'refundable': str(refundable), 'pay_id': pay.id if pay else None, 'pay_status': getattr(pay, "status", None)})
                 if pay and refundable > 0:
                     reason_text = order.cancel_reason or note or '订单取消自动退款'
                     refund, err = PaymentService.start_order_refund(
@@ -406,11 +409,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                         payment=pay
                     )
                     if err:
-                        logging.getLogger(__name__).error(f'取消订单自动退款失败: order_id={order.id}, err={err}')
+                        logger.error(f'取消订单自动退款失败: order_id={order.id}, err={err}', extra={'refund_id': refund.id if refund else None})
                 elif refundable > 0:
-                    logging.getLogger(__name__).info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
+                    logger.info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
             except Exception as refund_exc:
-                logging.getLogger(__name__).error(f'取消订单触发退款异常: {refund_exc}')
+                logger.exception(f'取消订单触发退款异常: {refund_exc}')
             try:
                 from users.services import create_notification
                 create_notification(
@@ -457,6 +460,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.exception(f'取消订单失败: order_id={order.id}')
             return Response({"detail": f"取消订单失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])

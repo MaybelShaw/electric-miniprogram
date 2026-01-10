@@ -617,6 +617,16 @@ class PaymentService:
         from .models import Refund
         from decimal import Decimal, InvalidOperation
 
+        logger.info(
+            '[ORDER_REFUND] start_order_refund',
+            extra={
+                'order_id': getattr(order, 'id', None),
+                'amount': str(amount),
+                'reason': reason,
+                'payment_id': getattr(payment, 'id', None),
+                'operator': getattr(operator, 'id', None)
+            }
+        )
         try:
             amt = Decimal(str(amount))
         except (InvalidOperation, TypeError):
@@ -652,6 +662,7 @@ class PaymentService:
         try:
             PaymentService.create_wechat_refund(refund, operator=operator)
         except Exception as exc:
+            logger.exception('[ORDER_REFUND] create_wechat_refund failed', extra={'refund_id': refund.id, 'order_id': order.id})
             refund.status = 'failed'
             refund.logs.append({
                 't': timezone.now().isoformat(),
