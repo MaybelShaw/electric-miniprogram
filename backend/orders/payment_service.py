@@ -981,13 +981,19 @@ class PaymentService:
         
         # 使用状态机更新订单状态
         try:
-            OrderStateMachine.transition(
-                payment.order,
-                'paid',
-                operator=operator,
-                note=f'Payment succeeded with transaction_id: {transaction_id}' if transaction_id else 'Payment succeeded'
-            )
-            logger.info(f'订单#{payment.order_id}状态已更新为paid')
+            if OrderStateMachine.can_transition(payment.order.status, 'paid'):
+                OrderStateMachine.transition(
+                    payment.order,
+                    'paid',
+                    operator=operator,
+                    note=f'Payment succeeded with transaction_id: {transaction_id}' if transaction_id else 'Payment succeeded'
+                )
+                logger.info(f'订单#{payment.order_id}状态已更新为paid')
+            else:
+                logger.info(
+                    '跳过订单状态更新，当前状态不允许转paid',
+                    extra={'order_id': payment.order_id, 'status': payment.order.status}
+                )
         except ValueError as e:
             logger.error(f'订单状态转换失败: {str(e)}')
             # 记录状态转换失败的日志，但不中断支付处理

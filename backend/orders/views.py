@@ -372,7 +372,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def cancel(self, request, pk=None):
         """取消订单：本人或管理员可取消，使用状态机进行状态转换"""
-        logger = logging.getLogger(__name__)
+        import logging as pylogging
+        logger = pylogging.getLogger(__name__)
         order = self.get_object()
         user = request.user
         if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
@@ -388,32 +389,56 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.cancel_reason = reason
             order.cancelled_at = timezone.now()
             order.save(update_fields=['cancel_reason', 'cancelled_at'])
-            order = OrderStateMachine.transition(
-                order,
-                'cancelled',
-                operator=user,
-                note=note
+
+            refundable_snapshot = PaymentService.calculate_refundable_amount(order)
+            pay_snapshot = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+            should_refund = bool(
+                pay_snapshot and refundable_snapshot > 0 and OrderStateMachine.can_transition(order.status, 'refunding')
             )
+            refund = None
+            refund_err = None
+
             # 自动退款（微信支付）
             try:
-                refundable = PaymentService.calculate_refundable_amount(order)
-                pay = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
+                refundable = refundable_snapshot
+                pay = pay_snapshot
                 logger.info('[ORDER_CANCEL] refund check', extra={'order_id': order.id, 'refundable': str(refundable), 'pay_id': pay.id if pay else None, 'pay_status': getattr(pay, "status", None)})
-                if pay and refundable > 0:
+                if should_refund:
                     reason_text = order.cancel_reason or note or '订单取消自动退款'
-                    refund, err = PaymentService.start_order_refund(
+                    refund, refund_err = PaymentService.start_order_refund(
                         order,
                         refundable,
                         reason=reason_text,
                         operator=user,
                         payment=pay
                     )
-                    if err:
-                        logger.error(f'取消订单自动退款失败: order_id={order.id}, err={err}', extra={'refund_id': refund.id if refund else None})
+                    if refund_err:
+                        logger.error(f'取消订单自动退款失败: order_id={order.id}, err={refund_err}', extra={'refund_id': refund.id if refund else None})
                 elif refundable > 0:
                     logger.info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
             except Exception as refund_exc:
+                refund_err = str(refund_exc)
                 logger.exception(f'取消订单触发退款异常: {refund_exc}')
+
+            # 状态机更新（根据退款结果）
+            try:
+                if should_refund and not refund_err and OrderStateMachine.can_transition(order.status, 'refunding'):
+                    order = OrderStateMachine.transition(
+                        order,
+                        'refunding',
+                        operator=user,
+                        note=note or '订单取消，退款处理中'
+                    )
+                else:
+                    order = OrderStateMachine.transition(
+                        order,
+                        'cancelled',
+                        operator=user,
+                        note=note
+                    )
+            except Exception as state_exc:
+                logger.exception(f'取消订单状态更新失败: {state_exc}', extra={'order_id': order.id})
+                return Response({"detail": f"取消订单失败: {state_exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             try:
                 from users.services import create_notification
                 create_notification(
