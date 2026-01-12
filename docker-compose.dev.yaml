@@ -62,6 +62,7 @@ services:
       - /app/node_modules
     environment:
       - VITE_BACKEND_ORIGIN=http://backend:8000
+      - NODE_OPTIONS=--max-old-space-size=4096
     depends_on:
       - backend
     command: sh -c "npm ci || npm install && npm run dev -- --host 0.0.0.0"
