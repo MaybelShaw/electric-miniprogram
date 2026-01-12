@@ -196,22 +196,6 @@ export default function Orders() {
     }
   };
 
-  const handleRetryRefund = async (orderId: number) => {
-    try {
-      const list: any = await getRefunds({ order_id: orderId, page_size: 1 });
-      const refund = list?.results?.[0];
-      if (!refund) {
-        message.warning('未找到退款记录');
-        return;
-      }
-      await startRefund(refund.id, { provider: 'wechat' });
-      message.success('已重新发起微信退款');
-      actionRef.current?.reload();
-    } catch (error: any) {
-      message.error(error?.response?.data?.detail || error?.message || '重试退款失败');
-    }
-  };
-
   const handleComplete = async (id: number) => {
     try {
       await completeOrder(id);
