@@ -85,7 +85,7 @@ export interface Order {
   product: Product;
   quantity: number;
   total_amount: number;
-  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'refunding' | 'refunded';
+  status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'returning' | 'refunding' | 'refunded';
   is_haier_order: boolean;
   haier_order_info?: HaierOrderInfo;
   snapshot_contact_name: string;
