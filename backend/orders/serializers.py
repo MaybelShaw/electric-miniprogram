@@ -53,6 +53,7 @@ class OrderSerializer(serializers.ModelSerializer):
     expires_at = serializers.SerializerMethodField()
     items = OrderItemSerializer(many=True, read_only=True)
     quantity = serializers.SerializerMethodField()
+    payment_method = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -68,6 +69,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "actual_amount",
             "status",
             "status_label",
+            "payment_method",
             "created_at",
             "updated_at",
             "expires_at",
@@ -108,6 +110,21 @@ class OrderSerializer(serializers.ModelSerializer):
             'refunded': '已退款',
         }
         return mapping.get(obj.status, obj.status)
+
+    def get_payment_method(self, obj: Order) -> str:
+        # 优先检查关联的支付记录
+        payment = obj.payments.first()
+        if payment:
+            return payment.method
+            
+        # 检查是否为信用支付
+        # 这里为了避免循环引用，在方法内部导入
+        from users.models import AccountTransaction
+        # 检查是否存在关联的采购交易
+        if AccountTransaction.objects.filter(order_id=obj.id, transaction_type='purchase').exists():
+            return 'credit'
+            
+        return 'unknown'
     
     def get_is_haier_order(self, obj: Order) -> bool:
         """判断是否为海尔订单"""
