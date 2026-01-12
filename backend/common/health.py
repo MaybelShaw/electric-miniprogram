@@ -159,11 +159,24 @@ def _check_cache():
         if cached_value == test_value:
             # Clean up
             cache.delete(test_key)
-            
-    return {
-        'status': 'healthy',
-        'response_time_ms': round(response_time_ms, 2)
-    }
+            return {
+                'status': 'healthy',
+                'response_time_ms': round(response_time_ms, 2)
+            }
+        return {
+            'status': 'unhealthy',
+            'error': 'Cache value mismatch'
+        }
+    except Exception as e:
+        logger.error(
+            'Cache health check failed',
+            exc_info=e,
+            extra={'error': str(e)}
+        )
+        return {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
 
 
 def _check_wechatpay_config(strict: bool = False):
@@ -185,18 +198,3 @@ def _check_wechatpay_config(strict: bool = False):
             raise RuntimeError(msg)
         logging.getLogger(__name__).warning(msg)
     return True
-        else:
-            return {
-                'status': 'unhealthy',
-                'error': 'Cache value mismatch'
-            }
-    except Exception as e:
-        logger.error(
-            'Cache health check failed',
-            exc_info=e,
-            extra={'error': str(e)}
-        )
-        return {
-            'status': 'unhealthy',
-            'error': str(e)
-        }
