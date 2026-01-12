@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Optional, Any
 from datetime import datetime, timedelta
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +13,14 @@ class HaierAPI:
         self.client_id = config.get('client_id')
         self.client_secret = config.get('client_secret')
         self.token_url = config.get('token_url')
-        self.base_url = config.get('base_url')
+        self.base_url = (config.get('base_url') or '').rstrip('/')
         self.customer_code = config.get('customer_code')
         self.send_to_code = config.get('send_to_code')
         self.supplier_code = config.get('supplier_code', '1001')
         self.password = config.get('password')
         self.seller_password = config.get('seller_password')
         self.customer_password = config.get('customer_password', self.password)
+        self.debug = bool(config.get('debug', False))
         self.access_token: Optional[str] = None
         self.token_type: str = 'Bearer'
         self.token_expiry: Optional[datetime] = None
@@ -36,7 +38,29 @@ class HaierAPI:
             'supplier_code': getattr(settings, 'HAIER_SUPPLIER_CODE', '1001'),
             'password': getattr(settings, 'HAIER_PASSWORD', ''),
             'seller_password': getattr(settings, 'HAIER_SELLER_PASSWORD', ''),
+            'debug': getattr(settings, 'INTEGRATIONS_API_DEBUG', False),
         })
+
+    def _mask(self, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            masked = {}
+            for k, v in obj.items():
+                lk = str(k).lower()
+                if lk in ('authorization', 'client_secret', 'password', 'sellerpassword', 'customerpassword', 'token', 'access_token', 'secret', 'sign'):
+                    masked[k] = '***'
+                else:
+                    masked[k] = self._mask(v)
+            return masked
+        if isinstance(obj, list):
+            return [self._mask(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 800:
+            return obj[:800] + '...'
+        return obj
+
+    def _debug_log(self, event: str, payload: Dict[str, Any]):
+        if not self.debug:
+            return
+        logger.debug("haier_api_debug %s %s", event, json.dumps(self._mask(payload), ensure_ascii=False, default=str))
 
     def authenticate(self) -> bool:
         try:
@@ -45,20 +69,39 @@ class HaierAPI:
                 'client_secret': self.client_secret,
                 'grant_type': 'client_credentials',
             }
-            res = requests.post(self.token_url, headers={'Content-Type': 'application/json'}, data=json.dumps(body), timeout=10)
-            if res.status_code != 200:
-                logger.error(f'haier auth failed: {res.status_code} {res.text}')
-                return False
-            data = res.json() if res.text else {}
-            token = data.get('access_token') or data.get('token') or (data.get('data') or {}).get('access_token') or (data.get('data') or {}).get('token')
-            if not token:
-                logger.error('haier auth no token')
-                return False
-            self.access_token = token
-            self.token_type = data.get('token_type', 'Bearer')
-            expires_in = data.get('expires_in', 3600)
-            self.token_expiry = datetime.now() + timedelta(seconds=max(int(expires_in) - 600, 300))
-            return True
+            token_urls = [self.token_url]
+            if isinstance(self.token_url, str) and self.token_url.endswith('/oauth2/auth'):
+                token_urls.append(self.token_url[:-len('/oauth2/auth')] + '/oauth2/token')
+
+            last_res = None
+            for url in token_urls:
+                started = time.monotonic()
+                res = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(body), timeout=10)
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                last_res = res
+                self._debug_log("auth_response", {"url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
+                if res.status_code == 200:
+                    data = res.json() if res.text else {}
+                    token = (
+                        data.get('access_token')
+                        or data.get('token')
+                        or (data.get('data') or {}).get('access_token')
+                        or (data.get('data') or {}).get('token')
+                    )
+                    if not token:
+                        logger.error('haier auth no token')
+                        return False
+                    self.access_token = token
+                    self.token_type = data.get('token_type', 'Bearer') or 'Bearer'
+                    expires_in = data.get('expires_in', 3600)
+                    self.token_expiry = datetime.now() + timedelta(seconds=max(int(expires_in) - 600, 300))
+                    return True
+
+            if last_res is not None:
+                logger.error(f'haier auth failed: {last_res.status_code} {last_res.text}')
+            else:
+                logger.error('haier auth failed: no response')
+            return False
         except Exception as e:
             logger.error(f'haier auth error: {str(e)}')
             return False
@@ -69,7 +112,7 @@ class HaierAPI:
         return True
 
     def _auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'{self.access_token}', 'Content-Type': 'application/json'}
+        return {'Authorization': f'{self.token_type} {self.access_token}', 'Content-Type': 'application/json'}
 
     def get_products(self, product_codes: Optional[List[str]] = None) -> Optional[List[Dict[str, Any]]]:
         if not self._ensure_authenticated():
@@ -86,7 +129,11 @@ class HaierAPI:
         if product_codes:
             body['productCodes'] = product_codes[:20]
         try:
+            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            started = time.monotonic()
             res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
                 logger.error(f'haier products failed: {res.status_code} {res.text}')
                 return None
@@ -108,7 +155,11 @@ class HaierAPI:
             'passWord': self.password,
         }
         try:
+            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            started = time.monotonic()
             res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
                 logger.error(f'haier prices failed: {res.status_code} {res.text}')
                 return None
@@ -131,7 +182,11 @@ class HaierAPI:
             'sellerPassword': self.seller_password,
         }
         try:
+            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            started = time.monotonic()
             res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
                 logger.error(f'haier stock failed: {res.status_code} {res.text}')
                 return None
@@ -155,7 +210,11 @@ class HaierAPI:
         if member_id is not None:
             body['memberId'] = member_id
         try:
+            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            started = time.monotonic()
             res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
                 logger.error(f'haier logistics failed: {res.status_code} {res.text}')
                 return None
@@ -174,7 +233,11 @@ class HaierAPI:
             'customerPassword': self.customer_password,
         }
         try:
+            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            started = time.monotonic()
             res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
                 logger.error(f'haier balance failed: {res.status_code} {res.text}')
                 return None
@@ -183,31 +246,3 @@ class HaierAPI:
         except Exception as e:
             logger.error(f'haier balance error: {str(e)}')
             return None
-
-
-if __name__ == '__main__':
-    test_config = {
-        'client_id': '7RKuo0yBew5yRAq9oSwZw8PseXkNHpLb',
-        'client_secret': 'y8Dt0YYDoQSY3DphKa79XkfpWoDqPnGp',
-        'token_url': 'https://openplat-test.haier.net/oauth2/auth',
-        'base_url': 'https://openplat-test.haier.net',
-        'customer_code': '8800627808',
-        'send_to_code': '8800627808',
-        'supplier_code': '1001',
-        'password': 'Test,123',
-        'seller_password': 'Test,123',
-    }
-    api = HaierAPI(test_config)
-    ok = api.authenticate()
-    print('auth:', ok)
-    if ok:
-        prods = api.get_products(product_codes=['NQ0054000'])
-        print('products sample:', str(prods)[:200])
-        prices = api.get_product_prices(['NQ0054000'])
-        print('prices sample:', str(prices)[:200])
-        stock = api.check_stock('NQ0054000', '110101')
-        print('stock sample:', str(stock)[:200])
-        logistics = api.get_logistics_info('SO.20190106.000003', 'SO.20190106.000003.F1', 12345)
-        print('logistics sample:', str(logistics)[:200])
-        balance = api.get_account_balance()
-        print('balance sample:', str(balance)[:200])

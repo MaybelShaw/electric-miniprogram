@@ -12,24 +12,7 @@ import logging
 import os
 import json
 
-try:
-    from .haierapi import HaierAPI
-except Exception:
-    class HaierAPI:  # type: ignore
-        def __init__(self, config):
-            self.config = config
-        def authenticate(self):
-            return False
-        def get_products(self, *args, **kwargs):
-            return []
-        def get_product_prices(self, *args, **kwargs):
-            return []
-        def check_stock(self, *args, **kwargs):
-            return {}
-        def get_account_balance(self, *args, **kwargs):
-            return {}
-        def get_logistics_info(self, *args, **kwargs):
-            return {}
+from .haierapi import HaierAPI
 from .ylhapi import YLHSystemAPI
 from .models import HaierConfig, HaierSyncLog
 

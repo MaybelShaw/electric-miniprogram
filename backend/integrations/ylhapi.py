@@ -42,6 +42,7 @@ class YLHSystemAPI:
         self.password = config.get('password')
         self.client_id = config.get('client_id', 'open_api_erp')
         self.client_secret = config.get('client_secret', '12345678')
+        self.debug = bool(config.get('debug', False))
         
         self.access_token = None
         self.token_type = None
@@ -58,8 +59,30 @@ class YLHSystemAPI:
             'password': getattr(settings, 'YLH_PASSWORD', ''),
             'client_id': getattr(settings, 'YLH_CLIENT_ID', 'open_api_erp'),
             'client_secret': getattr(settings, 'YLH_CLIENT_SECRET', '12345678'),
+            'debug': getattr(settings, 'INTEGRATIONS_API_DEBUG', False),
         }
         return cls(config)
+
+    def _mask(self, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            masked = {}
+            for k, v in obj.items():
+                lk = str(k).lower()
+                if lk in ('authorization', 'client_secret', 'password', 'token', 'access_token', 'secret', 'sign'):
+                    masked[k] = '***'
+                else:
+                    masked[k] = self._mask(v)
+            return masked
+        if isinstance(obj, list):
+            return [self._mask(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 800:
+            return obj[:800] + '...'
+        return obj
+
+    def _debug_log(self, event: str, payload: Dict[str, Any]):
+        if not self.debug:
+            return
+        logger.debug("ylh_api_debug %s %s", event, json.dumps(self._mask(payload), ensure_ascii=False, default=str))
     
     def _get_basic_auth(self) -> str:
         """
@@ -146,7 +169,12 @@ class YLHSystemAPI:
     def _post_form(self, url, data, headers, timeout=10, retries=1):
         for attempt in range(retries + 1):
             try:
+                if attempt == 0:
+                    self._debug_log("request", {"method": "POST", "url": url, "headers": headers, "data": data})
+                started = time.monotonic()
                 response = requests.post(url, headers=headers, data=data, timeout=timeout)
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                self._debug_log("response", {"method": "POST", "url": url, "status_code": response.status_code, "elapsed_ms": elapsed_ms, "text": response.text})
                 if response.status_code == 200:
                     return response
                 if attempt < retries:
@@ -162,7 +190,12 @@ class YLHSystemAPI:
     def _post_json(self, url, body, headers, timeout=30, retries=1):
         for attempt in range(retries + 1):
             try:
+                if attempt == 0:
+                    self._debug_log("request", {"method": "POST", "url": url, "headers": headers, "json": body})
+                started = time.monotonic()
                 response = requests.post(url, headers=headers, data=json.dumps(body), timeout=timeout)
+                elapsed_ms = int((time.monotonic() - started) * 1000)
+                self._debug_log("response", {"method": "POST", "url": url, "status_code": response.status_code, "elapsed_ms": elapsed_ms, "text": response.text})
                 if response.status_code == 200:
                     return response
                 if attempt < retries:
@@ -427,6 +460,34 @@ class YLHCallbackHandler:
         """
         self.app_key = app_key
         self.secret = secret
+
+    def _callback_debug_enabled(self) -> bool:
+        try:
+            from django.conf import settings
+            return bool(getattr(settings, 'INTEGRATIONS_CALLBACK_DEBUG', False))
+        except Exception:
+            return False
+
+    def _mask(self, obj: Any) -> Any:
+        if isinstance(obj, dict):
+            masked = {}
+            for k, v in obj.items():
+                lk = str(k).lower()
+                if lk in ('sign', 'authorization', 'secret', 'client_secret', 'password', 'token', 'access_token'):
+                    masked[k] = '***'
+                else:
+                    masked[k] = self._mask(v)
+            return masked
+        if isinstance(obj, list):
+            return [self._mask(v) for v in obj]
+        if isinstance(obj, str) and len(obj) > 800:
+            return obj[:800] + '...'
+        return obj
+
+    def _debug_log(self, event: str, payload: Dict[str, Any]):
+        if not self._callback_debug_enabled():
+            return
+        logger.debug("ylh_callback_debug %s %s", event, json.dumps(self._mask(payload), ensure_ascii=False, default=str))
     
     @classmethod
     def from_settings(cls):
@@ -504,14 +565,26 @@ class YLHCallbackHandler:
             Dict: 解析后的数据，包含AppKey, TimeStamp, Sign, Method, Data
         """
         try:
+            self._debug_log("received", {"method": form_data.get("Method"), "app_key": form_data.get("AppKey"), "timestamp": form_data.get("TimeStamp"), "form": {k: v for k, v in form_data.items() if k != "Data"}})
             # 验证签名
             if not self.verify_sign(form_data):
                 logger.error("Callback signature verification failed")
+                self._debug_log("rejected", {"reason": "sign_invalid"})
                 return None
+
+            if self.app_key:
+                received_app_key = form_data.get('AppKey')
+                if received_app_key != self.app_key:
+                    logger.error(f"Callback AppKey mismatch. Expected: {self.app_key}, Got: {received_app_key}")
+                    self._debug_log("rejected", {"reason": "app_key_mismatch", "received_app_key": received_app_key})
+                    return None
             
             # 解析Data字段
             data_str = form_data.get('Data', '{}')
             data = json.loads(data_str) if isinstance(data_str, str) else data_str
+
+            if isinstance(data, dict):
+                self._debug_log("parsed_data", {"method": form_data.get("Method"), "data_summary": {k: data.get(k) for k in ("ExtOrderNo", "PlatformOrderNo", "State", "FailMsg") if k in data}})
             
             return {
                 'AppKey': form_data.get('AppKey'),
@@ -522,6 +595,7 @@ class YLHCallbackHandler:
             }
         except Exception as e:
             logger.error(f"Failed to parse callback data: {str(e)}")
+            self._debug_log("parse_error", {"error": str(e)})
             return None
     
     def handle_order_confirm_callback(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -541,16 +615,33 @@ class YLHCallbackHandler:
             return self._error_response("签名验证失败")
         
         data = parsed['Data']
+        if isinstance(data, dict) and isinstance(data.get('State'), str):
+            try:
+                data['State'] = int(data['State'])
+            except Exception:
+                pass
+
         ext_order_no = data.get('ExtOrderNo')  # 海尔订单号
         platform_order_no = data.get('PlatformOrderNo')  # 客户平台订单号
         state = data.get('State')  # 1成功，0失败
         fail_msg = data.get('FailMsg', '')
         
         logger.info(f"Order confirm callback: platform={platform_order_no}, ext={ext_order_no}, state={state}")
-        
-        # 这里应该调用业务逻辑处理订单确认
-        # 例如：更新订单状态、记录海尔订单号等
-        # print(data)
+        self._debug_log("confirm", {"platform_order_no": platform_order_no, "ext_order_no": ext_order_no, "state": state, "fail_msg": fail_msg})
+
+        try:
+            from orders.models import Order
+
+            order = Order.objects.filter(order_number=platform_order_no).first()
+            if not order:
+                logger.error(f"Order not found for confirm callback: platform={platform_order_no}")
+                return self._error_response("订单不存在", code="order_not_found")
+
+            order.update_from_haier_callback(data)
+            self._debug_log("confirm_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
+        except Exception as e:
+            logger.exception(f"Failed to handle confirm callback for platform={platform_order_no}: {str(e)}")
+            return self._error_response("回调处理失败")
         
         return self._success_response({
             "statusCode": "200",
@@ -575,15 +666,44 @@ class YLHCallbackHandler:
             return self._error_response("签名验证失败")
         
         data = parsed['Data']
+        if isinstance(data, dict) and isinstance(data.get('State'), str):
+            try:
+                data['State'] = int(data['State'])
+            except Exception:
+                pass
+
         ext_order_no = data.get('ExtOrderNo')  # 海尔订单号
         platform_order_no = data.get('PlatformOrderNo')  # 客户平台订单号
         state = data.get('State')  # 1成功，0失败
         fail_msg = data.get('FailMsg', '')
         
         logger.info(f"Order cancel callback: platform={platform_order_no}, ext={ext_order_no}, state={state}")
-        
-        # 这里应该调用业务逻辑处理订单取消
-        # 例如：更新订单状态为已取消等
+        self._debug_log("cancel", {"platform_order_no": platform_order_no, "ext_order_no": ext_order_no, "state": state, "fail_msg": fail_msg})
+
+        try:
+            from django.utils import timezone
+            from orders.models import Order
+
+            order = Order.objects.filter(order_number=platform_order_no).first()
+            if not order:
+                logger.error(f"Order not found for cancel callback: platform={platform_order_no}")
+                return self._error_response("订单不存在", code="order_not_found")
+
+            if state == 1:
+                if ext_order_no:
+                    order.haier_order_no = ext_order_no
+                order.haier_status = 'cancelled'
+            else:
+                order.haier_status = 'cancel_failed'
+                if fail_msg:
+                    order.note = f"{order.note}\n海尔取消失败: {fail_msg}"
+
+            order.updated_at = timezone.now()
+            order.save(update_fields=['haier_order_no', 'haier_status', 'note', 'updated_at'])
+            self._debug_log("cancel_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
+        except Exception as e:
+            logger.exception(f"Failed to handle cancel callback for platform={platform_order_no}: {str(e)}")
+            return self._error_response("回调处理失败")
         
         return self._success_response({
             "statusCode": "200",
@@ -608,15 +728,46 @@ class YLHCallbackHandler:
             return self._error_response("签名验证失败")
         
         data = parsed['Data']
+        if isinstance(data, dict) and isinstance(data.get('State'), str):
+            try:
+                data['State'] = int(data['State'])
+            except Exception:
+                pass
+
         ext_order_no = data.get('ExtOrderNo')  # 海尔订单号
         platform_order_no = data.get('PlatformOrderNo')  # 客户平台订单号
         state = data.get('State')  # 1成功，0失败
         fail_msg = data.get('FailMsg', '')
         
         logger.info(f"Order out of stock callback: platform={platform_order_no}, ext={ext_order_no}, state={state}")
-        
-        # 这里应该调用业务逻辑处理订单缺货
-        # 例如：通知用户、更新订单状态等
+        self._debug_log("outofstock", {"platform_order_no": platform_order_no, "ext_order_no": ext_order_no, "state": state, "fail_msg": fail_msg})
+
+        try:
+            from django.utils import timezone
+            from orders.models import Order
+
+            order = Order.objects.filter(order_number=platform_order_no).first()
+            if not order:
+                logger.error(f"Order not found for outofstock callback: platform={platform_order_no}")
+                return self._error_response("订单不存在", code="order_not_found")
+
+            if state == 1:
+                if ext_order_no:
+                    order.haier_order_no = ext_order_no
+                order.haier_status = 'out_of_stock'
+                if fail_msg:
+                    order.note = f"{order.note}\n海尔缺货: {fail_msg}"
+            else:
+                order.haier_status = 'out_of_stock_failed'
+                if fail_msg:
+                    order.note = f"{order.note}\n海尔缺货回调失败: {fail_msg}"
+
+            order.updated_at = timezone.now()
+            order.save(update_fields=['haier_order_no', 'haier_status', 'note', 'updated_at'])
+            self._debug_log("outofstock_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
+        except Exception as e:
+            logger.exception(f"Failed to handle outofstock callback for platform={platform_order_no}: {str(e)}")
+            return self._error_response("回调处理失败")
         
         return self._success_response({
             "statusCode": "200",

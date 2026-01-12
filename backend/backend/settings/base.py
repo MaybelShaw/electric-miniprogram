@@ -276,8 +276,8 @@ WECHAT_PAY_DEBUG = True
 # ============================================================================
 HAIER_CLIENT_ID = EnvironmentConfig.get_env('HAIER_CLIENT_ID', '')
 HAIER_CLIENT_SECRET = EnvironmentConfig.get_env('HAIER_CLIENT_SECRET', '')
-HAIER_TOKEN_URL = EnvironmentConfig.get_env('HAIER_TOKEN_URL', 'https://openplat-test.haier.net/oauth2/auth')
 HAIER_BASE_URL = EnvironmentConfig.get_env('HAIER_BASE_URL', 'https://openplat-test.haier.net')
+HAIER_TOKEN_URL = EnvironmentConfig.get_env('HAIER_TOKEN_URL', f'{HAIER_BASE_URL.rstrip("/")}/oauth2/auth')
 HAIER_CUSTOMER_CODE = EnvironmentConfig.get_env('HAIER_CUSTOMER_CODE', '')
 HAIER_SEND_TO_CODE = EnvironmentConfig.get_env('HAIER_SEND_TO_CODE', '')
 HAIER_SUPPLIER_CODE = EnvironmentConfig.get_env('HAIER_SUPPLIER_CODE', '')
@@ -299,10 +299,7 @@ YLH_STOCK_BASE_URL = EnvironmentConfig.get_env('YLH_STOCK_BASE_URL', 'https://de
 YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '')
 YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '')
 
-# ============================================================================
-# Haier API Mock Data Configuration
-# ============================================================================
-# 是否使用模拟数据（开发/测试环境建议设置为True，生产环境设置为False）
-HAIER_USE_MOCK_DATA = EnvironmentConfig.get_env('HAIER_USE_MOCK_DATA', 'True').lower() in ('true', '1', 'yes')
+INTEGRATIONS_API_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_API_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
+INTEGRATIONS_CALLBACK_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_CALLBACK_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
 
 ORDER_PAYMENT_TIMEOUT_MINUTES = int(EnvironmentConfig.get_env('ORDER_PAYMENT_TIMEOUT_MINUTES', '10'))

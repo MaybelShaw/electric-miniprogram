@@ -903,7 +903,6 @@ curl -X POST http://localhost:8000/api/auth/refresh/ \
 1. 检查网络连接
 2. 验证API凭证配置
 3. 查看 `HaierSyncLog` 日志
-4. 启用模拟数据测试：`HAIER_USE_MOCK_DATA=True`
 
 ### Q5: 小程序开发者工具提示网络错误
 
