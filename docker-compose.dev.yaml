@@ -63,14 +63,8 @@ services:
     environment:
       - VITE_BACKEND_ORIGIN=http://backend:8000
       - NODE_OPTIONS=--max-old-space-size=1024
-          mem_limit: 1.5g  # 容器最大内存限制
+    mem_limit: 1536m  # 容器最大内存限制
     mem_reservation: 512m  # 保留内存
-    deploy:
-      resources:
-        limits:
-          memory: 1.5G
-        reservations:
-          memory: 512M
     depends_on:
       - backend
     command: sh -c "npm ci || npm install && npm run dev -- --host 0.0.0.0"
