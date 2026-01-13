@@ -1,5 +1,16 @@
 from django.contrib import admin
-from .models import Order, Cart, CartItem, Discount, DiscountTarget, Invoice, ReturnRequest
+from .models import (
+    Order,
+    Cart,
+    CartItem,
+    Discount,
+    DiscountTarget,
+    Invoice,
+    ReturnRequest,
+    Payment,
+    Refund,
+    OrderStatusHistory,
+)
 
 # Register your models here.
 
@@ -46,6 +57,30 @@ class InvoiceAdmin(admin.ModelAdmin):
     list_display = ("id", "order", "user", "title", "amount", "status", "invoice_number", "requested_at", "issued_at")
     list_filter = ("status", "invoice_type")
     search_fields = ("order__order_number", "user__username", "invoice_number", "title")
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "amount", "method", "status", "created_at", "expires_at")
+    list_filter = ("status", "method", "created_at")
+    search_fields = ("id", "order__order_number", "order__user__username")
+    list_select_related = ("order", "order__user")
+
+
+@admin.register(Refund)
+class RefundAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "payment", "amount", "status", "reason", "operator", "created_at")
+    list_filter = ("status", "created_at")
+    search_fields = ("id", "order__order_number", "payment__id", "transaction_id", "order__user__username")
+    list_select_related = ("order", "payment", "operator", "order__user")
+
+
+@admin.register(OrderStatusHistory)
+class OrderStatusHistoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "from_status", "to_status", "operator", "created_at")
+    list_filter = ("from_status", "to_status", "created_at")
+    search_fields = ("order__order_number", "operator__username", "note")
+    list_select_related = ("order", "operator", "order__user")
 
 
 @admin.register(ReturnRequest)
