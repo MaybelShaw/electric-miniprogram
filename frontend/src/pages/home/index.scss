@@ -102,30 +102,6 @@
         height: 100%;
         z-index: 1;
       }
-
-      .zone-overlay {
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.45) 100%);
-        z-index: 2;
-      }
-
-      .zone-content {
-        position: relative;
-        z-index: 3;
-      }
-
-      .zone-title {
-        font-size: $font-size-lg;
-        font-weight: bold;
-        color: #fff;
-      }
-
-      .zone-desc {
-        font-size: $font-size-sm;
-        color: rgba(255, 255, 255, 0.9);
-        margin-top: 8px;
-      }
     }
   }
 

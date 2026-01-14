@@ -236,7 +236,11 @@ export default function SpecialZoneCovers() {
           }
         }}
       >
-        <Form.Item label="专区图片" required>
+        <Form.Item
+          label="专区图片"
+          required
+          extra="建议比例约2:1，推荐尺寸670x320或1000x480，主体居中避免裁切"
+        >
           <Upload
             listType="picture-card"
             showUploadList={false}

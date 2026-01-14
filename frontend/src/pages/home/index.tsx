@@ -220,21 +220,11 @@ export default function Home() {
             {giftZoneCover?.image_url && (
               <Image className='zone-image' src={giftZoneCover.image_url} mode='aspectFill' />
             )}
-            {giftZoneCover?.image_url && <View className='zone-overlay' />}
-            <View className='zone-content'>
-              <View className='zone-title'>{giftZoneCover?.title || '礼品专区'}</View>
-              <View className='zone-desc'>{giftZoneCover?.subtitle || '精选好礼'}</View>
-            </View>
           </View>
           <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer', designerZoneCover)}>
             {designerZoneCover?.image_url && (
               <Image className='zone-image' src={designerZoneCover.image_url} mode='aspectFill' />
             )}
-            {designerZoneCover?.image_url && <View className='zone-overlay' />}
-            <View className='zone-content'>
-              <View className='zone-title'>{designerZoneCover?.title || '设计师专区'}</View>
-              <View className='zone-desc'>{designerZoneCover?.subtitle || '创意设计'}</View>
-            </View>
           </View>
         </View>
 
