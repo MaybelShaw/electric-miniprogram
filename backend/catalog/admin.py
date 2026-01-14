@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Brand, Product, MediaImage, SearchLog, InventoryLog, SpecialZone, Case, CaseDetailBlock
+from .models import Category, Brand, Product, MediaImage, SearchLog, InventoryLog, Case, CaseDetailBlock
 
 # Register your models here.
 admin.site.register(Category)
@@ -25,15 +25,6 @@ class InventoryLogAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at',)
     search_fields = ('product__name', 'reason')
     list_filter = ('change_type', 'created_at')
-
-@admin.register(SpecialZone)
-class SpecialZoneAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type', 'title', 'subtitle', 'is_active', 'order', 'updated_at')
-    list_filter = ('type', 'is_active')
-    search_fields = ('title', 'subtitle')
-    ordering = ('order', '-id')
-    readonly_fields = ('created_at', 'updated_at')
-
 
 class CaseDetailBlockInline(admin.TabularInline):
     model = CaseDetailBlock

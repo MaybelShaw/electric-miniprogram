@@ -124,20 +124,6 @@ export interface HomeBanner {
   updated_at: string;
 }
 
-export interface SpecialZone {
-  id: number;
-  type: 'gift' | 'designer';
-  title: string;
-  subtitle: string;
-  link_url: string;
-  order: number;
-  is_active: boolean;
-  image_id: number;
-  image_url: string;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface SupportMessage {
   id: number;
   conversation: number;

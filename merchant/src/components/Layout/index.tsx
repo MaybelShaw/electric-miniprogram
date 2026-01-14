@@ -14,7 +14,6 @@ import {
   BarChartOutlined,
   RiseOutlined,
   PictureOutlined,
-  AppstoreAddOutlined,
   CustomerServiceOutlined,
   BookOutlined,
 } from '@ant-design/icons';
@@ -35,7 +34,6 @@ export const adminMenuItems = [
   { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
   { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
   { key: '/admin/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
-  { key: '/admin/special-zones', icon: <AppstoreAddOutlined />, label: '专区管理' },
   { key: '/admin/cases', icon: <BookOutlined />, label: '案例管理' },
   { key: '/admin/brands', icon: <TagOutlined />, label: '品牌管理' },
   { key: '/admin/categories', icon: <AppstoreOutlined />, label: '分类管理' },

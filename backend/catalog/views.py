@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions, status
-from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, SpecialZone, Case
-from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, SpecialZoneSerializer, CaseSerializer
+from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, Case
+from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, CaseSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Count, Max
@@ -1250,30 +1250,6 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
             'image/bmp': 'bmp',
         }
         return mime_to_ext.get(mime_type, 'jpg')
-
-
-@extend_schema(tags=['Home'])
-class SpecialZoneViewSet(viewsets.ModelViewSet):
-    """
-    首页专区管理
-
-    - GET /api/v1/catalog/special-zones/ 获取首页专区列表（公开）
-    - POST /api/v1/catalog/special-zones/ 创建首页专区（管理员）
-    """
-    queryset = SpecialZone.objects.all().select_related('image').order_by('order', '-id')
-    serializer_class = SpecialZoneSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-
-        zone_type = self.request.query_params.get('type')
-        if zone_type:
-            qs = qs.filter(type=zone_type)
-
-        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False):
-            return qs.filter(is_active=True)
-        return qs
 
 
 @extend_schema(tags=['Cases'])
