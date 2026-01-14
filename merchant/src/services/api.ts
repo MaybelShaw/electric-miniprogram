@@ -145,6 +145,12 @@ export const uploadHomeBanner = (file: File, data?: any) => {
   return request.post('/catalog/home-banners/upload/', formData);
 };
 
+// 首页专区图片管理
+export const getSpecialZoneCovers = (params?: any) => request.get('/catalog/special-zone-covers/', { params });
+export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', data);
+export const updateSpecialZoneCover = (id: number, data: any) => request.patch(`/catalog/special-zone-covers/${id}/`, data);
+export const deleteSpecialZoneCover = (id: number) => request.delete(`/catalog/special-zone-covers/${id}/`);
+
 // 案例管理
 export const getCases = (params?: any) => request.get('/catalog/cases/', { params });
 export const getCase = (id: number) => request.get(`/catalog/cases/${id}/`);

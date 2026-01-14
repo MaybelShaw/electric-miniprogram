@@ -385,6 +385,42 @@ class HomeBanner(models.Model):
         return self.title or f'Banner {self.id}'
 
 
+class SpecialZoneCover(models.Model):
+    TYPE_GIFT = 'gift'
+    TYPE_DESIGNER = 'designer'
+    TYPE_CHOICES = [
+        (TYPE_GIFT, '礼品专区'),
+        (TYPE_DESIGNER, '设计师专区'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_GIFT, verbose_name='专区类型')
+    title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
+    subtitle = models.CharField(max_length=200, blank=True, default='', verbose_name='副标题')
+    link_url = models.URLField(max_length=500, blank=True, default='', verbose_name='跳转链接')
+    image = models.ForeignKey(
+        'catalog.MediaImage',
+        on_delete=models.PROTECT,
+        related_name='special_zone_covers',
+        verbose_name='图片'
+    )
+    order = models.IntegerField(default=0, verbose_name='排序')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '首页专区图片'
+        verbose_name_plural = '首页专区图片'
+        ordering = ['order', '-id']
+        indexes = [
+            models.Index(fields=['type', 'is_active', 'order']),
+        ]
+
+    def __str__(self):
+        return self.title or self.get_type_display() or f'ZoneCover {self.id}'
+
+
 class Case(models.Model):
     id = models.BigAutoField(primary_key=True)
     title = models.CharField(max_length=200, verbose_name='标题')

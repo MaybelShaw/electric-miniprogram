@@ -16,6 +16,7 @@ import CreditAccounts from './pages/CreditAccounts';
 import AccountStatements from './pages/AccountStatements';
 import AccountTransactions from './pages/AccountTransactions';
 import HomeBanners from './pages/HomeBanners';
+import SpecialZoneCovers from './pages/SpecialZoneCovers';
 import Cases from './pages/Cases';
 import Support from './pages/Support';
 import { getUser } from './utils/auth';
@@ -61,6 +62,7 @@ function App() {
                   <Route path="account-statements" element={<AccountStatements />} />
                   <Route path="account-transactions" element={<AccountTransactions />} />
                   <Route path="home-banners" element={<HomeBanners />} />
+                  <Route path="special-zone-covers" element={<SpecialZoneCovers />} />
                   <Route path="cases" element={<Cases />} />
                 </Routes>
               </Layout>

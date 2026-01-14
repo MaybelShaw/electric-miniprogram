@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, Case, CaseDetailBlock
+from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZoneCover, Case, CaseDetailBlock
 from orders.models import DiscountTarget
 from django.core.cache import cache
 from django.utils import timezone
@@ -571,6 +571,26 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
 
     def get_image_url(self, obj: HomeBanner):
+        request = self.context.get('request')
+        url = obj.image.file.url if obj.image and obj.image.file else ''
+        if not url:
+            return ''
+        return _ensure_https(request.build_absolute_uri(url) if request else url)
+
+
+class SpecialZoneCoverSerializer(serializers.ModelSerializer):
+    image_id = serializers.IntegerField(source='image.id', read_only=True)
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SpecialZoneCover
+        fields = [
+            'id', 'type', 'title', 'subtitle', 'link_url', 'order', 'is_active',
+            'image_id', 'image_url', 'created_at', 'updated_at', 'image'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
+
+    def get_image_url(self, obj: SpecialZoneCover):
         request = self.context.get('request')
         url = obj.image.file.url if obj.image and obj.image.file else ''
         if not url:
