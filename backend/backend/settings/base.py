@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'users',
-    'catalog',
+    'catalog.apps.CatalogConfig',
     'orders',
     'integrations',
     'support',
