@@ -28,10 +28,9 @@ class InventoryLogAdmin(admin.ModelAdmin):
 
 @admin.register(SpecialZoneCover)
 class SpecialZoneCoverAdmin(admin.ModelAdmin):
-    list_display = ('id', 'type', 'title', 'subtitle', 'is_active', 'order', 'updated_at')
+    list_display = ('id', 'type', 'is_active', 'updated_at')
     list_filter = ('type', 'is_active')
-    search_fields = ('title', 'subtitle')
-    ordering = ('order', '-id')
+    ordering = ('type', '-id')
     readonly_fields = ('created_at', 'updated_at')
 
 class CaseDetailBlockInline(admin.TabularInline):

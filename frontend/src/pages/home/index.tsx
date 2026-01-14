@@ -147,16 +147,7 @@ export default function Home() {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
-  const handleZoneClick = (type: 'gift' | 'designer', cover?: SpecialZoneCover | null) => {
-    if (cover?.link_url) {
-      const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => cover.link_url.includes(path))
-      if (isTab) {
-        Taro.switchTab({ url: cover.link_url })
-      } else {
-        Taro.navigateTo({ url: cover.link_url })
-      }
-      return
-    }
+  const handleZoneClick = (type: 'gift' | 'designer') => {
     const title = type === 'gift' ? '礼品专区' : '设计师专区'
     goToSpecialZone(type, title)
   }
@@ -216,12 +207,12 @@ export default function Home() {
 
         {/* 特色专区 */}
         <View className='special-zones'>
-          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift', giftZoneCover)}>
+          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
             {giftZoneCover?.image_url && (
               <Image className='zone-image' src={giftZoneCover.image_url} mode='aspectFill' />
             )}
           </View>
-          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer', designerZoneCover)}>
+          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
             {designerZoneCover?.image_url && (
               <Image className='zone-image' src={designerZoneCover.image_url} mode='aspectFill' />
             )}

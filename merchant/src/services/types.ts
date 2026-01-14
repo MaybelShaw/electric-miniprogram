@@ -127,10 +127,6 @@ export interface HomeBanner {
 export interface SpecialZoneCover {
   id: number;
   type: 'gift' | 'designer';
-  title: string;
-  subtitle: string;
-  link_url: string;
-  order: number;
   is_active: boolean;
   image_id: number;
   image_url: string;

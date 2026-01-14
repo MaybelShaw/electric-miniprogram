@@ -1260,7 +1260,7 @@ class SpecialZoneCoverViewSet(viewsets.ModelViewSet):
     - GET /api/v1/catalog/special-zone-covers/ 获取首页专区图片列表（公开）
     - POST /api/v1/catalog/special-zone-covers/ 创建首页专区图片（管理员）
     """
-    queryset = SpecialZoneCover.objects.all().select_related('image').order_by('order', '-id')
+    queryset = SpecialZoneCover.objects.all().select_related('image').order_by('type')
     serializer_class = SpecialZoneCoverSerializer
     permission_classes = [IsAdminOrReadOnly]
 

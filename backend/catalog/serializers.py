@@ -585,8 +585,7 @@ class SpecialZoneCoverSerializer(serializers.ModelSerializer):
     class Meta:
         model = SpecialZoneCover
         fields = [
-            'id', 'type', 'title', 'subtitle', 'link_url', 'order', 'is_active',
-            'image_id', 'image_url', 'created_at', 'updated_at', 'image'
+            'id', 'type', 'is_active', 'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
 

@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
+import { ProTable, ModalForm, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { getSpecialZoneCovers, createSpecialZoneCover, updateSpecialZoneCover, deleteSpecialZoneCover, uploadImage } from '@/services/api';
@@ -37,10 +37,6 @@ export default function SpecialZoneCovers() {
     setModalVisible(true);
     form.setFieldsValue({
       type: record.type,
-      title: record.title,
-      subtitle: record.subtitle,
-      link_url: record.link_url,
-      order: record.order,
       is_active: record.is_active,
     });
   };
@@ -52,7 +48,6 @@ export default function SpecialZoneCovers() {
     setModalVisible(true);
     form.resetFields();
     form.setFieldsValue({
-      order: 0,
       is_active: true,
       type: 'gift',
     });
@@ -98,29 +93,6 @@ export default function SpecialZoneCovers() {
         designer: { text: '设计师专区', status: 'Success' },
       },
       width: 120,
-    },
-    {
-      title: '标题',
-      dataIndex: 'title',
-    },
-    {
-      title: '副标题',
-      dataIndex: 'subtitle',
-      hideInSearch: true,
-      ellipsis: true,
-    },
-    {
-      title: '跳转链接',
-      dataIndex: 'link_url',
-      hideInSearch: true,
-      ellipsis: true,
-    },
-    {
-      title: '排序',
-      dataIndex: 'order',
-      hideInSearch: true,
-      width: 80,
-      sorter: true,
     },
     {
       title: '状态',
@@ -267,32 +239,6 @@ export default function SpecialZoneCovers() {
           }}
           rules={[{ required: true, message: '请选择专区类型' }]}
           initialValue="gift"
-        />
-
-        <ProFormText
-          name="title"
-          label="标题"
-          placeholder="请输入标题（可选）"
-        />
-
-        <ProFormText
-          name="subtitle"
-          label="副标题"
-          placeholder="请输入副标题（可选）"
-        />
-
-        <ProFormText
-          name="link_url"
-          label="跳转链接"
-          placeholder="请输入跳转链接（可选）"
-        />
-
-        <ProFormDigit
-          name="order"
-          label="排序"
-          tooltip="数值越小越靠前"
-          min={0}
-          fieldProps={{ precision: 0 }}
         />
 
         <ProFormSwitch
