@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
-import { Product, Category, Brand, HomeBanner } from '../../types'
+import { specialZoneService } from '../../services/special-zone'
+import { Product, Category, Brand, HomeBanner, SpecialZone } from '../../types'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
 import './index.scss'
@@ -13,12 +14,15 @@ export default function Home() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
+  const [giftZone, setGiftZone] = useState<SpecialZone | null>(null)
+  const [designerZone, setDesignerZone] = useState<SpecialZone | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     loadBanners()
+    loadSpecialZones()
     loadCategories()
     loadBrands()
     loadProducts(1)
@@ -29,6 +33,20 @@ export default function Home() {
     try {
       const data = await productService.getHomeBanners('home')
       setBanners(data)
+    } catch (error) {
+      // 静默失败
+    }
+  }
+
+  // 加载专区图片
+  const loadSpecialZones = async () => {
+    try {
+      const [gift, designer] = await Promise.all([
+        specialZoneService.getSpecialZones({ type: 'gift' }),
+        specialZoneService.getSpecialZones({ type: 'designer' }),
+      ])
+      setGiftZone(gift[0] || null)
+      setDesignerZone(designer[0] || null)
     } catch (error) {
       // 静默失败
     }
@@ -129,6 +147,20 @@ export default function Home() {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
+  const handleZoneClick = (type: 'gift' | 'designer', zone?: SpecialZone | null) => {
+    if (zone?.link_url) {
+      const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => zone.link_url.includes(path))
+      if (isTab) {
+        Taro.switchTab({ url: zone.link_url })
+      } else {
+        Taro.navigateTo({ url: zone.link_url })
+      }
+      return
+    }
+    const title = type === 'gift' ? '礼品专区' : '设计师专区'
+    goToSpecialZone(type, title)
+  }
+
   // 查看全部品类
   const goToAllCategories = () => {
     Taro.switchTab({ url: '/pages/category/index' })
@@ -184,15 +216,25 @@ export default function Home() {
 
         {/* 特色专区 */}
         <View className='special-zones'>
-          <View className='zone-item gift-zone' onClick={() => goToSpecialZone('gift', '礼品专区')}>
-            <View className='zone-title'>礼品专区</View>
-            <View className='zone-desc'>精选好礼</View>
-            <Image className='zone-icon' src='https://via.placeholder.com/100x100/FF6B6B/FFFFFF?text=Gift' mode='aspectFit' />
+          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift', giftZone)}>
+            {giftZone?.image_url && (
+              <Image className='zone-image' src={giftZone.image_url} mode='aspectFill' />
+            )}
+            {giftZone?.image_url && <View className='zone-overlay' />}
+            <View className='zone-content'>
+              <View className='zone-title'>{giftZone?.title || '礼品专区'}</View>
+              <View className='zone-desc'>{giftZone?.subtitle || '精选好礼'}</View>
+            </View>
           </View>
-          <View className='zone-item designer-zone' onClick={() => goToSpecialZone('designer', '设计师专区')}>
-            <View className='zone-title'>设计师专区</View>
-            <View className='zone-desc'>创意设计</View>
-            <Image className='zone-icon' src='https://via.placeholder.com/100x100/2C3E50/FFFFFF?text=Design' mode='aspectFit' />
+          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer', designerZone)}>
+            {designerZone?.image_url && (
+              <Image className='zone-image' src={designerZone.image_url} mode='aspectFill' />
+            )}
+            {designerZone?.image_url && <View className='zone-overlay' />}
+            <View className='zone-content'>
+              <View className='zone-title'>{designerZone?.title || '设计师专区'}</View>
+              <View className='zone-desc'>{designerZone?.subtitle || '创意设计'}</View>
+            </View>
           </View>
         </View>
 

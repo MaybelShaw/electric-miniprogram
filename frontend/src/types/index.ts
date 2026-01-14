@@ -115,6 +115,19 @@ export interface HomeBanner {
   image_id: number
 }
 
+// 首页专区
+export interface SpecialZone {
+  id: number
+  type: 'gift' | 'designer'
+  title: string
+  subtitle: string
+  link_url: string
+  order: number
+  is_active: boolean
+  image_url: string
+  image_id: number
+}
+
 // 购物车相关
 export interface CartItem {
   id: number
