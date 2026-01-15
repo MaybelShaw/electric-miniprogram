@@ -51,6 +51,8 @@ class ProductSearchService:
         brand: Optional[str] = None,
         min_price: Optional[Decimal] = None,
         max_price: Optional[Decimal] = None,
+        show_in_gift_zone: Optional[bool] = None,
+        show_in_designer_zone: Optional[bool] = None,
         sort_by: str = 'relevance',
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -65,6 +67,8 @@ class ProductSearchService:
             brand: Filter by brand name
             min_price: Minimum price filter
             max_price: Maximum price filter
+            show_in_gift_zone: Filter by gift zone flag
+            show_in_designer_zone: Filter by designer zone flag
             sort_by: Sort strategy (relevance, price_asc, price_desc, sales, created, views)
             page: Page number (1-indexed)
             page_size: Number of results per page
@@ -133,6 +137,12 @@ class ProductSearchService:
                 queryset = queryset.filter(price__lte=max_price)
             except (ValueError, TypeError):
                 pass
+
+        if show_in_gift_zone is not None:
+            queryset = queryset.filter(show_in_gift_zone=bool(show_in_gift_zone))
+
+        if show_in_designer_zone is not None:
+            queryset = queryset.filter(show_in_designer_zone=bool(show_in_designer_zone))
         
         # Apply sorting
         queryset = cls._apply_sorting(queryset, sort_by, keyword)

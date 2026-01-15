@@ -157,6 +157,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         # Parse price filters
         min_price = parse_decimal(request.query_params.get('min_price'))
         max_price = parse_decimal(request.query_params.get('max_price'))
+
+        show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
+        show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         
         # Parse pagination parameters
         page = parse_int(request.query_params.get('page')) or 1
@@ -172,6 +175,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             brand=brand,
             min_price=min_price,
             max_price=max_price,
+            show_in_gift_zone=show_in_gift_zone,
+            show_in_designer_zone=show_in_designer_zone,
             sort_by=sort_by,
             page=page,
             page_size=page_size,
