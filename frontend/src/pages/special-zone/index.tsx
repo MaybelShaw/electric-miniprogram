@@ -15,13 +15,20 @@ export default function SpecialZone() {
   const [cases, setCases] = useState<Case[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   
   useEffect(() => {
     Taro.setNavigationBarTitle({ title: decodeURIComponent(title) })
+    setProducts([])
+    setPage(1)
+    setHasMore(true)
     loadBanners()
-    loadProducts()
+    loadProducts(1)
     if (type === 'designer') {
       loadCases()
+    } else {
+      setCases([])
     }
   }, [type])
 
@@ -43,20 +50,33 @@ export default function SpecialZone() {
     }
   }
 
-  const loadProducts = async () => {
+  const loadProducts = async (pageNum = 1) => {
+    if (loading) return
     setLoading(true)
     try {
       const res = await productService.getProducts({
-        page: 1,
+        page: pageNum,
         page_size: 20,
         ...(type === 'gift' ? { show_in_gift_zone: true } : {}),
         ...(type === 'designer' ? { show_in_designer_zone: true } : {}),
       })
-      setProducts(res.results)
+      setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
+      setHasMore(res.has_next || false)
+      setPage(pageNum)
     } catch (error) {
       Taro.showToast({ title: '加载商品失败', icon: 'none' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const onRefresh = () => {
+    loadProducts(1)
+  }
+
+  const onLoadMore = () => {
+    if (hasMore && !loading) {
+      loadProducts(page + 1)
     }
   }
 
@@ -78,68 +98,77 @@ export default function SpecialZone() {
 
   return (
     <View className='special-zone'>
-      {/* 场景展示 */}
-      {banners.length > 0 && (
-        <View className='scene-display'>
-            <View className='section-title'>场景展示</View>
-            <Swiper
-            className='scene-swiper'
-            circular
-            indicatorDots
-            autoplay
-            >
-            {banners.map((banner) => (
-                <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
-                <Image 
-                    src={banner.image_url} 
-                    className='scene-image' 
-                    mode='aspectFill' 
-                />
-                </SwiperItem>
-            ))}
-            </Swiper>
-        </View>
-      )}
-
-      {/* 案例展示 */}
-      {type === 'designer' && cases.length > 0 && (
-        <View className='case-display'>
-          <View className='section-title'>精选案例</View>
-          <ScrollView scrollX className='case-scroll'>
-            {cases.map(item => (
-              <View key={item.id} className='case-card' onClick={() => goToCaseDetail(item.id)}>
-                <Image src={item.cover_image_url || ''} className='case-image' mode='aspectFill' />
-                <View className='case-title'>{item.title}</View>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* 产品展示 */}
-      <View className='product-display'>
-        <View className='section-title'>产品展示</View>
-        <View className='product-list'>
-          {products.map(product => (
-            <ProductCard
-              key={product.id}
-              product={product}
-            />
-          ))}
-        </View>
-        
-        {loading && (
-          <View className='loading-wrapper'>
-            <Text>加载中...</Text>
+      <ScrollView
+        className='content'
+        scrollY
+        refresherEnabled
+        refresherTriggered={loading && page === 1}
+        onRefresherRefresh={onRefresh}
+        onScrollToLower={onLoadMore}
+      >
+        {/* 场景展示 */}
+        {banners.length > 0 && (
+          <View className='scene-display'>
+              <View className='section-title'>场景展示</View>
+              <Swiper
+              className='scene-swiper'
+              circular
+              indicatorDots
+              autoplay
+              >
+              {banners.map((banner) => (
+                  <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
+                  <Image 
+                      src={banner.image_url} 
+                      className='scene-image' 
+                      mode='aspectFill' 
+                  />
+                  </SwiperItem>
+              ))}
+              </Swiper>
           </View>
         )}
-        
-        {!loading && products.length === 0 && (
-          <View className='empty-state'>
-            <Text>暂无相关商品</Text>
+
+        {/* 案例展示 */}
+        {type === 'designer' && cases.length > 0 && (
+          <View className='case-display'>
+            <View className='section-title'>精选案例</View>
+            <ScrollView scrollX className='case-scroll'>
+              {cases.map(item => (
+                <View key={item.id} className='case-card' onClick={() => goToCaseDetail(item.id)}>
+                  <Image src={item.cover_image_url || ''} className='case-image' mode='aspectFill' />
+                  <View className='case-title'>{item.title}</View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         )}
-      </View>
+
+        {/* 产品展示 */}
+        <View className='product-display'>
+          <View className='section-title'>产品展示</View>
+          <View className='product-list'>
+            {products.map(product => (
+              <ProductCard
+                key={product.id}
+                product={product}
+              />
+            ))}
+          </View>
+          
+          {loading && (
+            <View className='loading-wrapper'>
+              <Text>加载中...</Text>
+            </View>
+          )}
+          
+          {!loading && products.length === 0 && (
+            <View className='empty-state'>
+              <Text>暂无相关商品</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   )
 }
