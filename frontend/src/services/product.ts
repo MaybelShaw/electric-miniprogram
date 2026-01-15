@@ -15,6 +15,8 @@ export const productService = {
     page_size?: number
     sort_by?: 'sales' | 'price_asc' | 'price_desc' | 'created'
     search?: string
+    show_in_gift_zone?: boolean
+    show_in_designer_zone?: boolean
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/', params, false)
   },

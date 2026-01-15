@@ -155,6 +155,36 @@ export default function Products() {
         </Tag>
       ),
     },
+    {
+      title: '礼品专区',
+      dataIndex: 'show_in_gift_zone',
+      width: 100,
+      valueType: 'select',
+      valueEnum: {
+        true: { text: '展示', status: 'Success' },
+        false: { text: '不展示', status: 'Default' },
+      },
+      render: (_, record) => (
+        <Tag color={record.show_in_gift_zone ? 'blue' : 'default'}>
+          {record.show_in_gift_zone ? '展示' : '不展示'}
+        </Tag>
+      ),
+    },
+    {
+      title: '设计师专区',
+      dataIndex: 'show_in_designer_zone',
+      width: 110,
+      valueType: 'select',
+      valueEnum: {
+        true: { text: '展示', status: 'Success' },
+        false: { text: '不展示', status: 'Default' },
+      },
+      render: (_, record) => (
+        <Tag color={record.show_in_designer_zone ? 'blue' : 'default'}>
+          {record.show_in_designer_zone ? '展示' : '不展示'}
+        </Tag>
+      ),
+    },
     { 
       title: '销量', 
       dataIndex: 'sales_count', 
@@ -223,6 +253,8 @@ export default function Products() {
           main_images: res.main_images || [],
           detail_images: res.detail_images || [],
           is_active: res.is_active,
+          show_in_gift_zone: res.show_in_gift_zone,
+          show_in_designer_zone: res.show_in_designer_zone,
           source: res.source || 'local',
           product_code: res.product_code || '',
           supply_price: res.supply_price,
@@ -256,6 +288,8 @@ export default function Products() {
       main_images: [],
       detail_images: [],
       source: 'local',
+      show_in_gift_zone: false,
+      show_in_designer_zone: false,
     });
     setModalVisible(true);
   };
@@ -401,6 +435,12 @@ export default function Products() {
           // 状态筛选
           if (params.is_active !== undefined) {
             queryParams.is_active = params.is_active;
+          }
+          if (params.show_in_gift_zone !== undefined) {
+            queryParams.show_in_gift_zone = params.show_in_gift_zone;
+          }
+          if (params.show_in_designer_zone !== undefined) {
+            queryParams.show_in_designer_zone = params.show_in_designer_zone;
           }
 
           // 排序
@@ -605,6 +645,19 @@ export default function Products() {
             name="is_active"
             label="是否上架"
             tooltip="上架后用户可见"
+            colProps={{ span: 6 }}
+          />
+        </ProFormGroup>
+
+        <ProFormGroup title={<span style={{ fontWeight: 'bold', fontSize: '16px' }}>专区展示</span>} colProps={{ span: 24 }}>
+          <ProFormSwitch
+            name="show_in_gift_zone"
+            label="礼品专区展示"
+            colProps={{ span: 6 }}
+          />
+          <ProFormSwitch
+            name="show_in_designer_zone"
+            label="设计师专区展示"
             colProps={{ span: 6 }}
           />
         </ProFormGroup>

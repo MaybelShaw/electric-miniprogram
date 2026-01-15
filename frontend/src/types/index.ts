@@ -59,6 +59,8 @@ export interface Product {
   view_count: number
   discounted_price: number  // 折扣后价格
   originalPrice: number  // 原价
+  show_in_gift_zone?: boolean
+  show_in_designer_zone?: boolean
   created_at: string
   updated_at: string
 }

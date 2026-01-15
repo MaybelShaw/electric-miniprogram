@@ -66,6 +66,24 @@ class ProductViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(is_active=parsed)
                 except Exception:
                     pass
+
+        gift_flag = self.request.query_params.get('show_in_gift_zone')
+        if gift_flag is not None:
+            parsed = to_bool(gift_flag)
+            if parsed is not None:
+                try:
+                    qs = qs.filter(show_in_gift_zone=parsed)
+                except Exception:
+                    pass
+
+        designer_flag = self.request.query_params.get('show_in_designer_zone')
+        if designer_flag is not None:
+            parsed = to_bool(designer_flag)
+            if parsed is not None:
+                try:
+                    qs = qs.filter(show_in_designer_zone=parsed)
+                except Exception:
+                    pass
         return qs
 
     @extend_schema(
@@ -116,6 +134,8 @@ class ProductViewSet(viewsets.ModelViewSet):
             OpenApiParameter('min_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Minimum price filter'),
             OpenApiParameter('max_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Maximum price filter'),
             OpenApiParameter('sort_by', OT.STR, OpenApiParameter.QUERY, description='Sort strategy: relevance, price_asc, price_desc, sales, created, views'),
+            OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
+            OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
             OpenApiParameter('page', OT.INT, OpenApiParameter.QUERY, description='Page number (default: 1)'),
             OpenApiParameter('page_size', OT.INT, OpenApiParameter.QUERY, description='Results per page (default: 20, max: 100)'),
         ],

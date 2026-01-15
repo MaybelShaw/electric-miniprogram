@@ -146,6 +146,8 @@ class Product(models.Model):
     
     # 状态和统计字段
     is_active = models.BooleanField(default=True, verbose_name='是否上架')
+    show_in_gift_zone = models.BooleanField(default=False, verbose_name='礼品专区展示')
+    show_in_designer_zone = models.BooleanField(default=False, verbose_name='设计师专区展示')
     is_sales = models.CharField(max_length=1, default='1', verbose_name='海尔是否可采(1可采,0不可采)')
     no_sales_reason = models.CharField(max_length=200, blank=True, default='', verbose_name='不可采原因')
     view_count = models.PositiveIntegerField(default=0, verbose_name='浏览次数')
@@ -172,6 +174,8 @@ class Product(models.Model):
             models.Index(fields=['-created_at']),
             models.Index(fields=['product_code']),
             models.Index(fields=['is_sales']),
+            models.Index(fields=['show_in_gift_zone', 'is_active']),
+            models.Index(fields=['show_in_designer_zone', 'is_active']),
         ]
 
     def __str__(self):

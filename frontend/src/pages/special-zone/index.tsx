@@ -46,10 +46,12 @@ export default function SpecialZone() {
   const loadProducts = async () => {
     setLoading(true)
     try {
-      // In a real app, we might filter by category or tag corresponding to the zone type
-      // For now, we'll just fetch products and maybe slice them or show all
-      // If backend supported search by tag: await productService.getProducts({ search: type })
-      const res = await productService.getProducts({ page: 1, page_size: 20 })
+      const res = await productService.getProducts({
+        page: 1,
+        page_size: 20,
+        ...(type === 'gift' ? { show_in_gift_zone: true } : {}),
+        ...(type === 'designer' ? { show_in_designer_zone: true } : {}),
+      })
       setProducts(res.results)
     } catch (error) {
       Taro.showToast({ title: '加载商品失败', icon: 'none' })

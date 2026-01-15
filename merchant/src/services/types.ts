@@ -55,6 +55,8 @@ export interface Product {
   warehouse_grade?: string;
   is_sales?: string;
   no_sales_reason?: string;
+  show_in_gift_zone?: boolean;
+  show_in_designer_zone?: boolean;
 }
 
 export interface HaierOrderInfo {
