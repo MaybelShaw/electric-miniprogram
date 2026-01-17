@@ -93,9 +93,6 @@ export default function Discounts() {
     }));
   }, [filteredProducts, products, selectedProductIds]);
 
-  const allBrandIds = useMemo(() => brands.map((brand) => brand.id), [brands]);
-  const allCategoryIds = useMemo(() => categories.map((category) => category.id), [categories]);
-
   const handleSelectByBrand = () => {
     if (!selectedBrandIds.length) {
       message.warning('请先选择品牌');
