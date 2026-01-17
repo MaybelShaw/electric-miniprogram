@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space } from 'antd';
+import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
+import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List } from 'antd';
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
@@ -15,6 +15,7 @@ export default function Discounts() {
   const [products, setProducts] = useState<any[]>([]);
   const [brands, setBrands] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [selectedSearch, setSelectedSearch] = useState('');
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
 
@@ -47,10 +48,10 @@ export default function Discounts() {
     if (!modalVisible) return;
     if (editingRecord) {
       form.resetFields();
-      form.setFieldsValue({ ...editingRecord, select_all_products: false });
+      form.setFieldsValue(editingRecord);
     } else {
       form.resetFields();
-      form.setFieldsValue({ priority: 0, select_all_products: false });
+      form.setFieldsValue({ priority: 0 });
     }
   }, [modalVisible, editingRecord, form]);
 
@@ -93,17 +94,37 @@ export default function Discounts() {
     }));
   }, [filteredProducts, products, selectedProductIds]);
 
+  const selectedProducts = useMemo(() => {
+    if (!selectedProductIds.length) return [];
+    const productsById = new Map<number, any>(products.map((product) => [product.id, product]));
+    return selectedProductIds.map((id) => productsById.get(id)).filter(Boolean);
+  }, [products, selectedProductIds]);
+
+  const filteredSelectedProducts = useMemo(() => {
+    const keyword = selectedSearch.trim().toLowerCase();
+    if (!keyword) return selectedProducts;
+    return selectedProducts.filter((product: any) =>
+      String(product.name || '').toLowerCase().includes(keyword)
+    );
+  }, [selectedProducts, selectedSearch]);
+
+  const getProductsByFilters = (brandIds: number[], categoryIds: number[]) =>
+    products.filter((product) => {
+      const brandMatch = !brandIds.length || brandIds.includes(product.brand_id);
+      const categoryMatch = !categoryIds.length || categoryIds.includes(product.category_id);
+      return brandMatch && categoryMatch;
+    });
+
   const handleSelectByBrand = () => {
     if (!selectedBrandIds.length) {
       message.warning('请先选择品牌');
       return;
     }
-    const brandIds = selectedBrandIds;
+    const productIds = getProductsByFilters(selectedBrandIds, []).map((product) => product.id);
     form.setFieldsValue({
-      brand_ids: brandIds,
+      brand_ids: selectedBrandIds,
       category_ids: [],
-      product_ids: [],
-      select_all_products: true,
+      product_ids: productIds,
     });
   };
 
@@ -112,22 +133,31 @@ export default function Discounts() {
       message.warning('请先选择品类');
       return;
     }
-    const categoryIds = selectedCategoryIds;
+    const productIds = getProductsByFilters([], selectedCategoryIds).map((product) => product.id);
     form.setFieldsValue({
       brand_ids: [],
-      category_ids: categoryIds,
-      product_ids: [],
-      select_all_products: true,
+      category_ids: selectedCategoryIds,
+      product_ids: productIds,
     });
   };
 
   const handleSelectAll = () => {
+    const productIds = products.map((product) => product.id);
     form.setFieldsValue({
       brand_ids: [],
       category_ids: [],
-      product_ids: [],
-      select_all_products: true,
+      product_ids: productIds,
     });
+  };
+
+  const handleRemoveSelectedProduct = (productId: number) => {
+    form.setFieldsValue({
+      product_ids: selectedProductIds.filter((id) => id !== productId),
+    });
+  };
+
+  const handleClearSelectedProducts = () => {
+    form.setFieldsValue({ product_ids: [] });
   };
 
   const handleDelete = async (id: number) => {
@@ -302,18 +332,15 @@ export default function Discounts() {
         onFinish={async (values: any) => {
           try {
             const payload = { ...values };
-            if (!payload.select_all_products) {
-              delete payload.brand_ids;
-              delete payload.category_ids;
-            }
+            delete payload.brand_ids;
+            delete payload.category_ids;
             // 验证必填字段
             if (!payload.user_ids || payload.user_ids.length === 0) {
               message.error('请至少选择一个用户');
               return false;
             }
-            const hasProductIds = Array.isArray(payload.product_ids) && payload.product_ids.length > 0;
-            if (!hasProductIds && !payload.select_all_products) {
-              message.error('请至少选择商品，或使用一键全选');
+            if (!payload.product_ids || payload.product_ids.length === 0) {
+              message.error('请至少选择一个商品');
               return false;
             }
 
@@ -399,8 +426,6 @@ export default function Discounts() {
           tooltip="按品类过滤可选商品"
         />
 
-        <ProFormSwitch name="select_all_products" hidden />
-
         <Form.Item label="快捷选择">
           <Space wrap>
             <Button onClick={handleSelectByBrand}>品牌商品全选</Button>
@@ -413,19 +438,56 @@ export default function Discounts() {
           name="product_ids"
           label="适用商品"
           mode="multiple"
+          rules={[{ required: true, message: '请选择适用商品' }]}
           options={productOptions}
           fieldProps={{
             showSearch: true,
             placeholder: '请选择适用商品',
             maxTagCount: 'responsive',
-            onChange: () => {
-              form.setFieldsValue({ select_all_products: false });
-            },
             filterOption: (input: string, option: any) =>
               option.label.toLowerCase().includes(input.toLowerCase()),
           }}
           tooltip="选择可以使用此折扣的商品"
         />
+
+        <Form.Item label="已选商品">
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Space wrap>
+              <span>已选 {selectedProducts.length} 件</span>
+              <Button size="small" onClick={handleClearSelectedProducts} disabled={!selectedProducts.length}>
+                清空
+              </Button>
+              <Input
+                allowClear
+                value={selectedSearch}
+                onChange={(event) => setSelectedSearch(event.target.value)}
+                placeholder="搜索已选商品"
+                style={{ width: 220 }}
+              />
+            </Space>
+            <List
+              bordered
+              size="small"
+              dataSource={filteredSelectedProducts}
+              locale={{ emptyText: '暂无已选商品' }}
+              pagination={filteredSelectedProducts.length > 10 ? { pageSize: 10, size: 'small' } : false}
+              renderItem={(item: any) => (
+                <List.Item
+                  actions={[
+                    <Button type="link" size="small" onClick={() => handleRemoveSelectedProduct(item.id)}>
+                      移除
+                    </Button>,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={item.name}
+                    description={`¥${item.price}${item.brand ? ` / ${item.brand}` : ''}${item.category ? ` / ${item.category}` : ''}`}
+                  />
+                </List.Item>
+              )}
+            />
+          </Space>
+        </Form.Item>
         
         <ProFormDateTimePicker 
           name="effective_time" 
