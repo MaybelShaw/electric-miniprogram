@@ -97,7 +97,11 @@ export default function Discounts() {
   const allCategoryIds = useMemo(() => categories.map((category) => category.id), [categories]);
 
   const handleSelectByBrand = () => {
-    const brandIds = selectedBrandIds.length ? selectedBrandIds : allBrandIds;
+    if (!selectedBrandIds.length) {
+      message.warning('请先选择品牌');
+      return;
+    }
+    const brandIds = selectedBrandIds;
     form.setFieldsValue({
       brand_ids: brandIds,
       category_ids: [],
@@ -107,7 +111,11 @@ export default function Discounts() {
   };
 
   const handleSelectByCategory = () => {
-    const categoryIds = selectedCategoryIds.length ? selectedCategoryIds : allCategoryIds;
+    if (!selectedCategoryIds.length) {
+      message.warning('请先选择品类');
+      return;
+    }
+    const categoryIds = selectedCategoryIds;
     form.setFieldsValue({
       brand_ids: [],
       category_ids: categoryIds,
@@ -118,8 +126,8 @@ export default function Discounts() {
 
   const handleSelectAll = () => {
     form.setFieldsValue({
-      brand_ids: selectedBrandIds,
-      category_ids: selectedCategoryIds,
+      brand_ids: [],
+      category_ids: [],
       product_ids: [],
       select_all_products: true,
     });
@@ -398,9 +406,9 @@ export default function Discounts() {
 
         <Form.Item label="快捷选择">
           <Space wrap>
-            <Button onClick={handleSelectByBrand}>一键品牌</Button>
-            <Button onClick={handleSelectByCategory}>一键品类</Button>
-            <Button type="primary" onClick={handleSelectAll}>一键全选</Button>
+            <Button onClick={handleSelectByBrand}>品牌商品全选</Button>
+            <Button onClick={handleSelectByCategory}>品类商品全选</Button>
+            <Button type="primary" onClick={handleSelectAll}>全部商品全选</Button>
           </Space>
         </Form.Item>
         
