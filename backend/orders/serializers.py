@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.conf import settings
 from datetime import timedelta
 from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest, OrderItem
-from catalog.models import Product
+from catalog.models import Product, Category
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
 
@@ -531,26 +531,87 @@ class DiscountSerializer(serializers.ModelSerializer):
     # 批量设置适用范围（写入时使用）：用户与商品ID列表
     user_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
     product_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
+    brand_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
+    category_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
+    select_all_products = serializers.BooleanField(write_only=True, required=False)
 
     class Meta:
         model = Discount
         fields = [
             'id', 'name', 'amount', 'effective_time', 'expiration_time', 'priority', 'created_at', 'updated_at', 'targets',
-            'user_ids', 'product_ids'
+            'user_ids', 'product_ids', 'brand_ids', 'category_ids', 'select_all_products'
         ]
+
+    def _resolve_product_ids(
+        self,
+        product_ids: list[int],
+        brand_ids: list[int],
+        category_ids: list[int],
+        select_all_products: bool,
+    ) -> list[int]:
+        expanded_category_ids: list[int] = []
+        if category_ids:
+            category_qs = Category.objects.filter(id__in=category_ids)
+            major_ids = list(category_qs.filter(level=Category.LEVEL_MAJOR).values_list('id', flat=True))
+            minor_ids = list(category_qs.filter(level=Category.LEVEL_MINOR).values_list('id', flat=True))
+            item_ids = list(category_qs.filter(level=Category.LEVEL_ITEM).values_list('id', flat=True))
+            if major_ids:
+                minor_from_major = list(
+                    Category.objects.filter(parent_id__in=major_ids, level=Category.LEVEL_MINOR)
+                    .values_list('id', flat=True)
+                )
+                minor_ids.extend(minor_from_major)
+                if minor_from_major:
+                    item_ids.extend(list(
+                        Category.objects.filter(parent_id__in=minor_from_major, level=Category.LEVEL_ITEM)
+                        .values_list('id', flat=True)
+                    ))
+            if minor_ids:
+                item_ids.extend(list(
+                    Category.objects.filter(parent_id__in=minor_ids, level=Category.LEVEL_ITEM)
+                    .values_list('id', flat=True)
+                ))
+            expanded_category_ids = list(set(minor_ids + item_ids))
+
+        if select_all_products or brand_ids or category_ids:
+            qs = Product.objects.all()
+            if brand_ids:
+                qs = qs.filter(brand_id__in=brand_ids)
+            if category_ids:
+                if expanded_category_ids:
+                    qs = qs.filter(category_id__in=expanded_category_ids)
+                else:
+                    qs = qs.none()
+            filtered_ids = list(qs.values_list('id', flat=True))
+            if select_all_products:
+                return filtered_ids
+            if filtered_ids:
+                return list(set(product_ids + filtered_ids))
+        return product_ids
+
+    def _bulk_create_targets(self, discount: Discount, user_ids: list[int], product_ids: list[int]) -> None:
+        if not user_ids or not product_ids:
+            return
+        batch: list[DiscountTarget] = []
+        for uid in user_ids:
+            for pid in product_ids:
+                batch.append(DiscountTarget(discount=discount, user_id=uid, product_id=pid))
+                if len(batch) >= 1000:
+                    DiscountTarget.objects.bulk_create(batch, ignore_conflicts=True)
+                    batch = []
+        if batch:
+            DiscountTarget.objects.bulk_create(batch, ignore_conflicts=True)
 
     def create(self, validated_data):
         user_ids = list(set(validated_data.pop('user_ids', []) or []))
         product_ids = list(set(validated_data.pop('product_ids', []) or []))
+        brand_ids = list(set(validated_data.pop('brand_ids', []) or []))
+        category_ids = list(set(validated_data.pop('category_ids', []) or []))
+        select_all_products = bool(validated_data.pop('select_all_products', False) or False)
+        product_ids = self._resolve_product_ids(product_ids, brand_ids, category_ids, select_all_products)
         discount = super().create(validated_data)
         # 若同时提供用户与商品，则批量建立适用范围
-        if user_ids and product_ids:
-            targets = [
-                DiscountTarget(discount=discount, user_id=uid, product_id=pid)
-                for uid in user_ids for pid in product_ids
-            ]
-            # 忽略唯一约束冲突（理论上不会因新建而冲突）
-            DiscountTarget.objects.bulk_create(targets, ignore_conflicts=True)
+        self._bulk_create_targets(discount, user_ids, product_ids)
         return discount
 
     def update(self, instance, validated_data):
@@ -559,9 +620,18 @@ class DiscountSerializer(serializers.ModelSerializer):
         # - 若只提供其一：与当前另一维的集合做笛卡尔积覆盖
         user_ids_raw = validated_data.pop('user_ids', None)
         product_ids_raw = validated_data.pop('product_ids', None)
+        brand_ids_raw = validated_data.pop('brand_ids', None)
+        category_ids_raw = validated_data.pop('category_ids', None)
+        select_all_products = bool(validated_data.pop('select_all_products', False) or False)
         discount = super().update(instance, validated_data)
 
-        if user_ids_raw is not None or product_ids_raw is not None:
+        if (
+            user_ids_raw is not None
+            or product_ids_raw is not None
+            or brand_ids_raw is not None
+            or category_ids_raw is not None
+            or select_all_products
+        ):
             # 当前已有的集合
             current_users = list(
                 DiscountTarget.objects.filter(discount=discount).values_list('user_id', flat=True).distinct()
@@ -572,13 +642,11 @@ class DiscountSerializer(serializers.ModelSerializer):
 
             user_ids = list(set((user_ids_raw or current_users) or []))
             product_ids = list(set((product_ids_raw or current_products) or []))
+            brand_ids = list(set((brand_ids_raw or []) or []))
+            category_ids = list(set((category_ids_raw or []) or []))
+            product_ids = self._resolve_product_ids(product_ids, brand_ids, category_ids, select_all_products)
 
             # 覆盖原有范围
             DiscountTarget.objects.filter(discount=discount).delete()
-            if user_ids and product_ids:
-                targets = [
-                    DiscountTarget(discount=discount, user_id=uid, product_id=pid)
-                    for uid in user_ids for pid in product_ids
-                ]
-                DiscountTarget.objects.bulk_create(targets, ignore_conflicts=True)
+            self._bulk_create_targets(discount, user_ids, product_ids)
         return discount

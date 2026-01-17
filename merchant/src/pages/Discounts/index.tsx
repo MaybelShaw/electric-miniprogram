@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Drawer, Descriptions } from 'antd';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
+import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space } from 'antd';
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
-import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts } from '@/services/api';
+import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 import { fetchAllPaginated } from '@/utils/request';
 
@@ -13,24 +13,117 @@ export default function Discounts() {
   const [currentDiscount, setCurrentDiscount] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const actionRef = useRef<ActionType>();
+  const [form] = Form.useForm();
 
-  // 加载用户和产品列表
+  const selectedBrandIds = (Form.useWatch('brand_ids', form) as number[]) || [];
+  const selectedCategoryIds = (Form.useWatch('category_ids', form) as number[]) || [];
+  const selectedProductIds = (Form.useWatch('product_ids', form) as number[]) || [];
+
+  // 加载用户、商品、品牌、品类列表
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [userData, productData] = await Promise.all([
+        const [userData, productData, brandData, categoryData] = await Promise.all([
           fetchAllPaginated<any>(getUsers, {}, 100),
           fetchAllPaginated<any>(getProducts, {}, 100),
+          fetchAllPaginated<any>(getBrands, {}, 1000),
+          fetchAllPaginated<any>(getCategories, { level: 'item' }, 1000),
         ]);
         setUsers(userData);
         setProducts(productData);
+        setBrands(brandData);
+        setCategories(categoryData);
       } catch (error) {
         // 静默失败
       }
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (!modalVisible) return;
+    if (editingRecord) {
+      form.resetFields();
+      form.setFieldsValue({ ...editingRecord, select_all_products: false });
+    } else {
+      form.resetFields();
+      form.setFieldsValue({ priority: 0, select_all_products: false });
+    }
+  }, [modalVisible, editingRecord, form]);
+
+  const brandOptions = useMemo(
+    () => brands.map((brand) => ({ label: brand.name, value: brand.id })),
+    [brands]
+  );
+
+  const categoryOptions = useMemo(
+    () => categories.map((category) => ({ label: category.name, value: category.id })),
+    [categories]
+  );
+
+  const filteredProducts = useMemo(() => {
+    if (!selectedBrandIds.length && !selectedCategoryIds.length) return products;
+    return products.filter((product) => {
+      const brandMatch = !selectedBrandIds.length || selectedBrandIds.includes(product.brand_id);
+      const categoryMatch = !selectedCategoryIds.length || selectedCategoryIds.includes(product.category_id);
+      return brandMatch && categoryMatch;
+    });
+  }, [products, selectedBrandIds, selectedCategoryIds]);
+
+  const productOptions = useMemo(() => {
+    if (!products.length) return [];
+    const selectedSet = new Set(selectedProductIds);
+    const optionsMap = new Map<number, any>();
+    for (const product of filteredProducts) {
+      optionsMap.set(product.id, product);
+    }
+    if (selectedSet.size) {
+      for (const product of products) {
+        if (selectedSet.has(product.id)) {
+          optionsMap.set(product.id, product);
+        }
+      }
+    }
+    return Array.from(optionsMap.values()).map((product) => ({
+      label: `${product.name} (¥${product.price})`,
+      value: product.id,
+    }));
+  }, [filteredProducts, products, selectedProductIds]);
+
+  const allBrandIds = useMemo(() => brands.map((brand) => brand.id), [brands]);
+  const allCategoryIds = useMemo(() => categories.map((category) => category.id), [categories]);
+
+  const handleSelectByBrand = () => {
+    const brandIds = selectedBrandIds.length ? selectedBrandIds : allBrandIds;
+    form.setFieldsValue({
+      brand_ids: brandIds,
+      category_ids: [],
+      product_ids: [],
+      select_all_products: true,
+    });
+  };
+
+  const handleSelectByCategory = () => {
+    const categoryIds = selectedCategoryIds.length ? selectedCategoryIds : allCategoryIds;
+    form.setFieldsValue({
+      brand_ids: [],
+      category_ids: categoryIds,
+      product_ids: [],
+      select_all_products: true,
+    });
+  };
+
+  const handleSelectAll = () => {
+    form.setFieldsValue({
+      brand_ids: selectedBrandIds,
+      category_ids: selectedCategoryIds,
+      product_ids: [],
+      select_all_products: true,
+    });
+  };
 
   const handleDelete = async (id: number) => {
     try {
@@ -192,26 +285,38 @@ export default function Discounts() {
       <ModalForm
         title={editingRecord ? '编辑折扣' : '新增折扣'}
         open={modalVisible}
-        onOpenChange={setModalVisible}
-        initialValues={editingRecord || { priority: 0 }}
+        form={form}
+        onOpenChange={(visible) => {
+          setModalVisible(visible);
+          if (!visible) {
+            form.resetFields();
+            setEditingRecord(null);
+          }
+        }}
         width={800}
         onFinish={async (values: any) => {
           try {
+            const payload = { ...values };
+            if (!payload.select_all_products) {
+              delete payload.brand_ids;
+              delete payload.category_ids;
+            }
             // 验证必填字段
-            if (!values.user_ids || values.user_ids.length === 0) {
+            if (!payload.user_ids || payload.user_ids.length === 0) {
               message.error('请至少选择一个用户');
               return false;
             }
-            if (!values.product_ids || values.product_ids.length === 0) {
-              message.error('请至少选择一个商品');
+            const hasProductIds = Array.isArray(payload.product_ids) && payload.product_ids.length > 0;
+            if (!hasProductIds && !payload.select_all_products) {
+              message.error('请至少选择商品，或使用一键全选');
               return false;
             }
 
             if (editingRecord) {
-              await updateDiscount(editingRecord.id, values);
+              await updateDiscount(editingRecord.id, payload);
               message.success('更新成功');
             } else {
-              await createDiscount(values);
+              await createDiscount(payload);
               message.success('创建成功');
             }
             actionRef.current?.reload();
@@ -258,19 +363,59 @@ export default function Discounts() {
           }}
           tooltip="选择可以享受此折扣的用户"
         />
+
+        <ProFormSelect
+          name="brand_ids"
+          label="品牌筛选"
+          mode="multiple"
+          options={brandOptions}
+          fieldProps={{
+            showSearch: true,
+            placeholder: '请选择品牌',
+            maxTagCount: 'responsive',
+            filterOption: (input: string, option: any) =>
+              option.label.toLowerCase().includes(input.toLowerCase()),
+          }}
+          tooltip="按品牌过滤可选商品"
+        />
+
+        <ProFormSelect
+          name="category_ids"
+          label="品类筛选"
+          mode="multiple"
+          options={categoryOptions}
+          fieldProps={{
+            showSearch: true,
+            placeholder: '请选择品类',
+            maxTagCount: 'responsive',
+            filterOption: (input: string, option: any) =>
+              option.label.toLowerCase().includes(input.toLowerCase()),
+          }}
+          tooltip="按品类过滤可选商品"
+        />
+
+        <ProFormSwitch name="select_all_products" hidden />
+
+        <Form.Item label="快捷选择">
+          <Space wrap>
+            <Button onClick={handleSelectByBrand}>一键品牌</Button>
+            <Button onClick={handleSelectByCategory}>一键品类</Button>
+            <Button type="primary" onClick={handleSelectAll}>一键全选</Button>
+          </Space>
+        </Form.Item>
         
         <ProFormSelect
           name="product_ids"
           label="适用商品"
           mode="multiple"
-          rules={[{ required: true, message: '请选择适用商品' }]}
-          options={products.map(product => ({
-            label: `${product.name} (¥${product.price})`,
-            value: product.id,
-          }))}
+          options={productOptions}
           fieldProps={{
             showSearch: true,
             placeholder: '请选择适用商品',
+            maxTagCount: 'responsive',
+            onChange: () => {
+              form.setFieldsValue({ select_all_products: false });
+            },
             filterOption: (input: string, option: any) =>
               option.label.toLowerCase().includes(input.toLowerCase()),
           }}
