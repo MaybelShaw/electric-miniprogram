@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List } from 'antd';
+import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List, Modal } from 'antd';
 import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
@@ -108,46 +108,34 @@ export default function Discounts() {
     );
   }, [selectedProducts, selectedSearch]);
 
-  const getProductsByFilters = (brandIds: number[], categoryIds: number[]) =>
-    products.filter((product) => {
-      const brandMatch = !brandIds.length || brandIds.includes(product.brand_id);
-      const categoryMatch = !categoryIds.length || categoryIds.includes(product.category_id);
-      return brandMatch && categoryMatch;
-    });
-
-  const handleSelectByBrand = () => {
-    if (!selectedBrandIds.length) {
-      message.warning('请先选择品牌');
+  const handleQuickAdd = () => {
+    if (!filteredProducts.length) {
+      message.warning('当前筛选无商品');
       return;
     }
-    const productIds = getProductsByFilters(selectedBrandIds, []).map((product) => product.id);
-    form.setFieldsValue({
-      brand_ids: selectedBrandIds,
-      category_ids: [],
-      product_ids: productIds,
-    });
-  };
-
-  const handleSelectByCategory = () => {
-    if (!selectedCategoryIds.length) {
-      message.warning('请先选择品类');
+    const currentIds = new Set(selectedProductIds);
+    const candidateIds = Array.from(
+      new Set(filteredProducts.map((product) => product.id).filter(Boolean))
+    );
+    const merged = new Set([...currentIds, ...candidateIds]);
+    const addedCount = merged.size - currentIds.size;
+    if (addedCount <= 0) {
+      message.info('筛选结果均已添加');
       return;
     }
-    const productIds = getProductsByFilters([], selectedCategoryIds).map((product) => product.id);
-    form.setFieldsValue({
-      brand_ids: [],
-      category_ids: selectedCategoryIds,
-      product_ids: productIds,
-    });
-  };
-
-  const handleSelectAll = () => {
-    const productIds = products.map((product) => product.id);
-    form.setFieldsValue({
-      brand_ids: [],
-      category_ids: [],
-      product_ids: productIds,
-    });
+    const applySelection = () => {
+      form.setFieldsValue({ product_ids: Array.from(merged) });
+      message.success(`已添加 ${addedCount} 件商品`);
+    };
+    if (candidateIds.length > 1000) {
+      Modal.confirm({
+        title: '确认添加',
+        content: `将添加 ${addedCount} 件商品（筛选结果共 ${candidateIds.length} 件）`,
+        onOk: applySelection,
+      });
+      return;
+    }
+    applySelection();
   };
 
   const handleRemoveSelectedProduct = (productId: number) => {
@@ -426,11 +414,9 @@ export default function Discounts() {
           tooltip="按品类过滤可选商品"
         />
 
-        <Form.Item label="快捷选择">
+        <Form.Item label="快捷选择" extra="未选择品牌/品类时，将添加全部商品">
           <Space wrap>
-            <Button onClick={handleSelectByBrand}>品牌商品全选</Button>
-            <Button onClick={handleSelectByCategory}>品类商品全选</Button>
-            <Button type="primary" onClick={handleSelectAll}>全部商品全选</Button>
+            <Button type="primary" onClick={handleQuickAdd}>一键添加（当前筛选）</Button>
           </Space>
         </Form.Item>
         

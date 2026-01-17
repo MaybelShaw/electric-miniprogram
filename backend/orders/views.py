@@ -26,6 +26,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.utils import parse_int, parse_datetime
@@ -1627,6 +1628,22 @@ class DiscountViewSet(viewsets.ModelViewSet):
     queryset = Discount.objects.all()
     serializer_class = DiscountSerializer
     permission_classes = [IsAdmin]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            with transaction.atomic():
+                instance.targets.all().delete()
+                instance.delete()
+        except ProtectedError:
+            return Response(
+                {
+                    'error': '无法删除折扣',
+                    'message': '该折扣被其他数据引用，无法删除',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self):
         # 折扣管理仅管理员可见；普通用户仅能查看与自己相关的折扣（用于调试），实际前端不暴露列表
