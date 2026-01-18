@@ -48,6 +48,7 @@ export default function Products() {
       title: '产品名称', 
       dataIndex: 'name',
       ellipsis: true,
+      width: 220,
     },
     { 
       title: '品牌', 
@@ -476,7 +477,7 @@ export default function Products() {
         }
       }}
       rowKey="id"
-      scroll={{ x: 1200 }}
+      scroll={{ x: 'max-content' }}
       search={{
         labelWidth: 'auto',
         defaultCollapsed: false,
