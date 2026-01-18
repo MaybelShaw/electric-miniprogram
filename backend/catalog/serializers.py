@@ -532,14 +532,22 @@ class SearchLogSerializer(serializers.ModelSerializer):
 class HomeBannerSerializer(serializers.ModelSerializer):
     image_id = serializers.IntegerField(source='image.id', read_only=True)
     image_url = serializers.SerializerMethodField()
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source='product',
+        allow_null=True,
+        required=False
+    )
+    product_name = serializers.CharField(source='product.name', read_only=True, default='')
 
     class Meta:
         model = HomeBanner
         fields = [
             'id', 'title', 'link_url', 'position', 'order', 'is_active',
+            'product_id', 'product_name',
             'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
 
     def get_image_url(self, obj: HomeBanner):
         request = self.context.get('request')

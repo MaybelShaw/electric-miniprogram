@@ -51,6 +51,7 @@ class ProductSearchService:
         brand: Optional[str] = None,
         min_price: Optional[Decimal] = None,
         max_price: Optional[Decimal] = None,
+        is_active: Optional[bool] = None,
         show_in_gift_zone: Optional[bool] = None,
         show_in_designer_zone: Optional[bool] = None,
         sort_by: str = 'relevance',
@@ -67,6 +68,7 @@ class ProductSearchService:
             brand: Filter by brand name
             min_price: Minimum price filter
             max_price: Maximum price filter
+            is_active: Filter by active flag
             show_in_gift_zone: Filter by gift zone flag
             show_in_designer_zone: Filter by designer zone flag
             sort_by: Sort strategy (relevance, price_asc, price_desc, sales, created, views)
@@ -98,8 +100,10 @@ class ProductSearchService:
         except (ValueError, TypeError):
             page_size = cls.DEFAULT_PAGE_SIZE
         
+        is_staff = bool(user and getattr(user, 'is_staff', False))
+
         # Admin can see all products; regular users see only active ones
-        if user and getattr(user, 'is_staff', False):
+        if is_staff:
             queryset = Product.objects.all()
         else:
             queryset = Product.objects.filter(is_active=True)
@@ -137,6 +141,12 @@ class ProductSearchService:
                 queryset = queryset.filter(price__lte=max_price)
             except (ValueError, TypeError):
                 pass
+
+        if is_active is not None:
+            if is_staff:
+                queryset = queryset.filter(is_active=bool(is_active))
+            elif bool(is_active) is True:
+                queryset = queryset.filter(is_active=True)
 
         if show_in_gift_zone is not None:
             queryset = queryset.filter(show_in_gift_zone=bool(show_in_gift_zone))

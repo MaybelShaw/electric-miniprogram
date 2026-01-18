@@ -115,6 +115,8 @@ export interface HomeBanner {
   order: number
   image_url: string
   image_id: number
+  product_id?: number | null
+  product_name?: string
 }
 
 // 首页专区图片

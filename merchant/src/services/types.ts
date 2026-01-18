@@ -122,6 +122,8 @@ export interface HomeBanner {
   is_active: boolean;
   image_id: number;
   image_url: string;
+  product_id?: number | null;
+  product_name?: string;
   created_at: string;
   updated_at: string;
 }

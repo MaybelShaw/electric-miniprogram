@@ -368,6 +368,14 @@ class HomeBanner(models.Model):
         related_name='banners',
         verbose_name='图片'
     )
+    product = models.ForeignKey(
+        'catalog.Product',
+        on_delete=models.SET_NULL,
+        related_name='home_banners',
+        null=True,
+        blank=True,
+        verbose_name='跳转商品'
+    )
     title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
     link_url = models.URLField(max_length=500, blank=True, default='', verbose_name='跳转链接')
     position = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_HOME, verbose_name='展示位置')

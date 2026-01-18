@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { getHomeBanners, createHomeBanner, updateHomeBanner, deleteHomeBanner, uploadImage } from '@/services/api';
+import { getHomeBanners, createHomeBanner, updateHomeBanner, deleteHomeBanner, uploadImage, getProducts } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { HomeBanner } from '@/services/types';
 
@@ -12,6 +12,7 @@ export default function HomeBanners() {
   const [editingRecord, setEditingRecord] = useState<HomeBanner | null>(null);
   const [imageUrl, setImageUrl] = useState<string>();
   const [imageId, setImageId] = useState<number>();
+  const [defaultProductOption, setDefaultProductOption] = useState<{ label: string; value: number } | null>(null);
   const [form] = Form.useForm();
 
   const handleUpload = async (options: any) => {
@@ -34,6 +35,11 @@ export default function HomeBanners() {
     setEditingRecord(record);
     setImageUrl(record.image_url);
     setImageId(record.image_id);
+    setDefaultProductOption(
+      record.product_id
+        ? { label: record.product_name || `商品 #${record.product_id}`, value: record.product_id }
+        : null
+    );
     setModalVisible(true);
     form.setFieldsValue({
       title: record.title,
@@ -41,6 +47,7 @@ export default function HomeBanners() {
       position: record.position,
       order: record.order,
       is_active: record.is_active,
+      product_id: record.product_id ?? undefined,
     });
   };
 
@@ -48,12 +55,14 @@ export default function HomeBanners() {
     setEditingRecord(null);
     setImageUrl(undefined);
     setImageId(undefined);
+    setDefaultProductOption(null);
     setModalVisible(true);
     form.resetFields();
     form.setFieldsValue({
       order: 0,
       is_active: true,
       position: 'home',
+      product_id: undefined,
     });
   };
 
@@ -93,6 +102,15 @@ export default function HomeBanners() {
       dataIndex: 'title',
     },
     {
+      title: '跳转商品',
+      dataIndex: 'product_name',
+      hideInSearch: true,
+      render: (_, record) =>
+        record.product_id
+          ? `${record.product_name || '商品'} (#${record.product_id})`
+          : '-',
+    },
+    {
       title: '展示位置',
       dataIndex: 'position',
       valueType: 'select',
@@ -103,12 +121,12 @@ export default function HomeBanners() {
       },
       width: 120,
     },
-    {
-      title: '跳转链接',
-      dataIndex: 'link_url',
-      hideInSearch: true,
-      ellipsis: true,
-    },
+      {
+        title: '跳转链接',
+        dataIndex: 'link_url',
+        hideInSearch: true,
+        ellipsis: true,
+      },
     {
       title: '排序',
       dataIndex: 'order',
@@ -213,6 +231,7 @@ export default function HomeBanners() {
             const data = {
               ...values,
               image: imageId || editingRecord?.image_id,
+              product_id: values.product_id ?? null,
             };
 
             if (editingRecord) {
@@ -258,6 +277,44 @@ export default function HomeBanners() {
             }}
             rules={[{ required: true, message: '请选择展示位置' }]}
             initialValue="home"
+        />
+
+        <ProFormSelect
+          name="product_id"
+          label="跳转商品"
+          tooltip="优先使用跳转商品，留空则使用跳转链接"
+          debounceTime={300}
+          params={{ defaultProductId: defaultProductOption?.value }}
+          request={async ({ keyWords }) => {
+            try {
+              const res: any = await getProducts({
+                search: keyWords,
+                page: 1,
+                page_size: 20,
+                is_active: true,
+              });
+              const data = Array.isArray(res) ? res : (res.results || []);
+              const options = data.map((item: any) => ({
+                label: item.name,
+                value: item.id,
+              }));
+              if (!keyWords && defaultProductOption) {
+                const exists = options.some(option => option.value === defaultProductOption.value);
+                if (!exists) {
+                  options.unshift(defaultProductOption);
+                }
+              }
+              return options;
+            } catch (error) {
+              return defaultProductOption ? [defaultProductOption] : [];
+            }
+          }}
+          fieldProps={{
+            showSearch: true,
+            filterOption: false,
+            allowClear: true,
+            placeholder: '搜索商品名称',
+          }}
         />
 
         <ProFormText

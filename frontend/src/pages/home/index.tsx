@@ -142,6 +142,22 @@ export default function Home() {
     Taro.navigateTo({ url: `/pages/brand/index?brand=${brand}` })
   }
 
+  const handleBannerClick = (banner: HomeBanner) => {
+    if (banner.product_id) {
+      Taro.navigateTo({ url: `/pages/product-detail/index?id=${banner.product_id}` })
+      return
+    }
+    if (banner.link_url) {
+      // 判断是否是 tab 页面
+      const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => banner.link_url.includes(path))
+      if (isTab) {
+        Taro.switchTab({ url: banner.link_url })
+      } else {
+        Taro.navigateTo({ url: banner.link_url })
+      }
+    }
+  }
+
   // 跳转专区
   const goToSpecialZone = (type: 'gift' | 'designer', title: string) => {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
@@ -189,17 +205,7 @@ export default function Home() {
         {/* 轮播图 */}
         <Swiper className='banner' autoplay circular indicatorDots>
           {banners.map(banner => (
-            <SwiperItem key={banner.id} onClick={() => {
-              if (banner.link_url) {
-                // 判断是否是 tab 页面
-                const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => banner.link_url.includes(path))
-                if (isTab) {
-                  Taro.switchTab({ url: banner.link_url })
-                } else {
-                  Taro.navigateTo({ url: banner.link_url })
-                }
-              }
-            }}>
+            <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
               <Image className='banner-image' src={banner.image_url} mode='aspectFill' />
             </SwiperItem>
           ))}

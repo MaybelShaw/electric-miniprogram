@@ -134,6 +134,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             OpenApiParameter('min_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Minimum price filter'),
             OpenApiParameter('max_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Maximum price filter'),
             OpenApiParameter('sort_by', OT.STR, OpenApiParameter.QUERY, description='Sort strategy: relevance, price_asc, price_desc, sales, created, views'),
+            OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
             OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
             OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
             OpenApiParameter('page', OT.INT, OpenApiParameter.QUERY, description='Page number (default: 1)'),
@@ -158,6 +159,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         min_price = parse_decimal(request.query_params.get('min_price'))
         max_price = parse_decimal(request.query_params.get('max_price'))
 
+        is_active = to_bool(request.query_params.get('is_active'))
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         
@@ -175,6 +177,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             brand=brand,
             min_price=min_price,
             max_price=max_price,
+            is_active=is_active,
             show_in_gift_zone=show_in_gift_zone,
             show_in_designer_zone=show_in_designer_zone,
             sort_by=sort_by,
@@ -1206,6 +1209,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
         parameters=[
             OpenApiParameter('title', OT.STR, OpenApiParameter.QUERY, description='轮播图标题'),
             OpenApiParameter('link_url', OT.STR, OpenApiParameter.QUERY, description='跳转链接'),
+            OpenApiParameter('product_id', OT.INT, OpenApiParameter.QUERY, description='跳转商品ID'),
             OpenApiParameter('position', OT.STR, OpenApiParameter.QUERY, description='展示位置'),
             OpenApiParameter('order', OT.INT, OpenApiParameter.QUERY, description='排序值'),
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否启用'),
@@ -1241,6 +1245,18 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
 
         title = request.data.get('title') or request.query_params.get('title') or ''
         link_url = request.data.get('link_url') or request.query_params.get('link_url') or ''
+        product_id_raw = request.data.get('product_id')
+        if product_id_raw in (None, ''):
+            product_id_raw = request.query_params.get('product_id')
+        product = None
+        if product_id_raw not in (None, ''):
+            try:
+                product_id = int(product_id_raw)
+                product = Product.objects.get(id=product_id)
+            except (ValueError, TypeError):
+                raise ValidationError('product_id格式错误')
+            except Product.DoesNotExist:
+                raise ValidationError('product_id对应商品不存在')
         position = request.data.get('position') or request.query_params.get('position') or 'home'
         try:
             order = int(request.data.get('order') or request.query_params.get('order') or 0)
@@ -1253,6 +1269,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
             image=media,
             title=title,
             link_url=link_url or '',
+            product=product,
             position=position,
             order=order,
             is_active=is_active,
