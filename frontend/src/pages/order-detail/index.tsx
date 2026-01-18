@@ -5,6 +5,7 @@ import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
+import { resolvePaymentErrorMessage } from '../../utils/payment'
 import { BASE_URL, TokenManager } from '../../utils/request'
 import './index.scss'
 
@@ -168,7 +169,7 @@ export default function OrderDetail() {
         url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${paymentRecord.id}`
       })
     } catch (error: any) {
-      const msg = error?.errMsg || error?.message || '支付失败'
+      const msg = resolvePaymentErrorMessage(error, '支付未完成')
       Taro.showToast({ title: msg, icon: 'none' })
       Taro.redirectTo({
         url: `/pages/payment-result/index?status=fail&orderId=${order?.id || ''}&paymentId=${payment?.id || ''}&reason=${encodeURIComponent(msg)}`

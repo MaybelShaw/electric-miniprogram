@@ -6,6 +6,7 @@ import { paymentService } from '../../services/payment'
 import { refundService } from '../../services/refund'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, formatTime } from '../../utils/format'
+import { resolvePaymentErrorMessage } from '../../utils/payment'
 import './index.scss'
 
 type StatusType = 'success' | 'fail'
@@ -17,7 +18,10 @@ export default function PaymentResult() {
   const statusParam = (params.status as StatusType) || 'success'
   const orderId = Number(params.orderId || 0)
   const paymentId = params.paymentId ? Number(params.paymentId) : undefined
-  const initialReason = params.reason ? decodeURIComponent(params.reason) : ''
+  const initialReason = resolvePaymentErrorMessage(
+    params.reason ? decodeURIComponent(params.reason) : '',
+    ''
+  )
 
   const [status, setStatus] = useState<StatusType>(statusParam)
   const [reasonText, setReasonText] = useState<string>(initialReason)
@@ -166,7 +170,7 @@ export default function PaymentResult() {
         url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${paymentRecord.id}`
       })
     } catch (error: any) {
-      const msg = error?.errMsg || error?.message || '支付失败'
+      const msg = resolvePaymentErrorMessage(error, '支付未完成')
       // 若订单/支付已在后端成功，兜底展示成功页
       try {
         const synced = await syncPaymentStatus(payment?.id)
