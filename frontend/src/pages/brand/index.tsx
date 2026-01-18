@@ -3,7 +3,6 @@ import { View, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Product } from '../../types'
-import { formatPrice } from '../../utils/format'
 import './index.scss'
 
 export default function BrandPage() {
@@ -53,6 +52,13 @@ export default function BrandPage() {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
   }
 
+  const getSellingPrice = (product: Product) => {
+    const basePrice = parseFloat(product.price)
+    return product.discounted_price && product.discounted_price < basePrice
+      ? product.discounted_price
+      : basePrice
+  }
+
   return (
     <View className='brand-page'>
       <ScrollView className='product-scroll' scrollY onScrollToLower={onLoadMore}>
@@ -63,7 +69,7 @@ export default function BrandPage() {
               <View className='product-info'>
                 <View className='product-name'>{product.name}</View>
                 <View className='product-bottom'>
-                  <View className='product-price'>{formatPrice(product.price)}</View>
+                  <View className='product-price'>{Number(getSellingPrice(product)).toFixed(2)}</View>
                   <View className='product-sales'>销量 {product.sales_count}</View>
                 </View>
               </View>

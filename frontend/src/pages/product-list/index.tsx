@@ -3,6 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Category, Product } from '../../types'
+import { formatPrice } from '../../utils/format'
 import './index.scss'
 
 export default function ProductListPage() {
@@ -134,6 +135,13 @@ export default function ProductListPage() {
       Taro.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
   }
 
+  const getSellingPrice = (product: Product) => {
+    const basePrice = parseFloat(product.price)
+    return product.discounted_price && product.discounted_price < basePrice
+      ? product.discounted_price
+      : basePrice
+  }
+
   return (
     <View className='product-list-page'>
       <View className='content-container'>
@@ -190,7 +198,7 @@ export default function ProductListPage() {
                     <View className='brand'>品牌: {product.brand}</View>
                     <View className='price-row'>
                       <View className='price'>
-                        ¥{product.price}
+                        {formatPrice(getSellingPrice(product))}
                       </View>
                       <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>+</View>
                     </View>

@@ -18,12 +18,12 @@ export const productService = {
     show_in_gift_zone?: boolean
     show_in_designer_zone?: boolean
   }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/catalog/products/', params, false)
+    return http.get<ProductListResponse>('/catalog/products/', params)
   },
   
   // 获取商品详情
   async getProductDetail(id: number): Promise<Product> {
-    return http.get<Product>(`/catalog/products/${id}/`, undefined, false)
+    return http.get<Product>(`/catalog/products/${id}/`)
   },
   
   // 按分类获取商品
@@ -33,7 +33,7 @@ export const productService = {
     page?: number
     page_size?: number
   }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/catalog/products/by_category/', params, false)
+    return http.get<ProductListResponse>('/catalog/products/by_category/', params)
   },
   
   // 按品牌获取商品
@@ -43,7 +43,7 @@ export const productService = {
     page?: number
     page_size?: number
   }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/catalog/products/by_brand/', params, false)
+    return http.get<ProductListResponse>('/catalog/products/by_brand/', params)
   },
   
   // 获取分类列表
@@ -63,12 +63,12 @@ export const productService = {
     limit?: number
     category_id?: number
   }): Promise<Product[]> {
-    return http.get<Product[]>('/catalog/products/recommendations/', params, false)
+    return http.get<Product[]>('/catalog/products/recommendations/', params)
   },
   
   // 获取相关商品
   async getRelatedProducts(id: number, limit = 10): Promise<Product[]> {
-    return http.get<Product[]>(`/catalog/products/${id}/related/`, { limit }, false)
+    return http.get<Product[]>(`/catalog/products/${id}/related/`, { limit })
   },
   
 

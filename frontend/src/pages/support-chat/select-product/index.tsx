@@ -2,6 +2,7 @@ import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { fetchAllPaginated } from '../../../utils/request'
+import { formatPrice } from '../../../utils/format'
 import './index.scss'
 
 export default function SelectProduct() {
@@ -16,7 +17,7 @@ export default function SelectProduct() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const data = await fetchAllPaginated<any>('/catalog/products/', {}, 100, false)
+      const data = await fetchAllPaginated<any>('/catalog/products/', {}, 100, true)
       setProducts(data)
     } catch (e) {
       console.error(e)
@@ -41,6 +42,13 @@ export default function SelectProduct() {
     Taro.navigateBack()
   }
 
+  const getSellingPrice = (product: any) => {
+    const basePrice = parseFloat(product.price || '0')
+    return product.discounted_price && product.discounted_price < basePrice
+      ? product.discounted_price
+      : basePrice
+  }
+
   return (
     <View className="select-product-page">
       <ScrollView scrollY className="product-list">
@@ -54,7 +62,7 @@ export default function SelectProduct() {
               <Image src={image} mode="aspectFill" className="product-img" />
               <View className="info">
                 <Text className="name">{product.name}</Text>
-                <Text className="price">¥{product.price}</Text>
+                <Text className="price">{formatPrice(getSellingPrice(product))}</Text>
               </View>
             </View>
           )

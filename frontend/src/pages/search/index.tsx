@@ -3,7 +3,6 @@ import { View, Input, ScrollView, Image, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Product } from '../../types'
-import { formatPrice } from '../../utils/format'
 import './index.scss'
 
 export default function Search() {
@@ -61,6 +60,13 @@ export default function Search() {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
   }
 
+  const getSellingPrice = (product: Product) => {
+    const basePrice = parseFloat(product.price)
+    return product.discounted_price && product.discounted_price < basePrice
+      ? product.discounted_price
+      : basePrice
+  }
+
   return (
     <View className='search-page'>
       {/* 搜索栏 */}
@@ -96,7 +102,7 @@ export default function Search() {
                     <View className='product-name'>{product.name}</View>
                     <View className='product-brand'>{product.brand}</View>
                     <View className='product-bottom'>
-                      <View className='product-price'>{Number(product.price).toFixed(2)}</View>
+                      <View className='product-price'>{Number(getSellingPrice(product)).toFixed(2)}</View>
                       <View className='product-sales'>销量 {product.sales_count}</View>
                     </View>
                   </View>
