@@ -294,7 +294,7 @@ export default function HomeBanners() {
                 is_active: true,
               });
               const data = Array.isArray(res) ? res : (res.results || []);
-              const options = data.map((item: any) => ({
+              const options: { label: string; value: number }[] = data.map((item: any) => ({
                 label: item.name,
                 value: item.id,
               }));
