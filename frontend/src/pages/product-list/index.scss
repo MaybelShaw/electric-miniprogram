@@ -18,12 +18,19 @@
       height: 100%;
 
       .sidebar-item {
-        padding: $spacing-lg $spacing-md;
+        height: 100px;
+        padding: 0 $spacing-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: $font-size-sm;
         color: $text-color-regular;
         position: relative;
         text-align: center;
         transition: all 0.2s;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         &.active {
           background-color: $white;

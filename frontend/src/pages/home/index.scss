@@ -274,16 +274,6 @@
         color: $text-color-base;
         text-align: center;
       }
-
-      .section-subtitle {
-        font-size: $font-size-sm;
-        color: $text-color-secondary;
-        background: rgba(0, 0, 0, 0.03);
-        padding: 4px 16px;
-        border-radius: 20px;
-        position: absolute;
-        right: $spacing-xs;
-      }
     }
 
     .product-list {

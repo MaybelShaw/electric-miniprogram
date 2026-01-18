@@ -263,7 +263,6 @@ export default function Home() {
         <View className='product-section'>
           <View className='section-header'>
             <View className='section-title'>全部商品</View>
-            <View className='section-subtitle'>{products.length} 件商品</View>
           </View>
           <View className='product-list'>
             {products.map(product => (
