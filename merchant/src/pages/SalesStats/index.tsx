@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button, message, Select, DatePicker, Table, Space, Card, Tabs, Empty, Radio } from 'antd';
+import { DownloadOutlined } from '@ant-design/icons';
 import { ProCard } from '@ant-design/pro-components';
 import { Pie } from '@ant-design/plots';
-import { getRegionalSales, getProductRegionDistribution, getProducts, getRegionProductStats } from '@/services/api';
+import { getRegionalSales, getProductRegionDistribution, getProducts, getRegionProductStats, exportRegionalSales, exportProductRegionDistribution, exportRegionProductStats } from '@/services/api';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -39,6 +42,8 @@ export default function SalesStats() {
   const [regionProductDates, setRegionProductDates] = useState<any>(null);
   const [regionProductMetric, setRegionProductMetric] = useState('total_quantity');
   const [regionOptions, setRegionOptions] = useState<any[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
 
   const fetchProducts = async (search: string) => {
      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -68,6 +73,7 @@ export default function SalesStats() {
               start_date: regionalDates ? regionalDates[0].format('YYYY-MM-DD') : undefined,
               end_date: regionalDates ? regionalDates[1].format('YYYY-MM-DD') : undefined,
               product_id: regionalProduct,
+              order_by: regionalMetric,
               limit: 50
           };
           const res: any = await getRegionalSales(params);
@@ -88,6 +94,7 @@ export default function SalesStats() {
               level: distLevel,
               start_date: distDates ? distDates[0].format('YYYY-MM-DD') : undefined,
               end_date: distDates ? distDates[1].format('YYYY-MM-DD') : undefined,
+              order_by: distMetric,
           };
           const res: any = await getProductRegionDistribution(params);
           setDistData(Array.isArray(res) ? res : []);
@@ -139,11 +146,11 @@ export default function SalesStats() {
 
   useEffect(() => {
       if (activeTab === 'regional') fetchRegionalStats();
-  }, [activeTab, regionalLevel, regionalDates, regionalProduct]);
+  }, [activeTab, regionalLevel, regionalDates, regionalProduct, regionalMetric]);
 
   useEffect(() => {
       if (activeTab === 'distribution' && distProduct) fetchDistStats();
-  }, [activeTab, distProduct, distLevel, distDates]);
+  }, [activeTab, distProduct, distLevel, distDates, distMetric]);
 
   useEffect(() => {
       if (activeTab === 'region_product') {
@@ -165,6 +172,69 @@ export default function SalesStats() {
 
   const getRegionProductTotal = () => {
       return regionProductData.reduce((sum: number, item: any) => sum + Number(item[regionProductMetric] || 0), 0);
+  };
+
+  const handleExport = async () => {
+      if (exportLockRef.current) return;
+      let filename = 'sales_stats';
+      let request: (() => Promise<any>) | null = null;
+
+      if (activeTab === 'regional') {
+          const params: any = {
+              level: regionalLevel,
+              start_date: regionalDates ? regionalDates[0].format('YYYY-MM-DD') : undefined,
+              end_date: regionalDates ? regionalDates[1].format('YYYY-MM-DD') : undefined,
+              product_id: regionalProduct,
+              order_by: regionalMetric,
+              limit: 50,
+          };
+          filename = 'sales_regional';
+          request = () => exportRegionalSales(params);
+      } else if (activeTab === 'distribution') {
+          if (!distProduct) {
+              message.warning('请先选择商品');
+              return;
+          }
+          const params: any = {
+              product_id: distProduct,
+              level: distLevel,
+              start_date: distDates ? distDates[0].format('YYYY-MM-DD') : undefined,
+              end_date: distDates ? distDates[1].format('YYYY-MM-DD') : undefined,
+              order_by: distMetric,
+          };
+          filename = 'sales_product_region';
+          request = () => exportProductRegionDistribution(params);
+      } else if (activeTab === 'region_product') {
+          if (!targetRegion) {
+              message.warning('请先选择地区');
+              return;
+          }
+          const params: any = {
+              region_name: targetRegion,
+              level: targetLevel,
+              start_date: regionProductDates ? regionProductDates[0].format('YYYY-MM-DD') : undefined,
+              end_date: regionProductDates ? regionProductDates[1].format('YYYY-MM-DD') : undefined,
+              order_by: regionProductMetric,
+              limit: 20,
+          };
+          filename = 'sales_region_products';
+          request = () => exportRegionProductStats(params);
+      }
+
+      if (!request) return;
+      exportLockRef.current = true;
+      setExporting(true);
+      try {
+          const res = await request();
+          const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+          downloadBlob(res, `${filename}_${timestamp}.xlsx`);
+          message.success('导出成功');
+      } catch (error) {
+          message.error('导出失败');
+      } finally {
+          exportLockRef.current = false;
+          setExporting(false);
+      }
   };
 
   const columns: any[] = [
@@ -308,6 +378,7 @@ export default function SalesStats() {
                       onChange={setRegionalProduct}
                   />
                   <Button type="primary" onClick={fetchRegionalStats}>查询</Button>
+                  <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>导出</Button>
               </Space>
               
               <div style={{ marginBottom: 24 }}>
@@ -350,6 +421,7 @@ export default function SalesStats() {
                   </Select>
                   <RangePicker value={distDates} onChange={setDistDates} />
                   <Button type="primary" onClick={fetchDistStats} disabled={!distProduct}>查询</Button>
+                  <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting || !distProduct}>导出</Button>
               </Space>
               {!distProduct ? (
                   <Empty description="请选择一个商品查看分布" />
@@ -394,6 +466,7 @@ export default function SalesStats() {
                   />
                   <RangePicker value={regionProductDates} onChange={setRegionProductDates} />
                   <Button type="primary" onClick={fetchRegionProductStats} disabled={!targetRegion}>查询</Button>
+                  <Button icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting || !targetRegion}>导出</Button>
               </Space>
               {!targetRegion ? (
                   <Empty description="请选择一个地区查看商品统计" />
@@ -421,6 +494,7 @@ export default function SalesStats() {
             </Card>
         </Tabs.TabPane>
       </Tabs>
+      <ExportLoadingModal open={exporting} />
     </ProCard>
   );
 }

@@ -1,16 +1,38 @@
 import { useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Tag, Button, Popconfirm, message, Switch, Form } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getUsers, createUser, updateUser, deleteUser, setAdmin, unsetAdmin } from '@/services/api';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
+import { getUsers, createUser, updateUser, deleteUser, setAdmin, unsetAdmin, exportUsers } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { User } from '@/services/types';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 export default function Users() {
   const [form] = Form.useForm();
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<User | null>(null);
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportUsers(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `users_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const columns: ProColumns<User>[] = [
     { 
@@ -163,6 +185,9 @@ export default function Users() {
           >
             新增用户
           </Button>,
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
+          </Button>,
         ]}
         request={async (params: any) => {
           try {
@@ -190,6 +215,11 @@ export default function Users() {
             if (params.role) {
               queryParams.role = params.role;
             }
+
+            const exportQuery = { ...queryParams };
+            delete exportQuery.page;
+            delete exportQuery.page_size;
+            setExportParams(exportQuery);
 
             const res: any = await getUsers(queryParams);
             
@@ -318,6 +348,7 @@ export default function Users() {
           tooltip="开启后该用户可以登录商户管理后台"
         />
       </ModalForm>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

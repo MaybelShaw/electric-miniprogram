@@ -2,11 +2,13 @@ import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund } from '@/services/api';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, exportOrders } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
 import { Upload } from 'antd';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 const statusMap: Record<string, { text: string; color: string }> = {
   pending: { text: '待支付', color: 'orange' },
@@ -50,6 +52,26 @@ export default function Orders() {
   const [uploadInvoiceModalVisible, setUploadInvoiceModalVisible] = useState(false);
   const [uploadingOrder, setUploadingOrder] = useState<Order | null>(null);
   const [invoiceFileList, setInvoiceFileList] = useState<any[]>([]);
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportOrders(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `orders_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const handleShip = (record: Order) => {
     setShippingOrder(record);
@@ -672,6 +694,11 @@ export default function Orders() {
               queryParams.created_before = params.created_before;
             }
 
+            const exportQuery = { ...queryParams };
+            delete exportQuery.page;
+            delete exportQuery.page_size;
+            setExportParams(exportQuery);
+
             const res: any = await getOrders(queryParams);
             
             // 处理分页响应
@@ -704,7 +731,11 @@ export default function Orders() {
         search={{
           labelWidth: 'auto',
         }}
-        toolBarRender={() => []}
+        toolBarRender={() => [
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
+          </Button>,
+        ]}
       />
       
       {/* 发货弹窗 */}
@@ -1026,6 +1057,7 @@ export default function Orders() {
           <div>暂无数据</div>
         )}
       </Modal>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

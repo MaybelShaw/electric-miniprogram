@@ -29,6 +29,7 @@ from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin
+from common.excel import build_excel_response
 from common.utils import parse_int, parse_datetime
 from common.throttles import PaymentRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -139,6 +140,46 @@ class OrderViewSet(viewsets.ModelViewSet):
                     pass
 
         return qs.distinct().order_by('-created_at')
+
+    @action(detail=False, methods=['get'], permission_classes=[IsOwnerOrAdmin])
+    def export(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        headers = [
+            '订单号',
+            '用户名',
+            '状态',
+            '商品',
+            '数量',
+            '总金额',
+            '折扣金额',
+            '实付金额',
+            '下单时间',
+        ]
+        rows = []
+        for order in qs:
+            items = list(order.items.all())
+            if items:
+                names = []
+                for item in items:
+                    name = getattr(item, 'product_name', '') or (item.product.name if item.product else '')
+                    if name:
+                        names.append(name)
+                product_names = ", ".join(names)
+            else:
+                product_names = order.product.name if order.product else ''
+            rows.append([
+                order.order_number,
+                getattr(order.user, 'username', ''),
+                order.get_status_display(),
+                product_names,
+                order.total_quantity,
+                order.total_amount,
+                order.discount_amount,
+                order.actual_amount,
+                order.created_at,
+            ])
+        filename = f"orders_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="订单导出")
 
     @action(detail=True, methods=['patch'], permission_classes=[IsOwnerOrAdmin])
     def status(self, request, pk=None):
@@ -1700,6 +1741,41 @@ class DiscountViewSet(viewsets.ModelViewSet):
         # 非管理员：只返回与该用户相关的折扣
         return Discount.objects.filter(targets__user=user).distinct().order_by('-priority')
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
+    def export(self, request):
+        qs = self.filter_queryset(self.get_queryset()).prefetch_related('targets')
+        headers = [
+            '名称',
+            '折扣类型',
+            '折扣值',
+            '生效时间',
+            '过期时间',
+            '优先级',
+            '用户数',
+            '商品数',
+            '状态',
+        ]
+        rows = []
+        now = timezone.now()
+        for discount in qs:
+            targets = list(discount.targets.all())
+            user_ids = {t.user_id for t in targets if t.user_id}
+            product_ids = {t.product_id for t in targets if t.product_id}
+            is_active = discount.effective_time <= now < discount.expiration_time
+            rows.append([
+                discount.name,
+                discount.get_discount_type_display(),
+                discount.amount,
+                discount.effective_time,
+                discount.expiration_time,
+                discount.priority,
+                len(user_ids),
+                len(product_ids),
+                '生效中' if is_active else '已失效',
+            ])
+        filename = f"discounts_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="折扣导出")
+
     @action(detail=False, methods=['post'], permission_classes=[IsAdmin])
     def batch_set(self, request):
         """批量为指定用户设置一组商品的统一折扣金额与时间窗。
@@ -1792,8 +1868,63 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Invoice.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Invoice.objects.filter(user=user)
-        return qs.select_related('order', 'user', 'order__product').order_by('-requested_at')
+        is_admin = user.is_staff or getattr(user, 'role', '') == 'support'
+        qs = Invoice.objects.all() if is_admin else Invoice.objects.filter(user=user)
+        qs = qs.select_related('order', 'user', 'order__product').order_by('-requested_at')
+
+        order_number = self.request.query_params.get('order_number')
+        if order_number:
+            qs = qs.filter(order__order_number__icontains=order_number)
+
+        title = self.request.query_params.get('title')
+        if title:
+            qs = qs.filter(title__icontains=title)
+
+        invoice_type = self.request.query_params.get('invoice_type')
+        if invoice_type:
+            qs = qs.filter(invoice_type=invoice_type)
+
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        if is_admin:
+            username = self.request.query_params.get('username')
+            if username:
+                qs = qs.filter(user__username__icontains=username)
+        return qs
+
+    @action(detail=False, methods=['get'], permission_classes=[IsOwnerOrAdmin])
+    def export(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        headers = [
+            'ID',
+            '订单号',
+            '用户名',
+            '发票抬头',
+            '类型',
+            '金额',
+            '状态',
+            '发票号码',
+            '申请时间',
+            '开具时间',
+        ]
+        rows = []
+        for inv in qs:
+            rows.append([
+                inv.id,
+                inv.order.order_number if inv.order else '',
+                getattr(inv.user, 'username', ''),
+                inv.title,
+                inv.get_invoice_type_display(),
+                inv.amount,
+                inv.get_status_display(),
+                inv.invoice_number,
+                inv.requested_at,
+                inv.issued_at,
+            ])
+        filename = f"invoices_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="发票导出")
 
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def issue(self, request, pk=None):
@@ -2585,6 +2716,54 @@ class AnalyticsViewSet(viewsets.ViewSet):
         return Response(result)
 
     @action(detail=False, methods=['get'])
+    def export_regional_sales(self, request):
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        product_id = request.query_params.get('product_id')
+        order_by = request.query_params.get('order_by', 'amount')
+        limit = request.query_params.get('limit')
+
+        try:
+            product_id = int(product_id) if product_id is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'product_id must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            limit = int(limit) if limit is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'limit must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = OrderAnalytics.get_sales_by_region(
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            product_id=product_id,
+            order_by=str(order_by).lower(),
+            limit=limit,
+        )
+        headers = ['地区', '订单数', '销售数量', '销售金额']
+        rows = [
+            [
+                item.get('region_name'),
+                item.get('orders'),
+                item.get('total_quantity'),
+                item.get('amount'),
+            ]
+            for item in result
+        ]
+        filename = f"sales_regional_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="销售统计-地区")
+
+    @action(detail=False, methods=['get'])
     def product_region_distribution(self, request):
         """
         获取某商品在各地区的销售分布
@@ -2626,6 +2805,47 @@ class AnalyticsViewSet(viewsets.ViewSet):
             order_by=str(order_by).lower(),
         )
         return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def export_product_region_distribution(self, request):
+        product_id = request.query_params.get('product_id')
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        order_by = request.query_params.get('order_by', 'total_quantity')
+
+        try:
+            product_id = int(product_id)
+        except (ValueError, TypeError):
+            return Response({'detail': 'product_id is required and must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = OrderAnalytics.get_product_region_distribution(
+            product_id=product_id,
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            order_by=str(order_by).lower(),
+        )
+        headers = ['地区', '订单数', '销售数量', '销售金额']
+        rows = [
+            [
+                item.get('region_name'),
+                item.get('orders'),
+                item.get('total_quantity'),
+                item.get('amount'),
+            ]
+            for item in result
+        ]
+        filename = f"sales_product_region_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="销售统计-商品地区分布")
 
     @action(detail=False, methods=['get'])
     def region_product_stats(self, request):
@@ -2675,6 +2895,52 @@ class AnalyticsViewSet(viewsets.ViewSet):
             limit=limit,
         )
         return Response(result)
+
+    @action(detail=False, methods=['get'])
+    def export_region_product_stats(self, request):
+        region_name = request.query_params.get('region_name')
+        level = request.query_params.get('level', 'province')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        order_by = request.query_params.get('order_by', 'total_quantity')
+        limit = request.query_params.get('limit')
+
+        if not region_name:
+            return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            limit = int(limit) if limit is not None else None
+        except (ValueError, TypeError):
+            return Response({'detail': 'limit must be an integer'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_levels = {'province', 'city', 'district', 'town'}
+        if str(level).lower() not in valid_levels:
+            return Response({'detail': 'Invalid level, choose province/city/district/town'}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_order = {'orders', 'total_quantity', 'amount'}
+        if str(order_by).lower() not in valid_order:
+            return Response({'detail': 'Invalid order_by, choose orders/total_quantity/amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = OrderAnalytics.get_region_product_stats(
+            region_name=region_name,
+            level=str(level).lower(),
+            start_date=start_date,
+            end_date=end_date,
+            order_by=str(order_by).lower(),
+            limit=limit,
+        )
+        headers = ['商品', '订单数', '销售数量', '销售金额']
+        rows = [
+            [
+                item.get('product__name'),
+                item.get('orders'),
+                item.get('total_quantity'),
+                item.get('amount'),
+            ]
+            for item in result
+        ]
+        filename = f"sales_region_products_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="销售统计-地区商品")
 
     @action(detail=False, methods=['post'], permission_classes=[IsAdmin])
     def invalidate_cache(self, request):

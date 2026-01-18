@@ -13,6 +13,7 @@ export const login = (data: { username: string; password: string }) =>
 
 // 用户管理
 export const getUsers = (params?: any) => request.get('/users/', { params });
+export const exportUsers = (params?: any) => request.get('/users/export/', { params, responseType: 'blob' });
 export const getUser = (id: number) => request.get(`/users/${id}/`);
 export const createUser = (data: any) => request.post('/users/', data);
 export const updateUser = (id: number, data: any) => request.patch(`/users/${id}/`, data);
@@ -65,6 +66,7 @@ export const uploadImage = (file: File, productId?: number, fieldName?: string) 
 
 // 订单管理
 export const getOrders = (params?: any) => request.get('/orders/', { params });
+export const exportOrders = (params?: any) => request.get('/orders/export/', { params, responseType: 'blob' });
 export const getOrder = (id: number) => request.get(`/orders/${id}/`);
 export const shipOrder = (id: number, data?: any) => request.patch(`/orders/${id}/ship/`, data || {});
 export const completeOrder = (id: number) => request.patch(`/orders/${id}/complete/`, {});
@@ -78,6 +80,7 @@ export const rejectReturn = (id: number, data?: any) => request.patch(`/orders/$
 
 // 折扣管理
 export const getDiscounts = (params?: any) => request.get('/discounts/', { params });
+export const exportDiscounts = (params?: any) => request.get('/discounts/export/', { params, responseType: 'blob' });
 export const createDiscount = (data: any) => request.post('/discounts/', data);
 export const updateDiscount = (id: number, data: any) => request.patch(`/discounts/${id}/`, data);
 export const deleteDiscount = (id: number) => request.delete(`/discounts/${id}/`);
@@ -103,6 +106,7 @@ export const settleAccountStatement = (id: number) => request.post(`/account-sta
 export const exportAccountStatement = (id: number) => {
   return request.get(`/account-statements/${id}/export/`, { responseType: 'blob' });
 };
+export const exportAccountStatements = (params?: any) => request.get('/account-statements/export/', { params, responseType: 'blob' });
 
 // 退款管理
 export const getRefunds = (params?: any) => request.get('/refunds/', { params });
@@ -110,14 +114,19 @@ export const startRefund = (id: number, data?: any) => request.post(`/refunds/${
 
 // 交易记录管理
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
+export const exportAccountTransactions = (params?: any) => request.get('/account-transactions/export/', { params, responseType: 'blob' });
 
 // 统计分析
 export const getRegionalSales = (params?: any) => request.get('/analytics/regional_sales/', { params });
 export const getProductRegionDistribution = (params?: any) => request.get('/analytics/product_region_distribution/', { params });
 export const getRegionProductStats = (params?: any) => request.get('/analytics/region_product_stats/', { params });
+export const exportRegionalSales = (params?: any) => request.get('/analytics/export_regional_sales/', { params, responseType: 'blob' });
+export const exportProductRegionDistribution = (params?: any) => request.get('/analytics/export_product_region_distribution/', { params, responseType: 'blob' });
+export const exportRegionProductStats = (params?: any) => request.get('/analytics/export_region_product_stats/', { params, responseType: 'blob' });
 
 // 发票管理
 export const getInvoices = (params?: any) => request.get('/invoices/', { params });
+export const exportInvoices = (params?: any) => request.get('/invoices/export/', { params, responseType: 'blob' });
 export const getInvoice = (id: number) => request.get(`/invoices/${id}/`);
 export const uploadInvoice = (id: number, file: File) => {
   const formData = new FormData();

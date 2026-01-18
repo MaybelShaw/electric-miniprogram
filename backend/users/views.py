@@ -28,6 +28,7 @@ from common.permissions import IsOwnerOrAdmin, IsAdmin
 from common.throttles import LoginRateThrottle
 from common.address_parser import address_parser
 from common.utils import to_bool
+from common.excel import build_excel_response
 from common.pagination import SmallResultsSetPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
@@ -557,6 +558,32 @@ class AdminUserViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         return qs
+
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        headers = [
+            '用户名',
+            '手机号',
+            '邮箱',
+            '角色',
+            '管理员',
+            '注册时间',
+            '最后登录',
+        ]
+        rows = []
+        for user in qs:
+            rows.append([
+                user.username,
+                user.phone,
+                user.email,
+                user.get_role_display() if hasattr(user, 'get_role_display') else user.role,
+                '是' if user.is_staff else '否',
+                user.date_joined,
+                user.last_login_at,
+            ])
+        filename = f"users_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="用户导出")
 
     def create(self, request, *args, **kwargs):
         # 允许管理员创建用户：当未提供 openid 时自动生成，若提供密码则安全哈希
@@ -1294,7 +1321,14 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         if user.is_staff:
             # Admin can see all
             qs = super().get_queryset()
-            
+
+            search = self.request.query_params.get('search')
+            if search:
+                qs = qs.filter(
+                    Q(credit_account__user__username__icontains=search) |
+                    Q(credit_account__user__company_info__company_name__icontains=search)
+                )
+
             # Filter by status
             status_filter = self.request.query_params.get('status')
             if status_filter:
@@ -1321,6 +1355,36 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
                 return AccountStatement.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountStatement.objects.none()
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_list(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        headers = [
+            'ID',
+            '经销商',
+            '公司名称',
+            '账期开始',
+            '账期结束',
+            '期末未付',
+            '逾期金额',
+            '状态',
+            '创建时间',
+        ]
+        rows = []
+        for statement in qs:
+            rows.append([
+                statement.id,
+                statement.credit_account.user.username if statement.credit_account else '',
+                getattr(getattr(statement.credit_account.user, 'company_info', None), 'company_name', ''),
+                statement.period_start,
+                statement.period_end,
+                statement.period_end_balance,
+                statement.overdue_amount,
+                statement.get_status_display(),
+                statement.created_at,
+            ])
+        filename = f"statements_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="对账单导出")
 
     def create(self, request, *args, **kwargs):
         """管理员创建对账单：根据账期自动汇总交易生成对账单"""
@@ -1676,6 +1740,13 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_staff:
             # Admin can see all
             qs = super().get_queryset()
+
+            search = self.request.query_params.get('search')
+            if search:
+                qs = qs.filter(
+                    Q(credit_account__user__username__icontains=search) |
+                    Q(credit_account__user__company_info__company_name__icontains=search)
+                )
             
             # Filter by credit account
             credit_account_id = self.request.query_params.get('credit_account')
@@ -1715,6 +1786,44 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
                 return AccountTransaction.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountTransaction.objects.none()
+
+    @action(detail=False, methods=['get'])
+    def export(self, request):
+        qs = self.filter_queryset(self.get_queryset())
+        headers = [
+            'ID',
+            '经销商',
+            '公司名称',
+            '交易类型',
+            '金额',
+            '变动后余额',
+            '订单ID',
+            '付款状态',
+            '应付日期',
+            '实付日期',
+            '交易时间',
+            '备注',
+        ]
+        rows = []
+        for txn in qs:
+            user = txn.credit_account.user if txn.credit_account else None
+            company_name = getattr(getattr(user, 'company_info', None), 'company_name', '') if user else ''
+            rows.append([
+                txn.id,
+                user.username if user else '',
+                company_name,
+                txn.get_transaction_type_display(),
+                txn.amount,
+                txn.balance_after,
+                txn.order_id or '',
+                txn.get_payment_status_display() if txn.transaction_type == 'purchase' else '-',
+                txn.due_date,
+                txn.paid_date,
+                txn.created_at,
+                txn.description,
+            ])
+        filename = f"transactions_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="交易记录导出")
     
     @action(detail=False, methods=['get'])
     def my_transactions(self, request):

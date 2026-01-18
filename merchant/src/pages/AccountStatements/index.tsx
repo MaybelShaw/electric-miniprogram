@@ -1,16 +1,38 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormDateRangePicker, ProFormSelect, ProDescriptions } from '@ant-design/pro-components';
 import { Button, message, Tag, Drawer, Table } from 'antd';
 import { useRef, useState } from 'react';
-import { getAccountStatements, getAccountStatement, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, getCreditAccounts } from '@/services/api';
+import { getAccountStatements, getAccountStatement, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, exportAccountStatements, getCreditAccounts } from '@/services/api';
 import { fetchAllPaginated } from '@/utils/request';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 export default function AccountStatements() {
   const actionRef = useRef<ActionType>();
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [currentStatement, setCurrentStatement] = useState<any>(null);
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportAccountStatements(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `statements_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const statusMap = {
     draft: { text: '草稿', color: 'default' },
@@ -145,6 +167,9 @@ export default function AccountStatements() {
         <a
           key="export"
           onClick={async () => {
+            if (exportLockRef.current) return;
+            exportLockRef.current = true;
+            setExporting(true);
             try {
               const response: any = await exportAccountStatement(record.id);
               const url = window.URL.createObjectURL(new Blob([response]));
@@ -157,6 +182,9 @@ export default function AccountStatements() {
               message.success('导出成功');
             } catch (error: any) {
               message.error('导出失败');
+            } finally {
+              exportLockRef.current = false;
+              setExporting(false);
             }
           }}
         >
@@ -259,12 +287,17 @@ export default function AccountStatements() {
         columns={columns}
         actionRef={actionRef}
         request={async (params) => {
-          const response: any = await getAccountStatements({
+          const queryParams: any = {
             page: params.current,
             page_size: params.pageSize,
             status: params.status,
             search: params.user_name,
-          });
+          };
+          const exportQuery = { ...queryParams };
+          delete exportQuery.page;
+          delete exportQuery.page_size;
+          setExportParams(exportQuery);
+          const response: any = await getAccountStatements(queryParams);
           return {
             data: response.results,
             success: true,
@@ -289,6 +322,9 @@ export default function AccountStatements() {
             onClick={() => setCreateModalVisible(true)}
           >
             生成对账单
+          </Button>,
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
           </Button>,
         ]}
         scroll={{ x: 1400 }}
@@ -395,6 +431,7 @@ export default function AccountStatements() {
           </>
         )}
       </Drawer>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

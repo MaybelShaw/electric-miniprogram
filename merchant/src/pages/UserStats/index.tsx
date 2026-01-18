@@ -5,6 +5,7 @@ import { DownloadOutlined, UserOutlined, PayCircleOutlined, ShoppingCartOutlined
 import { ProCard } from '@ant-design/pro-components';
 import { getUserTransactionStats, getCustomersTransactionStats, exportUserTransactionStats, exportCustomersTransactionStats, getUser, getUsers } from '@/services/api';
 import dayjs from 'dayjs';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 export default function UserStats() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -19,6 +20,7 @@ export default function UserStats() {
   const [statsYear, setStatsYear] = useState<string>(dayjs().format('YYYY'));
   const [statsIncludePaid, setStatsIncludePaid] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const exportLockRef = useRef(false);
   
   // Search state
   const [userOptions, setUserOptions] = useState<any[]>([]);
@@ -130,11 +132,13 @@ export default function UserStats() {
   }, [userId, statsTargetUser, statsPeriod, statsYear, statsIncludePaid, activeTab]);
 
   const handleExport = async () => {
+    if (exportLockRef.current) return;
     if (activeTab === 'user' && !userId) {
       message.warning('请先选择用户');
       return;
     }
 
+    exportLockRef.current = true;
     setExportLoading(true);
     try {
       const params: any = {
@@ -172,6 +176,7 @@ export default function UserStats() {
       console.error(error);
       message.error('导出失败');
     } finally {
+      exportLockRef.current = false;
       setExportLoading(false);
     }
   };
@@ -299,78 +304,81 @@ export default function UserStats() {
   );
 
   return (
-    <ProCard 
-      tabs={{
-        activeKey: activeTab,
-        onChange: handleTabChange,
-        items: [
-          {
-            key: 'platform',
-            label: '平台统计',
-            children: (
-              <div style={{ paddingTop: 16 }}>
-                {renderSummaryCards()}
-                {renderFilters()}
-                {renderTable()}
-              </div>
-            ),
-          },
-          {
-            key: 'user',
-            label: '用户统计',
-            children: (
-              <div style={{ paddingTop: 16 }}>
-                <ProCard bordered style={{ marginBottom: 24 }}>
-                  <Select
-                    showSearch
-                    placeholder="搜索用户查看统计"
-                    filterOption={false}
-                    onSearch={handleSearch}
-                    onChange={(val) => setSearchParams(val ? { userId: String(val) } : {})}
-                    notFoundContent={null}
-                    options={userOptions}
-                    loading={searchLoading}
-                    style={{ width: 300 }}
-                    value={userId ? Number(userId) : undefined}
-                    allowClear
-                    onClear={() => setSearchParams({})}
-                  />
-                </ProCard>
+    <>
+      <ProCard 
+        tabs={{
+          activeKey: activeTab,
+          onChange: handleTabChange,
+          items: [
+            {
+              key: 'platform',
+              label: '平台统计',
+              children: (
+                <div style={{ paddingTop: 16 }}>
+                  {renderSummaryCards()}
+                  {renderFilters()}
+                  {renderTable()}
+                </div>
+              ),
+            },
+            {
+              key: 'user',
+              label: '用户统计',
+              children: (
+                <div style={{ paddingTop: 16 }}>
+                  <ProCard bordered style={{ marginBottom: 24 }}>
+                    <Select
+                      showSearch
+                      placeholder="搜索用户查看统计"
+                      filterOption={false}
+                      onSearch={handleSearch}
+                      onChange={(val) => setSearchParams(val ? { userId: String(val) } : {})}
+                      notFoundContent={null}
+                      options={userOptions}
+                      loading={searchLoading}
+                      style={{ width: 300 }}
+                      value={userId ? Number(userId) : undefined}
+                      allowClear
+                      onClear={() => setSearchParams({})}
+                    />
+                  </ProCard>
 
-                {userId && statsTargetUser ? (
-                  <>
-                    <Row gutter={16} style={{ marginBottom: 24 }}>
-                      <Col span={8}>
-                        <ProCard layout="center" bordered>
-                          <Statistic title="订单总数" value={statsTargetUser.orders_count} prefix={<UserOutlined />} />
-                        </ProCard>
-                      </Col>
-                      <Col span={8}>
-                        <ProCard layout="center" bordered>
-                          <Statistic title="已完成订单" value={statsTargetUser.completed_orders_count} prefix={<ShoppingCartOutlined />} />
-                        </ProCard>
-                      </Col>
-                      <Col span={8}>
-                        <ProCard layout="center" bordered>
-                          <Statistic title="收藏数" value={statsTargetUser.favorites_count} prefix={<RiseOutlined />} />
-                        </ProCard>
-                      </Col>
-                    </Row>
-                    {renderFilters()}
-                    {renderTable()}
-                  </>
-                ) : (
-                  <Empty 
-                    image={Empty.PRESENTED_IMAGE_SIMPLE} 
-                    description="请搜索并选择用户以查看统计数据" 
-                    style={{ margin: '48px 0' }}
-                  />
-                )}
-              </div>
-            ),
-          },
-        ],
-      }}
-    />
+                  {userId && statsTargetUser ? (
+                    <>
+                      <Row gutter={16} style={{ marginBottom: 24 }}>
+                        <Col span={8}>
+                          <ProCard layout="center" bordered>
+                            <Statistic title="订单总数" value={statsTargetUser.orders_count} prefix={<UserOutlined />} />
+                          </ProCard>
+                        </Col>
+                        <Col span={8}>
+                          <ProCard layout="center" bordered>
+                            <Statistic title="已完成订单" value={statsTargetUser.completed_orders_count} prefix={<ShoppingCartOutlined />} />
+                          </ProCard>
+                        </Col>
+                        <Col span={8}>
+                          <ProCard layout="center" bordered>
+                            <Statistic title="收藏数" value={statsTargetUser.favorites_count} prefix={<RiseOutlined />} />
+                          </ProCard>
+                        </Col>
+                      </Row>
+                      {renderFilters()}
+                      {renderTable()}
+                    </>
+                  ) : (
+                    <Empty 
+                      image={Empty.PRESENTED_IMAGE_SIMPLE} 
+                      description="请搜索并选择用户以查看统计数据" 
+                      style={{ margin: '48px 0' }}
+                    />
+                  )}
+                </div>
+              ),
+            },
+          ],
+        }}
+      />
+      <ExportLoadingModal open={exportLoading} />
+    </>
   );
 }

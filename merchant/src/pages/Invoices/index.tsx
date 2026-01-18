@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, Upload } from 'antd';
-import { EyeOutlined, CheckOutlined, CloseOutlined, UploadOutlined } from '@ant-design/icons';
-import { getInvoices, getInvoice, issueInvoice, cancelInvoice, getOrder, uploadInvoice } from '@/services/api';
+import { EyeOutlined, CheckOutlined, CloseOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { getInvoices, getInvoice, issueInvoice, cancelInvoice, getOrder, uploadInvoice, exportInvoices } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 const statusMap: any = {
   requested: { text: '已申请', color: 'orange' },
@@ -26,6 +28,26 @@ export default function Invoices() {
   const [orderDetailVisible, setOrderDetailVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<any>(null);
   const [fileList, setFileList] = useState<any[]>([]);
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportInvoices(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `invoices_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const handleViewDetail = async (record: any) => {
     try {
@@ -222,11 +244,15 @@ export default function Invoices() {
         actionRef={actionRef}
         columns={columns}
         request={async (params: any) => {
-          const res: any = await getInvoices({
-            page: params.current,
-            page_size: params.pageSize,
-            ...params,
-          });
+          const { current, pageSize, ...rest } = params;
+          const queryParams = {
+            page: current,
+            page_size: pageSize,
+            ...rest,
+          };
+          const exportQuery = { ...rest };
+          setExportParams(exportQuery);
+          const res: any = await getInvoices(queryParams);
           return {
             data: res.results,
             total: res.count,
@@ -235,6 +261,11 @@ export default function Invoices() {
         }}
         rowKey="id"
         scroll={{ x: 1200 }}
+        toolBarRender={() => [
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
+          </Button>,
+        ]}
       />
 
       <Drawer
@@ -337,6 +368,7 @@ export default function Invoices() {
           </Form.Item>
         </Form>
       </Modal>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

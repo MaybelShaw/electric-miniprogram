@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List, Modal } from 'antd';
-import { PlusOutlined, EyeOutlined } from '@ant-design/icons';
-import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories } from '@/services/api';
+import { PlusOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories, exportDiscounts } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
 import { fetchAllPaginated } from '@/utils/request';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 export default function Discounts() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -18,6 +20,9 @@ export default function Discounts() {
   const [selectedSearch, setSelectedSearch] = useState('');
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
 
   const selectedBrandIds = (Form.useWatch('brand_ids', form) as number[]) || [];
   const selectedCategoryIds = (Form.useWatch('category_ids', form) as number[]) || [];
@@ -179,6 +184,23 @@ export default function Discounts() {
     setModalVisible(true);
   };
 
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportDiscounts(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `discounts_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
+
   const columns: any = [
     { title: '名称', dataIndex: 'name' },
     { 
@@ -285,6 +307,8 @@ export default function Discounts() {
                 page_size: pageSize,
                 ...rest
             };
+            const exportQuery = { ...rest };
+            setExportParams(exportQuery);
             const res: any = await getDiscounts(queryParams);
             // 处理分页响应
             if (res.results) {
@@ -309,6 +333,9 @@ export default function Discounts() {
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={() => { setEditingRecord(null); setModalVisible(true); }}>
             新增折扣
+          </Button>,
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
           </Button>,
         ]}
       />
@@ -587,6 +614,7 @@ export default function Discounts() {
           </Descriptions>
         )}
       </Drawer>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

@@ -1,15 +1,38 @@
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
-import { Tag } from 'antd';
-import { useRef } from 'react';
-import { getAccountTransactions } from '@/services/api';
+import { Tag, Button, message } from 'antd';
+import { useRef, useState } from 'react';
+import { getAccountTransactions, exportAccountTransactions } from '@/services/api';
 import { useLocation } from 'react-router-dom';
+import { DownloadOutlined } from '@ant-design/icons';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 export default function AccountTransactions() {
   const actionRef = useRef<ActionType>();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const creditAccountId = queryParams.get('credit_account');
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportAccountTransactions(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `transactions_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const columns: ProColumns<any>[] = [
     {
@@ -132,6 +155,11 @@ export default function AccountTransactions() {
         if (params.user_name) requestParams.search = params.user_name;
         if (params.company_name) requestParams.search = params.company_name;
 
+        const exportQuery = { ...requestParams };
+        delete exportQuery.page;
+        delete exportQuery.page_size;
+        setExportParams(exportQuery);
+
         const response: any = await getAccountTransactions(requestParams);
         return {
           data: response.results,
@@ -147,9 +175,15 @@ export default function AccountTransactions() {
         defaultPageSize: 10,
         showSizeChanger: true,
       }}
+      toolBarRender={() => [
+        <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+          导出
+        </Button>,
+      ]}
       dateFormatter="string"
       headerTitle={creditAccountId ? "交易记录 (特定账户)" : "交易记录管理"}
       scroll={{ x: 1500 }}
     />
+    <ExportLoadingModal open={exporting} />
   );
 }
