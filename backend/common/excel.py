@@ -11,9 +11,12 @@ def build_excel_response(
     rows: Iterable[Sequence[object]],
     title: str | None = None,
 ) -> HttpResponse:
+    from datetime import datetime, time
+
     import openpyxl
     from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
+    from django.utils import timezone
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -41,6 +44,10 @@ def build_excel_response(
     for row in rows:
         for col_idx, value in enumerate(row, start=1):
             cell_value = "" if value is None else value
+            if isinstance(cell_value, datetime) and timezone.is_aware(cell_value):
+                cell_value = timezone.localtime(cell_value).replace(tzinfo=None)
+            elif isinstance(cell_value, time) and cell_value.tzinfo is not None:
+                cell_value = cell_value.replace(tzinfo=None)
             ws.cell(row=data_row, column=col_idx, value=cell_value)
             max_lens[col_idx - 1] = max(max_lens[col_idx - 1], len(str(cell_value)))
         data_row += 1
