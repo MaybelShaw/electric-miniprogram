@@ -145,16 +145,6 @@ export default function Home() {
   const handleBannerClick = (banner: HomeBanner) => {
     if (banner.product_id) {
       Taro.navigateTo({ url: `/pages/product-detail/index?id=${banner.product_id}` })
-      return
-    }
-    if (banner.link_url) {
-      // 判断是否是 tab 页面
-      const isTab = ['/pages/home/index', '/pages/category/index', '/pages/cart/index', '/pages/profile/index'].some(path => banner.link_url.includes(path))
-      if (isTab) {
-        Taro.switchTab({ url: banner.link_url })
-      } else {
-        Taro.navigateTo({ url: banner.link_url })
-      }
     }
   }
 

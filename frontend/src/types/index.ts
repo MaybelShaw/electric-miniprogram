@@ -110,7 +110,6 @@ export interface Brand {
 export interface HomeBanner {
   id: number
   title: string
-  link_url: string
   position: 'home' | 'gift' | 'designer'
   order: number
   image_url: string

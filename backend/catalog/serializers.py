@@ -543,7 +543,7 @@ class HomeBannerSerializer(serializers.ModelSerializer):
     class Meta:
         model = HomeBanner
         fields = [
-            'id', 'title', 'link_url', 'position', 'order', 'is_active',
+            'id', 'title', 'position', 'order', 'is_active',
             'product_id', 'product_name',
             'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]

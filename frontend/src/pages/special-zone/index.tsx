@@ -87,16 +87,6 @@ export default function SpecialZone() {
   const handleBannerClick = (banner: HomeBanner) => {
     if (banner.product_id) {
       Taro.navigateTo({ url: `/pages/product-detail/index?id=${banner.product_id}` })
-      return
-    }
-    if (banner.link_url) {
-      // 判断是否是内部页面
-      if (banner.link_url.startsWith('/')) {
-        Taro.navigateTo({ url: banner.link_url })
-      } else {
-        // 外部链接可能需要 webview 或复制链接
-        // 这里简单处理为不做操作或后续扩展
-      }
     }
   }
 

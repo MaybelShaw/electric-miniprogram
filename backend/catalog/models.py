@@ -377,7 +377,6 @@ class HomeBanner(models.Model):
         verbose_name='跳转商品'
     )
     title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
-    link_url = models.URLField(max_length=500, blank=True, default='', verbose_name='跳转链接')
     position = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_HOME, verbose_name='展示位置')
     order = models.IntegerField(default=0, verbose_name='排序')
     is_active = models.BooleanField(default=True, verbose_name='是否启用')

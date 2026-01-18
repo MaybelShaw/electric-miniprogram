@@ -1208,7 +1208,6 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
         operation_id='home_banners_upload',
         parameters=[
             OpenApiParameter('title', OT.STR, OpenApiParameter.QUERY, description='轮播图标题'),
-            OpenApiParameter('link_url', OT.STR, OpenApiParameter.QUERY, description='跳转链接'),
             OpenApiParameter('product_id', OT.INT, OpenApiParameter.QUERY, description='跳转商品ID'),
             OpenApiParameter('position', OT.STR, OpenApiParameter.QUERY, description='展示位置'),
             OpenApiParameter('order', OT.INT, OpenApiParameter.QUERY, description='排序值'),
@@ -1244,7 +1243,6 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
         media.save()
 
         title = request.data.get('title') or request.query_params.get('title') or ''
-        link_url = request.data.get('link_url') or request.query_params.get('link_url') or ''
         product_id_raw = request.data.get('product_id')
         if product_id_raw in (None, ''):
             product_id_raw = request.query_params.get('product_id')
@@ -1268,7 +1266,6 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
         banner = HomeBanner.objects.create(
             image=media,
             title=title,
-            link_url=link_url or '',
             product=product,
             position=position,
             order=order,

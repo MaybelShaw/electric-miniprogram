@@ -43,7 +43,6 @@ export default function HomeBanners() {
     setModalVisible(true);
     form.setFieldsValue({
       title: record.title,
-      link_url: record.link_url,
       position: record.position,
       order: record.order,
       is_active: record.is_active,
@@ -121,12 +120,6 @@ export default function HomeBanners() {
       },
       width: 120,
     },
-      {
-        title: '跳转链接',
-        dataIndex: 'link_url',
-        hideInSearch: true,
-        ellipsis: true,
-      },
     {
       title: '排序',
       dataIndex: 'order',
@@ -321,12 +314,6 @@ export default function HomeBanners() {
           name="title"
           label="标题"
           placeholder="请输入标题"
-        />
-
-        <ProFormText
-          name="link_url"
-          label="跳转链接"
-          placeholder="请输入跳转链接"
         />
 
         <ProFormDigit
