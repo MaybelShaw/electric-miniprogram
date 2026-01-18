@@ -136,54 +136,56 @@ export default function AccountTransactions() {
   ];
 
   return (
-    <ProTable<any>
-      columns={columns}
-      actionRef={actionRef}
-      request={async (params) => {
-        const requestParams: any = {
-          page: params.current,
-          page_size: params.pageSize,
-          transaction_type: params.transaction_type,
-          payment_status: params.payment_status,
-          search: params.user_name || params.company_name,
-        };
-        
-        if (creditAccountId) {
-          requestParams.credit_account = creditAccountId;
-        }
-        
-        if (params.user_name) requestParams.search = params.user_name;
-        if (params.company_name) requestParams.search = params.company_name;
+    <>
+      <ProTable<any>
+        columns={columns}
+        actionRef={actionRef}
+        request={async (params) => {
+          const requestParams: any = {
+            page: params.current,
+            page_size: params.pageSize,
+            transaction_type: params.transaction_type,
+            payment_status: params.payment_status,
+            search: params.user_name || params.company_name,
+          };
+          
+          if (creditAccountId) {
+            requestParams.credit_account = creditAccountId;
+          }
+          
+          if (params.user_name) requestParams.search = params.user_name;
+          if (params.company_name) requestParams.search = params.company_name;
 
-        const exportQuery = { ...requestParams };
-        delete exportQuery.page;
-        delete exportQuery.page_size;
-        setExportParams(exportQuery);
+          const exportQuery = { ...requestParams };
+          delete exportQuery.page;
+          delete exportQuery.page_size;
+          setExportParams(exportQuery);
 
-        const response: any = await getAccountTransactions(requestParams);
-        return {
-          data: response.results,
-          success: true,
-          total: response.pagination?.total || response.total || response.count || 0,
-        };
-      }}
-      rowKey="id"
-      search={{
-        labelWidth: 'auto',
-      }}
-      pagination={{
-        defaultPageSize: 10,
-        showSizeChanger: true,
-      }}
-      toolBarRender={() => [
-        <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
-          导出
-        </Button>,
-      ]}
-      dateFormatter="string"
-      headerTitle={creditAccountId ? "交易记录 (特定账户)" : "交易记录管理"}
-      scroll={{ x: 1500 }}
-    />
-    <ExportLoadingModal open={exporting} />
+          const response: any = await getAccountTransactions(requestParams);
+          return {
+            data: response.results,
+            success: true,
+            total: response.pagination?.total || response.total || response.count || 0,
+          };
+        }}
+        rowKey="id"
+        search={{
+          labelWidth: 'auto',
+        }}
+        pagination={{
+          defaultPageSize: 10,
+          showSizeChanger: true,
+        }}
+        toolBarRender={() => [
+          <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
+            导出
+          </Button>,
+        ]}
+        dateFormatter="string"
+        headerTitle={creditAccountId ? "交易记录 (特定账户)" : "交易记录管理"}
+        scroll={{ x: 1500 }}
+      />
+      <ExportLoadingModal open={exporting} />
+    </>
   );
 }
