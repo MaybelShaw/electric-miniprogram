@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZoneCover, Case, CaseDetailBlock
-from orders.models import DiscountTarget
-from django.core.cache import cache
-from django.utils import timezone
+from orders.services import get_best_active_discount
 from django.conf import settings
 from urllib.parse import urlparse
 from common.serializers import (
@@ -403,35 +401,8 @@ class ProductSerializer(serializers.ModelSerializer):
         
         if not user or not user.is_authenticated:
             return base_price
-        
-        # simple cache to reduce DB queries during listing/search
-        cache_key = f"discount:{user.id}:{obj.id}"
-        amount = cache.get(cache_key)
-        if amount is None:
-            now = timezone.now()
-            dt = (
-                DiscountTarget.objects.select_related('discount')
-                .filter(
-                    user=user,
-                    product=obj,
-                    discount__effective_time__lte=now,
-                    discount__expiration_time__gt=now,
-                )
-                .order_by('-discount__priority', '-discount__updated_at')
-                .first()
-            )
-            if not dt:
-                return base_price
-            amount = dt.discount.amount
-            if amount < 0:
-                amount = 0
-            if amount > base_price:
-                amount = base_price
-            cache.set(cache_key, amount, 60)
-        if amount < 0:
-            amount = 0
-        if amount > base_price:
-            amount = base_price
+
+        amount = get_best_active_discount(user, obj, base_price=base_price)
         return base_price - amount
 
     def get_skus(self, obj: Product):

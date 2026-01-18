@@ -1703,13 +1703,14 @@ class DiscountViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAdmin])
     def batch_set(self, request):
         """批量为指定用户设置一组商品的统一折扣金额与时间窗。
-        输入: { user_id, product_ids:[], amount, effective_time, expiration_time, priority }
+        输入: { user_id, product_ids:[], amount, discount_type, effective_time, expiration_time, priority }
         返回: 创建/更新的目标数量
         """
         try:
             user_id = int(request.data.get('user_id'))
             product_ids = request.data.get('product_ids') or []
             amount = request.data.get('amount')
+            discount_type = request.data.get('discount_type', Discount.TYPE_AMOUNT)
             effective_time = request.data.get('effective_time')
             expiration_time = request.data.get('expiration_time')
             priority = int(request.data.get('priority', 0))
@@ -1717,11 +1718,21 @@ class DiscountViewSet(viewsets.ModelViewSet):
             return Response({'detail': '参数不合法'}, status=400)
         if not product_ids or amount is None or not effective_time or not expiration_time:
             return Response({'detail': '缺少必要参数'}, status=400)
+        if discount_type not in {Discount.TYPE_AMOUNT, Discount.TYPE_PERCENT}:
+            return Response({'detail': '折扣类型不合法'}, status=400)
+        if discount_type == Discount.TYPE_PERCENT:
+            try:
+                amount_val = float(amount)
+            except Exception:
+                return Response({'detail': '折扣率不合法'}, status=400)
+            if amount_val <= 0 or amount_val > 10:
+                return Response({'detail': '折扣率需在 0 到 10 之间'}, status=400)
 
         # 创建折扣规则
         disc = Discount.objects.create(
             name=request.data.get('name', ''),
             amount=amount,
+            discount_type=discount_type,
             effective_time=effective_time,
             expiration_time=expiration_time,
             priority=priority,
@@ -1739,7 +1750,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def query_user_products(self, request):
-        """批量查询当前用户在一组商品上的有效折扣，返回字典 {product_id: {amount, discount_id}}。
+        """批量查询当前用户在一组商品上的有效折扣，返回字典 {product_id: {amount, discount_id, discount_type, discount_value}}。
         性能：限制商品ID数量，并做索引查询；后续将配合缓存。
         """
         from common.utils import parse_csv_ints
@@ -1750,7 +1761,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
 
         now = timezone.now()
         # 优先级排序选择一个最优折扣（最高优先级）；若同优先级按更新时间
-        qs = DiscountTarget.objects.select_related('discount').filter(
+        qs = DiscountTarget.objects.select_related('discount', 'product').filter(
             user=request.user,
             product_id__in=ids,
             discount__effective_time__lte=now,
@@ -1762,7 +1773,15 @@ class DiscountViewSet(viewsets.ModelViewSet):
             pid = dt.product_id
             if pid in result:
                 continue
-            result[pid] = {'amount': float(dt.discount.amount), 'discount_id': dt.discount_id}
+            base_price = getattr(dt.product, 'display_price', None) or dt.product.price
+            amount = dt.discount.resolve_discount_amount(base_price)
+            result[pid] = {
+                'amount': float(amount),
+                'discount_id': dt.discount_id,
+                'discount_type': dt.discount.discount_type,
+                'discount_value': float(dt.discount.amount),
+            }
+        return Response(result)
 
 
 @extend_schema(tags=['Invoices'])

@@ -389,7 +389,8 @@ Content-Type: application/json
 - `POST /discounts/`
   - 用途：创建折扣规则
   - 权限：IsAdminOrReadOnly
-  - 请求体：`{ "user_id"?: number, "product_ids": number[], "amount": decimal, "effective_time": string(ISO), "expiration_time": string(ISO), "priority"?: number }`
+  - 请求体：`{ "user_id"?: number, "product_ids": number[], "discount_type"?: "amount" | "percent", "amount": decimal, "effective_time": string(ISO), "expiration_time": string(ISO), "priority"?: number }`
+  - 说明：`discount_type=amount` 表示减免金额；`discount_type=percent` 表示折扣率（amount 为 0-10，如 9.5 表示 9.5 折）
   - 响应：创建的折扣规则对象
 
 - `GET /discounts/{id}/`
@@ -411,14 +412,15 @@ Content-Type: application/json
 - `POST /discounts/batch_set/`
   - 用途：批量为用户设置折扣
   - 权限：IsAdminOrReadOnly
-  - 请求体：`{ "user_id": number, "product_ids": number[], "amount": decimal, "effective_time": string(ISO), "expiration_time": string(ISO), "priority"?: number }`
+  - 请求体：`{ "user_id": number, "product_ids": number[], "discount_type"?: "amount" | "percent", "amount": decimal, "effective_time": string(ISO), "expiration_time": string(ISO), "priority"?: number }`
+  - 说明：`discount_type=amount` 表示减免金额；`discount_type=percent` 表示折扣率（amount 为 0-10，如 9.5 表示 9.5 折）
   - 响应：创建的折扣规则列表
 
 - `GET /discounts/query_user_products/?product_ids=1,2,3`
   - 用途：查询当前用户针对一组商品的有效折扣
   - 权限：IsAuthenticated
   - 查询参数：`product_ids` (逗号分隔的商品ID)
-  - 响应：`{ "product_id": { "amount": decimal, "discount_id": number } }`
+  - 响应：`{ "product_id": { "amount": decimal, "discount_id": number, "discount_type": "amount|percent", "discount_value": decimal } }`
 
 ## 商品收藏
 
@@ -1126,7 +1128,7 @@ fetch('/api/token/refresh/', {
 - ✅ created_at, updated_at, expires_at, logs
 
 #### Discount（折扣）模型
-- ✅ id, name, amount, priority
+- ✅ id, name, discount_type, amount, priority
 - ✅ effective_time, expiration_time
 - ✅ users, products（多对多关系）
 

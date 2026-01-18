@@ -5,7 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.core.validators import MinValueValidator
 from django.conf import settings
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 # Create your models here.
 def generate_order_number():
@@ -350,9 +350,22 @@ class Refund(models.Model):
 
 # 折扣系统
 class Discount(models.Model):
+    TYPE_AMOUNT = 'amount'
+    TYPE_PERCENT = 'percent'
+    TYPE_CHOICES = [
+        (TYPE_AMOUNT, '减免金额'),
+        (TYPE_PERCENT, '折扣率'),
+    ]
+
     id = models.BigAutoField(primary_key=True)
     name = models.CharField(max_length=100, blank=True, default='', verbose_name='名称')
-    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='折扣金额')
+    discount_type = models.CharField(
+        max_length=20,
+        choices=TYPE_CHOICES,
+        default=TYPE_AMOUNT,
+        verbose_name='折扣类型'
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='折扣值')
     effective_time = models.DateTimeField(verbose_name='生效时间')
     expiration_time = models.DateTimeField(verbose_name='过期时间')
     priority = models.IntegerField(default=0, verbose_name='优先级')
@@ -376,7 +389,26 @@ class Discount(models.Model):
         ]
 
     def __str__(self):
-        return f"Discount#{self.id} amount={self.amount} prio={self.priority}"
+        return f"Discount#{self.id} type={self.discount_type} value={self.amount} prio={self.priority}"
+
+    def resolve_discount_amount(self, base_price: Decimal) -> Decimal:
+        base = Decimal(base_price or 0)
+        if self.discount_type == self.TYPE_PERCENT:
+            rate = Decimal(self.amount)
+            if rate < 0:
+                rate = Decimal('0')
+            if rate > 10:
+                rate = Decimal('10')
+            discounted_price = (base * rate) / Decimal('10')
+            amount = base - discounted_price
+        else:
+            amount = Decimal(self.amount)
+        if amount < 0:
+            amount = Decimal('0')
+        if amount > base:
+            amount = base
+        amount = amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return amount
 
     @property
     def is_active(self) -> bool:

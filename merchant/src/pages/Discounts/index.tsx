@@ -22,6 +22,8 @@ export default function Discounts() {
   const selectedBrandIds = (Form.useWatch('brand_ids', form) as number[]) || [];
   const selectedCategoryIds = (Form.useWatch('category_ids', form) as number[]) || [];
   const selectedProductIds = (Form.useWatch('product_ids', form) as number[]) || [];
+  const discountType = Form.useWatch('discount_type', form) || 'amount';
+  const isPercentDiscount = discountType === 'percent';
 
   // 加载用户、商品、品牌、品类列表
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function Discounts() {
       form.setFieldsValue(editingRecord);
     } else {
       form.resetFields();
-      form.setFieldsValue({ priority: 0 });
+      form.setFieldsValue({ priority: 0, discount_type: 'amount' });
     }
   }, [modalVisible, editingRecord, form]);
 
@@ -170,6 +172,7 @@ export default function Discounts() {
     
     setEditingRecord({
       ...record,
+      discount_type: record.discount_type || 'amount',
       user_ids: userIds,
       product_ids: productIds,
     });
@@ -179,11 +182,15 @@ export default function Discounts() {
   const columns: any = [
     { title: '名称', dataIndex: 'name' },
     { 
-      title: '折扣金额', 
+      title: '折扣', 
       dataIndex: 'amount', 
       search: false, 
-      width: 120,
-      render: (amount: number) => `¥${amount}`,
+      width: 140,
+      render: (_: any, record: any) => (
+        record.discount_type === 'percent'
+          ? `${record.amount}折`
+          : `¥${record.amount}`
+      ),
     },
     { 
       title: '适用范围',
@@ -354,16 +361,30 @@ export default function Discounts() {
           placeholder="请输入折扣名称"
         />
         
+        <ProFormSelect
+          name="discount_type"
+          label="折扣类型"
+          rules={[{ required: true, message: '请选择折扣类型' }]}
+          options={[
+            { label: '减免金额', value: 'amount' },
+            { label: '折扣率', value: 'percent' },
+          ]}
+          fieldProps={{ placeholder: '请选择折扣类型' }}
+        />
+
         <ProFormDigit 
           name="amount" 
-          label="折扣金额" 
-          rules={[{ required: true, message: '请输入折扣金额' }]} 
-          min={0}
+          label={isPercentDiscount ? '折扣率' : '折扣金额'} 
+          rules={[{ required: true, message: isPercentDiscount ? '请输入折扣率' : '请输入折扣金额' }]} 
+          min={isPercentDiscount ? 0.01 : 0}
+          max={isPercentDiscount ? 10 : undefined}
+          extra={isPercentDiscount ? '折扣率按“折”填写：8=8折（支付价=原价×0.8）' : undefined}
           fieldProps={{ 
             precision: 2,
-            addonBefore: '¥',
+            addonBefore: isPercentDiscount ? undefined : '¥',
+            addonAfter: isPercentDiscount ? '折' : undefined,
           }}
-          placeholder="请输入折扣金额"
+          placeholder={isPercentDiscount ? '例如 9.5' : '请输入折扣金额'}
         />
         
         <ProFormSelect
@@ -509,9 +530,12 @@ export default function Discounts() {
             <Descriptions.Item label="折扣名称" span={2}>
               {currentDiscount.name}
             </Descriptions.Item>
-            <Descriptions.Item label="折扣金额" span={2}>
+            <Descriptions.Item label="折扣类型">
+              {currentDiscount.discount_type === 'percent' ? '折扣率' : '减免金额'}
+            </Descriptions.Item>
+            <Descriptions.Item label="折扣" span={2}>
               <span style={{ fontSize: 18, fontWeight: 'bold', color: '#ff4d4f' }}>
-                ¥{currentDiscount.amount}
+                {currentDiscount.discount_type === 'percent' ? `${currentDiscount.amount}折` : `¥${currentDiscount.amount}`}
               </span>
             </Descriptions.Item>
             <Descriptions.Item label="优先级">

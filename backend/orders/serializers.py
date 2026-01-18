@@ -535,9 +535,19 @@ class DiscountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Discount
         fields = [
-            'id', 'name', 'amount', 'effective_time', 'expiration_time', 'priority', 'created_at', 'updated_at', 'targets',
+            'id', 'name', 'discount_type', 'amount', 'effective_time', 'expiration_time', 'priority', 'created_at', 'updated_at', 'targets',
             'user_ids', 'product_ids'
         ]
+
+    def validate(self, attrs):
+        discount_type = attrs.get('discount_type') or getattr(self.instance, 'discount_type', Discount.TYPE_AMOUNT)
+        amount = attrs.get('amount', getattr(self.instance, 'amount', None))
+        if discount_type == Discount.TYPE_PERCENT:
+            if amount is None:
+                raise serializers.ValidationError({'amount': '请输入折扣率'})
+            if amount <= 0 or amount > 10:
+                raise serializers.ValidationError({'amount': '折扣率需在 0 到 10 之间'})
+        return attrs
 
     def create(self, validated_data):
         user_ids = list(set(validated_data.pop('user_ids', []) or []))

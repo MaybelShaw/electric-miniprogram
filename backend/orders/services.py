@@ -1,4 +1,4 @@
-from .models import Order, Cart, CartItem, OrderItem
+from .models import Order, Cart, CartItem, OrderItem, Discount
 from catalog.models import Product, InventoryLog
 from django.utils import timezone
 from .models import DiscountTarget
@@ -6,19 +6,16 @@ from users.models import Address
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import F
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 
-def get_best_active_discount(user, product):
-    """Select the best active discount amount for a given user and product.
-    Result is cached briefly to reduce DB hits during browsing.
-    """
+def _get_best_discount_rule(user, product):
     if not user or not getattr(user, 'is_authenticated', False):
-        return 0
-    cache_key = f"discount:{user.id}:{product.id}"
+        return None
+    cache_key = f"discount_rule:{user.id}:{product.id}"
     cached = cache.get(cache_key)
     if cached is not None:
-        return cached
+        return cached or None
 
     now = timezone.now()
     dt = (
@@ -32,13 +29,42 @@ def get_best_active_discount(user, product):
         .order_by('-discount__priority', '-discount__updated_at')
         .first()
     )
-    amount = dt.discount.amount if dt else 0
+    if not dt:
+        cache.set(cache_key, False, 60)
+        return None
+    rule = {
+        'type': dt.discount.discount_type,
+        'value': str(dt.discount.amount),
+        'discount_id': dt.discount_id,
+    }
+    cache.set(cache_key, rule, 60)
+    return rule
+
+
+def get_best_active_discount(user, product, base_price=None):
+    """Select the best active discount amount for a given user and product.
+    Result is cached briefly to reduce DB hits during browsing.
+    """
+    rule = _get_best_discount_rule(user, product)
+    if not rule:
+        return Decimal('0')
+
+    base = Decimal(base_price if base_price is not None else product.price)
+    if rule['type'] == Discount.TYPE_PERCENT:
+        rate = Decimal(rule['value'])
+        if rate < 0:
+            rate = Decimal('0')
+        if rate > 10:
+            rate = Decimal('10')
+        discounted_price = (base * rate) / Decimal('10')
+        amount = base - discounted_price
+    else:
+        amount = Decimal(rule['value'])
     if amount < 0:
-        amount = 0
-    if amount > product.price:
-        amount = product.price
-    # cache for 60 seconds; short-lived to reflect admin updates quickly
-    cache.set(cache_key, amount, 60)
+        amount = Decimal('0')
+    if amount > base:
+        amount = base
+    amount = amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     return amount
 
 
@@ -244,8 +270,8 @@ def create_order(
             sku = ProductSKU.objects.get(id=sku_id, product_id=product_id)
 
         # 价格与折扣
-        base_price = sku.price if sku else product.price
-        discount_amount = Decimal(get_best_active_discount(user, product))
+        base_price = Decimal(sku.price if sku else product.price)
+        discount_amount = get_best_active_discount(user, product, base_price=base_price)
         if discount_amount < 0:
             discount_amount = Decimal('0')
         if discount_amount > base_price:
