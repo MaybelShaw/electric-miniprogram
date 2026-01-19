@@ -132,16 +132,6 @@ export default function Users() {
       },
     },
     {
-      title: '管理员',
-      dataIndex: 'is_staff',
-      width: 100,
-      valueType: 'select',
-      valueEnum: {
-        true: { text: '是', status: 'Success' },
-        false: { text: '否', status: 'Default' },
-      },
-    },
-    {
       title: '注册时间',
       dataIndex: 'date_joined',
       hideInSearch: true,
