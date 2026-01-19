@@ -137,6 +137,16 @@ export default function OrderDetail() {
     return Number(target.total_amount || 0)
   }
 
+  const resolveImageUrl = (url?: string) => {
+    if (!url) return ''
+    if (url.startsWith('https://')) return url
+    if (url.startsWith('http://')) return `https://${url.slice(7)}`
+    if (url.startsWith('//')) return `https:${url}`
+    const base = BASE_URL.replace(/\/api\/?$/, '')
+    if (url.startsWith('/')) return `${base}${url}`
+    return `${base}/${url}`
+  }
+
   const requestWechatPayment = async (payParams: WechatPayParams) => {
     const payload: any = {
       timeStamp: payParams.timeStamp,
@@ -482,11 +492,14 @@ export default function OrderDetail() {
           {order.items && order.items.length > 0 ? (
             order.items.map(item => (
               <View key={item.id} className='product-item'>
-                <Image
-                  className='product-image'
-                  src={item.snapshot_image || item.product?.main_images?.[0] || ''}
-                  mode='aspectFill'
-                />
+                  <Image
+                    className='product-image'
+                    src={
+                      resolveImageUrl(item.snapshot_image || item.product?.main_images?.[0]) ||
+                      '/assets/icons/product.png'
+                    }
+                    mode='aspectFill'
+                  />
                 <View className='product-info'>
                   <View className='product-name'>{item.product_name || item.product?.name}</View>
                   {item.sku_specs && Object.keys(item.sku_specs).length > 0 && (
@@ -503,7 +516,7 @@ export default function OrderDetail() {
             <View className='product-item'>
               <Image
                 className='product-image'
-                src={order.product?.main_images?.[0] || ''}
+                src={resolveImageUrl(order.product?.main_images?.[0]) || '/assets/icons/product.png'}
                 mode='aspectFill'
               />
               <View className='product-info'>

@@ -23,11 +23,12 @@
       color: $text-color-regular;
       position: relative;
       transition: all 0.3s;
+      white-space: nowrap;
 
       &.active {
         color: $text-color-base;
         font-weight: 600;
-        font-size: $font-size-lg;
+        font-size: $font-size-md;
 
         &::after {
           content: '';
