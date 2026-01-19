@@ -51,45 +51,58 @@ export default function PaymentResult() {
     []
   )
 
+  const isNotStartableError = (error: any) => {
+    const detail = error?.data?.detail || error?.message || ''
+    return String(detail).includes('不可继续') || String(detail).includes('cancelled') || String(detail).includes('过期')
+  }
+
   const loadData = useCallback(async () => {
     if (!orderId) return
     try {
       const orderRes = await orderService.getOrderDetail(orderId)
       setOrder(orderRes)
       const payRes = await paymentService.getPayments({ order_id: orderId })
+      let resolvedPayment: Payment | null = null
       if (payRes.results && payRes.results.length > 0) {
-        setPayment(payRes.results[0])
+        const succeededPayment = payRes.results.find((item) => item.status === 'succeeded')
+        const validPayment = payRes.results.find((item) => !['cancelled', 'expired', 'failed'].includes(item.status))
+        resolvedPayment = succeededPayment || validPayment || payRes.results[0] || null
+        setPayment(resolvedPayment)
       }
       if (!payRes.results?.length && paymentId) {
         // 兜底拉取指定支付
         try {
           const detail = await paymentService.getPaymentDetail(paymentId)
+          resolvedPayment = detail
           setPayment(detail)
         } catch (e) {
           // ignore
         }
       }
+      const syncTargetId = paymentId || resolvedPayment?.id
       // 订单已支付/已发货/已完成时，先同步支付状态确认
       if (orderRes.status && ['paid', 'shipped', 'completed'].includes(orderRes.status as any)) {
-        const pid = paymentId || payRes.results?.[0]?.id
-        const ok = await syncPaymentStatus(pid)
-        if (ok) {
-          setStatus('success')
+        setStatus('success')
+        setReasonText('')
+        if (syncTargetId) {
+          await syncPaymentStatus(syncTargetId)
+        }
+      } else if (statusParam === 'success') {
+        const synced = syncTargetId ? await syncPaymentStatus(syncTargetId) : false
+        if (synced) {
+          setReasonText('')
         } else {
+          // 未确认支付成功时不展示成功态
           setStatus('fail')
           setReasonText('支付状态未确认，请稍后刷新订单或联系客服')
         }
-      } else if (status === 'success') {
-        // 未确认支付成功时不展示成功态
-        setStatus('fail')
-        setReasonText('支付状态未确认，请稍后刷新订单或联系客服')
       }
     } catch (err) {
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
-  }, [orderId, paymentId, syncPaymentStatus])
+  }, [orderId, paymentId, statusParam, syncPaymentStatus])
 
   useEffect(() => {
     loadData()
@@ -145,9 +158,11 @@ export default function PaymentResult() {
   const handleRetry = async () => {
     if (!order) return
     setRetrying(true)
+    let paymentRecord: Payment | null = null
     try {
-      let paymentRecord = payment
-      if (!paymentRecord) {
+      paymentRecord = payment
+      const invalidStatus = paymentRecord && ['cancelled', 'expired', 'failed'].includes(paymentRecord.status)
+      if (!paymentRecord || invalidStatus) {
         paymentRecord = await paymentService.createPayment({
           order_id: order.id,
           method: 'wechat'
@@ -155,11 +170,26 @@ export default function PaymentResult() {
         setPayment(paymentRecord)
       }
 
-      const startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+      let startRes: { payment?: Payment; pay_params?: WechatPayParams | null } | null = null
+      try {
+        startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+      } catch (error: any) {
+        if (isNotStartableError(error)) {
+          const nextPayment = await paymentService.createPayment({
+            order_id: order.id,
+            method: 'wechat'
+          })
+          setPayment(nextPayment)
+          paymentRecord = nextPayment
+          startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+        } else {
+          throw error
+        }
+      }
       if (startRes.payment) {
         setPayment(startRes.payment)
       }
-      const payParams = startRes.pay_params
+      const payParams = startRes?.pay_params
       if (!payParams) throw new Error('未获取到支付参数')
 
       await requestWechatPayment(payParams)
@@ -173,10 +203,10 @@ export default function PaymentResult() {
       const msg = resolvePaymentErrorMessage(error, '支付未完成')
       // 若订单/支付已在后端成功，兜底展示成功页
       try {
-        const synced = await syncPaymentStatus(payment?.id)
+        const synced = await syncPaymentStatus(paymentRecord?.id || payment?.id)
         if (synced) {
           Taro.redirectTo({
-            url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${payment?.id || ''}`
+            url: `/pages/payment-result/index?status=success&orderId=${order.id}&paymentId=${paymentRecord?.id || payment?.id || ''}`
           })
           return
         }

@@ -17,7 +17,11 @@ export const paymentService = {
     method?: 'wechat' | 'alipay' | 'bank'
     amount?: string
   }): Promise<Payment> {
-    return http.post<Payment>('/payments/', data)
+    const res = await http.post<Payment | { payment?: Payment }>('/payments/', data)
+    if (res && typeof res === 'object' && 'payment' in res && res.payment) {
+      return res.payment
+    }
+    return res as Payment
   },
   
   // 获取支付详情

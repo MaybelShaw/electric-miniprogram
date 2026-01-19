@@ -373,6 +373,13 @@ export default function Orders() {
       width: 120,
       render: (amount) => `¥${amount}`,
     },
+    { 
+      title: '实付款', 
+      dataIndex: 'actual_amount', 
+      hideInSearch: true, 
+      width: 120,
+      render: (_, record) => `¥${record.actual_amount ?? record.total_amount}`,
+    },
     {
       title: '状态',
       dataIndex: 'status',
@@ -983,6 +990,8 @@ export default function Orders() {
                  return <Tag color={status?.color}>{status?.text}</Tag>;
               }}
             />
+            <ProDescriptions.Item label="总金额" render={(_, record) => `¥${record.total_amount}`} />
+            <ProDescriptions.Item label="实付款" render={(_, record) => `¥${record.actual_amount ?? record.total_amount}`} />
             <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
             <ProDescriptions.Item label="备注" dataIndex="note" />
           </ProDescriptions>

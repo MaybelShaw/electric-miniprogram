@@ -85,7 +85,9 @@ export default function OrderDetail() {
     try {
       const res = await paymentService.getPayments({ order_id: orderId })
       if (res.results && res.results.length > 0) {
-        setPayment(res.results[0])
+        const invalidStatuses = new Set(['cancelled', 'expired', 'failed'])
+        const validPayments = res.results.filter((item) => !invalidStatuses.has(item.status))
+        setPayment(validPayments[0] || null)
       }
     } catch (error) {
       // 静默失败
@@ -120,6 +122,21 @@ export default function OrderDetail() {
     return undefined
   }
 
+  const resolveOrderTotal = (target: Order | null) => {
+    if (!target) return 0
+    if (target.items && target.items.length > 0) {
+      return target.items.reduce((sum, item) => {
+        const unit = Number(item.unit_price || 0)
+        const qty = Number(item.quantity || 0)
+        return sum + unit * qty
+      }, 0)
+    }
+    if (target.product?.price) {
+      return Number(target.product.price) * Number(target.quantity || 0)
+    }
+    return Number(target.total_amount || 0)
+  }
+
   const requestWechatPayment = async (payParams: WechatPayParams) => {
     const payload: any = {
       timeStamp: payParams.timeStamp,
@@ -138,14 +155,35 @@ export default function OrderDetail() {
     await Taro.requestPayment(payload)
   }
 
+  const isInvalidPaymentStatus = (status?: string) =>
+    status ? ['cancelled', 'expired', 'failed'].includes(status) : false
+
+  const refreshPaymentRecord = async (paymentRecord: Payment | null) => {
+    if (!paymentRecord) return null
+    try {
+      const detail = await paymentService.getPaymentDetail(paymentRecord.id)
+      setPayment(detail)
+      return detail
+    } catch {
+      return paymentRecord
+    }
+  }
+
+  const isNotStartableError = (error: any) => {
+    const detail = error?.data?.detail || error?.message || ''
+    return String(detail).includes('不可继续') || String(detail).includes('cancelled') || String(detail).includes('过期')
+  }
+
   const handlePay = async () => {
     if (!order || paying) return
 
     setPaying(true)
+    let paymentRecord: Payment | null = null
     try {
       // 如果没有支付记录，先创建
-      let paymentRecord = payment
-      if (!paymentRecord) {
+      paymentRecord = await refreshPaymentRecord(payment)
+      const invalidStatus = paymentRecord && isInvalidPaymentStatus(paymentRecord.status)
+      if (!paymentRecord || invalidStatus) {
         paymentRecord = await paymentService.createPayment({
           order_id: order.id,
           method: 'wechat'
@@ -154,7 +192,25 @@ export default function OrderDetail() {
       }
 
       // 获取微信支付参数并拉起支付
-      const startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+      let startRes: { payment?: Payment; pay_params?: WechatPayParams | null } | null = null
+      try {
+        startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+      } catch (error: any) {
+        if (isNotStartableError(error)) {
+          const nextPayment = await paymentService.createPayment({
+            order_id: order.id,
+            method: 'wechat'
+          })
+          setPayment(nextPayment)
+          paymentRecord = nextPayment
+          startRes = await paymentService.startPayment(paymentRecord.id, { provider: 'wechat' })
+        } else {
+          throw error
+        }
+      }
+      if (!startRes) {
+        throw new Error('未获取到支付参数')
+      }
       if (startRes.payment) {
         setPayment(startRes.payment)
       }
@@ -172,7 +228,7 @@ export default function OrderDetail() {
       const msg = resolvePaymentErrorMessage(error, '支付未完成')
       Taro.showToast({ title: msg, icon: 'none' })
       Taro.redirectTo({
-        url: `/pages/payment-result/index?status=fail&orderId=${order?.id || ''}&paymentId=${payment?.id || ''}&reason=${encodeURIComponent(msg)}`
+        url: `/pages/payment-result/index?status=fail&orderId=${order?.id || ''}&paymentId=${paymentRecord?.id || payment?.id || ''}&reason=${encodeURIComponent(msg)}`
       })
     } finally {
       setPaying(false)
@@ -541,11 +597,11 @@ export default function OrderDetail() {
         <View className='price-card'>
           <View className='price-row'>
             <Text className='price-label'>商品总价</Text>
-            <Text className='price-value'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
+            <Text className='price-value'>{formatPrice(resolveOrderTotal(order))}</Text>
           </View>
           <View className='price-row total'>
             <Text className='price-label'>实付款</Text>
-            <Text className='price-value'>{Number(order.actual_amount || order.total_amount).toFixed(2)}</Text>
+            <Text className='price-value'>{Number(order.actual_amount ?? order.total_amount ?? 0).toFixed(2)}</Text>
           </View>
         </View>
 

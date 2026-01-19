@@ -134,7 +134,7 @@ export default function OrderCard({
       </View>
 
       <View className='order-total'>
-        <Text className='label'>合计</Text>
+        <Text className='label'>实付款</Text>
         <Text className='amount'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
       </View>
       
