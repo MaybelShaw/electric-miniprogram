@@ -155,9 +155,11 @@ class CompanyInfo(models.Model):
     
     # Business scope and status
     business_scope = models.TextField(blank=True, verbose_name="经营范围")
+    reject_reason = models.TextField(blank=True, default='', verbose_name="拒绝原因")
     
     STATUS_CHOICES = [
         ('pending', '待审核'),
+        ('withdrawn', '已撤回'),
         ('approved', '已审核'),
         ('rejected', '已拒绝'),
     ]

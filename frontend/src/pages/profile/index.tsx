@@ -150,6 +150,23 @@ export default function Profile() {
     Taro.navigateTo({ url: '/pages/support-chat/index' })
   }
 
+  const getCertificationBadge = () => {
+    if (!user) return null
+    if (user.role === 'dealer') {
+      return { text: '已认证', className: 'success' }
+    }
+    if (!user.has_company_info || !user.company_status) return null
+    const statusMap: Record<string, { text: string; className: string }> = {
+      pending: { text: '审核中', className: 'warning' },
+      rejected: { text: '未通过', className: 'danger' },
+      withdrawn: { text: '已撤回', className: 'info' },
+      approved: { text: '已认证', className: 'success' }
+    }
+    return statusMap[user.company_status] || null
+  }
+
+  const certificationBadge = getCertificationBadge()
+
   return (
     <View className='profile'>
       {/* 用户信息区域 */}
@@ -246,11 +263,10 @@ export default function Profile() {
           <View className='menu-left'>
             <Text className='menu-icon'>🏢</Text>
             <Text className='menu-text'>经销商认证</Text>
-            {user?.role === 'dealer' && (
-              <View className='badge success'>已认证</View>
-            )}
-            {user?.has_company_info && user?.company_status === 'pending' && (
-              <View className='badge warning'>审核中</View>
+            {certificationBadge && (
+              <View className={`badge ${certificationBadge.className}`}>
+                {certificationBadge.text}
+              </View>
             )}
           </View>
           <Text className='arrow'>›</Text>

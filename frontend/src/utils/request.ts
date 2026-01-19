@@ -14,6 +14,7 @@ interface ApiResponse<T = any> {
   data?: T
   error?: string
   message?: string
+  detail?: string
   details?: any
 }
 
@@ -111,7 +112,7 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
     // 处理其他错误
     if (res.statusCode >= 400) {
       const errorData = res.data as ApiResponse
-      const errorMsg = errorData.message || '请求失败'
+      const errorMsg = errorData.message || errorData.error || errorData.detail || '请求失败'
       
       if (showError) {
         // 429 限流错误
@@ -123,6 +124,8 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       }
       
       const error = new Error(errorMsg)
+      ;(error as any).statusCode = res.statusCode
+      ;(error as any).data = errorData
       // 标记为已处理的API错误
       ;(error as any).isApiError = true
       throw error

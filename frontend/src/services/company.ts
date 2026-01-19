@@ -14,5 +14,10 @@ export const companyService = {
   // 更新公司信息
   async updateCompanyInfo(id: number, data) {
     return http.patch(`/company-info/${id}/`, data)
+  },
+
+  // 撤回公司信息
+  async withdrawCompanyInfo(id: number) {
+    return http.post(`/company-info/${id}/withdraw/`, {}, { showError: false })
   }
 }

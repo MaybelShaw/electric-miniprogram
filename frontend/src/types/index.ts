@@ -9,7 +9,7 @@ export interface User {
   last_login_at?: string
   orders_count?: number
   has_company_info?: boolean
-  company_status?: 'pending' | 'approved' | 'rejected'
+  company_status?: 'pending' | 'approved' | 'rejected' | 'withdrawn'
   company_name?: string
 }
 

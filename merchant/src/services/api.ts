@@ -89,7 +89,7 @@ export const deleteDiscount = (id: number) => request.delete(`/discounts/${id}/`
 export const getCompanyInfoList = (params?: any) => request.get('/company-info/', { params });
 export const getCompanyInfo = (id: number) => request.get(`/company-info/${id}/`);
 export const approveCompanyInfo = (id: number) => request.post(`/company-info/${id}/approve/`);
-export const rejectCompanyInfo = (id: number) => request.post(`/company-info/${id}/reject/`);
+export const rejectCompanyInfo = (id: number, data?: any) => request.post(`/company-info/${id}/reject/`, data || {});
 
 // 信用账户管理
 export const getCreditAccounts = (params?: any) => request.get('/credit-accounts/', { params });

@@ -1002,12 +1002,13 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
     User endpoints:
     - POST: Submit company info for dealer certification
     - GET: View own company info
-    - PATCH: Update company info (only if pending or rejected)
+    - PATCH: Update company info (only if rejected or withdrawn)
     
     Admin endpoints:
     - GET list: View all company info submissions
     - approve: Approve company info and upgrade user to dealer
     - reject: Reject company info submission
+    - withdraw: Withdraw pending submission
     """
     queryset = CompanyInfo.objects.all().order_by('-created_at')
     serializer_class = CompanyInfoSerializer
@@ -1062,17 +1063,38 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         
         # Check if user already has company info
         if hasattr(request.user, 'company_info'):
-            logger.warning(f'用户已有公司信息: user_id={request.user.id}')
-            return Response(
-                {"error": "您已提交公司信息，请勿重复提交"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            instance = request.user.company_info
+            logger.warning(f'用户已有公司信息: user_id={request.user.id}, status={instance.status}')
+            if instance.status == 'approved':
+                return Response(
+                    {"error": "已审核通过的信息不可重复提交"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if instance.status == 'pending':
+                return Response(
+                    {"error": "审核中不可修改，请先撤回"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Treat create as resubmission when status is rejected/withdrawn
+            serializer = self.get_serializer(instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            update_fields = ['updated_at']
+            if instance.status != 'pending':
+                instance.status = 'pending'
+                instance.approved_at = None
+                update_fields.extend(['status', 'approved_at'])
+            if instance.reject_reason:
+                instance.reject_reason = ''
+                update_fields.append('reject_reason')
+            instance.save(update_fields=update_fields)
+            return Response(self.get_serializer(instance).data)
         
         logger.info(f'创建公司信息: user_id={request.user.id}, data={request.data}')
         return super().create(request, *args, **kwargs)
     
     def update(self, request, *args, **kwargs):
-        """Update company info - only allowed if pending or rejected"""
+        """Update company info - only allowed if rejected or withdrawn"""
         import logging
         logger = logging.getLogger(__name__)
         
@@ -1086,25 +1108,32 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        # Users can only update if pending or rejected
+        # Users can only update if rejected or withdrawn
         if not request.user.is_staff and instance.status == 'approved':
             logger.warning(f'已审核通过的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "已审核通过的信息不可修改"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if not request.user.is_staff and instance.status == 'pending':
+            logger.warning(f'审核中的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
+            return Response(
+                {"error": "审核中不可修改，请先撤回"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
-        # If user is updating rejected info, reset status to pending
-        if not request.user.is_staff and instance.status == 'rejected':
-            logger.info(f'用户重新提交被拒绝的公司信息: user_id={request.user.id}, company_info_id={instance.id}')
+        # If user is updating rejected/withdrawn info, reset status to pending
+        if not request.user.is_staff and instance.status in ['rejected', 'withdrawn']:
+            logger.info(f'用户重新提交公司信息: user_id={request.user.id}, company_info_id={instance.id}')
             instance.status = 'pending'
             instance.approved_at = None
+            instance.reject_reason = ''
         
         response = super().update(request, *args, **kwargs)
         
         # Save status change if it was modified
         if not request.user.is_staff and instance.status == 'pending':
-            instance.save()
+            instance.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
         
         return response
     
@@ -1117,16 +1146,18 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         
         company_info = self.get_object()
         
-        if company_info.status == 'approved':
+        if company_info.status != 'pending':
             return Response(
-                {"error": "该公司信息已审核通过"},
+                {"error": "当前状态不可审核通过"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Update company info status
         company_info.status = 'approved'
         company_info.approved_at = timezone.now()
-        company_info.save()
+        if company_info.reject_reason:
+            company_info.reject_reason = ''
+        company_info.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
         
         # Upgrade user to dealer
         user = company_info.user
@@ -1156,17 +1187,47 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         """Reject company info submission"""
         company_info = self.get_object()
         
-        if company_info.status == 'approved':
+        if company_info.status != 'pending':
             return Response(
-                {"error": "已审核通过的信息不可拒绝"},
+                {"error": "当前状态不可拒绝"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        reason = str(request.data.get('reason') or request.data.get('reject_reason') or '').strip()
         company_info.status = 'rejected'
-        company_info.save()
+        company_info.approved_at = None
+        company_info.reject_reason = reason
+        company_info.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
         
         return Response({
             "message": "已拒绝该公司信息",
+            "company_info": CompanyInfoSerializer(company_info).data
+        })
+
+    @action(detail=True, methods=['post'])
+    def withdraw(self, request, pk=None):
+        """Withdraw pending company info submission"""
+        company_info = self.get_object()
+
+        if company_info.user != request.user and not request.user.is_staff:
+            return Response(
+                {"error": "无权限撤回"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if company_info.status != 'pending':
+            return Response(
+                {"error": "当前状态不可撤回"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        company_info.status = 'withdrawn'
+        company_info.approved_at = None
+        company_info.reject_reason = ''
+        company_info.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
+
+        return Response({
+            "message": "已撤回审核，可修改后重新提交",
             "company_info": CompanyInfoSerializer(company_info).data
         })
 

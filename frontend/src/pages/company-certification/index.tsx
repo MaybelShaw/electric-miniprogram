@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, Form, Input, Button, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { companyService } from '../../services/company'
 import { TokenManager } from '../../utils/request'
 import './index.scss'
 
 export default function CompanyCertification() {
-  const [formData, setFormData] = useState({
+  const createEmptyFormData = () => ({
     company_name: '',
     business_license: '',
     legal_representative: '',
@@ -19,13 +19,15 @@ export default function CompanyCertification() {
     detail_address: '',
     business_scope: ''
   })
+
+  const [formData, setFormData] = useState(createEmptyFormData())
   
   const [loading, setLoading] = useState(false)
   const [existingInfo, setExistingInfo] = useState<any>(null)
 
-  useEffect(() => {
+  useDidShow(() => {
     checkLoginAndLoad()
-  }, [])
+  })
 
   const checkLoginAndLoad = async () => {
     const token = TokenManager.getAccessToken()
@@ -61,8 +63,13 @@ export default function CompanyCertification() {
           business_scope: data.business_scope || ''
         })
       }
-    } catch (error) {
-      // 没有公司信息，继续填写
+    } catch (error: any) {
+      if (error?.statusCode === 404) {
+        setExistingInfo(null)
+        setFormData(createEmptyFormData())
+        return
+      }
+      Taro.showToast({ title: '加载认证信息失败', icon: 'none' })
     }
   }
 
@@ -101,20 +108,25 @@ export default function CompanyCertification() {
 
     setLoading(true)
     try {
+      let savedInfo: any = null
       if (existingInfo && existingInfo.status !== 'approved') {
         // 更新
-        await companyService.updateCompanyInfo(existingInfo.id, formData)
-        Taro.showToast({
-          title: '更新成功',
-          icon: 'success'
-        })
-      } else {
-        // 创建
-        await companyService.createCompanyInfo(formData)
+        savedInfo = await companyService.updateCompanyInfo(existingInfo.id, formData)
         Taro.showToast({
           title: '提交成功，等待审核',
           icon: 'success'
         })
+      } else {
+        // 创建
+        savedInfo = await companyService.createCompanyInfo(formData)
+        Taro.showToast({
+          title: '提交成功，等待审核',
+          icon: 'success'
+        })
+      }
+
+      if (savedInfo) {
+        setExistingInfo(savedInfo)
       }
       
       setTimeout(() => {
@@ -149,16 +161,48 @@ export default function CompanyCertification() {
     }
   }
 
+  const handleWithdraw = async () => {
+    if (!existingInfo) return
+    setLoading(true)
+    try {
+      const res: any = await companyService.withdrawCompanyInfo(existingInfo.id)
+      const info = res?.company_info || res
+      if (info) {
+        setExistingInfo(info)
+        setFormData({
+          company_name: info.company_name || '',
+          business_license: info.business_license || '',
+          legal_representative: info.legal_representative || '',
+          contact_person: info.contact_person || '',
+          contact_phone: info.contact_phone || '',
+          contact_email: info.contact_email || '',
+          province: info.province || '',
+          city: info.city || '',
+          district: info.district || '',
+          detail_address: info.detail_address || '',
+          business_scope: info.business_scope || ''
+        })
+      }
+      Taro.showToast({ title: '已撤回', icon: 'success' })
+    } catch (error: any) {
+      Taro.showToast({ title: error?.message || '撤回失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getStatusText = (status: string) => {
     const statusMap = {
       pending: '审核中',
       approved: '已通过',
-      rejected: '已拒绝'
+      rejected: '已拒绝',
+      withdrawn: '已撤回'
     }
     return statusMap[status] || status
   }
 
-  const canEdit = !existingInfo || existingInfo.status !== 'approved'
+  const canEdit = !existingInfo || ['rejected', 'withdrawn'].includes(existingInfo.status)
+  const canWithdraw = existingInfo?.status === 'pending'
 
   return (
     <View className='company-certification'>
@@ -180,12 +224,21 @@ export default function CompanyCertification() {
       {existingInfo?.status === 'rejected' && (
         <View className='info-banner error'>
           <Text>❌ 认证未通过，请修改信息后重新提交</Text>
+          {existingInfo.reject_reason && (
+            <Text className='reject-reason'>原因：{existingInfo.reject_reason}</Text>
+          )}
         </View>
       )}
 
       {existingInfo?.status === 'pending' && (
         <View className='info-banner warning'>
           <Text>⏳ 您的认证申请正在审核中，请耐心等待</Text>
+        </View>
+      )}
+
+      {existingInfo?.status === 'withdrawn' && (
+        <View className='info-banner info'>
+          <Text>已撤回审核，可修改信息后重新提交</Text>
         </View>
       )}
 
@@ -336,7 +389,19 @@ export default function CompanyCertification() {
               onClick={handleSubmit}
               loading={loading}
             >
-              {existingInfo?.status === 'rejected' ? '重新提交认证' : existingInfo ? '更新信息' : '提交认证'}
+              {existingInfo?.status === 'rejected' || existingInfo?.status === 'withdrawn'
+                ? '重新提交认证'
+                : existingInfo
+                  ? '更新信息'
+                  : '提交认证'}
+            </Button>
+          </View>
+        )}
+
+        {canWithdraw && (
+          <View className='form-actions'>
+            <Button className='withdraw-btn' onClick={handleWithdraw} loading={loading}>
+              撤回审核
             </Button>
           </View>
         )}

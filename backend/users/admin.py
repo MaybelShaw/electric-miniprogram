@@ -31,7 +31,7 @@ class CompanyInfoAdmin(admin.ModelAdmin):
             "fields": ("province", "city", "district", "detail_address")
         }),
         ("业务信息", {
-            "fields": ("business_scope", "status")
+            "fields": ("business_scope", "reject_reason", "status")
         }),
         ("时间信息", {
             "fields": ("created_at", "updated_at", "approved_at")

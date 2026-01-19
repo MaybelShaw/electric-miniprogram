@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { ProTable, ProColumns, ActionType } from '@ant-design/pro-components'
-import { Button, Space, Tag, Modal, Descriptions, message } from 'antd'
+import { Button, Space, Tag, Modal, Descriptions, message, Input } from 'antd'
 import { CheckOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons'
 import { getCompanyInfoList, approveCompanyInfo, rejectCompanyInfo } from '@/services/api'
 
@@ -18,7 +18,8 @@ interface CompanyInfo {
   district: string
   detail_address: string
   business_scope: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'
+  reject_reason?: string
   created_at: string
   updated_at: string
   approved_at: string | null
@@ -32,7 +33,8 @@ const CompanyCertification = () => {
   const statusMap = {
     pending: { text: '待审核', color: 'orange' },
     approved: { text: '已通过', color: 'green' },
-    rejected: { text: '已拒绝', color: 'red' }
+    rejected: { text: '已拒绝', color: 'red' },
+    withdrawn: { text: '已撤回', color: undefined }
   }
 
   const handleView = (record: CompanyInfo) => {
@@ -57,12 +59,26 @@ const CompanyCertification = () => {
   }
 
   const handleReject = async (record: CompanyInfo) => {
+    let reason = ''
     Modal.confirm({
       title: '确认拒绝',
-      content: `确定要拒绝 ${record.company_name} 的认证申请吗？用户可以修改信息后重新提交。`,
+      content: (
+        <div>
+          <div style={{ marginBottom: 12 }}>
+            确定要拒绝 {record.company_name} 的认证申请吗？用户可以修改信息后重新提交。
+          </div>
+          <Input.TextArea
+            placeholder="请输入拒绝原因（将展示给用户）"
+            rows={3}
+            onChange={(event) => {
+              reason = event.target.value
+            }}
+          />
+        </div>
+      ),
       onOk: async () => {
         try {
-          await rejectCompanyInfo(record.id)
+          await rejectCompanyInfo(record.id, { reason })
           message.success('已拒绝该认证申请，用户可重新提交')
           actionRef.current?.reload()
         } catch (error: any) {
@@ -106,7 +122,8 @@ const CompanyCertification = () => {
       valueEnum: {
         pending: { text: '待审核', status: 'Warning' },
         approved: { text: '已通过', status: 'Success' },
-        rejected: { text: '已拒绝', status: 'Error' }
+        rejected: { text: '已拒绝', status: 'Error' },
+        withdrawn: { text: '已撤回', status: 'Default' }
       },
       render: (_, record) => (
         <Tag color={statusMap[record.status].color}>
@@ -239,6 +256,11 @@ const CompanyCertification = () => {
             <Descriptions.Item label="经营范围" span={2}>
               {currentRecord.business_scope || '-'}
             </Descriptions.Item>
+            {currentRecord.status === 'rejected' && currentRecord.reject_reason && (
+              <Descriptions.Item label="拒绝原因" span={2}>
+                {currentRecord.reject_reason}
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="审核状态">
               <Tag color={statusMap[currentRecord.status].color}>
                 {statusMap[currentRecord.status].text}
