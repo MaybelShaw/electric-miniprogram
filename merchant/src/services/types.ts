@@ -8,6 +8,10 @@ export interface User {
   is_staff: boolean;
   date_joined: string;
   last_login_at: string;
+  company_info?: {
+    company_name?: string;
+    status?: string;
+  } | null;
 }
 
 export interface Brand {

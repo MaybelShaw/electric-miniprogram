@@ -207,6 +207,8 @@ const CompanyCertification = () => {
         }}
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
           span: 6
         }}
         dateFormatter="string"

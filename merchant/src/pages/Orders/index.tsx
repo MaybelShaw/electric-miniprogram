@@ -730,6 +730,8 @@ export default function Orders() {
         }}
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
         }}
         toolBarRender={() => [
           <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>

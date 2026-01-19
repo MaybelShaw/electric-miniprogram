@@ -166,6 +166,8 @@ export default function SpecialZoneCovers() {
         }}
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleAdd}>

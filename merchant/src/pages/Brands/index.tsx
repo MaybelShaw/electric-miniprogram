@@ -177,6 +177,7 @@ export default function Brands() {
         search={{
           labelWidth: 'auto',
           defaultCollapsed: false,
+          collapseRender: false,
         }}
         options={{
           reload: true,

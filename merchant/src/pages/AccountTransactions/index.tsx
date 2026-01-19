@@ -171,6 +171,8 @@ export default function AccountTransactions() {
         rowKey="id"
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
         }}
         pagination={{
           defaultPageSize: 10,

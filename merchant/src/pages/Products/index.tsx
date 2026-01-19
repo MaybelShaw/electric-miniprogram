@@ -481,6 +481,7 @@ export default function Products() {
       search={{
         labelWidth: 'auto',
         defaultCollapsed: false,
+        collapseRender: false,
         optionRender: (_: any, __: any, dom: any[]) => [
           ...dom.reverse(),
         ],

@@ -141,6 +141,7 @@ export default function MajorCategories() {
         search={{
           labelWidth: 'auto',
           defaultCollapsed: false,
+          collapseRender: false,
         }}
         options={{
           reload: true,

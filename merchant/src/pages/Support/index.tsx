@@ -182,7 +182,11 @@ export default function Support() {
         }}
         rowKey="id"
         pagination={{ pageSize: 20 }}
-        search={{ labelWidth: 'auto' }}
+        search={{
+          labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
+        }}
       />
 
       <Drawer
@@ -365,7 +369,11 @@ export default function Support() {
         destroyOnClose
       >
         <ProTable
-          search={{ labelWidth: 'auto' }}
+          search={{
+            labelWidth: 'auto',
+            defaultCollapsed: false,
+            collapseRender: false,
+          }}
           rowKey="id"
           columns={[
              { title: 'ID', dataIndex: 'id', width: 60, search: false },

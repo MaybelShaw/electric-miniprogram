@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, message, Switch, Form, Modal } from 'antd';
+import { Tag, Button, Popconfirm, message, Form, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { getUsers, createUser, updateUser, deleteUser, forceDeleteUser, setAdmin, unsetAdmin, exportUsers } from '@/services/api';
+import { getUsers, createUser, updateUser, deleteUser, forceDeleteUser, exportUsers } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { User } from '@/services/types';
 import { downloadBlob } from '@/utils/download';
@@ -95,25 +95,20 @@ export default function Users() {
 
   const columns: ProColumns<User>[] = [
     { 
-      title: '用户名', 
+      title: '姓名', 
       dataIndex: 'username',
       ellipsis: true,
     },
     { 
-      title: 'OpenID', 
-      dataIndex: 'openid',
-      ellipsis: true,
-      hideInSearch: true,
-      copyable: true,
-    },
-    { 
-      title: '邮箱', 
-      dataIndex: 'email',
-      hideInSearch: true,
-    },
-    { 
       title: '手机号', 
       dataIndex: 'phone',
+    },
+    {
+      title: '公司名',
+      dataIndex: 'company_name',
+      hideInSearch: true,
+      ellipsis: true,
+      render: (_, record) => (record.role === 'dealer' ? record.company_info?.company_name || '-' : '-'),
     },
     {
       title: '用户角色',
@@ -146,25 +141,6 @@ export default function Users() {
         true: { text: '是', status: 'Success' },
         false: { text: '否', status: 'Default' },
       },
-      render: (_, record) => (
-        <Switch
-          checked={record.is_staff}
-          onChange={async (checked) => {
-            try {
-              if (checked) {
-                await setAdmin(record.id);
-                message.success('已设置为管理员');
-              } else {
-                await unsetAdmin(record.id);
-                message.success('已取消管理员权限');
-              }
-              actionRef.current?.reload();
-            } catch (error) {
-              message.error('操作失败');
-            }
-          }}
-        />
-      ),
     },
     {
       title: '注册时间',
@@ -233,7 +209,7 @@ export default function Users() {
             size="small"
             danger
           >
-            强制删除并清除相关数据
+            强制删除
           </Button>
         </Popconfirm>,
       ],
@@ -322,6 +298,8 @@ export default function Users() {
         scroll={{ x: 1400 }}
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
         }}
         pagination={{
           defaultPageSize: 20,
@@ -376,6 +354,14 @@ export default function Users() {
           rules={[{ required: true, message: '请输入用户名' }]}
           placeholder="请输入用户名"
         />
+
+        {editingRecord && (
+          <ProFormText
+            name="openid"
+            label="OpenID"
+            disabled
+          />
+        )}
         
         <ProFormText
           name="email"

@@ -199,6 +199,8 @@ export default function HomeBanners() {
         }}
         search={{
           labelWidth: 'auto',
+          defaultCollapsed: false,
+          collapseRender: false,
         }}
         toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleAdd}>

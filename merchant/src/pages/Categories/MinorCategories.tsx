@@ -157,6 +157,7 @@ export default function MinorCategories() {
         search={{
           labelWidth: 'auto',
           defaultCollapsed: false,
+          collapseRender: false,
         }}
         options={{
           reload: true,
