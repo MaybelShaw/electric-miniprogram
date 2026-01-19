@@ -1,8 +1,8 @@
 import { useRef } from 'react';
-import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency } from '@ant-design/pro-components';
+import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, exportOrders } from '@/services/api';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
@@ -52,6 +52,9 @@ export default function Orders() {
   const [uploadInvoiceModalVisible, setUploadInvoiceModalVisible] = useState(false);
   const [uploadingOrder, setUploadingOrder] = useState<Order | null>(null);
   const [invoiceFileList, setInvoiceFileList] = useState<any[]>([]);
+  const [adjustModalVisible, setAdjustModalVisible] = useState(false);
+  const [adjustingOrder, setAdjustingOrder] = useState<Order | null>(null);
+  const [adjustForm] = Form.useForm();
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
   const exportLockRef = useRef(false);
@@ -107,6 +110,32 @@ export default function Orders() {
       return true;
     } catch (error: any) {
       message.error(error?.response?.data?.detail || '操作失败');
+      return false;
+    }
+  };
+
+  const handleAdjustAmount = (record: Order) => {
+    setAdjustingOrder(record);
+    setAdjustModalVisible(true);
+    const currentActual = Number(record.actual_amount ?? record.total_amount);
+    const totalAmount = Number(record.total_amount);
+    adjustForm.setFieldsValue({
+      total_amount: totalAmount,
+      current_actual_amount: currentActual,
+      actual_amount: currentActual,
+    });
+  };
+
+  const handleAdjustAmountSubmit = async (values: any) => {
+    try {
+      if (!adjustingOrder) return false;
+      await adjustOrderAmount(adjustingOrder.id, { actual_amount: values.actual_amount });
+      message.success('改价成功');
+      setAdjustModalVisible(false);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '改价失败');
       return false;
     }
   };
@@ -441,6 +470,20 @@ export default function Orders() {
             查看
           </Button>
         ];
+
+        if (record.status === 'pending') {
+          actions.push(
+            <Button
+              key="adjust"
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => handleAdjustAmount(record)}
+            >
+              改价
+            </Button>
+          );
+        }
         
         // 海尔订单相关操作
         const isHaierOrder = record.is_haier_order;
@@ -772,6 +815,36 @@ export default function Orders() {
           name="note"
           label="备注"
           placeholder="备注信息（可选）"
+        />
+      </ModalForm>
+
+      {/* 改价弹窗 */}
+      <ModalForm
+        form={adjustForm}
+        title="修改订单金额"
+        visible={adjustModalVisible}
+        onVisibleChange={(visible) => {
+          setAdjustModalVisible(visible);
+          if (!visible) {
+            setAdjustingOrder(null);
+            adjustForm.resetFields();
+          }
+        }}
+        onFinish={handleAdjustAmountSubmit}
+      >
+        <ProFormText name="total_amount" label="原订单金额" disabled />
+        <ProFormText name="current_actual_amount" label="当前实付金额" disabled />
+        <ProFormDigit
+          name="actual_amount"
+          label="调整后实付金额"
+          rules={[{ required: true, message: '请输入调整后的实付金额' }]}
+          fieldProps={{
+            precision: 2,
+            min: 0.01,
+            max: adjustingOrder ? Number(adjustingOrder.actual_amount ?? adjustingOrder.total_amount) : undefined,
+            addonBefore: '¥',
+          }}
+          extra="仅待支付订单可修改，修改后需重新发起支付"
         />
       </ModalForm>
 

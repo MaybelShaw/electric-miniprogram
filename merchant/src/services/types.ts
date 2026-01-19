@@ -91,6 +91,8 @@ export interface Order {
   product: Product;
   quantity: number;
   total_amount: number;
+  discount_amount?: number;
+  actual_amount?: number;
   status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'returning' | 'refunding' | 'refunded';
   payment_method?: string;
   is_haier_order: boolean;

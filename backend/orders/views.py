@@ -38,7 +38,7 @@ from django.http import FileResponse
 from common.serializers import PDFOrImageFileValidator
 from common.logging import log_security
 import logging
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from .payment_service import PaymentService
 
 
@@ -194,6 +194,129 @@ class OrderViewSet(viewsets.ModelViewSet):
         # 权限已由 IsAdminOrOwner 保证；若为终态间切换，允许覆盖
         order.status = new_status
         order.save()
+        return Response(OrderSerializer(order).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    def adjust_amount(self, request, pk=None):
+        order = self.get_object()
+        if order.status != 'pending':
+            return Response({'detail': 'Only pending orders can be adjusted'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from common.utils import parse_decimal
+        new_amount = parse_decimal(request.data.get('actual_amount'))
+        if new_amount is None:
+            return Response({'detail': 'actual_amount is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_amount <= 0:
+            return Response({'detail': 'actual_amount must be greater than 0'}, status=status.HTTP_400_BAD_REQUEST)
+
+        new_amount = new_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        total_amount = order.total_amount or Decimal('0')
+        current_amount = order.actual_amount if order.actual_amount is not None else total_amount
+        if new_amount > current_amount:
+            return Response({'detail': 'actual_amount cannot exceed current payable amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if order.payments.filter(status='succeeded').exists():
+            return Response({'detail': 'Order has succeeded payment, cannot adjust amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        processing_payment = order.payments.filter(status='processing').first()
+        if processing_payment:
+            return Response({'detail': 'Payment is processing, cannot adjust amount'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            # 取消未开始的支付记录，确保后续支付使用新金额
+            init_payments = order.payments.filter(status='init')
+            for payment in init_payments:
+                payment.status = 'cancelled'
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'cancelled_by_admin_adjust',
+                    'detail': 'cancelled due to admin amount adjustment',
+                })
+                payment.save(update_fields=['status', 'logs', 'updated_at'])
+
+            items = list(order.items.select_for_update())
+            if items and current_amount > 0:
+                allocations = []
+                for item in items:
+                    unit_total = (item.unit_price or Decimal('0')) * item.quantity
+                    base_amount = item.actual_amount if item.actual_amount is not None else unit_total
+                    raw_amount = (base_amount * new_amount) / current_amount
+                    rounded_amount = raw_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    allocations.append({
+                        'item': item,
+                        'unit_total': unit_total,
+                        'base_amount': base_amount,
+                        'raw_amount': raw_amount,
+                        'rounded_amount': rounded_amount,
+                        'fraction': raw_amount - rounded_amount,
+                    })
+
+                sum_rounded = sum(entry['rounded_amount'] for entry in allocations)
+                diff_cents = int((new_amount - sum_rounded) * 100)
+                step = Decimal('0.01')
+
+                if diff_cents > 0:
+                    candidates = sorted(
+                        [e for e in allocations if e['fraction'] > 0],
+                        key=lambda e: e['fraction'],
+                        reverse=True,
+                    )
+                    while diff_cents > 0:
+                        adjusted = False
+                        for entry in candidates:
+                            if entry['rounded_amount'] + step <= entry['base_amount']:
+                                entry['rounded_amount'] += step
+                                diff_cents -= 1
+                                adjusted = True
+                                if diff_cents == 0:
+                                    break
+                        if not adjusted:
+                            break
+                elif diff_cents < 0:
+                    candidates = sorted(
+                        [e for e in allocations if e['fraction'] < 0],
+                        key=lambda e: e['fraction'],
+                    )
+                    while diff_cents < 0:
+                        adjusted = False
+                        for entry in candidates:
+                            if entry['rounded_amount'] - step >= 0:
+                                entry['rounded_amount'] -= step
+                                diff_cents += 1
+                                adjusted = True
+                                if diff_cents == 0:
+                                    break
+                        if not adjusted:
+                            break
+
+                if diff_cents != 0:
+                    for entry in allocations:
+                        if diff_cents > 0:
+                            if entry['rounded_amount'] + step <= entry['base_amount']:
+                                entry['rounded_amount'] += step
+                                diff_cents -= 1
+                        elif diff_cents < 0:
+                            if entry['rounded_amount'] - step >= 0:
+                                entry['rounded_amount'] -= step
+                                diff_cents += 1
+                        if diff_cents == 0:
+                            break
+
+                for entry in allocations:
+                    item = entry['item']
+                    new_item_amount = entry['rounded_amount'].quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    item.actual_amount = new_item_amount
+                    item.discount_amount = (entry['unit_total'] - new_item_amount).quantize(
+                        Decimal('0.01'),
+                        rounding=ROUND_HALF_UP,
+                    )
+                    item.save(update_fields=['actual_amount', 'discount_amount'])
+
+            order.actual_amount = new_amount
+            order.discount_amount = (total_amount - new_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            order.save(update_fields=['actual_amount', 'discount_amount', 'updated_at'])
+
         return Response(OrderSerializer(order).data)
 
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
