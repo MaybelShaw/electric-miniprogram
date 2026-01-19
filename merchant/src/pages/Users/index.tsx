@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Tag, Button, Popconfirm, message, Switch, Form, Modal } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { getUsers, createUser, updateUser, deleteUser, forceDeleteUser, setAdmin, unsetAdmin, exportUsers } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { User } from '@/services/types';
@@ -37,18 +37,20 @@ export default function Users() {
   const confirmForceDelete = (record: User) => {
     let seconds = 5;
     let timer: ReturnType<typeof setInterval> | undefined;
-    const getContent = (countdown: number) => (
-      <div>
-        <div>将删除用户及其订单、支付、退款、对账单等所有关联数据，无法恢复。</div>
-        <div style={{ marginTop: 8, color: countdown > 0 ? '#faad14' : '#52c41a' }}>
-          {countdown > 0 ? `请等待 ${countdown} 秒后确认` : '可以确认删除'}
-        </div>
+    const warningTitle = (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#ff4d4f' }}>
+        <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+        <span>二次确认：强制删除用户</span>
       </div>
+    );
+    const getContent = () => (
+      <div>将删除该用户及订单、支付、退款、对账单等关联数据，无法恢复。</div>
     );
 
     const modal = Modal.confirm({
-      title: '二次确认：强制删除用户',
-      content: getContent(seconds),
+      title: warningTitle,
+      icon: null,
+      content: getContent(),
       okText: `请等待 ${seconds} 秒`,
       okType: 'danger',
       okButtonProps: { disabled: true, danger: true },
@@ -77,14 +79,14 @@ export default function Users() {
       if (seconds <= 0) {
         clearInterval(timer);
         modal.update({
-          content: getContent(0),
+          content: getContent(),
           okText: '确认删除',
           okButtonProps: { disabled: false, danger: true },
         });
         return;
       }
       modal.update({
-        content: getContent(seconds),
+        content: getContent(),
         okText: `请等待 ${seconds} 秒`,
         okButtonProps: { disabled: true, danger: true },
       });
@@ -222,7 +224,6 @@ export default function Users() {
         <Popconfirm
           key="force-delete"
           title="确定强制删除该用户?"
-          description="将进入二次确认并倒计时后才可执行"
           onConfirm={() => {
             confirmForceDelete(record);
           }}
@@ -232,7 +233,7 @@ export default function Users() {
             size="small"
             danger
           >
-            强制删除
+            强制删除并清除相关数据
           </Button>
         </Popconfirm>,
       ],
