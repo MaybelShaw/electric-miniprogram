@@ -627,6 +627,107 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response(UserSerializer(user).data)
 
+    @action(detail=True, methods=['post'])
+    def force_delete(self, request, pk=None):
+        user = self.get_object()
+        user_id = user.id
+        from django.db import transaction
+        from django.db.models.deletion import ProtectedError
+        from django.core.files.storage import default_storage
+        from orders.models import (
+            Order,
+            OrderStatusHistory,
+            Payment,
+            Refund,
+            Invoice,
+            ReturnRequest,
+            Cart,
+            CartItem,
+            DiscountTarget,
+        )
+        from support.models import SupportConversation, SupportMessage
+        from catalog.models import SearchLog, InventoryLog
+
+        files_to_delete = set()
+
+        def queue_file(file_field):
+            name = getattr(file_field, 'name', '')
+            if name:
+                files_to_delete.add(name)
+
+        try:
+            with transaction.atomic():
+                for invoice in Invoice.objects.filter(user=user).only('id', 'file'):
+                    queue_file(invoice.file)
+                for message in SupportMessage.objects.filter(
+                    Q(conversation__user=user) | Q(sender=user)
+                ).only('id', 'attachment'):
+                    queue_file(message.attachment)
+
+                # 清理作为操作人的关联，避免 PROTECT 阻塞
+                Refund.objects.filter(operator=user).update(operator=None)
+                ReturnRequest.objects.filter(processed_by=user).update(processed_by=None)
+                OrderStatusHistory.objects.filter(operator=user).update(operator=None)
+
+                # 客服与行为日志
+                SupportMessage.objects.filter(sender=user).delete()
+                SupportConversation.objects.filter(user=user).delete()
+                SearchLog.objects.filter(user=user).delete()
+                InventoryLog.objects.filter(created_by=user).delete()
+
+                # 用户基础数据
+                Notification.objects.filter(user=user).delete()
+                Address.objects.filter(user=user).delete()
+                DiscountTarget.objects.filter(user=user).delete()
+
+                # 购物车
+                CartItem.objects.filter(cart__user=user).delete()
+                Cart.objects.filter(user=user).delete()
+
+                # 订单与财务数据
+                Refund.objects.filter(order__user=user).delete()
+                Payment.objects.filter(order__user=user).delete()
+                Invoice.objects.filter(user=user).delete()
+                ReturnRequest.objects.filter(order__user=user).delete()
+                OrderStatusHistory.objects.filter(order__user=user).delete()
+                Order.objects.filter(user=user).delete()
+
+                credit_account = getattr(user, 'credit_account', None)
+                if credit_account:
+                    AccountTransaction.objects.filter(credit_account=credit_account).delete()
+                    AccountStatement.objects.filter(credit_account=credit_account).delete()
+                    credit_account.delete()
+
+                company_info = getattr(user, 'company_info', None)
+                if company_info:
+                    company_info.delete()
+
+                user.delete()
+
+                if files_to_delete:
+                    files_snapshot = list(files_to_delete)
+
+                    def _cleanup_files():
+                        for path in files_snapshot:
+                            try:
+                                default_storage.delete(path)
+                            except Exception:
+                                pass
+
+                    transaction.on_commit(_cleanup_files)
+        except ProtectedError:
+            return Response(
+                {"error": "强制删除失败", "message": "仍存在关联数据，无法删除"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as exc:
+            return Response(
+                {"error": "强制删除失败", "message": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({"message": "用户及其关联数据已强制删除", "user_id": user_id})
+
     @action(detail=True, methods=['get'])
     def transaction_stats(self, request, pk=None):
         try:

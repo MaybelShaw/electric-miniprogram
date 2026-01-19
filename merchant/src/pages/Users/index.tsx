@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
-import { Tag, Button, Popconfirm, message, Switch, Form } from 'antd';
+import { Tag, Button, Popconfirm, message, Switch, Form, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
-import { getUsers, createUser, updateUser, deleteUser, setAdmin, unsetAdmin, exportUsers } from '@/services/api';
+import { getUsers, createUser, updateUser, deleteUser, forceDeleteUser, setAdmin, unsetAdmin, exportUsers } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { User } from '@/services/types';
 import { downloadBlob } from '@/utils/download';
@@ -32,6 +32,63 @@ export default function Users() {
       exportLockRef.current = false;
       setExporting(false);
     }
+  };
+
+  const confirmForceDelete = (record: User) => {
+    let seconds = 5;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const getContent = (countdown: number) => (
+      <div>
+        <div>将删除用户及其订单、支付、退款、对账单等所有关联数据，无法恢复。</div>
+        <div style={{ marginTop: 8, color: countdown > 0 ? '#faad14' : '#52c41a' }}>
+          {countdown > 0 ? `请等待 ${countdown} 秒后确认` : '可以确认删除'}
+        </div>
+      </div>
+    );
+
+    const modal = Modal.confirm({
+      title: '二次确认：强制删除用户',
+      content: getContent(seconds),
+      okText: `请等待 ${seconds} 秒`,
+      okType: 'danger',
+      okButtonProps: { disabled: true, danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        if (timer) {
+          clearInterval(timer);
+        }
+        try {
+          await forceDeleteUser(record.id);
+          message.success('强制删除成功');
+          actionRef.current?.reload();
+        } catch (error: any) {
+          message.error(error.response?.data?.message || '强制删除失败');
+        }
+      },
+      onCancel: () => {
+        if (timer) {
+          clearInterval(timer);
+        }
+      },
+    });
+
+    timer = setInterval(() => {
+      seconds -= 1;
+      if (seconds <= 0) {
+        clearInterval(timer);
+        modal.update({
+          content: getContent(0),
+          okText: '确认删除',
+          okButtonProps: { disabled: false, danger: true },
+        });
+        return;
+      }
+      modal.update({
+        content: getContent(seconds),
+        okText: `请等待 ${seconds} 秒`,
+        okButtonProps: { disabled: true, danger: true },
+      });
+    }, 1000);
   };
 
   const columns: ProColumns<User>[] = [
@@ -124,7 +181,7 @@ export default function Users() {
     {
       title: '操作',
       valueType: 'option',
-      width: 150,
+      width: 220,
       fixed: 'right',
       render: (_, record) => [
         <Button
@@ -160,6 +217,22 @@ export default function Users() {
             icon={<DeleteOutlined />}
           >
             删除
+          </Button>
+        </Popconfirm>,
+        <Popconfirm
+          key="force-delete"
+          title="确定强制删除该用户?"
+          description="将进入二次确认并倒计时后才可执行"
+          onConfirm={() => {
+            confirmForceDelete(record);
+          }}
+        >
+          <Button
+            type="link"
+            size="small"
+            danger
+          >
+            强制删除
           </Button>
         </Popconfirm>,
       ],

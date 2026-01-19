@@ -18,6 +18,7 @@ export const getUser = (id: number) => request.get(`/users/${id}/`);
 export const createUser = (data: any) => request.post('/users/', data);
 export const updateUser = (id: number, data: any) => request.patch(`/users/${id}/`, data);
 export const deleteUser = (id: number) => request.delete(`/users/${id}/`);
+export const forceDeleteUser = (id: number) => request.post(`/users/${id}/force_delete/`);
 export const setAdmin = (id: number) => request.post(`/users/${id}/set_admin/`);
 export const unsetAdmin = (id: number) => request.post(`/users/${id}/unset_admin/`);
 export const getUserTransactionStats = (id: number, params?: any) => request.get(`/users/${id}/transaction_stats/`, { params });
