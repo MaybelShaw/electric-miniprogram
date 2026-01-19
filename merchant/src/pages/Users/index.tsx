@@ -99,16 +99,15 @@ export default function Users() {
       dataIndex: 'username',
       ellipsis: true,
     },
-    { 
-      title: '手机号', 
-      dataIndex: 'phone',
-    },
     {
       title: '公司名',
       dataIndex: 'company_name',
-      hideInSearch: true,
       ellipsis: true,
       render: (_, record) => (record.role === 'dealer' ? record.company_info?.company_name || '-' : '-'),
+    },
+    { 
+      title: '手机号', 
+      dataIndex: 'phone',
     },
     {
       title: '用户角色',
@@ -254,6 +253,11 @@ export default function Users() {
             // 手机号筛选
             if (params.phone) {
               queryParams.phone = params.phone;
+            }
+
+            // 公司名筛选
+            if (params.company_name) {
+              queryParams.company_name = params.company_name;
             }
 
             // 管理员筛选
