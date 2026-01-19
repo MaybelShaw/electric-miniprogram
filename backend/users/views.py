@@ -544,7 +544,10 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         # 公司名筛选
         company_name = self.request.query_params.get('company_name')
         if company_name:
-            qs = qs.filter(company_info__company_name__icontains=company_name)
+            qs = qs.filter(
+                company_info__status='approved',
+                company_info__company_name__icontains=company_name,
+            )
         # 管理员筛选：支持 true/false/1/0/布尔
         is_staff = self.request.query_params.get('is_staff')
         if is_staff is not None:

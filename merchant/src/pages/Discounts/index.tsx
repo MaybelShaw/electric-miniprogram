@@ -420,7 +420,7 @@ export default function Discounts() {
           mode="multiple"
           rules={[{ required: true, message: '请选择适用用户' }]}
           options={users.map(user => ({
-            label: `${user.username}${user.phone ? ` (${user.phone})` : ''}${user.company_info?.company_name ? ` / ${user.company_info.company_name}` : ''}`,
+            label: `${user.username}${user.phone ? ` (${user.phone})` : ''}${user.company_info?.status === 'approved' && user.company_info?.company_name ? ` / ${user.company_info.company_name}` : ''}`,
             value: user.id,
           }))}
           fieldProps={{
