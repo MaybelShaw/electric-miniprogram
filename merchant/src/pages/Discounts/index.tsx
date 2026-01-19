@@ -420,12 +420,12 @@ export default function Discounts() {
           mode="multiple"
           rules={[{ required: true, message: '请选择适用用户' }]}
           options={users.map(user => ({
-            label: `${user.username}${user.phone ? ` (${user.phone})` : ''}`,
+            label: `${user.username}${user.phone ? ` (${user.phone})` : ''}${user.company_info?.company_name ? ` / ${user.company_info.company_name}` : ''}`,
             value: user.id,
           }))}
           fieldProps={{
             showSearch: true,
-            placeholder: '请选择适用用户',
+            placeholder: '请选择适用用户（可按公司名搜索）',
             filterOption: (input: string, option: any) =>
               option.label.toLowerCase().includes(input.toLowerCase()),
           }}
