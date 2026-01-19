@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Text, Button } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
@@ -9,6 +9,7 @@ import ProductCard from '../../components/ProductCard'
 import './index.scss'
 
 export default function ProductDetail() {
+  const routeProductId = Number(Taro.getCurrentInstance().router?.params?.id || 0) || undefined
   const [product, setProduct] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -30,6 +31,37 @@ export default function ProductDetail() {
       loadProduct(Number(id))
     }
   }, [])
+
+  useShareAppMessage(() => {
+    const productId = product?.id || routeProductId
+    if (!productId) {
+      return {
+        title: '家电商城',
+        path: '/pages/home/index',
+      }
+    }
+    const imageUrl = product?.main_images?.[0]
+    return {
+      title: product?.name || '商品详情',
+      path: `/pages/product-detail/index?id=${productId}`,
+      ...(imageUrl ? { imageUrl } : {}),
+    }
+  })
+
+  useShareTimeline(() => {
+    const productId = product?.id || routeProductId
+    if (!productId) {
+      return {
+        title: '家电商城',
+      }
+    }
+    const imageUrl = product?.main_images?.[0]
+    return {
+      title: product?.name || '商品详情',
+      query: `id=${productId}`,
+      ...(imageUrl ? { imageUrl } : {}),
+    }
+  })
 
   useEffect(() => {
     if (!product) return

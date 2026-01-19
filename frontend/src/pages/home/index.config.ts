@@ -1,5 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '专区',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

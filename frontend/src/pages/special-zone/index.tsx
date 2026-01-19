@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Image, Swiper, SwiperItem, ScrollView } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { caseService } from '../../services/case'
 import { Product, Case, HomeBanner } from '../../types'
@@ -31,6 +31,16 @@ export default function SpecialZone() {
       setCases([])
     }
   }, [type])
+
+  useShareAppMessage(() => ({
+    title: decodeURIComponent(title || '家电商城'),
+    path: '/pages/home/index',
+  }))
+
+  useShareTimeline(() => ({
+    title: decodeURIComponent(title || '家电商城'),
+    query: `type=${encodeURIComponent(type || 'gift')}&title=${encodeURIComponent(title || '专区')}`,
+  }))
 
   const loadBanners = async () => {
     try {

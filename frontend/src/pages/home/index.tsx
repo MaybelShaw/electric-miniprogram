@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
 import { Product, Category, Brand, HomeBanner, SpecialZoneCover } from '../../types'
@@ -27,6 +27,17 @@ export default function Home() {
     loadBrands()
     loadProducts(1)
   }, [])
+
+  useShareAppMessage(() => ({
+    title: '家电商城',
+    path: '/pages/home/index',
+    ...(banners[0]?.image_url ? { imageUrl: banners[0].image_url } : {}),
+  }))
+
+  useShareTimeline(() => ({
+    title: '家电商城',
+    ...(banners[0]?.image_url ? { imageUrl: banners[0].image_url } : {}),
+  }))
 
   // 加载轮播图
   const loadBanners = async () => {
