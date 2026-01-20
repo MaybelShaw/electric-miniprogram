@@ -1,10 +1,30 @@
 from rest_framework import serializers
 from django.conf import settings
+from urllib.parse import urlparse
 from datetime import timedelta
 from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest, OrderItem
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
+
+
+def _is_absolute_url(url: str) -> bool:
+    return url.startswith('http://') or url.startswith('https://')
+
+
+def _resolve_media_url(url: str) -> str:
+    if not url or _is_absolute_url(url):
+        return url
+    media_base = settings.MEDIA_URL or '/media/'
+    if not _is_absolute_url(media_base):
+        return url
+    base = media_base if media_base.endswith('/') else f"{media_base}/"
+    base_path = urlparse(base).path or '/'
+    trimmed = url
+    if base_path != '/' and trimmed.startswith(base_path):
+        trimmed = trimmed[len(base_path):]
+    trimmed = trimmed.lstrip('/')
+    return f"{base}{trimmed}"
 
 
 def _ensure_https(url: str, request=None) -> str:
@@ -15,6 +35,22 @@ def _ensure_https(url: str, request=None) -> str:
     if url.startswith('http://'):
         return 'https://' + url[len('http://'):]
     return url
+
+
+def _build_media_url(url: str, request=None) -> str:
+    if not url:
+        return url
+    if _is_absolute_url(url):
+        return _ensure_https(url, request)
+    resolved = _resolve_media_url(url)
+    if _is_absolute_url(resolved):
+        return _ensure_https(resolved, request)
+    if request is not None:
+        try:
+            return _ensure_https(request.build_absolute_uri(url), request)
+        except Exception:
+            pass
+    return _ensure_https(url, request)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -170,7 +206,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'logistics_no': obj.logistics_no,
             'delivery_record_code': obj.delivery_record_code,
             'sn_code': obj.sn_code,
-            'delivery_images': [_ensure_https(url, request) for url in (obj.delivery_images or [])],
+            'delivery_images': [_build_media_url(url, request) for url in (obj.delivery_images or [])],
         }
 
     def get_invoice_info(self, obj: Order):

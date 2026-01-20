@@ -1,5 +1,26 @@
 from rest_framework import serializers
+from django.conf import settings
+from urllib.parse import urlparse
 from .models import SupportConversation, SupportMessage
+
+
+def _is_absolute_url(url: str) -> bool:
+    return url.startswith('http://') or url.startswith('https://')
+
+
+def _resolve_media_url(url: str) -> str:
+    if not url or _is_absolute_url(url):
+        return url
+    media_base = settings.MEDIA_URL or '/media/'
+    if not _is_absolute_url(media_base):
+        return url
+    base = media_base if media_base.endswith('/') else f"{media_base}/"
+    base_path = urlparse(base).path or '/'
+    trimmed = url
+    if base_path != '/' and trimmed.startswith(base_path):
+        trimmed = trimmed[len(base_path):]
+    trimmed = trimmed.lstrip('/')
+    return f"{base}{trimmed}"
 
 
 def _ensure_https(url: str, request=None) -> str:
@@ -10,6 +31,22 @@ def _ensure_https(url: str, request=None) -> str:
     if url.startswith('http://'):
         return 'https://' + url[len('http://'):]
     return url
+
+
+def _build_media_url(url: str, request=None) -> str:
+    if not url:
+        return url
+    if _is_absolute_url(url):
+        return _ensure_https(url, request)
+    resolved = _resolve_media_url(url)
+    if _is_absolute_url(resolved):
+        return _ensure_https(resolved, request)
+    if request is not None:
+        try:
+            return _ensure_https(request.build_absolute_uri(url), request)
+        except Exception:
+            pass
+    return _ensure_https(url, request)
 
 
 class SupportMessageSerializer(serializers.ModelSerializer):
@@ -55,9 +92,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get('request')
         url = obj.attachment.url
-        if request is not None:
-            return _ensure_https(request.build_absolute_uri(url), request)
-        return _ensure_https(url, request)
+        return _build_media_url(url, request)
 
     def get_order_info(self, obj):
         request = self.context.get('request')
@@ -67,10 +102,10 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         p = getattr(o, 'product', None)
         image = ''
         if p and getattr(p, 'product_image_url', ''):
-            image = _ensure_https(p.product_image_url, request)
+            image = _build_media_url(p.product_image_url, request)
         elif p and getattr(p, 'main_images', None):
             try:
-                image = _ensure_https((p.main_images or [None])[0] or '', request)
+                image = _build_media_url((p.main_images or [None])[0] or '', request)
             except Exception:
                 image = ''
         return {
@@ -91,10 +126,10 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             return None
         image = ''
         if getattr(p, 'product_image_url', ''):
-            image = _ensure_https(p.product_image_url, request)
+            image = _build_media_url(p.product_image_url, request)
         elif getattr(p, 'main_images', None):
             try:
-                image = _ensure_https((p.main_images or [None])[0] or '', request)
+                image = _build_media_url((p.main_images or [None])[0] or '', request)
             except Exception:
                 image = ''
         return {

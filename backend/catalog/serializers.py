@@ -11,6 +11,26 @@ from common.serializers import (
 )
 
 
+def _is_absolute_url(url: str) -> bool:
+    return url.startswith('http://') or url.startswith('https://')
+
+
+def _resolve_media_url(url: str) -> str:
+    """Build an absolute media URL when MEDIA_URL is absolute."""
+    if not url or _is_absolute_url(url):
+        return url
+    media_base = settings.MEDIA_URL or '/media/'
+    if not _is_absolute_url(media_base):
+        return url
+    base = media_base if media_base.endswith('/') else f"{media_base}/"
+    base_path = urlparse(base).path or '/'
+    trimmed = url
+    if base_path != '/' and trimmed.startswith(base_path):
+        trimmed = trimmed[len(base_path):]
+    trimmed = trimmed.lstrip('/')
+    return f"{base}{trimmed}"
+
+
 def _ensure_https(url: str, request=None) -> str:
     """Upgrade to HTTPS only when the request is HTTPS."""
     if not url:
@@ -168,8 +188,11 @@ class BrandSerializer(serializers.ModelSerializer):
         if not normalized_logo:
             return ''
         request = self.context.get('request')
-        if normalized_logo.startswith('http://') or normalized_logo.startswith('https://'):
+        if _is_absolute_url(normalized_logo):
             return _ensure_https(normalized_logo, request)
+        resolved_logo = _resolve_media_url(normalized_logo)
+        if _is_absolute_url(resolved_logo):
+            return _ensure_https(resolved_logo, request)
         if request:
             try:
                 return _ensure_https(request.build_absolute_uri(normalized_logo), request)
@@ -355,10 +378,15 @@ class ProductSerializer(serializers.ModelSerializer):
         for img_url in images:
             if not img_url:
                 continue
-            if img_url.startswith('http://') or img_url.startswith('https://'):
+            if _is_absolute_url(img_url):
                 # 已经是完整URL
                 result.append(_ensure_https(img_url, request))
-            elif request:
+                continue
+            resolved_url = _resolve_media_url(img_url)
+            if _is_absolute_url(resolved_url):
+                result.append(_ensure_https(resolved_url, request))
+                continue
+            if request:
                 # 构建完整URL
                 result.append(_ensure_https(request.build_absolute_uri(img_url), request))
             else:
