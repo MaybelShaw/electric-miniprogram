@@ -7,8 +7,10 @@ from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
 
 
-def _ensure_https(url: str) -> str:
+def _ensure_https(url: str, request=None) -> str:
     if not url:
+        return url
+    if request is None or not request.is_secure():
         return url
     if url.startswith('http://'):
         return 'https://' + url[len('http://'):]
@@ -163,11 +165,12 @@ class OrderSerializer(serializers.ModelSerializer):
         ]):
             return None
         
+        request = self.context.get('request')
         return {
             'logistics_no': obj.logistics_no,
             'delivery_record_code': obj.delivery_record_code,
             'sn_code': obj.sn_code,
-            'delivery_images': [_ensure_https(url) for url in (obj.delivery_images or [])],
+            'delivery_images': [_ensure_https(url, request) for url in (obj.delivery_images or [])],
         }
 
     def get_invoice_info(self, obj: Order):

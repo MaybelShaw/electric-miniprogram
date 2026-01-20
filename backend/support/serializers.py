@@ -2,8 +2,10 @@ from rest_framework import serializers
 from .models import SupportConversation, SupportMessage
 
 
-def _ensure_https(url: str) -> str:
+def _ensure_https(url: str, request=None) -> str:
     if not url:
+        return url
+    if request is None or not request.is_secure():
         return url
     if url.startswith('http://'):
         return 'https://' + url[len('http://'):]
@@ -54,20 +56,21 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         url = obj.attachment.url
         if request is not None:
-            return _ensure_https(request.build_absolute_uri(url))
-        return _ensure_https(url)
+            return _ensure_https(request.build_absolute_uri(url), request)
+        return _ensure_https(url, request)
 
     def get_order_info(self, obj):
+        request = self.context.get('request')
         o = getattr(obj, 'order', None)
         if not o:
             return None
         p = getattr(o, 'product', None)
         image = ''
         if p and getattr(p, 'product_image_url', ''):
-            image = _ensure_https(p.product_image_url)
+            image = _ensure_https(p.product_image_url, request)
         elif p and getattr(p, 'main_images', None):
             try:
-                image = _ensure_https((p.main_images or [None])[0] or '')
+                image = _ensure_https((p.main_images or [None])[0] or '', request)
             except Exception:
                 image = ''
         return {
@@ -82,15 +85,16 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         }
 
     def get_product_info(self, obj):
+        request = self.context.get('request')
         p = getattr(obj, 'product', None)
         if not p:
             return None
         image = ''
         if getattr(p, 'product_image_url', ''):
-            image = _ensure_https(p.product_image_url)
+            image = _ensure_https(p.product_image_url, request)
         elif getattr(p, 'main_images', None):
             try:
-                image = _ensure_https((p.main_images or [None])[0] or '')
+                image = _ensure_https((p.main_images or [None])[0] or '', request)
             except Exception:
                 image = ''
         return {
