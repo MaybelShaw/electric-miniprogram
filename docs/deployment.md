@@ -41,7 +41,7 @@
      DJANGO_ENV=production
      DJANGO_SETTINGS_MODULE=backend.settings.production
      SECRET_KEY=your-strong-secret
-     ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn
+     ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,cdn.qxelectric.cn,origin.qxelectric.cn
      CORS_ALLOWED_ORIGINS=https://www.qxelectric.cn,https://qxelectric.cn
      POSTGRES_DB=electric_miniprogram
      POSTGRES_USER=electric
