@@ -92,6 +92,11 @@ class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     quantity = serializers.SerializerMethodField()
     payment_method = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
+    refundable_amount = serializers.SerializerMethodField()
+    refund_pending = serializers.SerializerMethodField()
+    refund_action_required = serializers.SerializerMethodField()
+    refund_locked = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -105,6 +110,11 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_amount",
             "discount_amount",
             "actual_amount",
+            "refunded_amount",
+            "refundable_amount",
+            "refund_pending",
+            "refund_action_required",
+            "refund_locked",
             "status",
             "status_label",
             "payment_method",
@@ -163,6 +173,25 @@ class OrderSerializer(serializers.ModelSerializer):
             return 'credit'
             
         return 'unknown'
+
+    def get_refunded_amount(self, obj: Order) -> str:
+        from django.db.models import Sum
+        from decimal import Decimal
+        total = obj.refunds.filter(status='succeeded').aggregate(total=Sum('amount')).get('total') or Decimal('0')
+        return str(total)
+
+    def get_refundable_amount(self, obj: Order) -> str:
+        from .payment_service import PaymentService
+        return str(PaymentService.calculate_refundable_amount(obj))
+
+    def get_refund_pending(self, obj: Order) -> bool:
+        return obj.refunds.filter(status__in=['pending', 'processing']).exists()
+
+    def get_refund_action_required(self, obj: Order) -> bool:
+        return obj.refunds.filter(status__in=['pending', 'failed']).exists()
+
+    def get_refund_locked(self, obj: Order) -> bool:
+        return obj.refunds.exists()
     
     def get_is_haier_order(self, obj: Order) -> bool:
         """判断是否为海尔订单"""
@@ -422,6 +451,12 @@ class RefundCreateSerializer(serializers.ModelSerializer):
         if payment and payment.order_id != order.id:
             raise serializers.ValidationError('支付记录不属于该订单')
 
+        if order.status in ['cancelled', 'refunded']:
+            raise serializers.ValidationError('当前订单状态不支持退款')
+
+        if Refund.objects.filter(order=order).exists():
+            raise serializers.ValidationError('该订单已存在退款记录，请联系商家处理')
+
         from .payment_service import PaymentService
         refundable = PaymentService.calculate_refundable_amount(order)
         if amount is None or amount <= 0:
@@ -429,9 +464,13 @@ class RefundCreateSerializer(serializers.ModelSerializer):
         if amount > refundable:
             raise serializers.ValidationError(f'退款金额超出可退金额，可退 {refundable}')
 
+        if order.status != 'completed':
+            raise serializers.ValidationError('仅支持已收货订单申请退款')
+
         # 普通用户只能操作自己的订单
-        if request and not request.user.is_staff and order.user_id != request.user.id:
-            raise serializers.ValidationError('没有权限为该订单退款')
+        if request and not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            if order.user_id != request.user.id:
+                raise serializers.ValidationError('没有权限为该订单退款')
 
         return attrs
 

@@ -94,6 +94,10 @@ export interface Order {
   total_amount: number;
   discount_amount?: number;
   actual_amount?: number;
+  refunded_amount?: number | string;
+  refundable_amount?: number | string;
+  refund_pending?: boolean;
+  refund_action_required?: boolean;
   status: 'pending' | 'paid' | 'shipped' | 'completed' | 'cancelled' | 'returning' | 'refunding' | 'refunded';
   payment_method?: string;
   is_haier_order: boolean;

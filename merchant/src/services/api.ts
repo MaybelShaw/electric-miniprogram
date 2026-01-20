@@ -114,6 +114,7 @@ export const exportAccountStatements = (params?: any) => request.get('/account-s
 // 退款管理
 export const getRefunds = (params?: any) => request.get('/refunds/', { params });
 export const startRefund = (id: number, data?: any) => request.post(`/refunds/${id}/start/`, data || {});
+export const failRefund = (id: number, data?: any) => request.post(`/refunds/${id}/fail/`, data || {});
 
 // 交易记录管理
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });

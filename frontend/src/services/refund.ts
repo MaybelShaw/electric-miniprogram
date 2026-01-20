@@ -13,7 +13,7 @@ export const refundService = {
   },
 
   // 启动退款（默认调用微信退款）
-  async startRefund(id: number, data?: { provider?: 'wechat' | 'alipay' | 'bank' }): Promise<any> {
+  async startRefund(id: number, data?: { provider?: 'wechat' | 'alipay' | 'bank' | 'credit' }): Promise<any> {
     return http.post(`/refunds/${id}/start/`, data)
   }
 }

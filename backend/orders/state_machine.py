@@ -107,7 +107,8 @@ class OrderStateMachine:
         order,
         new_status: str,
         operator=None,
-        note: str = ''
+        note: str = '',
+        skip_post: bool = False
     ):
         """执行状态转换
         
@@ -116,6 +117,7 @@ class OrderStateMachine:
             new_status: 目标状态（字符串）
             operator: 操作人（User对象，可选）
             note: 转换备注（可选）
+            skip_post: 是否跳过状态转换后的业务逻辑
             
         Raises:
             ValueError: 如果状态转换不合法
@@ -152,7 +154,8 @@ class OrderStateMachine:
         )
         
         # 执行状态转换后的业务逻辑
-        cls._handle_post_transition(order, old_status, new_status, operator)
+        if not skip_post:
+            cls._handle_post_transition(order, old_status, new_status, operator)
         try:
             from .analytics import OrderAnalytics
             OrderAnalytics.on_order_status_changed(order.id)

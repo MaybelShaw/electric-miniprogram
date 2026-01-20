@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input } from 'antd';
+import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, exportOrders, adjustOrderAmount } from '@/services/api';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { useState } from 'react';
 import type { Order } from '@/services/types';
@@ -42,6 +42,10 @@ export default function Orders() {
   const [shipModalVisible, setShipModalVisible] = useState(false);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [refundDetail, setRefundDetail] = useState<any>(null);
+  const [refundReviewVisible, setRefundReviewVisible] = useState(false);
+  const [refundReviewList, setRefundReviewList] = useState<any[]>([]);
+  const [refundReviewOrder, setRefundReviewOrder] = useState<Order | null>(null);
+  const [refundProcessing, setRefundProcessing] = useState(false);
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
@@ -247,6 +251,75 @@ export default function Orders() {
     }
   };
 
+  const handleReviewRefund = async (record: Order) => {
+    try {
+      const list: any = await getRefunds({ order_id: record.id, page_size: 20 });
+      const pending = (list?.results || []).filter((item: any) => ['pending', 'failed'].includes(item.status));
+      if (!pending.length) {
+        message.warning('暂无待审核退款');
+        return;
+      }
+      setRefundReviewOrder(record);
+      setRefundReviewList(pending);
+      setRefundReviewVisible(true);
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '获取退款信息失败');
+    }
+  };
+
+  const handleApproveRefund = async (refund: any) => {
+    if (!refundReviewOrder || refundProcessing) return;
+    setRefundProcessing(true);
+    try {
+      const provider = refundReviewOrder.payment_method === 'credit' ? 'credit' : 'wechat';
+      await startRefund(refund.id, { provider });
+      message.success('已发起退款');
+      setRefundReviewVisible(false);
+      actionRef.current?.reload();
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '发起退款失败');
+    } finally {
+      setRefundProcessing(false);
+    }
+  };
+
+  const handleRejectRefund = (refund: any) => {
+    if (refundProcessing) return;
+    let reason = '';
+    Modal.confirm({
+      title: '拒绝退款',
+      content: (
+        <Input.TextArea
+          placeholder="请输入拒绝原因"
+          rows={3}
+          onChange={(e) => {
+            reason = e.target.value;
+          }}
+        />
+      ),
+      okText: '确认拒绝',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        if (!reason) {
+          message.warning('请输入拒绝原因');
+          return Promise.reject();
+        }
+        setRefundProcessing(true);
+        try {
+          await failRefund(refund.id, { reason });
+          message.success('已拒绝退款');
+          setRefundReviewVisible(false);
+          actionRef.current?.reload();
+        } catch (error: any) {
+          message.error(error?.response?.data?.detail || '拒绝退款失败');
+        } finally {
+          setRefundProcessing(false);
+        }
+        return undefined;
+      }
+    });
+  };
+
   const handleComplete = async (id: number) => {
     try {
       await completeOrder(id);
@@ -379,6 +452,16 @@ export default function Orders() {
       hideInSearch: true, 
       width: 120,
       render: (_, record) => `¥${record.actual_amount ?? record.total_amount}`,
+    },
+    { 
+      title: '已退款', 
+      dataIndex: 'refunded_amount', 
+      hideInSearch: true, 
+      width: 120,
+      render: (_, record) => {
+        if (!record.refunded_amount) return '-';
+        return `¥${record.refunded_amount}`;
+      },
     },
     {
       title: '状态',
@@ -629,6 +712,20 @@ export default function Orders() {
               </Popconfirm>
             );
           }
+        }
+
+        if (record.refund_action_required && record.status !== 'refunding') {
+          actions.push(
+            <Button
+              key="review_refund"
+              type="link"
+              size="small"
+              icon={<PayCircleOutlined />}
+              onClick={() => handleReviewRefund(record)}
+            >
+              审核退款
+            </Button>
+          );
         }
 
         // 退款中：提供重新发起退款
@@ -992,6 +1089,8 @@ export default function Orders() {
             />
             <ProDescriptions.Item label="总金额" render={(_, record) => `¥${record.total_amount}`} />
             <ProDescriptions.Item label="实付款" render={(_, record) => `¥${record.actual_amount ?? record.total_amount}`} />
+            <ProDescriptions.Item label="已退款" render={(_, record) => `¥${record.refunded_amount ?? 0}`} />
+            <ProDescriptions.Item label="可退金额" render={(_, record) => `¥${record.refundable_amount ?? 0}`} />
             <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
             <ProDescriptions.Item label="备注" dataIndex="note" />
           </ProDescriptions>
@@ -1052,6 +1151,50 @@ export default function Orders() {
              <Input />
            </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 退款审核 */}
+      <Modal
+        title="退款审核"
+        open={refundReviewVisible}
+        onCancel={() => {
+          setRefundReviewVisible(false);
+          setRefundReviewList([]);
+          setRefundReviewOrder(null);
+        }}
+        footer={null}
+        width={560}
+      >
+        <List
+          dataSource={refundReviewList}
+          renderItem={(item) => (
+            <List.Item
+              actions={[
+                <Button
+                  key="approve"
+                  type="primary"
+                  loading={refundProcessing}
+                  onClick={() => handleApproveRefund(item)}
+                >
+                  同意退款
+                </Button>,
+                <Button
+                  key="reject"
+                  danger
+                  loading={refundProcessing}
+                  onClick={() => handleRejectRefund(item)}
+                >
+                  拒绝
+                </Button>
+              ]}
+            >
+              <List.Item.Meta
+                title={`退款#${item.id} ¥${item.amount}`}
+                description={`状态：${item.status} | 原因：${item.reason || '无'} | 申请时间：${item.created_at}`}
+              />
+            </List.Item>
+          )}
+        />
       </Modal>
 
       {/* 物流查询弹窗 */}

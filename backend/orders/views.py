@@ -65,6 +65,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             'status_history',
             'items__product',
             'items__sku',
+            'refunds',
         )
 
         # 订单状态筛选
@@ -2405,14 +2406,17 @@ class RefundViewSet(viewsets.ModelViewSet):
             't': timezone.now().isoformat(),
             'event': 'refund_created',
             'amount': str(refund.amount),
-            'reason': refund.reason
+            'reason': refund.reason,
+            'order_status': refund.order.status
         })
         refund.save(update_fields=['logs'])
 
-        # 将订单置为 refunding 状态（如果尚未退款完成）
+        # 管理员创建的退款可直接进入退款中状态，用户申请保持审核中
         try:
-            if refund.order.status not in ['refunded', 'refunding']:
-                OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='申请退款')
+            from .state_machine import OrderStateMachine
+            if request.user.is_staff or getattr(request.user, 'role', '') == 'support':
+                if refund.order.status not in ['refunded', 'refunding']:
+                    OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='申请退款')
         except Exception:
             pass
 
@@ -2420,7 +2424,12 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+        from .state_machine import OrderStateMachine
         refund = self.get_object()
+        if refund.order.status in ['pending', 'cancelled']:
+            return Response({'detail': '当前订单状态不支持退款'}, status=status.HTTP_400_BAD_REQUEST)
         if refund.status not in ['pending', 'failed']:
             return Response({'detail': '当前状态不可开始处理'}, status=400)
         refund.status = 'processing'
@@ -2429,6 +2438,58 @@ class RefundViewSet(viewsets.ModelViewSet):
         refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
 
         provider = (request.data.get('provider') or (refund.payment.method if refund.payment else 'wechat')).lower()
+        if provider == 'credit':
+            refundable = PaymentService.calculate_refundable_amount(refund.order)
+            if refund.amount > refundable:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': f'退款金额超出可退金额，可退 {refundable}'
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': f'退款金额超出可退金额，可退 {refundable}'}, status=status.HTTP_400_BAD_REQUEST)
+
+            from users.credit_services import CreditAccountService
+            credit_account = getattr(refund.order.user, 'credit_account', None)
+            if not credit_account:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': '未找到信用账户'
+                })
+                refund.save(update_fields=['status', 'logs', 'updated_at'])
+                return Response({'detail': '未找到信用账户'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                with transaction.atomic():
+                    CreditAccountService.record_refund(
+                        credit_account=credit_account,
+                        amount=refund.amount,
+                        order_id=refund.order_id,
+                        description=f'信用退款 #{refund.order.order_number}'
+                    )
+                    refund.logs.append({
+                        't': timezone.now().isoformat(),
+                        'event': 'credit_refund_recorded',
+                        'amount': str(refund.amount),
+                    })
+                    refund.save(update_fields=['logs'])
+                    PaymentService.process_refund_success(refund.id, operator=request.user)
+                    refund.refresh_from_db()
+                    refund.operator = request.user
+                    refund.save(update_fields=['operator', 'updated_at'])
+            except Exception as exc:
+                refund.status = 'failed'
+                refund.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'start_failed',
+                    'reason': str(exc)
+                })
+                refund.operator = request.user
+                refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+                return Response({'detail': f'退款完成失败: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(RefundSerializer(refund).data, status=status.HTTP_200_OK)
         if provider == 'wechat':
             refundable = PaymentService.calculate_refundable_amount(refund.order)
             if refund.amount > refundable:
@@ -2498,6 +2559,11 @@ class RefundViewSet(viewsets.ModelViewSet):
                 })
                 refund.save(update_fields=['status', 'logs', 'updated_at'])
                 return Response({'detail': f'微信退款发起失败: {exc}'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                if OrderStateMachine.can_transition(refund.order.status, 'refunding'):
+                    OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='退款处理中')
+            except Exception:
+                pass
             serializer = RefundSerializer(refund)
             return Response({'refund': serializer.data, 'wechat': data}, status=status.HTTP_200_OK)
 
@@ -2505,6 +2571,8 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def succeed(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         refund = self.get_object()
         if refund.status != 'processing':
             return Response({'detail': '当前状态不可标记成功'}, status=400)
@@ -2526,8 +2594,10 @@ class RefundViewSet(viewsets.ModelViewSet):
 
         # 根据累计退款更新订单状态
         total_refunded = sum([r.amount for r in refund.order.refunds.filter(status='succeeded')])
+        refund_base_amount = refund.order.actual_amount or refund.order.total_amount
         try:
-            if total_refunded >= refund.order.actual_amount:
+            from .state_machine import OrderStateMachine
+            if total_refunded >= refund_base_amount:
                 OrderStateMachine.transition(refund.order, 'refunded', operator=request.user, note='退款完成')
             elif refund.order.status != 'refunding':
                 OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='部分退款中')
@@ -2563,6 +2633,8 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def fail(self, request, pk=None):
+        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         refund = self.get_object()
         if refund.status not in ['pending', 'processing']:
             return Response({'detail': '当前状态不可标记失败'}, status=400)
@@ -2574,6 +2646,41 @@ class RefundViewSet(viewsets.ModelViewSet):
         })
         refund.operator = request.user
         refund.save(update_fields=['status', 'logs', 'operator', 'updated_at'])
+        try:
+            order = refund.order
+            if order.status == 'refunding':
+                previous_status = None
+                for entry in reversed(refund.logs or []):
+                    if isinstance(entry, dict):
+                        candidate = entry.get('order_status') or entry.get('order_status_snapshot')
+                        if candidate:
+                            previous_status = candidate
+                            break
+                if not previous_status:
+                    previous_status = order.status_history.filter(
+                        to_status='refunding'
+                    ).order_by('-created_at').values_list('from_status', flat=True).first()
+                target_status = previous_status or 'paid'
+                if target_status != order.status:
+                    from .models import OrderStatusHistory
+                    old_status = order.status
+                    order.status = target_status
+                    order.updated_at = timezone.now()
+                    order.save(update_fields=['status', 'updated_at'])
+                    OrderStatusHistory.objects.create(
+                        order=order,
+                        from_status=old_status,
+                        to_status=target_status,
+                        operator=request.user,
+                        note='退款失败回退'
+                    )
+                    try:
+                        from .analytics import OrderAnalytics
+                        OrderAnalytics.on_order_status_changed(order.id)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
         try:
             from users.services import create_notification
             reason_text = str(request.data.get('reason') or '')

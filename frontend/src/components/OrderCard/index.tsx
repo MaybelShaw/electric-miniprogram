@@ -37,6 +37,11 @@ export default function OrderCard({
     resolveImageUrl(displayProduct?.main_images?.[0]) ||
     '/assets/icons/product.png'
   const specsText = primaryItem?.sku_specs ? Object.values(primaryItem.sku_specs).join(' / ') : ''
+  const resolveNumber = (value: any) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }
+  const refundedAmount = resolveNumber(order.refunded_amount)
 
   useEffect(() => {
     if (order.status !== 'pending' || !order.expires_at) return
@@ -88,6 +93,12 @@ export default function OrderCard({
     (order.status === 'shipped' && !!onConfirmReceipt)
 
   const getDisplayStatus = () => {
+    if (order.refund_pending) {
+      return order.status === 'refunding' ? '退款处理中' : '退款审核中'
+    }
+    if (refundedAmount > 0) {
+      return `已退款 ${formatPrice(refundedAmount)}`
+    }
     if (order.return_info) {
       const returnStatus = order.return_info.status;
       if (returnStatus === 'requested') return '待商家处理';
@@ -103,6 +114,12 @@ export default function OrderCard({
     if (order.return_info) {
       if (order.return_info.status === 'rejected') return 'cancelled';
       return 'returning'; // You might need to add this class to OrderCard.scss too
+    }
+    if (order.refund_pending) {
+      return 'refunding'
+    }
+    if (refundedAmount > 0) {
+      return 'refunded'
     }
     return order.status;
   }
@@ -149,6 +166,12 @@ export default function OrderCard({
         <Text className='label'>实付款</Text>
         <Text className='amount'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
       </View>
+      {refundedAmount > 0 && (
+        <View className='order-total refund'>
+          <Text className='label'>已退款</Text>
+          <Text className='amount'>{formatPrice(refundedAmount)}</Text>
+        </View>
+      )}
       
       {hasActions && (
         <View className='order-footer'>

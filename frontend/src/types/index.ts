@@ -175,6 +175,10 @@ export interface Order {
   total_amount: string
   discount_amount?: string
   actual_amount?: string
+  refunded_amount?: string
+  refundable_amount?: string
+  refund_pending?: boolean
+  refund_locked?: boolean
   status: OrderStatus
   status_label: string
   note: string

@@ -604,6 +604,13 @@ class PaymentService:
         from decimal import Decimal
 
         paid_amount = sum([p.amount for p in order.payments.filter(status='succeeded')])
+        if paid_amount <= 0:
+            # 若存在支付记录但无成功支付，视为不可退款
+            if order.payments.exists():
+                paid_amount = Decimal('0')
+            else:
+                # 信用支付或无支付记录时，使用订单实付金额作为已支付基准
+                paid_amount = order.actual_amount or order.total_amount
         refunded_amount = sum([r.amount for r in Refund.objects.filter(order=order, status='succeeded')])
         available = Decimal(str(paid_amount)) - Decimal(str(refunded_amount))
         return available if available > 0 else Decimal('0')

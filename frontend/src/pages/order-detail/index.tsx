@@ -3,6 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
+import { refundService } from '../../services/refund'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import { resolvePaymentErrorMessage } from '../../utils/payment'
@@ -15,6 +16,7 @@ export default function OrderDetail() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [timeLeft, setTimeLeft] = useState('')
+  const [refundSubmitting, setRefundSubmitting] = useState(false)
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -136,6 +138,15 @@ export default function OrderDetail() {
     }
     return Number(target.actual_amount || 0)
   }
+
+  const resolveNumber = (value: any) => {
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }
+
+  const getRefundedAmount = (target: Order | null) => resolveNumber(target?.refunded_amount)
+
+  const getRefundableAmount = (target: Order | null) => resolveNumber(target?.refundable_amount)
 
   const resolveImageUrl = (url?: string) => {
     if (!url) return ''
@@ -367,9 +378,68 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
   }
 
+  const handleRequestRefund = async () => {
+    if (!order || refundSubmitting) return
+    const refundable = getRefundableAmount(order)
+    if (refundable <= 0) {
+      Taro.showToast({ title: '暂无可退金额', icon: 'none' })
+      return
+    }
+
+    const res: any = await Taro.showModal({
+      title: '申请部分退款',
+      content: `可退金额 ${formatPrice(refundable)}`,
+      editable: true,
+      placeholderText: '请输入退款金额',
+      confirmText: '提交'
+    })
+
+    if (!res.confirm) return
+
+    const rawAmount = (res as any).content
+    const amount = Number(rawAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Taro.showToast({ title: '请输入正确的退款金额', icon: 'none' })
+      return
+    }
+    if (amount > refundable) {
+      Taro.showToast({ title: `退款金额超出可退金额：${formatPrice(refundable)}`, icon: 'none' })
+      return
+    }
+
+    setRefundSubmitting(true)
+    try {
+      await refundService.createRefund({
+        order: order.id,
+        amount,
+        reason: '用户申请部分退款'
+      })
+      Taro.showToast({ title: '已提交审核', icon: 'success' })
+      loadOrderDetail(order.id)
+    } catch (error: any) {
+      const msg = error?.message || '申请失败'
+      Taro.showToast({ title: msg, icon: 'none' })
+    } finally {
+      setRefundSubmitting(false)
+    }
+  }
+
   const canConfirmReceipt = !!order && order.status === 'shipped' && !order.return_info && !['refunding', 'refunded', 'cancelled'].includes(order.status)
+  const canRequestRefund = !!order &&
+    order.status === 'completed' &&
+    !order.return_info &&
+    !order.refund_pending &&
+    !order.refund_locked &&
+    getRefundableAmount(order) > 0
 
   const getDisplayStatus = (order: Order) => {
+    const refundedAmount = getRefundedAmount(order)
+    if (order.refund_pending) {
+      return order.status === 'refunding' ? '退款处理中' : '退款审核中'
+    }
+    if (refundedAmount > 0) {
+      return `已退款 ${formatPrice(refundedAmount)}`
+    }
     if (order.return_info) {
       const returnStatus = order.return_info.status;
       if (returnStatus === 'requested') return '待商家处理';
@@ -408,6 +478,12 @@ export default function OrderDetail() {
     if (order.return_info) {
        if (order.return_info.status === 'rejected') return 'cancelled';
        return 'returning';
+    }
+    if (order.refund_pending) {
+      return 'refunding'
+    }
+    if (getRefundedAmount(order) > 0) {
+      return 'refunded'
     }
     return order.status;
   }
@@ -616,6 +692,24 @@ export default function OrderDetail() {
             <Text className='price-label'>实付款</Text>
             <Text className='price-value'>{Number(order.actual_amount ?? order.total_amount ?? 0).toFixed(2)}</Text>
           </View>
+          {getRefundedAmount(order) > 0 && (
+            <View className='price-row'>
+              <Text className='price-label'>已退款</Text>
+              <Text className='price-value'>{formatPrice(getRefundedAmount(order))}</Text>
+            </View>
+          )}
+          {order.refund_pending && (
+            <View className='price-row'>
+              <Text className='price-label'>退款状态</Text>
+              <Text className='price-value'>{order.status === 'refunding' ? '处理中' : '审核中'}</Text>
+            </View>
+          )}
+          {order.status === 'completed' && !order.refund_locked && getRefundableAmount(order) > 0 && (
+            <View className='price-row'>
+              <Text className='price-label'>可退金额</Text>
+              <Text className='price-value'>{formatPrice(getRefundableAmount(order))}</Text>
+            </View>
+          )}
         </View>
 
         <View className='bottom-placeholder' />
@@ -634,6 +728,17 @@ export default function OrderDetail() {
           {['shipped', 'completed'].includes(order.status) && !order.return_info && (
             <View className='cancel-btn ghost' onClick={handleRequestReturn} style={{ marginLeft: '20rpx' }}>
               申请退货
+            </View>
+          )}
+
+          {canRequestRefund && (
+            <View className='cancel-btn ghost' onClick={handleRequestRefund} style={{ marginLeft: '20rpx' }}>
+              申请退款
+            </View>
+          )}
+          {order.refund_pending && (
+            <View className='cancel-btn ghost disabled' style={{ marginLeft: '20rpx' }}>
+              {order.status === 'refunding' ? '退款处理中' : '退款审核中'}
             </View>
           )}
 

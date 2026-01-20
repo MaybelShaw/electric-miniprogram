@@ -177,6 +177,17 @@
       margin-left: $spacing-xs;
       font-family: 'DIN Alternate', sans-serif;
     }
+
+    &.refund {
+      .label {
+        color: $text-color-secondary;
+      }
+
+      .amount {
+        color: $success-color;
+        font-size: 30px;
+      }
+    }
   }
 
   .order-footer {
