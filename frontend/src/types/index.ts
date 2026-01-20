@@ -275,6 +275,7 @@ export interface Refund {
   amount: string
   status: 'pending' | 'processing' | 'succeeded' | 'failed'
   reason: string
+  evidence_images?: string[]
   transaction_id?: string
   operator?: number | null
   logs: Array<Record<string, any>>

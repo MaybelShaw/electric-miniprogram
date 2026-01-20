@@ -433,3 +433,152 @@
     }
   }
 }
+
+.refund-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .refund-modal-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  .refund-modal-card {
+    position: relative;
+    width: 640rpx;
+    background: $white;
+    border-radius: 24rpx;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  }
+
+  .refund-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx;
+    font-size: 32rpx;
+    font-weight: 600;
+    color: $text-color-base;
+    border-bottom: 1px solid $border-color-light;
+  }
+
+  .refund-modal-close {
+    font-size: 40rpx;
+    color: $text-color-secondary;
+  }
+
+  .refund-modal-body {
+    padding: 24rpx 32rpx 12rpx;
+  }
+
+  .refund-field {
+    margin-bottom: 24rpx;
+  }
+
+  .refund-label {
+    display: block;
+    font-size: 26rpx;
+    color: $text-color-regular;
+    margin-bottom: 12rpx;
+  }
+
+  .refund-input {
+    width: 100%;
+    padding: 20rpx 24rpx;
+    border-radius: 16rpx;
+    background: $background-color-base;
+    font-size: 28rpx;
+  }
+
+  .refund-textarea {
+    width: 100%;
+    min-height: 160rpx;
+    padding: 20rpx 24rpx;
+    border-radius: 16rpx;
+    background: $background-color-base;
+    font-size: 28rpx;
+  }
+
+  .refund-tips {
+    margin-top: 10rpx;
+    font-size: 24rpx;
+    color: $text-color-secondary;
+  }
+
+  .refund-image-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .refund-image-item,
+  .refund-image-add {
+    width: 140rpx;
+    height: 140rpx;
+    border-radius: 12rpx;
+    overflow: hidden;
+    background: $background-color-base;
+    position: relative;
+  }
+
+  .refund-image {
+    width: 100%;
+    height: 100%;
+  }
+
+  .refund-image-remove {
+    position: absolute;
+    top: -10rpx;
+    right: -10rpx;
+    width: 36rpx;
+    height: 36rpx;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.65);
+    color: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24rpx;
+  }
+
+  .refund-image-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2rpx dashed #d9d9d9;
+    background: transparent;
+  }
+
+  .refund-image-plus {
+    font-size: 40rpx;
+    color: $text-color-secondary;
+  }
+
+  .refund-modal-footer {
+    display: flex;
+    border-top: 1px solid $border-color-light;
+  }
+
+  .refund-btn {
+    flex: 1;
+    padding: 24rpx 0;
+    text-align: center;
+    font-size: 28rpx;
+    font-weight: 600;
+    color: $text-color-base;
+  }
+
+  .refund-btn.confirm {
+    color: $primary-color;
+  }
+
+  .refund-btn.disabled {
+    color: $text-color-secondary;
+  }
+}

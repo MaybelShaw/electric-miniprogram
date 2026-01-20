@@ -429,7 +429,7 @@ class RefundSerializer(serializers.ModelSerializer):
         model = Refund
         fields = [
             'id', 'order', 'order_number', 'payment', 'payment_method',
-            'amount', 'status', 'reason', 'transaction_id',
+            'amount', 'status', 'reason', 'evidence_images', 'transaction_id',
             'operator', 'logs', 'created_at', 'updated_at'
         ]
 
@@ -437,7 +437,7 @@ class RefundSerializer(serializers.ModelSerializer):
 class RefundCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Refund
-        fields = ['order', 'payment', 'amount', 'reason']
+        fields = ['order', 'payment', 'amount', 'reason', 'evidence_images']
 
     def validate(self, attrs):
         order = attrs.get('order')
@@ -463,6 +463,15 @@ class RefundCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('退款金额必须大于0')
         if amount > refundable:
             raise serializers.ValidationError(f'退款金额超出可退金额，可退 {refundable}')
+
+        evidence_images = attrs.get('evidence_images') or []
+        if evidence_images:
+            if not isinstance(evidence_images, list):
+                raise serializers.ValidationError('退款凭证格式不正确')
+            if len(evidence_images) > 3:
+                raise serializers.ValidationError('退款凭证最多上传3张')
+            if not all(isinstance(item, str) and item for item in evidence_images):
+                raise serializers.ValidationError('退款凭证格式不正确')
 
         if order.status != 'completed':
             raise serializers.ValidationError('仅支持已收货订单申请退款')

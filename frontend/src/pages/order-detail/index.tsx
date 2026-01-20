@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { View, ScrollView, Image, Text } from '@tarojs/components'
+import { View, ScrollView, Image, Text, Input, Textarea } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
 import { refundService } from '../../services/refund'
+import { uploadService } from '../../services/upload'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import { resolvePaymentErrorMessage } from '../../utils/payment'
@@ -17,6 +18,11 @@ export default function OrderDetail() {
   const [paying, setPaying] = useState(false)
   const [timeLeft, setTimeLeft] = useState('')
   const [refundSubmitting, setRefundSubmitting] = useState(false)
+  const [refundModalOpen, setRefundModalOpen] = useState(false)
+  const [refundAmountInput, setRefundAmountInput] = useState('')
+  const [refundReason, setRefundReason] = useState('')
+  const [refundImages, setRefundImages] = useState<string[]>([])
+  const [refundUploading, setRefundUploading] = useState(false)
 
   useEffect(() => {
     const instance = Taro.getCurrentInstance()
@@ -378,26 +384,54 @@ export default function OrderDetail() {
     Taro.navigateTo({ url: `/pages/return-tracking/index?id=${order.id}` })
   }
 
-  const handleRequestRefund = async () => {
+  const resetRefundForm = () => {
+    setRefundAmountInput('')
+    setRefundReason('')
+    setRefundImages([])
+  }
+
+  const handleRequestRefund = () => {
     if (!order || refundSubmitting) return
     const refundable = getRefundableAmount(order)
     if (refundable <= 0) {
       Taro.showToast({ title: '暂无可退金额', icon: 'none' })
       return
     }
+    resetRefundForm()
+    setRefundModalOpen(true)
+  }
 
-    const res: any = await Taro.showModal({
-      title: '申请部分退款',
-      content: '',
-      editable: true,
-      placeholderText: `请输入退款金额（可退 ${formatPrice(refundable)}）`,
-      confirmText: '提交'
+  const handleRefundChooseImage = () => {
+    if (refundUploading || refundImages.length >= 3) return
+    Taro.chooseImage({
+      count: 3 - refundImages.length,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: async (res) => {
+        setRefundUploading(true)
+        Taro.showLoading({ title: '上传中...' })
+        try {
+          const uploadPromises = res.tempFilePaths.map((path) => uploadService.uploadImage(path))
+          const urls = await Promise.all(uploadPromises)
+          setRefundImages((prev) => [...prev, ...urls])
+        } catch (error) {
+          Taro.showToast({ title: '上传失败', icon: 'none' })
+        } finally {
+          Taro.hideLoading()
+          setRefundUploading(false)
+        }
+      }
     })
+  }
 
-    if (!res.confirm) return
+  const handleRefundRemoveImage = (index: number) => {
+    setRefundImages((prev) => prev.filter((_, idx) => idx !== index))
+  }
 
-    const rawAmount = (res as any).content
-    const amount = Number(rawAmount)
+  const handleRefundSubmit = async () => {
+    if (!order || refundSubmitting || refundUploading) return
+    const refundable = getRefundableAmount(order)
+    const amount = Number(refundAmountInput)
     if (!Number.isFinite(amount) || amount <= 0) {
       Taro.showToast({ title: '请输入正确的退款金额', icon: 'none' })
       return
@@ -406,15 +440,22 @@ export default function OrderDetail() {
       Taro.showToast({ title: `退款金额超出可退金额：${formatPrice(refundable)}`, icon: 'none' })
       return
     }
+    if (!refundReason.trim()) {
+      Taro.showToast({ title: '请填写退款原因', icon: 'none' })
+      return
+    }
 
     setRefundSubmitting(true)
     try {
       await refundService.createRefund({
         order: order.id,
         amount,
-        reason: '用户申请部分退款'
+        reason: refundReason.trim(),
+        evidence_images: refundImages
       })
       Taro.showToast({ title: '已提交审核', icon: 'success' })
+      setRefundModalOpen(false)
+      resetRefundForm()
       loadOrderDetail(order.id)
     } catch (error: any) {
       const msg = error?.message || '申请失败'
@@ -760,6 +801,65 @@ export default function OrderDetail() {
               填写退货物流
             </View>
           )}
+        </View>
+      )}
+      {refundModalOpen && (
+        <View className='refund-modal'>
+          <View className='refund-modal-mask' onClick={() => !refundSubmitting && !refundUploading && setRefundModalOpen(false)} />
+          <View className='refund-modal-card'>
+            <View className='refund-modal-header'>
+              <Text>申请退款</Text>
+              <Text className='refund-modal-close' onClick={() => !refundSubmitting && !refundUploading && setRefundModalOpen(false)}>×</Text>
+            </View>
+            <View className='refund-modal-body'>
+              <View className='refund-field'>
+                <Text className='refund-label'>退款金额</Text>
+                <Input
+                  className='refund-input'
+                  type='digit'
+                  placeholder={`可退 ${formatPrice(getRefundableAmount(order))}`}
+                  value={refundAmountInput}
+                  onInput={(e) => setRefundAmountInput(e.detail.value)}
+                />
+                <View className='refund-tips'>可退金额 {formatPrice(getRefundableAmount(order))}</View>
+              </View>
+              <View className='refund-field'>
+                <Text className='refund-label'>退款原因</Text>
+                <Textarea
+                  className='refund-textarea'
+                  placeholder='请填写退款原因'
+                  value={refundReason}
+                  onInput={(e) => setRefundReason(e.detail.value)}
+                  maxlength={200}
+                />
+              </View>
+              <View className='refund-field'>
+                <Text className='refund-label'>凭证图片（可选，最多3张）</Text>
+                <View className='refund-image-list'>
+                  {refundImages.map((url, index) => (
+                    <View key={url} className='refund-image-item'>
+                      <Image className='refund-image' src={url} mode='aspectFill' />
+                      <View className='refund-image-remove' onClick={() => handleRefundRemoveImage(index)}>×</View>
+                    </View>
+                  ))}
+                  {refundImages.length < 3 && (
+                    <View className='refund-image-add' onClick={handleRefundChooseImage}>
+                      <Text className='refund-image-plus'>+</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+            <View className='refund-modal-footer'>
+              <View className='refund-btn cancel' onClick={() => !refundSubmitting && !refundUploading && setRefundModalOpen(false)}>取消</View>
+              <View
+                className={`refund-btn confirm ${refundSubmitting || refundUploading ? 'disabled' : ''}`}
+                onClick={handleRefundSubmit}
+              >
+                {refundSubmitting ? '提交中...' : '提交'}
+              </View>
+            </View>
+          </View>
         </View>
       )}
     </View>

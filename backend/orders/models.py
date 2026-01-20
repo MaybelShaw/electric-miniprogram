@@ -324,6 +324,7 @@ class Refund(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='退款金额')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='退款状态')
     reason = models.CharField(max_length=255, blank=True, default='', verbose_name='退款原因')
+    evidence_images = models.JSONField(default=list, blank=True, verbose_name='退款凭证')
     transaction_id = models.CharField(max_length=100, blank=True, default='', verbose_name='退款交易号')
     operator = models.ForeignKey('users.User', on_delete=models.PROTECT, null=True, blank=True, related_name='handled_refunds', verbose_name='操作人')
     logs = models.JSONField(default=list, blank=True, verbose_name='退款日志')

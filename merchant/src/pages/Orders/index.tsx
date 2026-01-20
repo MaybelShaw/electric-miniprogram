@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List } from 'antd';
+import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
 import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -27,6 +27,13 @@ const returnStatusMap: Record<string, { text: string; color: string }> = {
   in_transit: { text: '退货中', color: 'blue' },
   received: { text: '已收到退货', color: 'purple' },
   rejected: { text: '已拒绝退货', color: 'red' },
+};
+
+const refundStatusMap: Record<string, { text: string; color: string }> = {
+  pending: { text: '待审核', color: 'orange' },
+  processing: { text: '处理中', color: 'purple' },
+  succeeded: { text: '已退款', color: 'green' },
+  failed: { text: '已拒绝', color: 'red' },
 };
 
 export default function Orders() {
@@ -1188,10 +1195,47 @@ export default function Orders() {
                 </Button>
               ]}
             >
+              {(() => {
+                const statusInfo = refundStatusMap[item.status] || { text: item.status, color: 'default' };
+                const createdAt = item.created_at ? new Date(item.created_at).toLocaleString() : '-';
+                const images = Array.isArray(item.evidence_images) ? item.evidence_images : [];
+                const evidence = images.length ? (
+                  <Image.PreviewGroup>
+                    <Space size={8} wrap>
+                      {images.map((url: string, index: number) => (
+                        <Image
+                          key={`${url}-${index}`}
+                          src={url}
+                          width={56}
+                          height={56}
+                          style={{ borderRadius: 6, objectFit: 'cover' }}
+                        />
+                      ))}
+                    </Space>
+                  </Image.PreviewGroup>
+                ) : null;
+                return (
               <List.Item.Meta
-                title={`退款#${item.id} ¥${item.amount}`}
-                description={`状态：${item.status} | 原因：${item.reason || '无'} | 申请时间：${item.created_at}`}
+                title={
+                  <Space size={8} wrap>
+                    <span>退款#{item.id}</span>
+                    <span>¥{item.amount}</span>
+                    <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                  </Space>
+                }
+                description={
+                  <div>
+                    <div>订单号：{item.order_number || '-'}</div>
+                    <div>原因：{item.reason || '无'}</div>
+                    <div>申请时间：{createdAt}</div>
+                    {evidence && (
+                      <div style={{ marginTop: 8 }}>凭证图片：{evidence}</div>
+                    )}
+                  </div>
+                }
               />
+                );
+              })()}
             </List.Item>
           )}
         />

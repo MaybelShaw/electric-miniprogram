@@ -8,7 +8,7 @@ export const refundService = {
   },
 
   // 创建退款申请
-  async createRefund(data: { order: number; payment?: number; amount: string | number; reason?: string }): Promise<Refund> {
+  async createRefund(data: { order: number; payment?: number; amount: string | number; reason?: string; evidence_images?: string[] }): Promise<Refund> {
     return http.post<Refund>('/refunds/', data)
   },
 
