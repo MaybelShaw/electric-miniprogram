@@ -488,6 +488,12 @@
     margin-bottom: 12rpx;
   }
 
+  .refund-required {
+    color: $danger-color;
+    margin-left: 6rpx;
+    font-size: 24rpx;
+  }
+
   .refund-input {
     width: 100%;
     padding: 20rpx 24rpx;

@@ -1162,7 +1162,7 @@ export default function Orders() {
 
       {/* 退款审核 */}
       <Modal
-        title="退款审核"
+        title={<div style={{ textAlign: 'center', fontWeight: 600 }}>退款审核</div>}
         open={refundReviewVisible}
         onCancel={() => {
           setRefundReviewVisible(false);
@@ -1176,24 +1176,6 @@ export default function Orders() {
           dataSource={refundReviewList}
           renderItem={(item) => (
             <List.Item
-              actions={[
-                <Button
-                  key="approve"
-                  type="primary"
-                  loading={refundProcessing}
-                  onClick={() => handleApproveRefund(item)}
-                >
-                  同意退款
-                </Button>,
-                <Button
-                  key="reject"
-                  danger
-                  loading={refundProcessing}
-                  onClick={() => handleRejectRefund(item)}
-                >
-                  拒绝
-                </Button>
-              ]}
             >
               {(() => {
                 const statusInfo = refundStatusMap[item.status] || { text: item.status, color: 'default' };
@@ -1215,25 +1197,36 @@ export default function Orders() {
                   </Image.PreviewGroup>
                 ) : null;
                 return (
-              <List.Item.Meta
-                title={
-                  <Space size={8} wrap>
-                    <span>退款#{item.id}</span>
-                    <span>¥{item.amount}</span>
-                    <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
-                  </Space>
-                }
-                description={
-                  <div>
-                    <div>订单号：{item.order_number || '-'}</div>
-                    <div>原因：{item.reason || '无'}</div>
-                    <div>申请时间：{createdAt}</div>
+                  <div style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 16, fontWeight: 600 }}>退款金额 ¥{item.amount}</span>
+                      <Tag color={statusInfo.color}>{statusInfo.text}</Tag>
+                    </div>
+                    <div style={{ marginTop: 8, color: '#666' }}>订单号：{item.order_number || '-'}</div>
+                    <div style={{ marginTop: 4, color: '#666' }}>原因：{item.reason || '无'}</div>
+                    <div style={{ marginTop: 4, color: '#666' }}>申请时间：{createdAt}</div>
                     {evidence && (
-                      <div style={{ marginTop: 8 }}>凭证图片：{evidence}</div>
+                      <div style={{ marginTop: 10, color: '#666' }}>凭证图片：{evidence}</div>
                     )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
+                      <Button
+                        type="primary"
+                        loading={refundProcessing}
+                        disabled={refundProcessing}
+                        onClick={() => handleApproveRefund(item)}
+                      >
+                        同意退款
+                      </Button>
+                      <Button
+                        danger
+                        loading={refundProcessing}
+                        disabled={refundProcessing}
+                        onClick={() => handleRejectRefund(item)}
+                      >
+                        拒绝
+                      </Button>
+                    </div>
                   </div>
-                }
-              />
                 );
               })()}
             </List.Item>

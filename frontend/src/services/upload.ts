@@ -12,7 +12,7 @@ export const uploadService = {
     
     return new Promise((resolve, reject) => {
       Taro.uploadFile({
-        url: `${BASE_URL}/media-images/`,
+        url: `${BASE_URL}/catalog/media-images/`,
         filePath: filePath,
         name: 'file',
         header: {

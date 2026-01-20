@@ -812,22 +812,22 @@ export default function OrderDetail() {
               <Text className='refund-modal-close' onClick={() => !refundSubmitting && !refundUploading && setRefundModalOpen(false)}>×</Text>
             </View>
             <View className='refund-modal-body'>
-              <View className='refund-field'>
-                <Text className='refund-label'>退款金额</Text>
-                <Input
-                  className='refund-input'
-                  type='digit'
-                  placeholder={`可退 ${formatPrice(getRefundableAmount(order))}`}
-                  value={refundAmountInput}
-                  onInput={(e) => setRefundAmountInput(e.detail.value)}
-                />
-                <View className='refund-tips'>可退金额 {formatPrice(getRefundableAmount(order))}</View>
-              </View>
-              <View className='refund-field'>
-                <Text className='refund-label'>退款原因</Text>
-                <Textarea
-                  className='refund-textarea'
-                  placeholder='请填写退款原因'
+            <View className='refund-field'>
+              <Text className='refund-label'>退款金额<Text className='refund-required'>*</Text></Text>
+              <Input
+                className='refund-input'
+                type='digit'
+                placeholder={`可退 ${formatPrice(getRefundableAmount(order))}`}
+                value={refundAmountInput}
+                onInput={(e) => setRefundAmountInput(e.detail.value)}
+              />
+              <View className='refund-tips'>可退金额 {formatPrice(getRefundableAmount(order))}</View>
+            </View>
+            <View className='refund-field'>
+              <Text className='refund-label'>退款原因<Text className='refund-required'>*</Text></Text>
+              <Textarea
+                className='refund-textarea'
+                placeholder='请填写退款原因'
                   value={refundReason}
                   onInput={(e) => setRefundReason(e.detail.value)}
                   maxlength={200}
