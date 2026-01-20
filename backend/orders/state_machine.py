@@ -51,6 +51,7 @@ class OrderStateMachine:
         OrderStatus.COMPLETED: {
             OrderStatus.RETURNING,   # 售后退货
             OrderStatus.REFUNDING,   # 售后退款
+            OrderStatus.REFUNDED,    # 退款完成
         },
         OrderStatus.RETURNING: {
             OrderStatus.REFUNDING,   # 收到退货后进入退款

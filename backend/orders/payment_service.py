@@ -1077,12 +1077,12 @@ class PaymentService:
         })
         refund.save(update_fields=['status', 'transaction_id', 'logs', 'updated_at'])
 
-        total_refunded = sum([r.amount for r in refund.order.refunds.filter(status='succeeded')])
         try:
-            if total_refunded >= (refund.order.actual_amount or refund.order.total_amount):
+            if OrderStateMachine.can_transition(refund.order.status, 'refunded'):
                 OrderStateMachine.transition(refund.order, 'refunded', operator=operator, note='退款完成')
-            elif refund.order.status != 'refunding':
-                OrderStateMachine.transition(refund.order, 'refunding', operator=operator, note='部分退款中')
+            elif OrderStateMachine.can_transition(refund.order.status, 'refunding'):
+                OrderStateMachine.transition(refund.order, 'refunding', operator=operator, note='退款完成')
+                OrderStateMachine.transition(refund.order, 'refunded', operator=operator, note='退款完成')
         except Exception:
             pass
 

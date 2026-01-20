@@ -388,9 +388,9 @@ export default function OrderDetail() {
 
     const res: any = await Taro.showModal({
       title: '申请部分退款',
-      content: `可退金额 ${formatPrice(refundable)}`,
+      content: '',
       editable: true,
-      placeholderText: '请输入退款金额',
+      placeholderText: `请输入退款金额（可退 ${formatPrice(refundable)}）`,
       confirmText: '提交'
     })
 

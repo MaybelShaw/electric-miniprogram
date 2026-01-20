@@ -2592,15 +2592,14 @@ class RefundViewSet(viewsets.ModelViewSet):
         refund.operator = request.user
         refund.save(update_fields=['status', 'transaction_id', 'logs', 'operator', 'updated_at'])
 
-        # 根据累计退款更新订单状态
-        total_refunded = sum([r.amount for r in refund.order.refunds.filter(status='succeeded')])
-        refund_base_amount = refund.order.actual_amount or refund.order.total_amount
+        # 退款成功即视为订单退款完成
         try:
             from .state_machine import OrderStateMachine
-            if total_refunded >= refund_base_amount:
+            if OrderStateMachine.can_transition(refund.order.status, 'refunded'):
                 OrderStateMachine.transition(refund.order, 'refunded', operator=request.user, note='退款完成')
-            elif refund.order.status != 'refunding':
-                OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='部分退款中')
+            elif OrderStateMachine.can_transition(refund.order.status, 'refunding'):
+                OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='退款完成')
+                OrderStateMachine.transition(refund.order, 'refunded', operator=request.user, note='退款完成')
         except Exception:
             pass
 
