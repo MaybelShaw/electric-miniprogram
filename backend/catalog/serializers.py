@@ -276,7 +276,11 @@ class ProductSerializer(serializers.ModelSerializer):
                     suffix = f"?{parsed.query}"
                 if parsed.fragment:
                     suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
-                return f"{path}{suffix}"
+                request = self.context.get('request')
+                request_host = request.get_host() if request else None
+                if path.startswith(settings.MEDIA_URL) or (request_host and parsed.netloc == request_host):
+                    return f"{path}{suffix}"
+                return url
         if url.startswith('/'):
             return url
         media_prefix = settings.MEDIA_URL.rstrip('/')
