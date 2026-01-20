@@ -14,9 +14,10 @@ export default function ProductCard({ product }: ProductCardProps) {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}` })
   }
 
-  const sellingPrice = product.discounted_price && product.discounted_price < parseFloat(product.price)
-    ? product.discounted_price
-    : parseFloat(product.price)
+  const basePrice = Number(product.display_price ?? product.price ?? 0)
+  const sellingPrice = product.discounted_price && Number(product.discounted_price) < basePrice
+    ? Number(product.discounted_price)
+    : basePrice
 
   return (
     <View className='product-card' onClick={goToDetail}>

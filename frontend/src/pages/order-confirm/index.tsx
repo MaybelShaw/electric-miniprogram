@@ -206,13 +206,17 @@ export default function OrderConfirm() {
   }
 
   const getItemPrice = (item: OrderItem) => {
-    if (item.sku && item.sku.price !== undefined) {
-      return Number(item.sku.price)
+    if (item.sku) {
+      const skuBasePrice = Number(item.sku.display_price ?? item.sku.price ?? 0)
+      return item.sku.discounted_price && Number(item.sku.discounted_price) < skuBasePrice
+        ? Number(item.sku.discounted_price)
+        : skuBasePrice
     }
     if (item.product) {
-      return item.product.discounted_price && item.product.discounted_price < parseFloat(item.product.price)
-        ? item.product.discounted_price
-        : parseFloat(item.product.price)
+      const basePrice = Number(item.product.display_price ?? item.product.price ?? 0)
+      return item.product.discounted_price && Number(item.product.discounted_price) < basePrice
+        ? Number(item.product.discounted_price)
+        : basePrice
     }
     return 0
   }

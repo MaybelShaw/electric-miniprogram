@@ -131,10 +131,10 @@ export default function OrderDetail() {
         return sum + unit * qty
       }, 0)
     }
-    if (target.product?.price) {
-      return Number(target.product.price) * Number(target.quantity || 0)
+    if (target.total_amount !== undefined && target.total_amount !== null) {
+      return Number(target.total_amount || 0)
     }
-    return Number(target.total_amount || 0)
+    return Number(target.actual_amount || 0)
   }
 
   const resolveImageUrl = (url?: string) => {

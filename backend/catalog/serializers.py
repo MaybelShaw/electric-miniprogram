@@ -1,6 +1,7 @@
 from rest_framework import serializers
+from decimal import Decimal
 from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZoneCover, Case, CaseDetailBlock
-from orders.services import get_best_active_discount
+from orders.services import get_best_active_discount, resolve_base_price
 from django.conf import settings
 from urllib.parse import urlparse
 from common.serializers import (
@@ -202,6 +203,9 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductSKUSerializer(serializers.ModelSerializer):
+    display_price = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
+
     class Meta:
         model = ProductSKU
         fields = [
@@ -210,13 +214,27 @@ class ProductSKUSerializer(serializers.ModelSerializer):
             'sku_code',
             'specs',
             'price',
+            'display_price',
+            'discounted_price',
             'stock',
             'image',
             'is_active',
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'display_price', 'discounted_price']
+
+    def get_display_price(self, obj: ProductSKU):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return resolve_base_price(user, obj.product, sku=obj)
+
+    def get_discounted_price(self, obj: ProductSKU):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        base_price = self.get_display_price(obj)
+        amount = get_best_active_discount(user, obj.product, base_price=base_price)
+        return base_price - amount
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -226,6 +244,7 @@ class ProductSerializer(serializers.ModelSerializer):
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category')
     brand_id = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), source='brand')
     discounted_price = serializers.SerializerMethodField()
+    display_price = serializers.SerializerMethodField()
     originalPrice = serializers.SerializerMethodField()
     skus = serializers.SerializerMethodField()
     spec_options = serializers.SerializerMethodField()
@@ -256,6 +275,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = "__all__"
         extra_fields = [
             'discounted_price',
+            'display_price',
             'originalPrice',
             'category_id',
             'brand_id',
@@ -312,8 +332,15 @@ class ProductSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """自定义序列化输出，将图片URL转换为完整URL"""
         rep = super().to_representation(instance)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated or (
+            not user.is_staff and getattr(user, 'role', '') not in {'dealer', 'support', 'admin'}
+        ):
+            rep.pop('dealer_price', None)
         # 合并额外字段
         rep['discounted_price'] = self.get_discounted_price(instance)
+        rep['display_price'] = self.get_display_price(instance)
         rep['originalPrice'] = self.get_originalPrice(instance)
         rep['is_haier_product'] = self.get_is_haier_product(instance)
         rep['haier_info'] = self.get_haier_info(instance)
@@ -354,6 +381,26 @@ class ProductSerializer(serializers.ModelSerializer):
                 prices = [float(s.get('price')) for s in rep['skus'] if s.get('is_active', True) and s.get('price') is not None]
                 if prices:
                     rep['price'] = min(prices)
+            except Exception:
+                pass
+            try:
+                display_prices = []
+                for sku in rep['skus']:
+                    display = sku.get('display_price')
+                    if display is not None:
+                        display_prices.append(Decimal(str(display)))
+                if display_prices:
+                    rep['display_price'] = min(display_prices)
+            except Exception:
+                pass
+            try:
+                discounted_prices = []
+                for sku in rep['skus']:
+                    discounted = sku.get('discounted_price')
+                    if discounted is not None:
+                        discounted_prices.append(Decimal(str(discounted)))
+                if discounted_prices:
+                    rep['discounted_price'] = min(discounted_prices)
             except Exception:
                 pass
         
@@ -429,15 +476,19 @@ class ProductSerializer(serializers.ModelSerializer):
         """获取折扣价"""
         request = self.context.get('request')
         user = getattr(request, 'user', None)
-        
-        # 使用display_price作为基础价格
-        base_price = obj.display_price if hasattr(obj, 'display_price') else obj.price
-        
+
+        base_price = resolve_base_price(user, obj)
         if not user or not user.is_authenticated:
             return base_price
 
         amount = get_best_active_discount(user, obj, base_price=base_price)
         return base_price - amount
+
+    def get_display_price(self, obj: Product):
+        """获取展示价（经销商优先经销价，空/0回退零售价）"""
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return resolve_base_price(user, obj)
 
     def get_skus(self, obj: Product):
         skus = getattr(obj, 'skus', None)

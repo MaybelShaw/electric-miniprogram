@@ -109,6 +109,7 @@ class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='products', verbose_name='类别')
     brand = models.ForeignKey(Brand, on_delete=models.PROTECT, related_name='products', verbose_name='品牌')
     price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], verbose_name='价格')
+    dealer_price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], null=True, blank=True, verbose_name='经销价')
     
     # 商品来源（用于区分本地商品 / 海尔商品等）
     SOURCE_LOCAL = 'local'
@@ -279,7 +280,7 @@ class Product(models.Model):
     
     @property
     def display_price(self):
-        """显示价格（优先使用销售价格）"""
+        """基础售价（不包含用户态折扣/经销逻辑）"""
         return self.price
     
     @property

@@ -249,6 +249,7 @@ export default function Products() {
           category_id: res.category_id,
           brand_id: res.brand_id,
           price: parseFloat(res.price),
+          dealer_price: res.dealer_price !== null && res.dealer_price !== undefined ? parseFloat(res.dealer_price) : undefined,
           stock: res.stock,
           description: res.description || '',
           main_images: res.main_images || [],
@@ -631,6 +632,15 @@ export default function Products() {
             rules={[{ required: true, message: '请输入价格' }]}
             fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
             placeholder="请输入价格"
+            colProps={{ span: 6 }}
+          />
+
+          <ProFormDigit
+            name="dealer_price"
+            label="经销价"
+            fieldProps={{ min: 0, precision: 2, addonBefore: '¥' }}
+            placeholder="为空或0视为未设置"
+            tooltip="经销价为空或0时，经销商展示零售价"
             colProps={{ span: 6 }}
           />
           

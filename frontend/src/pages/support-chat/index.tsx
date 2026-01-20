@@ -288,7 +288,7 @@ export default function SupportChat() {
     const productInfo = {
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: product.display_price ?? product.price,
       image: image
     }
     

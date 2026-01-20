@@ -41,6 +41,22 @@ def _get_best_discount_rule(user, product):
     return rule
 
 
+def resolve_base_price(user, product, sku=None):
+    """Resolve base price for a user and optional SKU.
+
+    Dealer users always use product-level dealer_price when set (>0); otherwise fallback to product retail price.
+    """
+    is_dealer = bool(user and getattr(user, 'is_authenticated', False) and getattr(user, 'role', '') == 'dealer')
+    if is_dealer:
+        dealer_price = getattr(product, 'dealer_price', None)
+        if dealer_price is not None and dealer_price > 0:
+            return Decimal(dealer_price)
+        return Decimal(product.price)
+    if sku is not None:
+        return Decimal(sku.price)
+    return Decimal(product.price)
+
+
 def get_best_active_discount(user, product, base_price=None):
     """Select the best active discount amount for a given user and product.
     Result is cached briefly to reduce DB hits during browsing.
@@ -270,7 +286,7 @@ def create_order(
             sku = ProductSKU.objects.get(id=sku_id, product_id=product_id)
 
         # 价格与折扣
-        base_price = Decimal(sku.price if sku else product.price)
+        base_price = resolve_base_price(user, product, sku=sku)
         discount_amount = get_best_active_discount(user, product, base_price=base_price)
         if discount_amount < 0:
             discount_amount = Decimal('0')

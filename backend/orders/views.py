@@ -19,7 +19,7 @@ from .serializers import (
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .services import create_order,get_or_create_cart,add_to_cart,remove_from_cart
+from .services import create_order, get_or_create_cart, add_to_cart, remove_from_cart, resolve_base_price
 from .analytics import OrderAnalytics
 from catalog.models import Product
 from django.utils import timezone
@@ -1972,7 +1972,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
             pid = dt.product_id
             if pid in result:
                 continue
-            base_price = getattr(dt.product, 'display_price', None) or dt.product.price
+            base_price = resolve_base_price(request.user, dt.product)
             amount = dt.discount.resolve_discount_amount(base_price)
             result[pid] = {
                 'amount': float(amount),

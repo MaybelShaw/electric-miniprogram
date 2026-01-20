@@ -266,11 +266,15 @@ export default function ProductDetail() {
   }
 
   const availableStock = getAvailableStock()
-  const productBasePrice = parseFloat(product.price)
-  const priceFromSku = currentSku ? Number(currentSku.price) : productBasePrice
-  const displayPrice = (!currentSku && product.discounted_price && product.discounted_price < productBasePrice)
-    ? product.discounted_price
-    : priceFromSku
+  const productBasePrice = Number(product.display_price ?? product.price ?? 0)
+  const productDiscountedPrice = product.discounted_price && Number(product.discounted_price) < productBasePrice
+    ? Number(product.discounted_price)
+    : productBasePrice
+  const skuBasePrice = currentSku ? Number(currentSku.display_price ?? currentSku.price ?? 0) : productBasePrice
+  const skuDiscountedPrice = currentSku && currentSku.discounted_price && Number(currentSku.discounted_price) < skuBasePrice
+    ? Number(currentSku.discounted_price)
+    : skuBasePrice
+  const displayPrice = currentSku ? skuDiscountedPrice : productDiscountedPrice
   const selectedSpecText = currentSku?.specs ? Object.values(currentSku.specs).join(' / ') : ''
 
   return (

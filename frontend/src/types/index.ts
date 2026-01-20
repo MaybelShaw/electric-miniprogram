@@ -47,6 +47,8 @@ export interface Product {
   category_id: number
   brand_id: number
   price: string
+  display_price?: string | number
+  dealer_price?: string | number
   stock: number
   total_stock?: number
   main_images: string[]
@@ -71,6 +73,8 @@ export interface ProductSKU {
   sku_code?: string
   specs: Record<string, string>
   price: string | number
+  display_price?: string | number
+  discounted_price?: string | number
   stock: number
   image?: string
   is_active: boolean

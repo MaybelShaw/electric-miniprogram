@@ -32,6 +32,7 @@ export interface Product {
   id: number;
   name: string;
   price: number;
+  dealer_price?: number | null;
   image?: string;
   description?: string;
   category_id?: number;

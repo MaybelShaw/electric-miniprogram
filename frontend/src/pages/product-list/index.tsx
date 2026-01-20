@@ -136,9 +136,9 @@ export default function ProductListPage() {
   }
 
   const getSellingPrice = (product: Product) => {
-    const basePrice = parseFloat(product.price)
-    return product.discounted_price && product.discounted_price < basePrice
-      ? product.discounted_price
+    const basePrice = Number(product.display_price ?? product.price ?? 0)
+    return product.discounted_price && Number(product.discounted_price) < basePrice
+      ? Number(product.discounted_price)
       : basePrice
   }
 
