@@ -220,6 +220,7 @@
       - 字段：`template_type(auto|quick)`、`title`、`content`、`content_type(text|card|quick_buttons)`、`content_payload`、`group_name`、`is_pinned`、`enabled`
       - 自动回复字段：`trigger_event(first_contact|idle_contact)`、`idle_minutes`、`daily_limit`、`user_cooldown_days`
       - 统计字段：`usage_count`、`last_used_at`
+      - 自动回复消息会写入为略晚于触发用户消息的时间，避免增量拉取遗漏
     - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（仅客服/管理员）
     - `content_payload` 用途：
       - `card`：`{ title, description, image_url, link_type, link_value }`

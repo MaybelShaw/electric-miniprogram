@@ -70,6 +70,7 @@ def _send_template_message(conversation, sender, template, now, content_override
         content_type=template.content_type,
         content_payload=template.content_payload,
         template=template,
+        created_at=now,
     )
     SupportReplyTemplate.objects.filter(id=template.id).update(
         usage_count=models.F('usage_count') + 1,
@@ -83,7 +84,16 @@ def _send_template_message(conversation, sender, template, now, content_override
     return message
 
 
-def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at):
+def _normalize_auto_reply_time(reference_time, now=None):
+    resolved_now = now or timezone.now()
+    if not reference_time:
+        return resolved_now
+    if resolved_now <= reference_time:
+        return reference_time + timedelta(seconds=1)
+    return resolved_now
+
+
+def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at, now_override=None):
     templates = SupportReplyTemplate.objects.filter(
         enabled=True,
         template_type=SupportReplyTemplate.TYPE_AUTO,
@@ -95,7 +105,7 @@ def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at
     if not sender:
         return None
 
-    now = timezone.now()
+    now = now_override or timezone.now()
     for template in templates:
         if template.trigger_event == SupportReplyTemplate.TRIGGER_FIRST:
             if not had_user_messages:
@@ -352,7 +362,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         SupportConversation.objects.filter(id=conversation.id).update(**update_fields)
 
         if role == 'user':
-            _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_message_at)
+            auto_reply_now = _normalize_auto_reply_time(msg.created_at)
+            _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_message_at, auto_reply_now)
 
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
