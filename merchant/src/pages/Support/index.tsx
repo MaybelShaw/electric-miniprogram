@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
-import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal, Select, Tag } from 'antd';
-import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
-import { getConversations, getProducts, getOrders, getSupportReplyTemplates } from '@/services/api';
+import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch, ProFormDigit, ProFormDependency, ProFormList } from '@ant-design/pro-components';
+import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal, Select, Tag, Form, Popconfirm, Space } from 'antd';
+import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined, PlusOutlined } from '@ant-design/icons';
+import { getConversations, getProducts, getOrders, getSupportReplyTemplates, createSupportReplyTemplate, updateSupportReplyTemplate, deleteSupportReplyTemplate } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { SupportConversation, SupportReplyTemplate } from '@/services/types';
 import { getUser } from '@/utils/auth';
@@ -25,6 +25,11 @@ export default function Support() {
   const [templateKeyword, setTemplateKeyword] = useState('');
   const [templateGroup, setTemplateGroup] = useState<string | undefined>(undefined);
   const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateManageVisible, setTemplateManageVisible] = useState(false);
+  const [templateFormVisible, setTemplateFormVisible] = useState(false);
+  const [templateEditing, setTemplateEditing] = useState<SupportReplyTemplate | null>(null);
+  const templateActionRef = useRef<ActionType>();
+  const [templateForm] = Form.useForm();
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -36,26 +41,62 @@ export default function Support() {
     setCurrentUser(getUser());
   }, []);
 
+  const fetchQuickTemplates = async () => {
+    setTemplateLoading(true);
+    try {
+      const res: any = await getSupportReplyTemplates({
+        type: 'B',
+        enabled: true,
+        search: templateKeyword || undefined,
+        group: templateGroup || undefined
+      });
+      setReplyTemplates(res?.results || res || []);
+    } catch (error) {
+      message.error('获取快捷回复失败');
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!templateModalVisible) return;
-    const fetchTemplates = async () => {
-      setTemplateLoading(true);
-      try {
-        const res: any = await getSupportReplyTemplates({
-          type: 'B',
-          enabled: true,
-          search: templateKeyword || undefined,
-          group: templateGroup || undefined
-        });
-        setReplyTemplates(res?.results || res || []);
-      } catch (error) {
-        message.error('获取快捷回复失败');
-      } finally {
-        setTemplateLoading(false);
-      }
-    };
-    fetchTemplates();
+    fetchQuickTemplates();
   }, [templateModalVisible, templateKeyword, templateGroup]);
+
+  useEffect(() => {
+    if (!templateFormVisible) return;
+    if (templateEditing) {
+      const payload: any = templateEditing.content_payload || {};
+      templateForm.setFieldsValue({
+        template_type: templateEditing.template_type,
+        title: templateEditing.title,
+        content: templateEditing.content,
+        content_type: templateEditing.content_type,
+        group_name: templateEditing.group_name,
+        is_pinned: templateEditing.is_pinned,
+        enabled: templateEditing.enabled,
+        sort_order: templateEditing.sort_order,
+        card_payload: {
+          title: payload.title,
+          description: payload.description,
+          image_url: payload.image_url,
+          link_type: payload.link_type,
+          link_value: payload.link_value
+        },
+        quick_buttons: Array.isArray(payload.buttons) ? payload.buttons : []
+      });
+      return;
+    }
+    templateForm.resetFields();
+    templateForm.setFieldsValue({
+      template_type: 'quick',
+      content_type: 'text',
+      enabled: true,
+      is_pinned: false,
+      sort_order: 0,
+      quick_buttons: []
+    });
+  }, [templateFormVisible, templateEditing, templateForm]);
 
   const handleViewDetail = (record: SupportConversation) => {
     setCurrentConversation(record);
@@ -85,6 +126,78 @@ export default function Support() {
       { template_id: template.id },
       { template_info: { content: template.content, title: template.title, content_type: template.content_type, content_payload: template.content_payload } }
     );
+  };
+
+  const handleOpenTemplateCreate = () => {
+    setTemplateEditing(null);
+    setTemplateFormVisible(true);
+  };
+
+  const handleOpenTemplateEdit = (record: SupportReplyTemplate) => {
+    setTemplateEditing(record);
+    setTemplateFormVisible(true);
+  };
+
+  const handleDeleteTemplate = async (record: SupportReplyTemplate) => {
+    try {
+      await deleteSupportReplyTemplate(record.id);
+      message.success('已删除模板');
+      templateActionRef.current?.reload();
+      if (templateModalVisible) {
+        fetchQuickTemplates();
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || '删除失败');
+    }
+  };
+
+  const handleSubmitTemplate = async (values: any) => {
+    const payload: any = {
+      template_type: values.template_type,
+      title: values.title,
+      content: values.content || '',
+      content_type: values.content_type,
+      group_name: values.group_name || undefined,
+      is_pinned: values.is_pinned || false,
+      enabled: values.enabled !== undefined ? values.enabled : true,
+      sort_order: values.sort_order ?? 0
+    };
+    if (values.content_type === 'card') {
+      payload.content_payload = {
+        title: values.card_payload?.title,
+        description: values.card_payload?.description,
+        image_url: values.card_payload?.image_url,
+        link_type: values.card_payload?.link_type,
+        link_value: values.card_payload?.link_value
+      };
+    }
+    if (values.content_type === 'quick_buttons') {
+      const buttons = Array.isArray(values.quick_buttons) ? values.quick_buttons : [];
+      payload.content_payload = {
+        buttons: buttons
+          .filter((btn: any) => btn?.text || btn?.value)
+          .map((btn: any) => ({ text: btn.text, value: btn.value }))
+      };
+    }
+    try {
+      if (templateEditing) {
+        await updateSupportReplyTemplate(templateEditing.id, payload);
+        message.success('已更新模板');
+      } else {
+        await createSupportReplyTemplate(payload);
+        message.success('已创建模板');
+      }
+      setTemplateFormVisible(false);
+      setTemplateEditing(null);
+      templateActionRef.current?.reload();
+      if (templateModalVisible) {
+        fetchQuickTemplates();
+      }
+      return true;
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || '操作失败');
+      return false;
+    }
   };
 
   const handleSendProduct = async (product: any) => {
@@ -304,6 +417,74 @@ export default function Support() {
     },
   ];
 
+  const templateColumns: ProColumns<SupportReplyTemplate>[] = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      ellipsis: true
+    },
+    {
+      title: '模板类型',
+      dataIndex: 'template_type',
+      valueEnum: {
+        quick: '快捷回复',
+        auto: '自动回复'
+      }
+    },
+    {
+      title: '内容类型',
+      dataIndex: 'content_type',
+      valueEnum: {
+        text: '文本',
+        card: '图文卡片',
+        quick_buttons: '快捷按钮'
+      }
+    },
+    {
+      title: '分组',
+      dataIndex: 'group_name'
+    },
+    {
+      title: '置顶',
+      dataIndex: 'is_pinned',
+      search: false,
+      render: (_, record) => record.is_pinned ? <Tag color="gold">常用</Tag> : '-'
+    },
+    {
+      title: '启用',
+      dataIndex: 'enabled',
+      valueEnum: {
+        true: { text: '启用', status: 'Success' },
+        false: { text: '停用', status: 'Default' }
+      },
+      render: (_, record) => record.enabled ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>
+    },
+    {
+      title: '更新时间',
+      dataIndex: 'updated_at',
+      valueType: 'dateTime',
+      search: false,
+      width: 160
+    },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 160,
+      render: (_, record) => (
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => handleOpenTemplateEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm title="确定删除该模板?" onConfirm={() => handleDeleteTemplate(record)}>
+            <Button type="link" size="small" danger>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   return (
     <>
       <ProTable<SupportConversation>
@@ -311,6 +492,11 @@ export default function Support() {
         tooltip="点击右侧“查看”按钮进入会话"
         actionRef={actionRef}
         columns={columns}
+        toolBarRender={() => [
+          <Button key="manage_templates" icon={<PlusOutlined />} onClick={() => setTemplateManageVisible(true)}>
+            模板管理
+          </Button>
+        ]}
         request={async (params) => {
           try {
             const res: any = await getConversations({
@@ -544,6 +730,7 @@ export default function Support() {
               }))
             ]}
           />
+          <Button onClick={() => setTemplateManageVisible(true)}>管理模板</Button>
         </div>
         <List
           loading={templateLoading}
@@ -580,6 +767,139 @@ export default function Support() {
           )}
         />
       </Modal>
+
+      <Modal
+        title="模板管理"
+        visible={templateManageVisible}
+        onCancel={() => setTemplateManageVisible(false)}
+        footer={null}
+        width={900}
+        destroyOnClose
+      >
+        <ProTable<SupportReplyTemplate>
+          actionRef={templateActionRef}
+          columns={templateColumns}
+          rowKey="id"
+          search={{
+            labelWidth: 'auto',
+            defaultCollapsed: false,
+            collapseRender: false
+          }}
+          toolBarRender={() => [
+            <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplateCreate}>
+              新增模板
+            </Button>
+          ]}
+          request={async (params) => {
+            try {
+              const queryParams: any = {
+                page: params.current,
+                page_size: params.pageSize,
+                type: 'B'
+              };
+              if (params.title) {
+                queryParams.search = params.title;
+              }
+              if (params.group_name) {
+                queryParams.group = params.group_name;
+              }
+              if (params.content_type) {
+                queryParams.content_type = params.content_type;
+              }
+              if (params.template_type) {
+                queryParams.template_type = params.template_type;
+              }
+              if (params.enabled !== undefined) {
+                queryParams.enabled = params.enabled;
+              }
+              const res: any = await getSupportReplyTemplates(queryParams);
+              return {
+                data: res.results || res || [],
+                success: true,
+                total: res.count || res.pagination?.total || res.total || 0
+              };
+            } catch (error) {
+              return { success: false };
+            }
+          }}
+          pagination={{ pageSize: 10, showSizeChanger: true }}
+        />
+      </Modal>
+
+      <ModalForm
+        title={templateEditing ? '编辑模板' : '新增模板'}
+        open={templateFormVisible}
+        onOpenChange={setTemplateFormVisible}
+        form={templateForm}
+        onFinish={handleSubmitTemplate}
+        modalProps={{ destroyOnClose: true }}
+        width={640}
+      >
+        <ProFormSelect
+          name="template_type"
+          label="模板类型"
+          valueEnum={{ quick: '快捷回复', auto: '自动回复' }}
+          rules={[{ required: true, message: '请选择模板类型' }]}
+        />
+        <ProFormText
+          name="title"
+          label="标题"
+          placeholder="请输入模板标题"
+          rules={[{ required: true, message: '请输入模板标题' }]}
+        />
+        <ProFormSelect
+          name="content_type"
+          label="内容类型"
+          valueEnum={{ text: '文本', card: '图文卡片', quick_buttons: '快捷按钮' }}
+          rules={[{ required: true, message: '请选择内容类型' }]}
+        />
+        <ProFormDependency name={['content_type']}>
+          {({ content_type }) => (
+            <ProFormTextArea
+              name="content"
+              label="模板内容"
+              placeholder={content_type === 'text' ? '请输入文本内容' : '请输入模板内容'}
+              rules={[{ required: true, message: '请输入模板内容' }]}
+            />
+          )}
+        </ProFormDependency>
+        <ProFormText name="group_name" label="分组" placeholder="可选" />
+        <ProFormDigit name="sort_order" label="排序" fieldProps={{ min: 0, precision: 0 }} />
+        <ProFormSwitch name="is_pinned" label="置顶" />
+        <ProFormSwitch name="enabled" label="启用" />
+        <ProFormDependency name={['content_type']}>
+          {({ content_type }) => {
+            if (content_type === 'card') {
+              return (
+                <>
+                  <ProFormText name={['card_payload', 'title']} label="卡片标题" rules={[{ required: true, message: '请输入卡片标题' }]} />
+                  <ProFormTextArea name={['card_payload', 'description']} label="卡片描述" />
+                  <ProFormText name={['card_payload', 'image_url']} label="图片链接" placeholder="https://..." />
+                  <ProFormSelect
+                    name={['card_payload', 'link_type']}
+                    label="跳转类型"
+                    valueEnum={{ product: '商品', order: '订单', url: 'URL', none: '无' }}
+                  />
+                  <ProFormText name={['card_payload', 'link_value']} label="跳转值" placeholder="商品ID/订单ID/URL" />
+                </>
+              );
+            }
+            if (content_type === 'quick_buttons') {
+              return (
+                <ProFormList
+                  name="quick_buttons"
+                  label="按钮列表"
+                  creatorButtonProps={{ creatorButtonText: '添加按钮' }}
+                >
+                  <ProFormText name="text" label="按钮文案" rules={[{ required: true, message: '请输入按钮文案' }]} />
+                  <ProFormText name="value" label="发送内容" rules={[{ required: true, message: '请输入发送内容' }]} />
+                </ProFormList>
+              );
+            }
+            return null;
+          }}
+        </ProFormDependency>
+      </ModalForm>
     </>
   );
 }

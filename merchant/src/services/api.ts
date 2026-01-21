@@ -176,6 +176,9 @@ export const deleteCase = (id: number) => request.delete(`/catalog/cases/${id}/`
 export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params }); // Alias for getConversations
 export const getConversations = (params?: any) => request.get('/support/chat/conversations/', { params });
 export const getSupportReplyTemplates = (params?: any) => request.get('/support/reply-templates/', { params });
+export const createSupportReplyTemplate = (data: any) => request.post('/support/reply-templates/', data);
+export const updateSupportReplyTemplate = (id: number, data: any) => request.patch(`/support/reply-templates/${id}/`, data);
+export const deleteSupportReplyTemplate = (id: number) => request.delete(`/support/reply-templates/${id}/`);
 export const triggerConversationAutoReply = (conversationId: number) =>
   request.post(`/support/conversations/${conversationId}/auto-reply/`, {});
 
