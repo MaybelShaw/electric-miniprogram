@@ -77,6 +77,8 @@ export default function Support() {
         group_name: templateEditing.group_name,
         is_pinned: templateEditing.is_pinned,
         enabled: templateEditing.enabled,
+        trigger_event: templateEditing.trigger_event || undefined,
+        idle_minutes: templateEditing.idle_minutes ?? undefined,
         sort_order: templateEditing.sort_order,
         card_payload: {
           title: payload.title,
@@ -96,6 +98,8 @@ export default function Support() {
       enabled: true,
       is_pinned: false,
       sort_order: 0,
+      trigger_event: 'first_contact',
+      idle_minutes: undefined,
       quick_buttons: []
     });
   }, [templateFormVisible, templateEditing, templateForm]);
@@ -162,7 +166,9 @@ export default function Support() {
       group_name: values.group_name || undefined,
       is_pinned: values.is_pinned || false,
       enabled: values.enabled !== undefined ? values.enabled : true,
-      sort_order: values.sort_order ?? 0
+      sort_order: values.sort_order ?? 0,
+      trigger_event: values.template_type === 'auto' ? values.trigger_event : undefined,
+      idle_minutes: values.template_type === 'auto' ? values.idle_minutes ?? undefined : undefined
     };
     if (values.content_type === 'card') {
       payload.content_payload = {
@@ -565,6 +571,29 @@ export default function Support() {
               valueEnum={{ text: '文本', card: '图文卡片', quick_buttons: '快捷按钮' }}
               rules={[{ required: true, message: '请选择内容类型' }]}
             />
+            <ProFormDependency name={['template_type', 'trigger_event']}>
+              {({ template_type, trigger_event }) => {
+                if (template_type !== 'auto') return null;
+                return (
+                  <>
+                    <ProFormSelect
+                      name="trigger_event"
+                      label="触发条件"
+                      valueEnum={{ first_contact: '首次联系', idle_contact: '长时间未联系' }}
+                      rules={[{ required: true, message: '请选择触发条件' }]}
+                    />
+                    {trigger_event === 'idle_contact' && (
+                      <ProFormDigit
+                        name="idle_minutes"
+                        label="未联系分钟数"
+                        fieldProps={{ min: 1, precision: 0 }}
+                        rules={[{ required: true, message: '请输入分钟数' }]}
+                      />
+                    )}
+                  </>
+                );
+              }}
+            </ProFormDependency>
             <ProFormDependency name={['content_type']}>
               {({ content_type }) => (
                 <ProFormTextArea
