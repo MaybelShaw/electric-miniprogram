@@ -48,8 +48,8 @@ def _is_auto_reply_rate_limited(conversation, template, now):
             today = now_local.date()
             day_start_local = datetime.combine(today, time.min, tzinfo=tz)
             day_end_local = day_start_local + timedelta(days=1)
-            day_start_utc = day_start_local.astimezone(timezone.utc)
-            day_end_utc = day_end_local.astimezone(timezone.utc)
+            day_start_utc = day_start_local.astimezone(timezone.get_fixed_timezone(0))
+            day_end_utc = day_end_local.astimezone(timezone.get_fixed_timezone(0))
             count = SupportMessage.objects.filter(
                 conversation=conversation,
                 template__template_type=SupportReplyTemplate.TYPE_AUTO,
