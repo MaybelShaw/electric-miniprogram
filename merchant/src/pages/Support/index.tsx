@@ -509,8 +509,7 @@ export default function Support() {
               try {
                 const queryParams: any = {
                   page: params.current,
-                  page_size: params.pageSize,
-                  type: 'B'
+                  page_size: params.pageSize
                 };
                 if (params.title) {
                   queryParams.search = params.title;
