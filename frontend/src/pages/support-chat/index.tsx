@@ -115,11 +115,19 @@ export default function SupportChat() {
     }
   }
 
+  const resolveAfter = (after: string | null) => {
+    if (!after) return null
+    const parsed = new Date(after)
+    if (Number.isNaN(parsed.getTime())) return after
+    return new Date(parsed.getTime() - 1000).toISOString()
+  }
+
   const fetchMessages = async (after: string | null, isInitial = false) => {
     try {
       const params: any = {}
-      if (after) {
-        params.after = after
+      const resolvedAfter = resolveAfter(after)
+      if (resolvedAfter) {
+        params.after = resolvedAfter
       }
       
       const res = await supportService.getMessages(params)
