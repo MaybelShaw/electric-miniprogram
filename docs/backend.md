@@ -198,6 +198,7 @@
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
       - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
       - 说明：系统为每个用户自动维护一个会话。
+    - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:227`
     - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
       - 表单字段：

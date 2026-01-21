@@ -36,6 +36,9 @@ export const supportService = {
   // 获取聊天记录
   getMessages: (params?: { after?: string; limit?: number }) => 
     http.get<SupportMessage[]>('/support/chat/', params),
+
+  triggerAutoReply: () =>
+    http.post<{ triggered: boolean; message?: SupportMessage }>('/support/chat/auto-reply/'),
   
   // 发送消息
   sendMessage: (content?: string, attachment?: { path: string, type: 'image' | 'video' }, extra?: { order_id?: number, product_id?: number }) => {

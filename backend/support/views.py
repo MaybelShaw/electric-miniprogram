@@ -224,6 +224,20 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'], url_path='auto-reply')
+    def auto_reply(self, request):
+        conversation, error = self._resolve_conversation(request)
+        if error:
+            return error
+        had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
+        msg = _maybe_send_auto_reply(conversation, had_user_messages, conversation.last_user_message_at)
+        if msg:
+            return Response(
+                {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response({'triggered': False}, status=status.HTTP_200_OK)
+
     def list(self, request):
         conversation, error = self._resolve_conversation(request)
         if error:

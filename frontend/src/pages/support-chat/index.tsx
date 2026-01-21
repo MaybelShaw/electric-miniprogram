@@ -69,7 +69,15 @@ export default function SupportChat() {
       setLoading(true)
     }
 
-    fetchMessages(null, true)
+    const initMessages = async () => {
+      try {
+        await supportService.triggerAutoReply()
+      } catch (error) {
+        console.error('Auto reply trigger failed', error)
+      }
+      await fetchMessages(null, true)
+    }
+    initMessages()
     
     return () => stopPolling()
   }, [])
