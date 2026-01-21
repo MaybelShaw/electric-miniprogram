@@ -220,6 +220,7 @@
     - `GET/POST/PATCH/DELETE /support/reply-templates/` 客服模板管理（仅客服/管理员）
       - 字段：`template_type(auto|quick)`、`title`、`content`、`content_type(text|card|quick_buttons)`、`content_payload`、`group_name`、`is_pinned`、`enabled`
       - 自动回复字段：`trigger_event(first_contact|idle_contact)`、`idle_minutes`、`daily_limit`、`user_cooldown_days`
+      - idle_contact 计算基于用户上次进入会话时间（`last_user_entered_at`）
       - 统计字段：`usage_count`、`last_used_at`
       - 自动回复消息会写入为略晚于触发用户消息的时间，避免增量拉取遗漏
     - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（仅客服/管理员）

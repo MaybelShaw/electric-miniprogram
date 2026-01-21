@@ -11,6 +11,7 @@ class SupportConversation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     first_contacted_at = models.DateTimeField(null=True, blank=True)
     last_user_message_at = models.DateTimeField(null=True, blank=True)
+    last_user_entered_at = models.DateTimeField(null=True, blank=True)
     last_support_message_at = models.DateTimeField(null=True, blank=True)
     last_auto_reply_at = models.DateTimeField(null=True, blank=True)
 

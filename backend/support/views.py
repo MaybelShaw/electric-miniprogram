@@ -93,7 +93,7 @@ def _normalize_auto_reply_time(reference_time, now=None):
     return resolved_now
 
 
-def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at, now_override=None):
+def _maybe_send_auto_reply(conversation, had_user_messages, last_user_entered_at, now_override=None):
     templates = SupportReplyTemplate.objects.filter(
         enabled=True,
         template_type=SupportReplyTemplate.TYPE_AUTO,
@@ -114,9 +114,9 @@ def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at
                 return _send_template_message(conversation, sender, template, now)
             continue
         if template.trigger_event == SupportReplyTemplate.TRIGGER_IDLE:
-            if not last_user_message_at or not template.idle_minutes:
+            if not last_user_entered_at or not template.idle_minutes:
                 continue
-            if now - last_user_message_at < timedelta(minutes=template.idle_minutes):
+            if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
                 continue
             if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
                 continue
@@ -128,9 +128,9 @@ def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at
                 if _is_auto_reply_rate_limited(conversation, template, now):
                     return None
                 return _send_template_message(conversation, sender, template, now)
-            if not last_user_message_at or not template.idle_minutes:
+            if not last_user_entered_at or not template.idle_minutes:
                 continue
-            if now - last_user_message_at < timedelta(minutes=template.idle_minutes):
+            if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
                 continue
             if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
                 continue
@@ -229,8 +229,14 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         conversation, error = self._resolve_conversation(request)
         if error:
             return error
+        previous_last_user_entered_at = conversation.last_user_entered_at
+        now = timezone.now()
+        SupportConversation.objects.filter(id=conversation.id).update(
+            last_user_entered_at=now,
+            updated_at=now,
+        )
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, conversation.last_user_message_at)
+        msg = _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_entered_at, now)
         if msg:
             return Response(
                 {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
@@ -300,7 +306,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if error:
             return error
 
-        previous_last_user_message_at = conversation.last_user_message_at
+        previous_last_user_entered_at = conversation.last_user_entered_at
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
 
         order_obj = None
@@ -369,6 +375,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         update_fields = {'updated_at': now}
         if role == 'user':
             update_fields['last_user_message_at'] = now
+            update_fields['last_user_entered_at'] = now
             if not conversation.first_contacted_at:
                 update_fields['first_contacted_at'] = now
         else:
@@ -377,7 +384,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
 
         if role == 'user':
             auto_reply_now = _normalize_auto_reply_time(msg.created_at)
-            _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_message_at, auto_reply_now)
+            _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_entered_at, auto_reply_now)
 
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -425,7 +432,7 @@ class SupportConversationAutoReplyView(APIView):
         except SupportConversation.DoesNotExist:
             return Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, conversation.last_user_message_at)
+        msg = _maybe_send_auto_reply(conversation, had_user_messages, conversation.last_user_entered_at)
         if msg:
             return Response(
                 {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
