@@ -9,6 +9,9 @@ export interface SupportMessage {
   sender_username: string
   role: string
   content: string
+  content_type?: 'text' | 'card' | 'quick_buttons'
+  content_payload?: Record<string, any>
+  template?: number | null
   attachment_url?: string
   attachment_type?: 'image' | 'video'
   order_info?: {

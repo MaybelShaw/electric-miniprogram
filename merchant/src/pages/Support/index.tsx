@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ProDescriptions } from '@ant-design/pro-components';
-import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal } from 'antd';
+import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal, Select, Tag } from 'antd';
 import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined } from '@ant-design/icons';
-import { getConversations, getProducts, getOrders } from '@/services/api';
+import { getConversations, getProducts, getOrders, getSupportReplyTemplates } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { SupportConversation } from '@/services/types';
+import type { SupportConversation, SupportReplyTemplate } from '@/services/types';
 import { getUser } from '@/utils/auth';
 import { useSupportChat, ExtendedSupportMessage } from './useSupportChat';
 
@@ -20,6 +20,11 @@ export default function Support() {
   
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [orderModalVisible, setOrderModalVisible] = useState(false);
+  const [templateModalVisible, setTemplateModalVisible] = useState(false);
+  const [replyTemplates, setReplyTemplates] = useState<SupportReplyTemplate[]>([]);
+  const [templateKeyword, setTemplateKeyword] = useState('');
+  const [templateGroup, setTemplateGroup] = useState<string | undefined>(undefined);
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -30,6 +35,27 @@ export default function Support() {
   useEffect(() => {
     setCurrentUser(getUser());
   }, []);
+
+  useEffect(() => {
+    if (!templateModalVisible) return;
+    const fetchTemplates = async () => {
+      setTemplateLoading(true);
+      try {
+        const res: any = await getSupportReplyTemplates({
+          type: 'B',
+          enabled: true,
+          search: templateKeyword || undefined,
+          group: templateGroup || undefined
+        });
+        setReplyTemplates(res?.results || res || []);
+      } catch (error) {
+        message.error('获取快捷回复失败');
+      } finally {
+        setTemplateLoading(false);
+      }
+    };
+    fetchTemplates();
+  }, [templateModalVisible, templateKeyword, templateGroup]);
 
   const handleViewDetail = (record: SupportConversation) => {
     setCurrentConversation(record);
@@ -42,6 +68,23 @@ export default function Support() {
     await sendMessage(messageContent);
     setMessageContent('');
     setSending(false);
+  };
+
+  const handleUseTemplate = (template: SupportReplyTemplate) => {
+    setMessageContent(template.content || template.title || '');
+    setTemplateModalVisible(false);
+  };
+
+  const handleSendTemplate = async (template: SupportReplyTemplate) => {
+    if (!currentConversation) return;
+    setTemplateModalVisible(false);
+    await sendMessage(
+      template.content || '',
+      undefined,
+      undefined,
+      { template_id: template.id },
+      { template_info: { content: template.content, title: template.title, content_type: template.content_type, content_payload: template.content_payload } }
+    );
   };
 
   const handleSendProduct = async (product: any) => {
@@ -100,6 +143,110 @@ export default function Support() {
       refunded: '已退款'
     };
     return map[status] || status;
+  };
+
+  const renderMessageBody = (msg: ExtendedSupportMessage) => {
+    if (msg.order_info) {
+      return (
+        <div 
+          style={{ width: 220, cursor: 'pointer' }} 
+          onClick={() => window.open(`/orders?id=${msg.order_info?.id}`, '_blank')}
+        >
+          <div style={{ borderBottom: '1px solid #ddd', paddingBottom: 4, marginBottom: 4, color: '#666', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <span>订单号: {msg.order_info.order_number}</span>
+            <span style={{ backgroundColor: '#f6ffed', color: '#52c41a', padding: '0 4px', borderRadius: 2 }}>{getOrderStatusText(msg.order_info.status)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <AntImage 
+              width={50} 
+              height={50} 
+              src={msg.order_info.image} 
+              preview={false}
+              style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
+            />
+            <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.order_info.product_name}</div>
+              <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.order_info.total_amount}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (msg.product_info) {
+      return (
+        <div 
+          style={{ width: 220, cursor: 'pointer' }} 
+          onClick={() => window.open(`/products?id=${msg.product_info?.id}`, '_blank')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <AntImage 
+              width={50} 
+              height={50} 
+              src={msg.product_info.image} 
+              preview={false}
+              style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
+            />
+            <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.product_info.name}</div>
+              <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.product_info.price}</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (msg.attachment_type === 'image') {
+      return (
+        <AntImage 
+          width={200} 
+          src={msg.attachment_url} 
+          style={{ borderRadius: 4 }}
+        />
+      );
+    }
+    if (msg.attachment_type === 'video') {
+      return (
+        <video 
+          width={200} 
+          controls 
+          src={msg.attachment_url} 
+          style={{ borderRadius: 4 }}
+        />
+      );
+    }
+    if (msg.content_type === 'card') {
+      const payload: any = msg.content_payload || {};
+      return (
+        <div style={{ width: 240 }}>
+          {payload.image_url && (
+            <AntImage 
+              width={220} 
+              src={payload.image_url} 
+              preview={false}
+              style={{ borderRadius: 4, marginBottom: 6 }}
+            />
+          )}
+          <div style={{ fontWeight: 600 }}>{payload.title || msg.content}</div>
+          {payload.description && <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{payload.description}</div>}
+        </div>
+      );
+    }
+    if (msg.content_type === 'quick_buttons') {
+      const payload: any = msg.content_payload || {};
+      const buttons: any[] = Array.isArray(payload.buttons) ? payload.buttons : [];
+      return (
+        <div>
+          {msg.content && <div style={{ marginBottom: 6 }}>{msg.content}</div>}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {buttons.map((btn, index) => (
+              <Button key={`${btn.text || btn.value}-${index}`} size="small" disabled>
+                {btn.text || btn.value}
+              </Button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return msg.content;
   };
 
   const columns: ProColumns<SupportConversation>[] = [
@@ -253,64 +400,7 @@ export default function Support() {
                             borderRadius: '8px',
                             wordBreak: 'break-word'
                           }}>
-                            {msg.order_info ? (
-                              <div 
-                                style={{ width: 220, cursor: 'pointer' }} 
-                                onClick={() => window.open(`/orders?id=${msg.order_info?.id}`, '_blank')}
-                              >
-                                <div style={{ borderBottom: '1px solid #ddd', paddingBottom: 4, marginBottom: 4, color: '#666', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
-                                  <span>订单号: {msg.order_info.order_number}</span>
-                                  <span style={{ backgroundColor: '#f6ffed', color: '#52c41a', padding: '0 4px', borderRadius: 2 }}>{getOrderStatusText(msg.order_info.status)}</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <AntImage 
-                                    width={50} 
-                                    height={50} 
-                                    src={msg.order_info.image} 
-                                    preview={false}
-                                    style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
-                                  />
-                                  <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.order_info.product_name}</div>
-                                    <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.order_info.total_amount}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : msg.product_info ? (
-                              <div 
-                                style={{ width: 220, cursor: 'pointer' }} 
-                                onClick={() => window.open(`/products?id=${msg.product_info?.id}`, '_blank')}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                  <AntImage 
-                                    width={50} 
-                                    height={50} 
-                                    src={msg.product_info.image} 
-                                    preview={false}
-                                    style={{ borderRadius: 4, objectFit: 'cover', border: '1px solid #eee' }}
-                                  />
-                                  <div style={{ marginLeft: 8, flex: 1, overflow: 'hidden' }}>
-                                    <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{msg.product_info.name}</div>
-                                    <div style={{ color: '#fa4126', fontSize: 12, marginTop: 4 }}>¥{msg.product_info.price}</div>
-                                  </div>
-                                </div>
-                              </div>
-                            ) : msg.attachment_type === 'image' ? (
-                              <AntImage 
-                                width={200} 
-                                src={msg.attachment_url} 
-                                style={{ borderRadius: 4 }}
-                              />
-                            ) : msg.attachment_type === 'video' ? (
-                              <video 
-                                width={200} 
-                                controls 
-                                src={msg.attachment_url} 
-                                style={{ borderRadius: 4 }}
-                              />
-                            ) : (
-                              msg.content
-                            )}
+                            {renderMessageBody(msg)}
                             {msg.status === 'error' && <span style={{ color: 'red', marginLeft: 4 }}>(发送失败)</span>}
                           </div>
                         </div>
@@ -330,6 +420,7 @@ export default function Support() {
                  >
                    <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
                  </Upload>
+                 <Button size="small" onClick={() => setTemplateModalVisible(true)}>快捷回复</Button>
                  <Button icon={<ShoppingOutlined />} size="small" onClick={() => setProductModalVisible(true)}>推荐商品</Button>
                  <Button icon={<FileTextOutlined />} size="small" onClick={() => setOrderModalVisible(true)}>关联订单</Button>
               </div>
@@ -421,6 +512,72 @@ export default function Support() {
           }}
           pagination={{ pageSize: 5 }}
           options={false}
+        />
+      </Modal>
+
+      <Modal
+        title="快捷回复"
+        visible={templateModalVisible}
+        onCancel={() => setTemplateModalVisible(false)}
+        footer={null}
+        width={720}
+        destroyOnClose
+      >
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+          <Input.Search
+            placeholder="搜索快捷回复"
+            allowClear
+            onSearch={(value) => setTemplateKeyword(value)}
+            onChange={(e) => setTemplateKeyword(e.target.value)}
+            value={templateKeyword}
+          />
+          <Select
+            allowClear
+            placeholder="选择分组"
+            style={{ width: 180 }}
+            value={templateGroup}
+            onChange={(value) => setTemplateGroup(value)}
+            options={[
+              ...Array.from(new Set(replyTemplates.map(t => t.group_name || '').filter(Boolean))).map(group => ({
+                label: group,
+                value: group
+              }))
+            ]}
+          />
+        </div>
+        <List
+          loading={templateLoading}
+          dataSource={[...replyTemplates].sort((a, b) => {
+            const pinDiff = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
+            if (pinDiff !== 0) return pinDiff;
+            return (a.sort_order || 0) - (b.sort_order || 0);
+          })}
+          renderItem={(template) => (
+            <List.Item
+              actions={[
+                <Button key="use" size="small" onClick={() => handleUseTemplate(template)}>填入</Button>,
+                <Button key="send" type="primary" size="small" onClick={() => handleSendTemplate(template)}>发送</Button>
+              ]}
+            >
+              <List.Item.Meta
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>{template.title}</span>
+                    {template.is_pinned && <Tag color="gold">常用</Tag>}
+                    {template.group_name && <Tag>{template.group_name}</Tag>}
+                  </div>
+                }
+                description={
+                  <div>
+                    <div style={{ color: '#666' }}>{template.content || '-'}</div>
+                    <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                      使用 {template.usage_count || 0} 次 · 最近 {template.last_used_at ? new Date(template.last_used_at).toLocaleString() : '未使用'}
+                    </div>
+                  </div>
+                }
+              />
+            </List.Item>
+          )}
         />
       </Modal>
     </>

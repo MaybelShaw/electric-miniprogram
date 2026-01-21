@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
-from .models import SupportConversation, SupportMessage
+from .models import SupportConversation, SupportMessage, SupportReplyTemplate
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -67,10 +67,13 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'sender_username',
             'role',
             'content',
+            'content_type',
+            'content_payload',
             'attachment_type',
             'attachment_url',
             'order_info',
             'product_info',
+            'template',
             'created_at',
         ]
         read_only_fields = [
@@ -84,6 +87,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'attachment_url',
             'order_info',
             'product_info',
+            'template',
             'created_at',
         ]
 
@@ -181,3 +185,35 @@ class SupportConversationSerializer(serializers.ModelSerializer):
     def get_last_message_at(self, obj):
         msg = self._get_last_message(obj)
         return getattr(msg, 'created_at', None)
+
+
+class SupportReplyTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SupportReplyTemplate
+        fields = [
+            'id',
+            'template_type',
+            'title',
+            'content',
+            'content_type',
+            'content_payload',
+            'group_name',
+            'is_pinned',
+            'enabled',
+            'trigger_event',
+            'idle_minutes',
+            'daily_limit',
+            'user_cooldown_days',
+            'apply_channels',
+            'apply_user_tags',
+            'usage_count',
+            'last_used_at',
+            'sort_order',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = [
+            'id',
+            'created_at',
+            'updated_at',
+        ]

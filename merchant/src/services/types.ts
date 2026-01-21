@@ -156,6 +156,9 @@ export interface SupportMessage {
   sender_username: string;
   role: string;
   content: string;
+  content_type?: 'text' | 'card' | 'quick_buttons';
+  content_payload?: Record<string, any>;
+  template?: number | null;
   attachment_url?: string;
   attachment_type?: 'image' | 'video';
   order_info?: {
@@ -187,6 +190,29 @@ export interface SupportConversation {
 }
 
 export type SupportTicket = SupportConversation; // Alias for backward compatibility during refactor
+
+export interface SupportReplyTemplate {
+  id: number;
+  template_type: 'auto' | 'quick';
+  title: string;
+  content: string;
+  content_type: 'text' | 'card' | 'quick_buttons';
+  content_payload?: Record<string, any>;
+  group_name?: string;
+  is_pinned?: boolean;
+  enabled: boolean;
+  trigger_event?: 'first_contact' | 'idle_contact' | null;
+  idle_minutes?: number | null;
+  daily_limit?: number;
+  user_cooldown_days?: number;
+  apply_channels?: string[];
+  apply_user_tags?: string[];
+  usage_count?: number;
+  last_used_at?: string | null;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 export interface CaseDetailBlock {
   id?: number;

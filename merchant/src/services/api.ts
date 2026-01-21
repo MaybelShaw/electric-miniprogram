@@ -175,16 +175,26 @@ export const deleteCase = (id: number) => request.delete(`/catalog/cases/${id}/`
 // 客服会话管理
 export const getSupportTickets = (params?: any) => request.get('/support/chat/conversations/', { params }); // Alias for getConversations
 export const getConversations = (params?: any) => request.get('/support/chat/conversations/', { params });
+export const getSupportReplyTemplates = (params?: any) => request.get('/support/reply-templates/', { params });
+export const triggerConversationAutoReply = (conversationId: number) =>
+  request.post(`/support/conversations/${conversationId}/auto-reply/`, {});
 
 // 新的聊天接口
 export const getChatMessages = (userId: number, params?: any) => request.get('/support/chat/', { params: { user_id: userId, ...params } });
-export const sendChatMessage = (userId: number, content: string, attachment?: File, attachmentType?: 'image' | 'video', extra?: { order_id?: number, product_id?: number, ticket_id?: number }) => {
+export const sendChatMessage = (
+  userId: number,
+  content: string,
+  attachment?: File,
+  attachmentType?: 'image' | 'video',
+  extra?: { order_id?: number, product_id?: number, ticket_id?: number, template_id?: number }
+) => {
   if (!attachment) {
     return request.post('/support/chat/', { 
       user_id: userId, 
       content,
       order_id: extra?.order_id,
       product_id: extra?.product_id,
+      template_id: extra?.template_id,
       conversation_id: extra?.ticket_id // Compatible with ticket_id param
     });
   }
@@ -201,6 +211,9 @@ export const sendChatMessage = (userId: number, content: string, attachment?: Fi
   }
   if (extra?.product_id) {
     formData.append('product_id', extra.product_id.toString());
+  }
+  if (extra?.template_id) {
+    formData.append('template_id', String(extra.template_id));
   }
   if (extra?.ticket_id) {
     formData.append('conversation_id', String(extra.ticket_id));

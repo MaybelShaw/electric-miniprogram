@@ -130,7 +130,9 @@
     - **本地缓存**：消息缓存在本地存储，进入页面秒开
     - **离线支持**：断网时发送消息存入离线队列，网络恢复后自动重试
     - **乐观更新**：发送消息立即上屏，提升体验
-  - **消息类型**：文本、图片、视频、订单卡片、商品卡片（渲染见 `frontend/src/pages/support-chat/index.tsx:320`，视频样式见 `frontend/src/pages/support-chat/index.scss:69`）。
+  - **消息类型**：文本、图片、视频、订单卡片、商品卡片、模板卡片与快捷按钮（渲染见 `frontend/src/pages/support-chat/index.tsx:395`）。
+    - `content_type=card` 时使用 `content_payload` 渲染图文卡片（标题、描述、图片与跳转配置）。
+    - `content_type=quick_buttons` 时使用 `content_payload.buttons` 渲染快捷问题按钮，点击自动发送文本。
   - **选择订单/商品**：在聊天面板中点击“订单”或“商品”打开选择页：
     - 订单选择页：`/pages/support-chat/select-order/index`
     - 商品选择页：`/pages/support-chat/select-product/index`

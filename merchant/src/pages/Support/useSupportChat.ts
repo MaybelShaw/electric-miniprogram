@@ -138,11 +138,12 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
     content: string, 
     attachment?: File, 
     attachmentType?: 'image' | 'video', 
-    extra?: { order_id?: number, product_id?: number },
-    optimisticInfo?: { order_info?: any, product_info?: any }
+    extra?: { order_id?: number, product_id?: number, template_id?: number },
+    optimisticInfo?: { order_info?: any, product_info?: any, template_info?: { content?: string, title?: string, content_type?: 'text' | 'card' | 'quick_buttons', content_payload?: Record<string, any> } }
   ) => {
     if (!userId || (!content.trim() && !attachment && !extra)) return;
     
+    const templateContent = optimisticInfo?.template_info?.content || optimisticInfo?.template_info?.title || '';
     const tempId = `temp_${Date.now()}`;
     const tempMsg: ExtendedSupportMessage = {
       id: -1, // Placeholder
@@ -151,7 +152,9 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
       sender: user?.id || 0,
       sender_username: user?.username || 'Me',
       role: user?.role || 'user',
-      content: content || (attachmentType === 'image' ? '[图片]' : (attachmentType === 'video' ? '[视频]' : (extra?.product_id ? '[商品]' : (extra?.order_id ? '[订单]' : '')))),
+      content: content || templateContent || (attachmentType === 'image' ? '[图片]' : (attachmentType === 'video' ? '[视频]' : (extra?.product_id ? '[商品]' : (extra?.order_id ? '[订单]' : '')))),
+      content_type: optimisticInfo?.template_info?.content_type,
+      content_payload: optimisticInfo?.template_info?.content_payload,
       attachment_url: attachment ? URL.createObjectURL(attachment) : undefined,
       attachment_type: attachmentType,
       created_at: new Date().toISOString(),

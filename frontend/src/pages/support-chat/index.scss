@@ -76,6 +76,47 @@
             display: block;
           }
 
+          .reply-card {
+            background: $white;
+            border-radius: $border-radius-md;
+            overflow: hidden;
+            width: 440px;
+            box-shadow: $shadow-sm;
+            display: flex;
+            flex-direction: column;
+
+            &:active {
+              opacity: 0.8;
+            }
+
+            .reply-card-image {
+              width: 100%;
+              height: 220px;
+              background: $background-color-base;
+              object-fit: cover;
+            }
+
+            .reply-card-body {
+              padding: $spacing-md;
+              display: flex;
+              flex-direction: column;
+              gap: $spacing-xs;
+            }
+
+            .reply-card-title {
+              font-size: $font-size-md;
+              color: $text-color-base;
+              font-weight: 500;
+              line-height: 1.4;
+            }
+
+            .reply-card-desc {
+              font-size: $font-size-sm;
+              color: $text-color-secondary;
+              line-height: 1.4;
+            }
+          }
+
           .message-card {
             background: $white;
             border-radius: $border-radius-md;
@@ -156,6 +197,38 @@
                     margin-right: 2px;
                   }
                 }
+              }
+            }
+          }
+
+          .quick-replies {
+            display: flex;
+            flex-direction: column;
+            gap: $spacing-sm;
+
+            .quick-replies-text {
+              font-size: $font-size-sm;
+              color: $text-color-secondary;
+            }
+
+            .quick-replies-actions {
+              display: flex;
+              flex-wrap: wrap;
+              gap: $spacing-xs;
+            }
+
+            .quick-replies-btn {
+              padding: 6px $spacing-sm;
+              background: $background-color-base;
+              border: 1px solid $border-color;
+              border-radius: $border-radius-sm;
+              color: $text-color-base;
+              font-size: $font-size-sm;
+              line-height: 1.4;
+
+              &:active {
+                opacity: 0.8;
+                background: $border-color-light;
               }
             }
           }

@@ -196,7 +196,7 @@
   - 直接聊天 Chat：
     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:156`
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
-      - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, attachment_type, attachment_url, order_info, product_info, created_at }`
+      - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
       - 说明：系统为每个用户自动维护一个会话。
     - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
@@ -207,13 +207,23 @@
         - `user_id` 目标用户ID（仅客服/管理员）
         - `order_id` 关联订单ID（可选；仅允许关联当前会话用户的订单）
         - `product_id` 关联商品ID（可选；与 `order_id` 互斥）
-      - 返回字段：`{ id, ticket, sender, sender_username, role, content, attachment_type, attachment_url, order_info, product_info, created_at }`
+        - `template_id` 快捷回复模板（仅客服/管理员，启用模板可用）
+      - 返回字段：`{ id, ticket, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
         - `order_info`：当关联了订单时返回 `{ id, order_number, status, quantity, total_amount, product_id, product_name, image }`
         - `product_info`：当关联了商品时返回 `{ id, name, price, image }`
       - 校验：当 `attachment` 存在且类型无法判定或不为 `image|video` 时返回 `400`。
     - 存储与序列化：
       - 附件存储路径：`support/attachments/%Y/%m/%d/`（`backend/support/models.py:33`），上传后可通过返回的 `attachment_url` 直接访问。
       - 附件类型字段：`attachment_type` 支持 `image|video` 并建立索引（`backend/support/models.py:34`）。
+  - 自动回复与模板：
+    - `GET/POST/PATCH/DELETE /support/reply-templates/` 客服模板管理（仅客服/管理员）
+      - 字段：`template_type(auto|quick)`、`title`、`content`、`content_type(text|card|quick_buttons)`、`content_payload`、`group_name`、`is_pinned`、`enabled`
+      - 自动回复字段：`trigger_event(first_contact|idle_contact)`、`idle_minutes`、`daily_limit`、`user_cooldown_days`
+      - 统计字段：`usage_count`、`last_used_at`
+    - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（仅客服/管理员）
+    - `content_payload` 用途：
+      - `card`：`{ title, description, image_url, link_type, link_value }`
+      - `quick_buttons`：`{ buttons: [{ text, value }] }`
   - 工单端点兼容：
     - `POST /support/tickets/{id}/add_message/` 支持文本/图片/视频以及关联订单或商品 `backend/support/views.py:26`
       - 请求方式：`multipart/form-data`，字段同上。

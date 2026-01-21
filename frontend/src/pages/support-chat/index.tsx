@@ -381,6 +381,101 @@ export default function SupportChat() {
     }
   }
 
+  const handleCardClick = (payload?: Record<string, any>) => {
+    const linkUrl = payload?.link_url
+    if (!linkUrl) return
+    if (linkUrl.startsWith('/pages/')) {
+      Taro.navigateTo({ url: linkUrl })
+      return
+    }
+    Taro.setClipboardData({ data: linkUrl })
+    Taro.showToast({ title: '链接已复制', icon: 'none' })
+  }
+
+  const renderMessageBody = (msg: ExtendedSupportMessage) => {
+    if (msg.order_info) {
+      return (
+        <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/order-detail/index?id=${msg.order_info.id}` })}>
+          <View className='card-header'>
+            <Text>订单号: {msg.order_info.order_number}</Text>
+            <Text className='order-tag'>{getStatusText(msg.order_info.status)}</Text>
+          </View>
+          <View className='card-content'>
+            <Image src={msg.order_info.image} mode='aspectFill' className='card-img' />
+            <View className='card-info'>
+              <Text className='card-title'>{msg.order_info.product_name}</Text>
+              <Text className='card-desc'>¥{msg.order_info.total_amount}</Text>
+            </View>
+          </View>
+        </View>
+      )
+    }
+    if (msg.product_info) {
+      return (
+        <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/product-detail/index?id=${msg.product_info.id}` })}>
+          <View className='card-content'>
+            <Image src={msg.product_info.image} mode='aspectFill' className='card-img' />
+            <View className='card-info'>
+              <Text className='card-title'>{msg.product_info.name}</Text>
+              <Text className='card-desc'>¥{msg.product_info.price}</Text>
+            </View>
+          </View>
+        </View>
+      )
+    }
+    if (msg.attachment_type === 'image') {
+      return (
+        <Image 
+          src={msg.attachment_url || msg.tempFilePath || ''} 
+          mode='widthFix' 
+          className='message-image'
+          onClick={() => Taro.previewImage({ urls: [msg.attachment_url || msg.tempFilePath || ''] })}
+        />
+      )
+    }
+    if (msg.attachment_type === 'video') {
+      return (
+        <Video 
+          src={msg.attachment_url || msg.tempFilePath || ''}
+          className='message-video'
+        />
+      )
+    }
+    if (msg.content_type === 'card') {
+      const payload: any = msg.content_payload || {}
+      return (
+        <View className='reply-card' onClick={() => handleCardClick(payload)}>
+          {payload.image_url && <Image src={payload.image_url} mode='aspectFill' className='reply-card-image' />}
+          <View className='reply-card-body'>
+            <Text className='reply-card-title'>{payload.title || msg.content}</Text>
+            {payload.description && <Text className='reply-card-desc'>{payload.description}</Text>}
+          </View>
+        </View>
+      )
+    }
+    if (msg.content_type === 'quick_buttons') {
+      const payload: any = msg.content_payload || {}
+      const buttons: any[] = Array.isArray(payload.buttons) ? payload.buttons : []
+      return (
+        <View className='quick-replies'>
+          {msg.content ? <Text className='quick-replies-text'>{msg.content}</Text> : null}
+          <View className='quick-replies-actions'>
+            {buttons.map((btn, index) => (
+              <View
+                key={`${btn.text || btn.value}-${index}`}
+                className='quick-replies-btn'
+                onClick={() => sendContent(btn.value || btn.text || '')}
+              >
+                <Text>{btn.text || btn.value}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )
+    }
+    return <Text>{msg.content}</Text>
+  }
+
   const retryOfflineMessages = async () => {
     const queueKey = 'offline_queue'
     const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
@@ -472,45 +567,7 @@ export default function SupportChat() {
                     <Text className='sender-name'>{msg.sender_username}</Text>
                   )}
                   <View className='bubble'>
-                    {msg.order_info ? (
-                      <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/order-detail/index?id=${msg.order_info.id}` })}>
-                        <View className='card-header'>
-                          <Text>订单号: {msg.order_info.order_number}</Text>
-                          <Text className='order-tag'>{getStatusText(msg.order_info.status)}</Text>
-                        </View>
-                        <View className='card-content'>
-                          <Image src={msg.order_info.image} mode='aspectFill' className='card-img' />
-                          <View className='card-info'>
-                            <Text className='card-title'>{msg.order_info.product_name}</Text>
-                            <Text className='card-desc'>¥{msg.order_info.total_amount}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ) : msg.product_info ? (
-                      <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/product-detail/index?id=${msg.product_info.id}` })}>
-                        <View className='card-content'>
-                          <Image src={msg.product_info.image} mode='aspectFill' className='card-img' />
-                          <View className='card-info'>
-                            <Text className='card-title'>{msg.product_info.name}</Text>
-                            <Text className='card-desc'>¥{msg.product_info.price}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ) : msg.attachment_type === 'image' ? (
-                      <Image 
-                        src={msg.attachment_url || msg.tempFilePath || ''} 
-                        mode='widthFix' 
-                        className='message-image'
-                        onClick={() => Taro.previewImage({ urls: [msg.attachment_url || msg.tempFilePath || ''] })}
-                      />
-                    ) : msg.attachment_type === 'video' ? (
-                      <Video 
-                        src={msg.attachment_url || msg.tempFilePath || ''}
-                        className='message-video'
-                      />
-                    ) : (
-                      <Text>{msg.content}</Text>
-                    )}
+                    {renderMessageBody(msg)}
                   </View>
                   {msg.status === 'error' && (
                     <Text className='status error'>发送失败</Text>
