@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch, ProFormDigit, ProFormDependency, ProFormList } from '@ant-design/pro-components';
 import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal, Select, Tag, Form, Popconfirm, Space } from 'antd';
 import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined, PlusOutlined } from '@ant-design/icons';
@@ -25,11 +26,12 @@ export default function Support() {
   const [templateKeyword, setTemplateKeyword] = useState('');
   const [templateGroup, setTemplateGroup] = useState<string | undefined>(undefined);
   const [templateLoading, setTemplateLoading] = useState(false);
-  const [templateManageVisible, setTemplateManageVisible] = useState(false);
   const [templateFormVisible, setTemplateFormVisible] = useState(false);
   const [templateEditing, setTemplateEditing] = useState<SupportReplyTemplate | null>(null);
   const templateActionRef = useRef<ActionType>();
   const [templateForm] = Form.useForm();
+  const location = useLocation();
+  const isTemplateManageView = location.pathname.includes('/support/templates');
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -487,419 +489,405 @@ export default function Support() {
 
   return (
     <>
-      <ProTable<SupportConversation>
-        headerTitle="客服会话列表"
-        tooltip="点击右侧“查看”按钮进入会话"
-        actionRef={actionRef}
-        columns={columns}
-        toolBarRender={() => [
-          <Button key="manage_templates" icon={<PlusOutlined />} onClick={() => setTemplateManageVisible(true)}>
-            模板管理
-          </Button>
-        ]}
-        request={async (params) => {
-          try {
-            const res: any = await getConversations({
-              page: params.current,
-              page_size: params.pageSize,
-              ...params,
-            });
-            return {
-              data: res.results,
-              total: res.count,
-              success: true,
-            };
-          } catch (error) {
-            return { success: false };
-          }
-        }}
-        rowKey="id"
-        pagination={{ pageSize: 20 }}
-        search={{
-          labelWidth: 'auto',
-          defaultCollapsed: false,
-          collapseRender: false,
-        }}
-      />
-
-      <Drawer
-        title={`与 ${currentConversation?.user_username || '用户'} 的会话`}
-        width={600}
-        visible={detailVisible}
-        onClose={() => setDetailVisible(false)}
-        destroyOnClose
-      >
-        {currentConversation && (
-          <>
-            <ProDescriptions column={2} dataSource={currentConversation}>
-              <ProDescriptions.Item label="用户" dataIndex="user_username" />
-              <ProDescriptions.Item label="最后活跃" dataIndex="updated_at" valueType="dateTime" />
-            </ProDescriptions>
-
-            <Divider orientation="left">消息记录</Divider>
-            
-            <div ref={messageListRef} style={{ height: 'calc(100vh - 350px)', overflowY: 'auto', marginBottom: '20px', padding: '0 10px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
-              <List
-                loading={chatLoading}
-                dataSource={chatMessages}
-                renderItem={(msg: ExtendedSupportMessage) => {
-                  const isMe = msg.sender === currentUser?.id || msg.role === 'support' || msg.role === 'admin';
-                  // Note: msg.sender is ID, currentUser.id is ID. 
-                  // If I am admin, my messages should be on right.
-                  // Messages from user should be on left.
-                  
+      {isTemplateManageView ? (
+        <>
+          <ProTable<SupportReplyTemplate>
+            actionRef={templateActionRef}
+            columns={templateColumns}
+            rowKey="id"
+            search={{
+              labelWidth: 'auto',
+              defaultCollapsed: false,
+              collapseRender: false
+            }}
+            toolBarRender={() => [
+              <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplateCreate}>
+                新增模板
+              </Button>
+            ]}
+            request={async (params) => {
+              try {
+                const queryParams: any = {
+                  page: params.current,
+                  page_size: params.pageSize,
+                  type: 'B'
+                };
+                if (params.title) {
+                  queryParams.search = params.title;
+                }
+                if (params.group_name) {
+                  queryParams.group = params.group_name;
+                }
+                if (params.content_type) {
+                  queryParams.content_type = params.content_type;
+                }
+                if (params.template_type) {
+                  queryParams.template_type = params.template_type;
+                }
+                if (params.enabled !== undefined) {
+                  queryParams.enabled = params.enabled;
+                }
+                const res: any = await getSupportReplyTemplates(queryParams);
+                return {
+                  data: res.results || res || [],
+                  success: true,
+                  total: res.count || res.pagination?.total || res.total || 0
+                };
+              } catch (error) {
+                return { success: false };
+              }
+            }}
+            pagination={{ pageSize: 10, showSizeChanger: true }}
+          />
+          <ModalForm
+            title={templateEditing ? '编辑模板' : '新增模板'}
+            open={templateFormVisible}
+            onOpenChange={setTemplateFormVisible}
+            form={templateForm}
+            onFinish={handleSubmitTemplate}
+            modalProps={{ destroyOnClose: true }}
+            width={640}
+          >
+            <ProFormSelect
+              name="template_type"
+              label="模板类型"
+              valueEnum={{ quick: '快捷回复', auto: '自动回复' }}
+              rules={[{ required: true, message: '请选择模板类型' }]}
+            />
+            <ProFormText
+              name="title"
+              label="标题"
+              placeholder="请输入模板标题"
+              rules={[{ required: true, message: '请输入模板标题' }]}
+            />
+            <ProFormSelect
+              name="content_type"
+              label="内容类型"
+              valueEnum={{ text: '文本', card: '图文卡片', quick_buttons: '快捷按钮' }}
+              rules={[{ required: true, message: '请选择内容类型' }]}
+            />
+            <ProFormDependency name={['content_type']}>
+              {({ content_type }) => (
+                <ProFormTextArea
+                  name="content"
+                  label="模板内容"
+                  placeholder={content_type === 'text' ? '请输入文本内容' : '请输入模板内容'}
+                  rules={[{ required: true, message: '请输入模板内容' }]}
+                />
+              )}
+            </ProFormDependency>
+            <ProFormText name="group_name" label="分组" placeholder="可选" />
+            <ProFormDigit name="sort_order" label="排序" fieldProps={{ min: 0, precision: 0 }} />
+            <ProFormSwitch name="is_pinned" label="置顶" />
+            <ProFormSwitch name="enabled" label="启用" />
+            <ProFormDependency name={['content_type']}>
+              {({ content_type }) => {
+                if (content_type === 'card') {
                   return (
-                    <List.Item style={{ 
-                      display: 'flex', 
-                      justifyContent: isMe ? 'flex-end' : 'flex-start',
-                      border: 'none',
-                      padding: '8px 0'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: isMe ? 'row-reverse' : 'row',
-                        maxWidth: '85%',
-                        alignItems: 'flex-start',
-                        opacity: msg.status === 'sending' ? 0.6 : 1
-                      }}>
-                        <Avatar 
-                          icon={<UserOutlined />} 
-                          style={{ 
-                            backgroundColor: isMe ? '#87d068' : '#1890ff',
-                            marginLeft: isMe ? 8 : 0,
-                            marginRight: isMe ? 0 : 8,
-                            flexShrink: 0
-                          }} 
-                        />
-                        <div style={{ minWidth: 0 }}>
+                    <>
+                      <ProFormText name={['card_payload', 'title']} label="卡片标题" rules={[{ required: true, message: '请输入卡片标题' }]} />
+                      <ProFormTextArea name={['card_payload', 'description']} label="卡片描述" />
+                      <ProFormText name={['card_payload', 'image_url']} label="图片链接" placeholder="https://..." />
+                      <ProFormSelect
+                        name={['card_payload', 'link_type']}
+                        label="跳转类型"
+                        valueEnum={{ product: '商品', order: '订单', url: 'URL', none: '无' }}
+                      />
+                      <ProFormText name={['card_payload', 'link_value']} label="跳转值" placeholder="商品ID/订单ID/URL" />
+                    </>
+                  );
+                }
+                if (content_type === 'quick_buttons') {
+                  return (
+                    <ProFormList
+                      name="quick_buttons"
+                      label="按钮列表"
+                      creatorButtonProps={{ creatorButtonText: '添加按钮' }}
+                    >
+                      <ProFormText name="text" label="按钮文案" rules={[{ required: true, message: '请输入按钮文案' }]} />
+                      <ProFormText name="value" label="发送内容" rules={[{ required: true, message: '请输入发送内容' }]} />
+                    </ProFormList>
+                  );
+                }
+                return null;
+              }}
+            </ProFormDependency>
+          </ModalForm>
+        </>
+      ) : (
+        <>
+          <ProTable<SupportConversation>
+            headerTitle="客服会话列表"
+            tooltip="点击右侧“查看”按钮进入会话"
+            actionRef={actionRef}
+            columns={columns}
+            request={async (params) => {
+              try {
+                const res: any = await getConversations({
+                  page: params.current,
+                  page_size: params.pageSize,
+                  ...params,
+                });
+                return {
+                  data: res.results,
+                  total: res.count,
+                  success: true,
+                };
+              } catch (error) {
+                return { success: false };
+              }
+            }}
+            rowKey="id"
+            pagination={{ pageSize: 20 }}
+            search={{
+              labelWidth: 'auto',
+              defaultCollapsed: false,
+              collapseRender: false,
+            }}
+          />
+
+          <Drawer
+            title={`与 ${currentConversation?.user_username || '用户'} 的会话`}
+            width={600}
+            visible={detailVisible}
+            onClose={() => setDetailVisible(false)}
+            destroyOnClose
+          >
+            {currentConversation && (
+              <>
+                <ProDescriptions column={2} dataSource={currentConversation}>
+                  <ProDescriptions.Item label="用户" dataIndex="user_username" />
+                  <ProDescriptions.Item label="最后活跃" dataIndex="updated_at" valueType="dateTime" />
+                </ProDescriptions>
+
+                <Divider orientation="left">消息记录</Divider>
+                
+                <div ref={messageListRef} style={{ height: 'calc(100vh - 350px)', overflowY: 'auto', marginBottom: '20px', padding: '0 10px', border: '1px solid #f0f0f0', borderRadius: '4px' }}>
+                  <List
+                    loading={chatLoading}
+                    dataSource={chatMessages}
+                    renderItem={(msg: ExtendedSupportMessage) => {
+                      const isMe = msg.sender === currentUser?.id || msg.role === 'support' || msg.role === 'admin';
+                      return (
+                        <List.Item style={{ 
+                          display: 'flex', 
+                          justifyContent: isMe ? 'flex-end' : 'flex-start',
+                          border: 'none',
+                          padding: '8px 0'
+                        }}>
                           <div style={{ 
-                            textAlign: isMe ? 'right' : 'left', 
-                            fontSize: '12px', 
-                            color: '#999', 
-                            marginBottom: 4 
+                            display: 'flex', 
+                            flexDirection: isMe ? 'row-reverse' : 'row',
+                            maxWidth: '85%',
+                            alignItems: 'flex-start',
+                            opacity: msg.status === 'sending' ? 0.6 : 1
                           }}>
-                            {msg.sender_username || (isMe ? '我' : '用户')} - {new Date(msg.created_at).toLocaleString()}
+                            <Avatar 
+                              icon={<UserOutlined />} 
+                              style={{ 
+                                backgroundColor: isMe ? '#87d068' : '#1890ff',
+                                marginLeft: isMe ? 8 : 0,
+                                marginRight: isMe ? 0 : 8,
+                                flexShrink: 0
+                              }} 
+                            />
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ 
+                                textAlign: isMe ? 'right' : 'left', 
+                                fontSize: '12px', 
+                                color: '#999', 
+                                marginBottom: 4 
+                              }}>
+                                {msg.sender_username || (isMe ? '我' : '用户')} - {new Date(msg.created_at).toLocaleString()}
+                              </div>
+                              <div style={{ 
+                                backgroundColor: msg.status === 'error' ? '#ffccc7' : (isMe ? '#e6f7ff' : '#f5f5f5'), 
+                                padding: '8px 12px', 
+                                borderRadius: '8px',
+                                wordBreak: 'break-word'
+                              }}>
+                                {renderMessageBody(msg)}
+                                {msg.status === 'error' && <span style={{ color: 'red', marginLeft: 4 }}>(发送失败)</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ 
-                            backgroundColor: msg.status === 'error' ? '#ffccc7' : (isMe ? '#e6f7ff' : '#f5f5f5'), 
-                            padding: '8px 12px', 
-                            borderRadius: '8px',
-                            wordBreak: 'break-word'
-                          }}>
-                            {renderMessageBody(msg)}
-                            {msg.status === 'error' && <span style={{ color: 'red', marginLeft: 4 }}>(发送失败)</span>}
-                          </div>
+                        </List.Item>
+                      );
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginTop: 'auto' }}>
+                  <div style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
+                    <Upload 
+                      customRequest={handleUpload} 
+                      showUploadList={false} 
+                      accept="image/*,video/*"
+                    >
+                      <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
+                    </Upload>
+                    <Button size="small" onClick={() => setTemplateModalVisible(true)}>快捷回复</Button>
+                    <Button icon={<ShoppingOutlined />} size="small" onClick={() => setProductModalVisible(true)}>推荐商品</Button>
+                    <Button icon={<FileTextOutlined />} size="small" onClick={() => setOrderModalVisible(true)}>关联订单</Button>
+                  </div>
+                  <Input.TextArea
+                    rows={3}
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    placeholder="请输入回复内容..."
+                    style={{ marginBottom: 10 }}
+                    onPressEnter={(e) => {
+                      if (!e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                  />
+                  <Button 
+                    type="primary" 
+                    icon={<SendOutlined />} 
+                    onClick={handleSendMessage}
+                    loading={sending}
+                    block
+                  >
+                    发送回复
+                  </Button>
+                </div>
+              </>
+            )}
+          </Drawer>
+
+          <Modal
+            title="选择推荐商品"
+            visible={productModalVisible}
+            onCancel={() => setProductModalVisible(false)}
+            footer={null}
+            width={800}
+            destroyOnClose
+          >
+            <ProTable
+              search={{
+                labelWidth: 'auto',
+                defaultCollapsed: false,
+                collapseRender: false,
+              }}
+              rowKey="id"
+              columns={[
+                 { title: 'ID', dataIndex: 'id', width: 60, search: false },
+                 { title: '商品名称', dataIndex: 'name' },
+                 { title: '价格', dataIndex: 'price', search: false, render: (dom) => `¥${dom}` },
+                 { title: '图片', dataIndex: 'image', search: false, render: (_, record: any) => <AntImage src={record.image} width={40} /> },
+                 { 
+                   title: '操作', 
+                   valueType: 'option',
+                   render: (_, record) => <Button type="link" onClick={() => handleSendProduct(record)}>发送</Button>
+                 }
+              ]}
+              request={async (params) => {
+                const res: any = await getProducts({ page: params.current, page_size: params.pageSize, ...params });
+                return { data: res.results, total: res.count, success: true };
+              }}
+              pagination={{ pageSize: 5 }}
+              options={false}
+            />
+          </Modal>
+
+          <Modal
+            title="选择关联订单"
+            visible={orderModalVisible}
+            onCancel={() => setOrderModalVisible(false)}
+            footer={null}
+            width={800}
+            destroyOnClose
+          >
+            <ProTable
+              search={false}
+              rowKey="id"
+              columns={[
+                 { title: '订单号', dataIndex: 'order_number' },
+                 { title: '金额', dataIndex: 'total_amount', render: (dom) => `¥${dom}` },
+                 { 
+                   title: '操作', 
+                   valueType: 'option',
+                   render: (_, record) => <Button type="link" onClick={() => handleSendOrder(record)}>发送</Button>
+                 }
+              ]}
+              request={async (params) => {
+                 const res: any = await getOrders({ page: params.current, page_size: params.pageSize, ...params });
+                 return { data: res.results, total: res.count, success: true };
+              }}
+              pagination={{ pageSize: 5 }}
+              options={false}
+            />
+          </Modal>
+
+          <Modal
+            title="快捷回复"
+            visible={templateModalVisible}
+            onCancel={() => setTemplateModalVisible(false)}
+            footer={null}
+            width={720}
+            destroyOnClose
+          >
+            <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <Input.Search
+                placeholder="搜索快捷回复"
+                allowClear
+                onSearch={(value) => setTemplateKeyword(value)}
+                onChange={(e) => setTemplateKeyword(e.target.value)}
+                value={templateKeyword}
+              />
+              <Select
+                allowClear
+                placeholder="选择分组"
+                style={{ width: 180 }}
+                value={templateGroup}
+                onChange={(value) => setTemplateGroup(value)}
+                options={[
+                  ...Array.from(new Set(replyTemplates.map(t => t.group_name || '').filter(Boolean))).map(group => ({
+                    label: group,
+                    value: group
+                  }))
+                ]}
+              />
+            </div>
+            <List
+              loading={templateLoading}
+              dataSource={[...replyTemplates].sort((a, b) => {
+                const pinDiff = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
+                if (pinDiff !== 0) return pinDiff;
+                return (a.sort_order || 0) - (b.sort_order || 0);
+              })}
+              renderItem={(template) => (
+                <List.Item
+                  actions={[
+                    <Button key="use" size="small" onClick={() => handleUseTemplate(template)}>填入</Button>,
+                    <Button key="send" type="primary" size="small" onClick={() => handleSendTemplate(template)}>发送</Button>
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>{template.title}</span>
+                        {template.is_pinned && <Tag color="gold">常用</Tag>}
+                        {template.group_name && <Tag>{template.group_name}</Tag>}
+                      </div>
+                    }
+                    description={
+                      <div>
+                        <div style={{ color: '#666' }}>{template.content || '-'}</div>
+                        <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                          使用 {template.usage_count || 0} 次 · 最近 {template.last_used_at ? new Date(template.last_used_at).toLocaleString() : '未使用'}
                         </div>
                       </div>
-                    </List.Item>
-                  );
-                }}
-              />
-            </div>
-
-            <div style={{ marginTop: 'auto' }}>
-              <div style={{ marginBottom: 8, display: 'flex', gap: 8 }}>
-                <Upload 
-                   customRequest={handleUpload} 
-                   showUploadList={false} 
-                   accept="image/*,video/*"
-                 >
-                   <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
-                 </Upload>
-                 <Button size="small" onClick={() => setTemplateModalVisible(true)}>快捷回复</Button>
-                 <Button icon={<ShoppingOutlined />} size="small" onClick={() => setProductModalVisible(true)}>推荐商品</Button>
-                 <Button icon={<FileTextOutlined />} size="small" onClick={() => setOrderModalVisible(true)}>关联订单</Button>
-              </div>
-              <Input.TextArea
-                rows={3}
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="请输入回复内容..."
-                style={{ marginBottom: 10 }}
-                onPressEnter={(e) => {
-                  if (!e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-              />
-              <Button 
-                type="primary" 
-                icon={<SendOutlined />} 
-                onClick={handleSendMessage}
-                loading={sending}
-                block
-              >
-                发送回复
-              </Button>
-            </div>
-          </>
-        )}
-      </Drawer>
-
-      <Modal
-        title="选择推荐商品"
-        visible={productModalVisible}
-        onCancel={() => setProductModalVisible(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-      >
-        <ProTable
-          search={{
-            labelWidth: 'auto',
-            defaultCollapsed: false,
-            collapseRender: false,
-          }}
-          rowKey="id"
-          columns={[
-             { title: 'ID', dataIndex: 'id', width: 60, search: false },
-             { title: '商品名称', dataIndex: 'name' },
-             { title: '价格', dataIndex: 'price', search: false, render: (dom) => `¥${dom}` },
-             { title: '图片', dataIndex: 'image', search: false, render: (_, record: any) => <AntImage src={record.image} width={40} /> },
-             { 
-               title: '操作', 
-               valueType: 'option',
-               render: (_, record) => <Button type="link" onClick={() => handleSendProduct(record)}>发送</Button>
-             }
-          ]}
-          request={async (params) => {
-            const res: any = await getProducts({ page: params.current, page_size: params.pageSize, ...params });
-            return { data: res.results, total: res.count, success: true };
-          }}
-          pagination={{ pageSize: 5 }}
-          options={false}
-        />
-      </Modal>
-
-      <Modal
-        title="选择关联订单"
-        visible={orderModalVisible}
-        onCancel={() => setOrderModalVisible(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-      >
-        <ProTable
-          search={false}
-          rowKey="id"
-          columns={[
-             { title: '订单号', dataIndex: 'order_number' },
-             { title: '金额', dataIndex: 'total_amount', render: (dom) => `¥${dom}` },
-             { 
-               title: '操作', 
-               valueType: 'option',
-               render: (_, record) => <Button type="link" onClick={() => handleSendOrder(record)}>发送</Button>
-             }
-          ]}
-          request={async (params) => {
-             const res: any = await getOrders({ page: params.current, page_size: params.pageSize, ...params });
-             return { data: res.results, total: res.count, success: true };
-          }}
-          pagination={{ pageSize: 5 }}
-          options={false}
-        />
-      </Modal>
-
-      <Modal
-        title="快捷回复"
-        visible={templateModalVisible}
-        onCancel={() => setTemplateModalVisible(false)}
-        footer={null}
-        width={720}
-        destroyOnClose
-      >
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-          <Input.Search
-            placeholder="搜索快捷回复"
-            allowClear
-            onSearch={(value) => setTemplateKeyword(value)}
-            onChange={(e) => setTemplateKeyword(e.target.value)}
-            value={templateKeyword}
-          />
-          <Select
-            allowClear
-            placeholder="选择分组"
-            style={{ width: 180 }}
-            value={templateGroup}
-            onChange={(value) => setTemplateGroup(value)}
-            options={[
-              ...Array.from(new Set(replyTemplates.map(t => t.group_name || '').filter(Boolean))).map(group => ({
-                label: group,
-                value: group
-              }))
-            ]}
-          />
-          <Button onClick={() => setTemplateManageVisible(true)}>管理模板</Button>
-        </div>
-        <List
-          loading={templateLoading}
-          dataSource={[...replyTemplates].sort((a, b) => {
-            const pinDiff = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0);
-            if (pinDiff !== 0) return pinDiff;
-            return (a.sort_order || 0) - (b.sort_order || 0);
-          })}
-          renderItem={(template) => (
-            <List.Item
-              actions={[
-                <Button key="use" size="small" onClick={() => handleUseTemplate(template)}>填入</Button>,
-                <Button key="send" type="primary" size="small" onClick={() => handleSendTemplate(template)}>发送</Button>
-              ]}
-            >
-              <List.Item.Meta
-                title={
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span>{template.title}</span>
-                    {template.is_pinned && <Tag color="gold">常用</Tag>}
-                    {template.group_name && <Tag>{template.group_name}</Tag>}
-                  </div>
-                }
-                description={
-                  <div>
-                    <div style={{ color: '#666' }}>{template.content || '-'}</div>
-                    <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                      使用 {template.usage_count || 0} 次 · 最近 {template.last_used_at ? new Date(template.last_used_at).toLocaleString() : '未使用'}
-                    </div>
-                  </div>
-                }
-              />
-            </List.Item>
-          )}
-        />
-      </Modal>
-
-      <Modal
-        title="模板管理"
-        visible={templateManageVisible}
-        onCancel={() => setTemplateManageVisible(false)}
-        footer={null}
-        width={900}
-        destroyOnClose
-      >
-        <ProTable<SupportReplyTemplate>
-          actionRef={templateActionRef}
-          columns={templateColumns}
-          rowKey="id"
-          search={{
-            labelWidth: 'auto',
-            defaultCollapsed: false,
-            collapseRender: false
-          }}
-          toolBarRender={() => [
-            <Button key="create" type="primary" icon={<PlusOutlined />} onClick={handleOpenTemplateCreate}>
-              新增模板
-            </Button>
-          ]}
-          request={async (params) => {
-            try {
-              const queryParams: any = {
-                page: params.current,
-                page_size: params.pageSize,
-                type: 'B'
-              };
-              if (params.title) {
-                queryParams.search = params.title;
-              }
-              if (params.group_name) {
-                queryParams.group = params.group_name;
-              }
-              if (params.content_type) {
-                queryParams.content_type = params.content_type;
-              }
-              if (params.template_type) {
-                queryParams.template_type = params.template_type;
-              }
-              if (params.enabled !== undefined) {
-                queryParams.enabled = params.enabled;
-              }
-              const res: any = await getSupportReplyTemplates(queryParams);
-              return {
-                data: res.results || res || [],
-                success: true,
-                total: res.count || res.pagination?.total || res.total || 0
-              };
-            } catch (error) {
-              return { success: false };
-            }
-          }}
-          pagination={{ pageSize: 10, showSizeChanger: true }}
-        />
-      </Modal>
-
-      <ModalForm
-        title={templateEditing ? '编辑模板' : '新增模板'}
-        open={templateFormVisible}
-        onOpenChange={setTemplateFormVisible}
-        form={templateForm}
-        onFinish={handleSubmitTemplate}
-        modalProps={{ destroyOnClose: true }}
-        width={640}
-      >
-        <ProFormSelect
-          name="template_type"
-          label="模板类型"
-          valueEnum={{ quick: '快捷回复', auto: '自动回复' }}
-          rules={[{ required: true, message: '请选择模板类型' }]}
-        />
-        <ProFormText
-          name="title"
-          label="标题"
-          placeholder="请输入模板标题"
-          rules={[{ required: true, message: '请输入模板标题' }]}
-        />
-        <ProFormSelect
-          name="content_type"
-          label="内容类型"
-          valueEnum={{ text: '文本', card: '图文卡片', quick_buttons: '快捷按钮' }}
-          rules={[{ required: true, message: '请选择内容类型' }]}
-        />
-        <ProFormDependency name={['content_type']}>
-          {({ content_type }) => (
-            <ProFormTextArea
-              name="content"
-              label="模板内容"
-              placeholder={content_type === 'text' ? '请输入文本内容' : '请输入模板内容'}
-              rules={[{ required: true, message: '请输入模板内容' }]}
-            />
-          )}
-        </ProFormDependency>
-        <ProFormText name="group_name" label="分组" placeholder="可选" />
-        <ProFormDigit name="sort_order" label="排序" fieldProps={{ min: 0, precision: 0 }} />
-        <ProFormSwitch name="is_pinned" label="置顶" />
-        <ProFormSwitch name="enabled" label="启用" />
-        <ProFormDependency name={['content_type']}>
-          {({ content_type }) => {
-            if (content_type === 'card') {
-              return (
-                <>
-                  <ProFormText name={['card_payload', 'title']} label="卡片标题" rules={[{ required: true, message: '请输入卡片标题' }]} />
-                  <ProFormTextArea name={['card_payload', 'description']} label="卡片描述" />
-                  <ProFormText name={['card_payload', 'image_url']} label="图片链接" placeholder="https://..." />
-                  <ProFormSelect
-                    name={['card_payload', 'link_type']}
-                    label="跳转类型"
-                    valueEnum={{ product: '商品', order: '订单', url: 'URL', none: '无' }}
+                    }
                   />
-                  <ProFormText name={['card_payload', 'link_value']} label="跳转值" placeholder="商品ID/订单ID/URL" />
-                </>
-              );
-            }
-            if (content_type === 'quick_buttons') {
-              return (
-                <ProFormList
-                  name="quick_buttons"
-                  label="按钮列表"
-                  creatorButtonProps={{ creatorButtonText: '添加按钮' }}
-                >
-                  <ProFormText name="text" label="按钮文案" rules={[{ required: true, message: '请输入按钮文案' }]} />
-                  <ProFormText name="value" label="发送内容" rules={[{ required: true, message: '请输入发送内容' }]} />
-                </ProFormList>
-              );
-            }
-            return null;
-          }}
-        </ProFormDependency>
-      </ModalForm>
+                </List.Item>
+              )}
+            />
+          </Modal>
+        </>
+      )}
     </>
   );
 }

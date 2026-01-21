@@ -81,6 +81,7 @@ function App() {
                   <Route path="orders" element={<Orders />} />
                   <Route path="invoices" element={<Invoices />} />
                   <Route path="tickets" element={<Support />} />
+                  <Route path="templates" element={<Support />} />
                 </Routes>
               </Layout>
             </RoleGuard>

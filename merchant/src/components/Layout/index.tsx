@@ -49,6 +49,7 @@ export const supportMenuItems = [
   { key: '/support/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   { key: '/support/invoices', icon: <FileTextOutlined />, label: '发票管理' },
   { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '消息' },
+  { key: '/support/templates', icon: <BookOutlined />, label: '模板管理' },
 ];
 
 interface LayoutProps {
