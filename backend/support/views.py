@@ -230,13 +230,14 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if error:
             return error
         previous_last_user_entered_at = conversation.last_user_entered_at
+        base_entered_at = previous_last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
         now = timezone.now()
         SupportConversation.objects.filter(id=conversation.id).update(
             last_user_entered_at=now,
             updated_at=now,
         )
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_entered_at, now)
+        msg = _maybe_send_auto_reply(conversation, had_user_messages, base_entered_at, now)
         if msg:
             return Response(
                 {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
@@ -307,6 +308,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             return error
 
         previous_last_user_entered_at = conversation.last_user_entered_at
+        base_entered_at = previous_last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
 
         order_obj = None
@@ -384,7 +386,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
 
         if role == 'user':
             auto_reply_now = _normalize_auto_reply_time(msg.created_at)
-            _maybe_send_auto_reply(conversation, had_user_messages, previous_last_user_entered_at, auto_reply_now)
+            _maybe_send_auto_reply(conversation, had_user_messages, base_entered_at, auto_reply_now)
 
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
@@ -432,7 +434,8 @@ class SupportConversationAutoReplyView(APIView):
         except SupportConversation.DoesNotExist:
             return Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, conversation.last_user_entered_at)
+        base_entered_at = conversation.last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
+        msg = _maybe_send_auto_reply(conversation, had_user_messages, base_entered_at)
         if msg:
             return Response(
                 {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
