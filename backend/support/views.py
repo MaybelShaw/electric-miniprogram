@@ -1,6 +1,7 @@
 import json
 import logging
-from datetime import timedelta
+from datetime import timedelta, datetime, time
+from zoneinfo import ZoneInfo
 from django.db import models
 from django.db.models import Prefetch, Subquery, OuterRef, Q
 from django.utils import timezone
@@ -36,15 +37,24 @@ def _resolve_template_content(template, content_override=None):
 
 def _is_auto_reply_rate_limited(conversation, template, now):
     if template.daily_limit and template.daily_limit > 0:
+        tz = ZoneInfo('Asia/Shanghai')
+        now_local = timezone.localtime(now, tz)
         if template.daily_limit == 1:
-            if conversation.last_auto_reply_at and timezone.localdate(conversation.last_auto_reply_at) == timezone.localdate(now):
-                return True
+            if conversation.last_auto_reply_at:
+                last_local = timezone.localtime(conversation.last_auto_reply_at, tz)
+                if last_local.date() == now_local.date():
+                    return True
         else:
-            today = timezone.localdate(now)
+            today = now_local.date()
+            day_start_local = datetime.combine(today, time.min, tzinfo=tz)
+            day_end_local = day_start_local + timedelta(days=1)
+            day_start_utc = day_start_local.astimezone(timezone.utc)
+            day_end_utc = day_end_local.astimezone(timezone.utc)
             count = SupportMessage.objects.filter(
                 conversation=conversation,
                 template__template_type=SupportReplyTemplate.TYPE_AUTO,
-                created_at__date=today
+                created_at__gte=day_start_utc,
+                created_at__lt=day_end_utc
             ).count()
             if count >= template.daily_limit:
                 return True

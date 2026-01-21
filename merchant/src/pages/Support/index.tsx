@@ -79,6 +79,8 @@ export default function Support() {
         enabled: templateEditing.enabled,
         trigger_event: templateEditing.trigger_event || undefined,
         idle_minutes: templateEditing.idle_minutes ?? undefined,
+        daily_limit: templateEditing.daily_limit ?? undefined,
+        user_cooldown_days: templateEditing.user_cooldown_days ?? undefined,
         sort_order: templateEditing.sort_order,
         card_payload: {
           title: payload.title,
@@ -100,6 +102,8 @@ export default function Support() {
       sort_order: 0,
       trigger_event: 'first_contact',
       idle_minutes: undefined,
+      daily_limit: 1,
+      user_cooldown_days: 1,
       quick_buttons: []
     });
   }, [templateFormVisible, templateEditing, templateForm]);
@@ -168,7 +172,9 @@ export default function Support() {
       enabled: values.enabled !== undefined ? values.enabled : true,
       sort_order: values.sort_order ?? 0,
       trigger_event: values.template_type === 'auto' ? values.trigger_event : undefined,
-      idle_minutes: values.template_type === 'auto' ? values.idle_minutes ?? undefined : undefined
+      idle_minutes: values.template_type === 'auto' ? values.idle_minutes ?? undefined : undefined,
+      daily_limit: values.template_type === 'auto' ? values.daily_limit ?? undefined : undefined,
+      user_cooldown_days: values.template_type === 'auto' ? values.user_cooldown_days ?? undefined : undefined
     };
     if (values.content_type === 'card') {
       payload.content_payload = {
@@ -586,10 +592,25 @@ export default function Support() {
                       <ProFormDigit
                         name="idle_minutes"
                         label="未联系分钟数"
+                        tooltip="用户进入会话后超过该分钟数仍未联系时触发"
                         fieldProps={{ min: 1, precision: 0 }}
                         rules={[{ required: true, message: '请输入分钟数' }]}
                       />
                     )}
+                    <ProFormDigit
+                      name="daily_limit"
+                      label="日限额"
+                      tooltip="单个用户每天最多触发次数，0 表示不限制"
+                      fieldProps={{ min: 0, precision: 0 }}
+                      rules={[{ required: true, message: '请输入日限额' }]}
+                    />
+                    <ProFormDigit
+                      name="user_cooldown_days"
+                      label="用户冷却天数"
+                      tooltip="同一用户两次自动回复之间的最小间隔天数"
+                      fieldProps={{ min: 0, precision: 0 }}
+                      rules={[{ required: true, message: '请输入冷却天数' }]}
+                    />
                   </>
                 );
               }}
