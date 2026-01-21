@@ -93,51 +93,119 @@ def _normalize_auto_reply_time(reference_time, now=None):
     return resolved_now
 
 
-def _maybe_send_auto_reply(conversation, had_user_messages, last_user_entered_at, now_override=None):
+def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user_entered_at, now_override=None):
     templates = SupportReplyTemplate.objects.filter(
         enabled=True,
         template_type=SupportReplyTemplate.TYPE_AUTO,
     ).order_by('sort_order', 'id')
+    now = now_override or timezone.now()
+    debug = {
+        'now': now.isoformat(),
+        'had_user_messages': had_user_messages,
+        'last_user_entered_at': last_user_entered_at.isoformat() if last_user_entered_at else None,
+        'last_auto_reply_at': conversation.last_auto_reply_at.isoformat() if conversation.last_auto_reply_at else None,
+        'templates_count': templates.count(),
+        'templates': [],
+    }
     if not templates.exists():
-        return None
+        debug['result'] = 'no_templates'
+        return None, debug
 
     sender = _get_support_sender()
     if not sender:
-        return None
+        debug['result'] = 'no_sender'
+        return None, debug
+    debug['sender_id'] = sender.id
 
-    now = now_override or timezone.now()
     for template in templates:
+        template_debug = {
+            'id': template.id,
+            'trigger_event': template.trigger_event,
+            'idle_minutes': template.idle_minutes,
+            'daily_limit': template.daily_limit,
+            'user_cooldown_days': template.user_cooldown_days,
+        }
         if template.trigger_event == SupportReplyTemplate.TRIGGER_FIRST:
             if not had_user_messages:
                 if _is_auto_reply_rate_limited(conversation, template, now):
-                    return None
-                return _send_template_message(conversation, sender, template, now)
+                    template_debug['result'] = 'rate_limited'
+                    debug['templates'].append(template_debug)
+                    debug['result'] = 'rate_limited'
+                    return None, debug
+                msg = _send_template_message(conversation, sender, template, now)
+                template_debug['result'] = 'sent'
+                debug['templates'].append(template_debug)
+                debug['result'] = 'sent'
+                return msg, debug
+            template_debug['result'] = 'skipped_had_user_messages'
+            debug['templates'].append(template_debug)
             continue
         if template.trigger_event == SupportReplyTemplate.TRIGGER_IDLE:
             if not last_user_entered_at or not template.idle_minutes:
+                template_debug['result'] = 'skipped_missing_idle_conditions'
+                debug['templates'].append(template_debug)
                 continue
             if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
+                template_debug['result'] = 'skipped_idle_not_reached'
+                debug['templates'].append(template_debug)
                 continue
             if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
+                template_debug['result'] = 'skipped_auto_reply_recent'
+                debug['templates'].append(template_debug)
                 continue
             if _is_auto_reply_rate_limited(conversation, template, now):
-                return None
-            return _send_template_message(conversation, sender, template, now)
+                template_debug['result'] = 'rate_limited'
+                debug['templates'].append(template_debug)
+                debug['result'] = 'rate_limited'
+                return None, debug
+            msg = _send_template_message(conversation, sender, template, now)
+            template_debug['result'] = 'sent'
+            debug['templates'].append(template_debug)
+            debug['result'] = 'sent'
+            return msg, debug
         if template.trigger_event == SupportReplyTemplate.TRIGGER_BOTH:
             if not had_user_messages:
                 if _is_auto_reply_rate_limited(conversation, template, now):
-                    return None
-                return _send_template_message(conversation, sender, template, now)
+                    template_debug['result'] = 'rate_limited'
+                    debug['templates'].append(template_debug)
+                    debug['result'] = 'rate_limited'
+                    return None, debug
+                msg = _send_template_message(conversation, sender, template, now)
+                template_debug['result'] = 'sent'
+                debug['templates'].append(template_debug)
+                debug['result'] = 'sent'
+                return msg, debug
             if not last_user_entered_at or not template.idle_minutes:
+                template_debug['result'] = 'skipped_missing_idle_conditions'
+                debug['templates'].append(template_debug)
                 continue
             if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
+                template_debug['result'] = 'skipped_idle_not_reached'
+                debug['templates'].append(template_debug)
                 continue
             if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
+                template_debug['result'] = 'skipped_auto_reply_recent'
+                debug['templates'].append(template_debug)
                 continue
             if _is_auto_reply_rate_limited(conversation, template, now):
-                return None
-            return _send_template_message(conversation, sender, template, now)
-    return None
+                template_debug['result'] = 'rate_limited'
+                debug['templates'].append(template_debug)
+                debug['result'] = 'rate_limited'
+                return None, debug
+            msg = _send_template_message(conversation, sender, template, now)
+            template_debug['result'] = 'sent'
+            debug['templates'].append(template_debug)
+            debug['result'] = 'sent'
+            return msg, debug
+        template_debug['result'] = 'skipped_unknown_trigger'
+        debug['templates'].append(template_debug)
+    debug['result'] = 'no_match'
+    return None, debug
+
+
+def _maybe_send_auto_reply(conversation, had_user_messages, last_user_entered_at, now_override=None):
+    msg, _ = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user_entered_at, now_override)
+    return msg
 
 
 class SupportChatViewSet(viewsets.GenericViewSet):
@@ -237,13 +305,14 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             updated_at=now,
         )
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, base_entered_at, now)
+        msg, debug_info = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, base_entered_at, now)
         if msg:
-            return Response(
-                {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
-                status=status.HTTP_201_CREATED
-            )
-        return Response({'triggered': False}, status=status.HTTP_200_OK)
+            payload = {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data}
+            payload['debug'] = debug_info
+            return Response(payload, status=status.HTTP_201_CREATED)
+        payload = {'triggered': False}
+        payload['debug'] = debug_info
+        return Response(payload, status=status.HTTP_200_OK)
 
     def list(self, request):
         conversation, error = self._resolve_conversation(request)
@@ -435,13 +504,14 @@ class SupportConversationAutoReplyView(APIView):
             return Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
         base_entered_at = conversation.last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
-        msg = _maybe_send_auto_reply(conversation, had_user_messages, base_entered_at)
+        msg, debug_info = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, base_entered_at)
         if msg:
-            return Response(
-                {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data},
-                status=status.HTTP_201_CREATED
-            )
-        return Response({'triggered': False}, status=status.HTTP_200_OK)
+            payload = {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data}
+            payload['debug'] = debug_info
+            return Response(payload, status=status.HTTP_201_CREATED)
+        payload = {'triggered': False}
+        payload['debug'] = debug_info
+        return Response(payload, status=status.HTTP_200_OK)
 
 
 class SupportApiRootView(APIView):

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, Text, Input, Button, ScrollView, Image, Video } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
@@ -35,6 +35,7 @@ export default function SupportChat() {
   const [showPanel, setShowPanel] = useState(false)
   
   const pollingRef = useRef<any>()
+  const lastFetchedAtRef = useRef<string | null>(null)
   
   // Load user info
   useEffect(() => {
@@ -49,6 +50,11 @@ export default function SupportChat() {
     loadUser()
   }, [])
 
+  const updateLastFetchedAt = (value: string | null) => {
+    lastFetchedAtRef.current = value
+    setLastFetchedAt(value)
+  }
+
   // Load messages from cache and initial fetch
   useEffect(() => {
     const cacheKey = 'chat_messages'
@@ -59,7 +65,7 @@ export default function SupportChat() {
         const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData
         if (parsed && parsed.messages) {
           setMessages(parsed.messages)
-          setLastFetchedAt(parsed.lastFetchedAt || null)
+          updateLastFetchedAt(parsed.lastFetchedAt || null)
           scrollToBottom(parsed.messages)
         }
       } catch (e) {
@@ -68,16 +74,6 @@ export default function SupportChat() {
     } else {
       setLoading(true)
     }
-
-    const initMessages = async () => {
-      try {
-        await supportService.triggerAutoReply()
-      } catch (error) {
-        console.error('Auto reply trigger failed', error)
-      }
-      await fetchMessages(null, true)
-    }
-    initMessages()
     
     return () => stopPolling()
   }, [])
@@ -87,6 +83,40 @@ export default function SupportChat() {
     startPolling()
     return () => stopPolling()
   }, [lastFetchedAt])
+
+  useDidShow(() => {
+    const triggerAndFetch = async () => {
+      try {
+        const autoReply = await supportService.triggerAutoReply()
+        const autoReplyMessage = autoReply?.message
+        if (autoReply?.triggered && autoReplyMessage) {
+          const normalizedMessage: ExtendedSupportMessage = { ...autoReplyMessage, status: 'sent' }
+          setMessages(prev => {
+            if (prev.some(m => m.id === normalizedMessage.id)) {
+              return prev
+            }
+            const newMsgs = [...prev, normalizedMessage]
+            newMsgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+            const lastMsg = newMsgs[newMsgs.length - 1]
+            if (lastMsg) {
+              Taro.setStorageSync('chat_messages', {
+                messages: newMsgs,
+                lastFetchedAt: lastMsg.created_at
+              })
+              updateLastFetchedAt(lastMsg.created_at)
+            }
+            scrollToBottom(newMsgs)
+            return newMsgs
+          })
+        }
+      } catch (error) {
+        console.error('Auto reply trigger failed', error)
+      }
+      const currentAfter = lastFetchedAtRef.current
+      await fetchMessages(currentAfter, currentAfter === null)
+    }
+    triggerAndFetch()
+  })
 
   // Offline handling
   useEffect(() => {
@@ -161,7 +191,7 @@ export default function SupportChat() {
             })
             
             if (after !== newLastFetchedAt) {
-              setLastFetchedAt(newLastFetchedAt)
+              updateLastFetchedAt(newLastFetchedAt)
             }
           }
           
@@ -374,7 +404,7 @@ export default function SupportChat() {
             messages: newMsgs,
             lastFetchedAt: lastMsg.created_at
           })
-          setLastFetchedAt(lastMsg.created_at)
+          updateLastFetchedAt(lastMsg.created_at)
         }
         return newMsgs
       })
@@ -514,7 +544,7 @@ export default function SupportChat() {
                messages: newMsgs,
                lastFetchedAt: lastMsg.created_at
              })
-             setLastFetchedAt(lastMsg.created_at)
+             updateLastFetchedAt(lastMsg.created_at)
            }
           return newMsgs
         })

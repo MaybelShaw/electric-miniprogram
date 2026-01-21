@@ -199,6 +199,9 @@
       - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
       - 说明：系统为每个用户自动维护一个会话。
     - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:227`
+      - 触发时会更新 `last_user_entered_at` 以记录用户进入会话时间
+      - 空闲触发基准优先使用 `last_user_entered_at`，为空时依次回退到 `last_user_message_at/updated_at/created_at`
+      - 默认返回 `debug` 字段，包含触发判定信息
     - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
       - 表单字段：
@@ -224,6 +227,7 @@
       - 统计字段：`usage_count`、`last_used_at`
       - 自动回复消息会写入为略晚于触发用户消息的时间，避免增量拉取遗漏
     - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（仅客服/管理员）
+      - 默认返回 `debug` 字段，包含触发判定信息
     - `content_payload` 用途：
       - `card`：`{ title, description, image_url, link_type, link_value }`
       - `quick_buttons`：`{ buttons: [{ text, value }] }`

@@ -37,8 +37,11 @@ export const supportService = {
   getMessages: (params?: { after?: string; limit?: number }) => 
     http.get<SupportMessage[]>('/support/chat/', params),
 
-  triggerAutoReply: () =>
-    http.post<{ triggered: boolean; message?: SupportMessage }>('/support/chat/auto-reply/'),
+  triggerAutoReply: (markEntered?: boolean) =>
+    http.post<{ triggered: boolean; message?: SupportMessage }>(
+      '/support/chat/auto-reply/',
+      markEntered ? { mark_entered: true } : {}
+    ),
   
   // 发送消息
   sendMessage: (content?: string, attachment?: { path: string, type: 'image' | 'video' }, extra?: { order_id?: number, product_id?: number }) => {
