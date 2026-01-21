@@ -259,6 +259,11 @@ def get_logging_config():
             'level': default_level,
             'propagate': False,
         },
+        'support': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': default_level,
+            'propagate': False,
+        },
     }
 
     return config
