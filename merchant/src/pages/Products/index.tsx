@@ -1,12 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea, ProFormGroup, ProFormField, ProFormDependency } from '@ant-design/pro-components';
 import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getHaierProducts, getHaierStock, getHaierPrices } from '@/services/api';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
+import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getHaierProducts, getHaierStock, getHaierPrices, exportProducts } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
 import { fetchAllPaginated } from '@/utils/request';
+import { downloadBlob } from '@/utils/download';
+import ExportLoadingModal from '@/components/ExportLoadingModal';
 import type { Product, Brand, Category } from '@/services/types';
 
 export default function Products() {
@@ -17,6 +19,9 @@ export default function Products() {
   const [editingRecord, setEditingRecord] = useState<Product | null>(null);
   const [queryLoading, setQueryLoading] = useState(false);
   const [form] = Form.useForm();
+  const [exportParams, setExportParams] = useState<Record<string, any>>({});
+  const [exporting, setExporting] = useState(false);
+  const exportLockRef = useRef(false);
 
   // 加载品牌和分类数据用于筛选
   useEffect(() => {
@@ -34,6 +39,23 @@ export default function Products() {
     };
     loadFilters();
   }, []);
+
+  const handleExport = async () => {
+    if (exportLockRef.current) return;
+    exportLockRef.current = true;
+    setExporting(true);
+    try {
+      const res: any = await exportProducts(exportParams);
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      downloadBlob(res, `products_${timestamp}.xlsx`);
+      message.success('导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    } finally {
+      exportLockRef.current = false;
+      setExporting(false);
+    }
+  };
 
   const columns: ProColumns<Product>[] = [
     {
@@ -395,6 +417,14 @@ export default function Products() {
         columns={columns}
         toolBarRender={() => [
           <Button
+            key="export"
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            loading={exporting}
+          >
+            导出
+          </Button>,
+          <Button
             key="add"
             type="primary"
             icon={<PlusOutlined />}
@@ -406,43 +436,40 @@ export default function Products() {
       request={async (params, sort) => {
         try {
           // 构建查询参数
-          const queryParams: any = {
-            page: params.current || 1,
-            page_size: params.pageSize || 20,
-          };
+          const exportQueryParams: any = {};
 
           // 搜索关键词
           if (params.name) {
-            queryParams.search = params.name;
+            exportQueryParams.search = params.name;
           }
 
           // 品牌筛选
           if (params.brand) {
-            queryParams.brand = params.brand;
+            exportQueryParams.brand = params.brand;
           }
 
           // 分类筛选
           if (params.category) {
-            queryParams.category = params.category;
+            exportQueryParams.category = params.category;
           }
 
           // 价格筛选
           if (params.min_price) {
-            queryParams.min_price = params.min_price;
+            exportQueryParams.min_price = params.min_price;
           }
           if (params.max_price) {
-            queryParams.max_price = params.max_price;
+            exportQueryParams.max_price = params.max_price;
           }
 
           // 状态筛选
           if (params.is_active !== undefined) {
-            queryParams.is_active = params.is_active;
+            exportQueryParams.is_active = params.is_active;
           }
           if (params.show_in_gift_zone !== undefined) {
-            queryParams.show_in_gift_zone = params.show_in_gift_zone;
+            exportQueryParams.show_in_gift_zone = params.show_in_gift_zone;
           }
           if (params.show_in_designer_zone !== undefined) {
-            queryParams.show_in_designer_zone = params.show_in_designer_zone;
+            exportQueryParams.show_in_designer_zone = params.show_in_designer_zone;
           }
 
           // 排序
@@ -450,9 +477,16 @@ export default function Products() {
             const sortField = Object.keys(sort)[0];
             const sortOrder = sort[sortField];
             if (sortField === 'sales_count') {
-              queryParams.sort_by = sortOrder === 'ascend' ? 'sales' : 'sales';
+              exportQueryParams.sort_by = sortOrder === 'ascend' ? 'sales' : 'sales';
             }
           }
+
+          setExportParams(exportQueryParams);
+          const queryParams = {
+            ...exportQueryParams,
+            page: params.current || 1,
+            page_size: params.pageSize || 20,
+          };
 
           const res: any = await getProducts(queryParams);
           
@@ -752,6 +786,7 @@ export default function Products() {
         </ProFormGroup>
         
       </ModalForm>
+      <ExportLoadingModal open={exporting} />
     </>
   );
 }

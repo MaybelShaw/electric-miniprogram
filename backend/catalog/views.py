@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.conf import settings
 from common.permissions import IsAdminOrReadOnly, IsAdmin
+from common.excel import build_excel_response
 from common.utils import to_bool, parse_decimal, parse_int
 from common.pagination import LargeResultsSetPagination
 from .search import ProductSearchService
@@ -198,6 +199,96 @@ class ProductViewSet(viewsets.ModelViewSet):
             'has_next': search_result['has_next'],
             'has_previous': search_result['has_previous']
         })
+
+    @extend_schema(
+        operation_id='products_export',
+        parameters=[
+            OpenApiParameter('search', OT.STR, OpenApiParameter.QUERY, description='Keyword search on product name and description'),
+            OpenApiParameter('category', OT.STR, OpenApiParameter.QUERY, description='Filter by category name'),
+            OpenApiParameter('brand', OT.STR, OpenApiParameter.QUERY, description='Filter by brand name'),
+            OpenApiParameter('min_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Minimum price filter'),
+            OpenApiParameter('max_price', OT.DECIMAL, OpenApiParameter.QUERY, description='Maximum price filter'),
+            OpenApiParameter('sort_by', OT.STR, OpenApiParameter.QUERY, description='Sort strategy: relevance, price_asc, price_desc, sales, created, views'),
+            OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
+            OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
+            OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
+        ],
+        description='Export products with advanced search and filtering.',
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
+    def export(self, request):
+        keyword = request.query_params.get('search', '').strip() or None
+        category = request.query_params.get('category', '').strip() or None
+        brand = request.query_params.get('brand', '').strip() or None
+        sort_by = request.query_params.get('sort_by', 'relevance').strip()
+
+        min_price = parse_decimal(request.query_params.get('min_price'))
+        max_price = parse_decimal(request.query_params.get('max_price'))
+
+        is_active = to_bool(request.query_params.get('is_active'))
+        show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
+        show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
+
+        if sort_by not in ProductSearchService.VALID_SORT_OPTIONS:
+            sort_by = 'relevance'
+
+        qs = self.get_queryset()
+        if keyword:
+            qs = qs.filter(Q(name__icontains=keyword) | Q(description__icontains=keyword))
+        if category:
+            qs = qs.filter(category__name__iexact=category)
+        if brand:
+            qs = qs.filter(brand__name__iexact=brand)
+        if min_price is not None:
+            qs = qs.filter(price__gte=min_price)
+        if max_price is not None:
+            qs = qs.filter(price__lte=max_price)
+        if is_active is not None:
+            qs = qs.filter(is_active=bool(is_active))
+        if show_in_gift_zone is not None:
+            qs = qs.filter(show_in_gift_zone=bool(show_in_gift_zone))
+        if show_in_designer_zone is not None:
+            qs = qs.filter(show_in_designer_zone=bool(show_in_designer_zone))
+
+        qs = ProductSearchService._apply_sorting(qs, sort_by, keyword)
+
+        headers = [
+            '商品ID',
+            '产品名称',
+            '品牌',
+            '品项',
+            '来源',
+            '价格',
+            '经销价',
+            '库存',
+            '上架状态',
+            '礼品专区',
+            '设计师专区',
+            '销量',
+            '浏览量',
+            '创建时间',
+        ]
+        rows = []
+        for product in qs:
+            rows.append([
+                product.id,
+                product.name,
+                product.brand.name if product.brand else '',
+                product.category.name if product.category else '',
+                product.get_source_display(),
+                product.price,
+                product.dealer_price,
+                product.stock,
+                '上架' if product.is_active else '下架',
+                '是' if product.show_in_gift_zone else '否',
+                '是' if product.show_in_designer_zone else '否',
+                product.sales_count,
+                product.view_count,
+                product.created_at,
+            ])
+
+        filename = f"products_export_{timezone.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        return build_excel_response(filename, headers, rows, title="商品导出")
 
     @extend_schema(
         operation_id='products_search_suggestions',

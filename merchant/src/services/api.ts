@@ -45,6 +45,7 @@ export const getProduct = (id: number) => request.get(`/catalog/products/${id}/`
 export const createProduct = (data: any) => request.post('/catalog/products/', data);
 export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
+export const exportProducts = (params?: any) => request.get('/catalog/products/export/', { params, responseType: 'blob' });
 export const getHaierProducts = (productCodes: string) => request.get('/haier/api/products/', { params: { product_codes: productCodes } });
 export const getHaierStock = (productCode: string, countyCode: string = '110101') => request.get('/haier/api/stock/', { params: { product_code: productCode, county_code: countyCode } });
 export const getHaierPrices = (productCodes: string) => request.get('/haier/api/prices/', { params: { product_codes: productCodes } });
