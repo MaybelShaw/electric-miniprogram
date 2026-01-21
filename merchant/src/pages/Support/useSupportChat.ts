@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { message } from 'antd';
-import { getChatMessages, sendChatMessage } from '@/services/api';
+import { getChatMessages, sendChatMessage, triggerConversationAutoReply } from '@/services/api';
 import type { SupportMessage } from '@/services/types';
 import { getUser } from '@/utils/auth';
 
@@ -15,7 +15,11 @@ interface OfflineMessage {
   timestamp: number;
 }
 
-export function useSupportChat(userId: number | null, ticketId: number | null = null) {
+export function useSupportChat(
+  userId: number | null,
+  conversationId: number | null = null,
+  ticketId: number | null = null
+) {
   const [messages, setMessages] = useState<ExtendedSupportMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
@@ -29,7 +33,11 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
       return;
     }
 
-    const cacheKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${userId}`;
+    const cacheKey = ticketId
+      ? `chat_messages_ticket_${ticketId}`
+      : conversationId
+        ? `chat_messages_conversation_${conversationId}`
+        : `chat_messages_user_${userId}`;
     const cachedData = localStorage.getItem(cacheKey);
     let initialMessages: ExtendedSupportMessage[] = [];
     let initialLastFetchedAt = null;
@@ -54,7 +62,7 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
     fetchMessages(userId, initialLastFetchedAt, true);
     
     return () => stopPolling();
-  }, [userId]);
+  }, [userId, conversationId]);
 
   // Polling effect
   useEffect(() => {
@@ -80,6 +88,9 @@ export function useSupportChat(userId: number | null, ticketId: number | null = 
   const fetchMessages = async (uid: number | null, after: string | null, isInitial = false) => {
     if (!uid) return;
     try {
+      if (conversationId) {
+        await triggerConversationAutoReply(conversationId);
+      }
       const params: any = {};
       if (after) {
         params.after = after;
