@@ -1,6 +1,8 @@
+import json
+import logging
+from datetime import timedelta
 from django.db import models
 from django.db.models import Prefetch, Subquery, OuterRef, Q
-from datetime import timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import status, viewsets, serializers
@@ -15,6 +17,8 @@ from orders.models import Order
 from .models import SupportConversation, SupportMessage, SupportReplyTemplate
 from .serializers import SupportConversationSerializer, SupportMessageSerializer, SupportReplyTemplateSerializer
 from users.models import User
+
+logger = logging.getLogger(__name__)
 
 
 def _get_support_sender():
@@ -208,6 +212,24 @@ def _maybe_send_auto_reply(conversation, had_user_messages, last_user_entered_at
     return msg
 
 
+def _log_auto_reply_debug(context, conversation, request_user, triggered, debug_info):
+    logger.info(
+        '[SUPPORT_AUTO_REPLY_DEBUG] %s',
+        json.dumps(
+            {
+                'context': context,
+                'conversation_id': conversation.id,
+                'user_id': conversation.user_id,
+                'request_user_id': getattr(request_user, 'id', None),
+                'triggered': triggered,
+                'debug': debug_info,
+            },
+            ensure_ascii=False,
+            default=str,
+        ),
+    )
+
+
 class SupportChatViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SupportMessageSerializer
@@ -307,9 +329,11 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
         msg, debug_info = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, base_entered_at, now)
         if msg:
+            _log_auto_reply_debug('user_auto_reply', conversation, request.user, True, debug_info)
             payload = {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data}
             payload['debug'] = debug_info
             return Response(payload, status=status.HTTP_201_CREATED)
+        _log_auto_reply_debug('user_auto_reply', conversation, request.user, False, debug_info)
         payload = {'triggered': False}
         payload['debug'] = debug_info
         return Response(payload, status=status.HTTP_200_OK)
@@ -506,9 +530,11 @@ class SupportConversationAutoReplyView(APIView):
         base_entered_at = conversation.last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
         msg, debug_info = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, base_entered_at)
         if msg:
+            _log_auto_reply_debug('staff_auto_reply', conversation, request.user, True, debug_info)
             payload = {'triggered': True, 'message': SupportMessageSerializer(msg, context={'request': request}).data}
             payload['debug'] = debug_info
             return Response(payload, status=status.HTTP_201_CREATED)
+        _log_auto_reply_debug('staff_auto_reply', conversation, request.user, False, debug_info)
         payload = {'triggered': False}
         payload['debug'] = debug_info
         return Response(payload, status=status.HTTP_200_OK)

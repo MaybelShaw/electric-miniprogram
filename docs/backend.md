@@ -202,6 +202,7 @@
       - 触发时会更新 `last_user_entered_at` 以记录用户进入会话时间
       - 空闲触发基准优先使用 `last_user_entered_at`，为空时依次回退到 `last_user_message_at/updated_at/created_at`
       - 默认返回 `debug` 字段，包含触发判定信息
+      - 同时在服务端日志输出 `SUPPORT_AUTO_REPLY_DEBUG`，便于排查触发条件
     - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
       - 请求方式：`multipart/form-data`
       - 表单字段：
