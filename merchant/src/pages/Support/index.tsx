@@ -579,10 +579,10 @@ export default function Support() {
                     <ProFormSelect
                       name="trigger_event"
                       label="触发条件"
-                      valueEnum={{ first_contact: '首次联系', idle_contact: '长时间未联系' }}
+                      valueEnum={{ first_contact: '首次联系', idle_contact: '长时间未联系', both: '首次联系 + 长时间未联系' }}
                       rules={[{ required: true, message: '请选择触发条件' }]}
                     />
-                    {trigger_event === 'idle_contact' && (
+                    {(trigger_event === 'idle_contact' || trigger_event === 'both') && (
                       <ProFormDigit
                         name="idle_minutes"
                         label="未联系分钟数"

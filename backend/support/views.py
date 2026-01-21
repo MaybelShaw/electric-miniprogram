@@ -113,6 +113,20 @@ def _maybe_send_auto_reply(conversation, had_user_messages, last_user_message_at
             if _is_auto_reply_rate_limited(conversation, template, now):
                 return None
             return _send_template_message(conversation, sender, template, now)
+        if template.trigger_event == SupportReplyTemplate.TRIGGER_BOTH:
+            if not had_user_messages:
+                if _is_auto_reply_rate_limited(conversation, template, now):
+                    return None
+                return _send_template_message(conversation, sender, template, now)
+            if not last_user_message_at or not template.idle_minutes:
+                continue
+            if now - last_user_message_at < timedelta(minutes=template.idle_minutes):
+                continue
+            if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
+                continue
+            if _is_auto_reply_rate_limited(conversation, template, now):
+                return None
+            return _send_template_message(conversation, sender, template, now)
     return None
 
 

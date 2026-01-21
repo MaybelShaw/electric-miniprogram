@@ -201,7 +201,7 @@ export interface SupportReplyTemplate {
   group_name?: string;
   is_pinned?: boolean;
   enabled: boolean;
-  trigger_event?: 'first_contact' | 'idle_contact' | null;
+  trigger_event?: 'first_contact' | 'idle_contact' | 'both' | null;
   idle_minutes?: number | null;
   daily_limit?: number;
   user_cooldown_days?: number;

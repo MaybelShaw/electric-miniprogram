@@ -41,9 +41,11 @@ class SupportReplyTemplate(models.Model):
 
     TRIGGER_FIRST = 'first_contact'
     TRIGGER_IDLE = 'idle_contact'
+    TRIGGER_BOTH = 'both'
     TRIGGER_CHOICES = [
         (TRIGGER_FIRST, '首次联系'),
         (TRIGGER_IDLE, '长时间未联系'),
+        (TRIGGER_BOTH, '首次联系 + 长时间未联系'),
     ]
 
     id = models.BigAutoField(primary_key=True)
