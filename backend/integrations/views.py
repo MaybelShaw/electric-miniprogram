@@ -154,7 +154,6 @@ class HaierAPIViewSet(viewsets.ViewSet):
         try:
             config_obj = HaierConfig.objects.filter(is_active=True).first()
             if not config_obj:
-                # 从环境变量加载
                 config = {
                     'client_id': os.getenv('HAIER_CLIENT_ID'),
                     'client_secret': os.getenv('HAIER_CLIENT_SECRET'),
@@ -166,11 +165,29 @@ class HaierAPIViewSet(viewsets.ViewSet):
                     'password': os.getenv('HAIER_PASSWORD'),
                     'seller_password': os.getenv('HAIER_SELLER_PASSWORD'),
                 }
-                if not all([config['client_id'], config['client_secret'], config['token_url'], config['base_url']]):
-                    raise Exception("海尔API配置不完整")
+                required_env_fields = [
+                    ('client_id', 'HAIER_CLIENT_ID'),
+                    ('client_secret', 'HAIER_CLIENT_SECRET'),
+                    ('token_url', 'HAIER_TOKEN_URL'),
+                    ('base_url', 'HAIER_BASE_URL'),
+                ]
+                missing_env = [env_key for field_key, env_key in required_env_fields if not config.get(field_key)]
+                if missing_env:
+                    detail = ",".join(missing_env)
+                    raise Exception(f"海尔API配置不完整，缺少环境变量: {detail}")
             else:
                 base_config = config_obj.config or {}
                 config = dict(base_config)
+                required_cfg_fields = [
+                    ('client_id', 'client_id'),
+                    ('client_secret', 'client_secret'),
+                    ('token_url', 'token_url'),
+                    ('base_url', 'base_url'),
+                ]
+                missing_cfg = [cfg_key for field_key, cfg_key in required_cfg_fields if not config.get(field_key)]
+                if missing_cfg:
+                    detail = ",".join(missing_cfg)
+                    raise Exception(f"海尔API配置不完整，缺少配置字段: {detail}")
             config['debug'] = getattr(settings, 'INTEGRATIONS_API_DEBUG', False)
             
             return HaierAPI(config)
