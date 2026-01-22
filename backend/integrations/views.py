@@ -154,11 +154,15 @@ class HaierAPIViewSet(viewsets.ViewSet):
         try:
             config_obj = HaierConfig.objects.filter(is_active=True).first()
             if not config_obj:
+                base_url = os.getenv('HAIER_BASE_URL') or ''
+                token_url = os.getenv('HAIER_TOKEN_URL') or ''
+                if base_url and not token_url:
+                    token_url = base_url.rstrip('/') + '/oauth2/auth'
                 config = {
                     'client_id': os.getenv('HAIER_CLIENT_ID'),
                     'client_secret': os.getenv('HAIER_CLIENT_SECRET'),
-                    'token_url': os.getenv('HAIER_TOKEN_URL'),
-                    'base_url': os.getenv('HAIER_BASE_URL'),
+                    'token_url': token_url,
+                    'base_url': base_url,
                     'customer_code': os.getenv('HAIER_CUSTOMER_CODE'),
                     'send_to_code': os.getenv('HAIER_SEND_TO_CODE'),
                     'supplier_code': os.getenv('HAIER_SUPPLIER_CODE', '1001'),
@@ -168,7 +172,6 @@ class HaierAPIViewSet(viewsets.ViewSet):
                 required_env_fields = [
                     ('client_id', 'HAIER_CLIENT_ID'),
                     ('client_secret', 'HAIER_CLIENT_SECRET'),
-                    ('token_url', 'HAIER_TOKEN_URL'),
                     ('base_url', 'HAIER_BASE_URL'),
                 ]
                 missing_env = [env_key for field_key, env_key in required_env_fields if not config.get(field_key)]
@@ -178,10 +181,11 @@ class HaierAPIViewSet(viewsets.ViewSet):
             else:
                 base_config = config_obj.config or {}
                 config = dict(base_config)
+                if config.get('base_url') and not config.get('token_url'):
+                    config['token_url'] = config['base_url'].rstrip('/') + '/oauth2/auth'
                 required_cfg_fields = [
                     ('client_id', 'client_id'),
                     ('client_secret', 'client_secret'),
-                    ('token_url', 'token_url'),
                     ('base_url', 'base_url'),
                 ]
                 missing_cfg = [cfg_key for field_key, cfg_key in required_cfg_fields if not config.get(field_key)]
