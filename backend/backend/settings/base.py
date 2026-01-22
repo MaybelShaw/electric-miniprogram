@@ -299,7 +299,10 @@ YLH_STOCK_BASE_URL = EnvironmentConfig.get_env('YLH_STOCK_BASE_URL', 'https://de
 YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '')
 YLH_CALLBACK_SECRET = EnvironmentConfig.get_env('YLH_CALLBACK_SECRET', '')
 
-INTEGRATIONS_API_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_API_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
-INTEGRATIONS_CALLBACK_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_CALLBACK_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
+# INTEGRATIONS_API_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_API_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
+# INTEGRATIONS_CALLBACK_DEBUG = EnvironmentConfig.get_env('INTEGRATIONS_CALLBACK_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
+
+INTEGRATIONS_API_DEBUG = True
+INTEGRATIONS_CALLBACK_DEBUG = True
 
 ORDER_PAYMENT_TIMEOUT_MINUTES = int(EnvironmentConfig.get_env('ORDER_PAYMENT_TIMEOUT_MINUTES', '10'))

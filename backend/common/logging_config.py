@@ -80,12 +80,18 @@ def get_logging_config():
 
     handlers = config['handlers']
 
-    # Console handler - always output to console
     handlers['console'] = {
         'level': default_level,
         'class': 'logging.StreamHandler',
         'formatter': 'simple',
     }
+
+    if integrations_debug_enabled:
+        handlers['integrations_console_debug'] = {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        }
 
     # General application log file
     if IS_WINDOWS:
@@ -250,7 +256,7 @@ def get_logging_config():
             'propagate': False,
         },
         'integrations': {
-            'handlers': ['console', 'file', 'error_file'],
+            'handlers': ['console', 'file', 'error_file'] + (['integrations_console_debug'] if integrations_debug_enabled else []),
             'level': 'DEBUG' if integrations_debug_enabled else default_level,
             'propagate': False,
         },
