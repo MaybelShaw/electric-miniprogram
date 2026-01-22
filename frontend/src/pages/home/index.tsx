@@ -26,6 +26,11 @@ export default function Home() {
     loadCategories()
     loadBrands()
     loadProducts(1)
+    
+    // 确保显示分享菜单
+    Taro.showShareMenu({
+      withShareTicket: true
+    })
   }, [])
 
   useShareAppMessage(() => ({

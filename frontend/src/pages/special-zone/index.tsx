@@ -19,6 +19,11 @@ export default function SpecialZone() {
   const [hasMore, setHasMore] = useState(true)
   
   useEffect(() => {
+    // 确保显示分享菜单
+    Taro.showShareMenu({
+      withShareTicket: true
+    })
+
     Taro.setNavigationBarTitle({ title: decodeURIComponent(title) })
     setProducts([])
     setPage(1)

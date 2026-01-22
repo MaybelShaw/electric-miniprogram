@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Text, Button } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
@@ -9,7 +9,8 @@ import ProductCard from '../../components/ProductCard'
 import './index.scss'
 
 export default function ProductDetail() {
-  const routeProductId = Number(Taro.getCurrentInstance().router?.params?.id || 0) || undefined
+  const router = useRouter()
+  const routeProductId = Number(router.params.id || 0) || undefined
   const [product, setProduct] = useState<Product | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
@@ -25,8 +26,12 @@ export default function ProductDetail() {
   const [navOpacity, setNavOpacity] = useState(0)
 
   useEffect(() => {
-    const instance = Taro.getCurrentInstance()
-    const id = instance.router?.params?.id
+    // 确保显示分享菜单
+    Taro.showShareMenu({
+      withShareTicket: true
+    })
+
+    const id = router.params.id
     if (id) {
       loadProduct(Number(id))
     }
