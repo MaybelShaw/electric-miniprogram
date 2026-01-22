@@ -47,10 +47,10 @@ def get_logging_config():
         return default
 
     is_prod = EnvironmentConfig.is_production()
-    # Lower default log level to INFO in non-production to avoid noisy DEBUG output unless explicitly enabled
     default_level = _resolve_level('LOG_LEVEL', 'INFO' if not is_prod else 'INFO')
     django_level = _resolve_level('DJANGO_LOG_LEVEL', default_level)
     db_level = _resolve_level('DB_LOG_LEVEL', 'INFO')
+    integrations_debug_enabled = EnvironmentConfig.get_env('INTEGRATIONS_API_DEBUG', 'False').lower() in ('1', 'true', 'yes', 'on')
 
     config = {
         'version': 1,
@@ -251,7 +251,7 @@ def get_logging_config():
         },
         'integrations': {
             'handlers': ['console', 'file', 'error_file'],
-            'level': default_level,
+            'level': 'DEBUG' if integrations_debug_enabled else default_level,
             'propagate': False,
         },
         'common': {

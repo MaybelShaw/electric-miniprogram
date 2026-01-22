@@ -76,6 +76,7 @@ class HaierAPI:
             last_res = None
             for url in token_urls:
                 started = time.monotonic()
+                self._debug_log("auth_request", {"url": url, "body": body})
                 res = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(body), timeout=10)
                 elapsed_ms = int((time.monotonic() - started) * 1000)
                 last_res = res
@@ -129,9 +130,10 @@ class HaierAPI:
         if product_codes:
             body['productCodes'] = product_codes[:20]
         try:
-            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            headers = self._auth_headers()
+            self._debug_log("request", {"method": "POST", "url": url, "body": body, "headers": headers})
             started = time.monotonic()
-            res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
@@ -155,9 +157,10 @@ class HaierAPI:
             'passWord': self.password,
         }
         try:
-            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            headers = self._auth_headers()
+            self._debug_log("request", {"method": "POST", "url": url, "body": body, "headers": headers})
             started = time.monotonic()
-            res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
@@ -182,9 +185,10 @@ class HaierAPI:
             'sellerPassword': self.seller_password,
         }
         try:
-            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            headers = self._auth_headers()
+            self._debug_log("request", {"method": "POST", "url": url, "body": body, "headers": headers})
             started = time.monotonic()
-            res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
@@ -210,9 +214,10 @@ class HaierAPI:
         if member_id is not None:
             body['memberId'] = member_id
         try:
-            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            headers = self._auth_headers()
+            self._debug_log("request", {"method": "POST", "url": url, "body": body, "headers": headers})
             started = time.monotonic()
-            res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
@@ -233,9 +238,10 @@ class HaierAPI:
             'customerPassword': self.customer_password,
         }
         try:
-            self._debug_log("request", {"method": "POST", "url": url, "body": body})
+            headers = self._auth_headers()
+            self._debug_log("request", {"method": "POST", "url": url, "body": body, "headers": headers})
             started = time.monotonic()
-            res = requests.post(url, headers=self._auth_headers(), data=json.dumps(body), timeout=30)
+            res = requests.post(url, headers=headers, data=json.dumps(body), timeout=30)
             elapsed_ms = int((time.monotonic() - started) * 1000)
             self._debug_log("response", {"method": "POST", "url": url, "status_code": res.status_code, "elapsed_ms": elapsed_ms, "text": res.text})
             if res.status_code != 200:
