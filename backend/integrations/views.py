@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAdminUser, AllowAny
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from django.conf import settings
 import logging
 import os
 import json
@@ -101,8 +102,9 @@ class HaierConfigViewSet(viewsets.ModelViewSet):
         config_obj = self.get_object()
         
         try:
-            # 创建API实例
-            api = HaierAPI(config_obj.config)
+            base_config = config_obj.config or {}
+            config = {**base_config, 'debug': getattr(settings, 'INTEGRATIONS_API_DEBUG', False)}
+            api = HaierAPI(config)
             
             # 测试认证
             if api.authenticate():
@@ -167,7 +169,9 @@ class HaierAPIViewSet(viewsets.ViewSet):
                 if not all([config['client_id'], config['client_secret'], config['token_url'], config['base_url']]):
                     raise Exception("海尔API配置不完整")
             else:
-                config = config_obj.config
+                base_config = config_obj.config or {}
+                config = dict(base_config)
+            config['debug'] = getattr(settings, 'INTEGRATIONS_API_DEBUG', False)
             
             return HaierAPI(config)
         except Exception as e:
