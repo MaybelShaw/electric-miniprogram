@@ -112,7 +112,7 @@ class HaierAPI:
         return True
 
     def _auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'{self.token_type} {self.access_token}', 'Content-Type': 'application/json'}
+        return {'Authorization': self.access_token or '', 'Content-Type': 'application/json'}
 
     def get_products(self, product_codes: Optional[List[str]] = None) -> Optional[List[Dict[str, Any]]]:
         if not self._ensure_authenticated():
