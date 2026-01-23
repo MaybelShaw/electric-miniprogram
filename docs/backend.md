@@ -275,7 +275,7 @@
   - `GET/POST ... /integrations/haier/api/*` 海尔查询与操作 `backend/integrations/urls.py:18`
   - `POST /integrations/ylh/orders/*` 易理货订单操作 `backend/integrations/urls.py:28`
   - `POST /integrations/ylh/callback/` 易理货回调 `backend/integrations/urls.py:25`
-  - 回调处理：按 `PlatformOrderNo`（订单号）定位订单并更新 `haier_order_no/haier_status`
+  - 回调处理：按 `PlatformOrderNo`（订单号，对应本地 `order_number`）定位订单并更新 `haier_order_no/haier_status`；下单时 `onlineNo` 与 `soId` 均使用本地订单号，避免子订单号与平台订单号不一致
   - 回调安全：配置 `YLH_CALLBACK_APP_KEY` 与 `YLH_CALLBACK_SECRET` 做 AppKey 校验与签名验证
   - 调试日志：
     - `INTEGRATIONS_API_DEBUG=True` 时输出海尔/YLH API 请求与响应 debug 信息（已脱敏），并将 `integrations` 日志级别提升为 `DEBUG`

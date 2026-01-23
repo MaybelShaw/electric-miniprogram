@@ -147,7 +147,7 @@ class Order(models.Model):
             'consigneeName': self.snapshot_contact_name,
             'consigneeMobile': self.snapshot_phone,
             'onlineNo': self.order_number,
-            'soId': self.haier_so_id or f"{self.order_number}-{self.id}",
+            'soId': self.order_number,
             'remark': self.note,
             'totalQty': total_qty or self.quantity,
             'totalAmt': float(self.total_amount),
