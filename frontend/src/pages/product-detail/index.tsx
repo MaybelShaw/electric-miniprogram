@@ -271,15 +271,38 @@ export default function ProductDetail() {
   }
 
   const availableStock = getAvailableStock()
-  const productBasePrice = Number(product.display_price ?? product.price ?? 0)
-  const productDiscountedPrice = product.discounted_price && Number(product.discounted_price) < productBasePrice
-    ? Number(product.discounted_price)
-    : productBasePrice
-  const skuBasePrice = currentSku ? Number(currentSku.display_price ?? currentSku.price ?? 0) : productBasePrice
-  const skuDiscountedPrice = currentSku && currentSku.discounted_price && Number(currentSku.discounted_price) < skuBasePrice
-    ? Number(currentSku.discounted_price)
-    : skuBasePrice
-  const displayPrice = currentSku ? skuDiscountedPrice : productDiscountedPrice
+  
+  // 计算基础价格（原价/市场价）
+  // 对于经销商，display_price 已经是经销价，所以不能用它作为“原价”来计算 hasDiscount
+  // 应该使用 originalPrice (市场价) 或 price (零售价) 作为基准
+  const productBasePrice = Number(product.originalPrice || product.price || 0)
+  const skuBasePrice = currentSku ? Number(currentSku.price || 0) : productBasePrice
+  const currentBasePrice = currentSku ? skuBasePrice : productBasePrice
+
+  // 计算最终价格（折扣价/经销价）
+  // 优先级：discounted_price (活动价) > display_price (用户价/经销价) > price (零售价)
+  const getFinalPrice = (item: Product | ProductSKU) => {
+    if (item.discounted_price && Number(item.discounted_price) > 0) {
+      return Number(item.discounted_price)
+    }
+    // display_price 对于经销商已经是经销价
+    if (item.display_price && Number(item.display_price) > 0) {
+      return Number(item.display_price)
+    }
+    // Product 有 dealer_price 字段，作为额外的 fallback (虽然 display_price 应该已经涵盖)
+    if ('dealer_price' in item && item.dealer_price && Number(item.dealer_price) > 0) {
+      return Number(item.dealer_price)
+    }
+    return Number(item.price || 0)
+  }
+
+  const productFinalPrice = getFinalPrice(product)
+  const skuFinalPrice = currentSku ? getFinalPrice(currentSku) : productFinalPrice
+
+  const displayPrice = currentSku ? skuFinalPrice : productFinalPrice
+  // 只有当最终展示价格小于原价时，才显示划线价
+  const hasDiscount = displayPrice < currentBasePrice
+
   const selectedSpecText = currentSku?.specs ? Object.values(currentSku.specs).join(' / ') : ''
 
   return (
@@ -349,6 +372,11 @@ export default function ProductDetail() {
               <Text className='price'>
                  {Number(displayPrice || 0).toFixed(2)}
                </Text>
+               {hasDiscount && (
+                 <Text className='original-price'>
+                   ¥{Number(currentBasePrice || 0).toFixed(2)}
+                 </Text>
+               )}
             </View>
             <View className='sales-info'>
               <Text className='sales'>销量 {product.sales_count}</Text>
@@ -521,7 +549,12 @@ export default function ProductDetail() {
                 <Image className='popup-product-image' src={currentSku?.image || product.main_images[0]} mode='aspectFill' />
                 <View className='popup-product-details'>
                   <View className='popup-product-name'>{product.name}</View>
-                  <View className='popup-product-price'>¥{Number(displayPrice || 0).toFixed(2)}</View>
+                  <View className='popup-product-price-row'>
+                    <View className='popup-product-price'>¥{Number(displayPrice || 0).toFixed(2)}</View>
+                    {hasDiscount && (
+                      <View className='popup-original-price'>¥{Number(currentBasePrice || 0).toFixed(2)}</View>
+                    )}
+                  </View>
                   {selectedSpecText && <View className='popup-spec-text'>{selectedSpecText}</View>}
                   <View className='popup-stock-text'>库存 {availableStock} 件</View>
                 </View>

@@ -57,6 +57,7 @@
       flex-direction: column;
       height: 100%;
       background-color: $white;
+      overflow: hidden; // 防止内容溢出
 
       .items-scroll {
         height: 100px;
@@ -114,8 +115,9 @@
 
       .products-scroll {
         flex: 1;
+        min-height: 0; // 确保 flex 容器正确计算高度
         background-color: $white;
-        padding: 0 24px;
+        padding: 0 24px; // 恢复 padding，底部间距通过 content margin 实现
         box-sizing: border-box;
         width: 100%;
 
@@ -129,6 +131,7 @@
 
           &:last-child {
             border-bottom: none;
+            margin-bottom: 200px; // 底部增加间距，防止被悬浮按钮遮挡
           }
 
           .product-image {

@@ -619,12 +619,24 @@
             overflow: hidden;
           }
 
-          .popup-product-price {
-            font-size: 40px;
-            font-weight: bold;
-            color: $danger-color;
+          .popup-product-price-row {
+            display: flex;
+            align-items: baseline;
             margin-bottom: 8px;
-            font-family: DIN;
+
+            .popup-product-price {
+              font-size: 40px;
+              font-weight: bold;
+              color: $danger-color;
+              font-family: DIN;
+              margin-right: 8px;
+            }
+
+            .popup-original-price {
+              font-size: 24px;
+              color: $text-color-secondary;
+              text-decoration: line-through;
+            }
           }
 
           .popup-spec-text {
