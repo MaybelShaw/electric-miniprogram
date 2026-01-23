@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List, Modal, Table } from 'antd';
+import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, Modal, Table } from 'antd';
 import { PlusOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories, exportDiscounts } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
@@ -29,6 +29,7 @@ export default function Discounts() {
   const selectedProductIds = (Form.useWatch('product_ids', form) as number[]) || [];
   const discountType = Form.useWatch('discount_type', form) || 'amount';
   const isPercentDiscount = discountType === 'percent';
+  const amount = Form.useWatch('amount', form);
 
   // 加载用户、商品、品牌、品类列表
   useEffect(() => {
@@ -499,26 +500,86 @@ export default function Discounts() {
                 style={{ width: 220 }}
               />
             </Space>
-            <List
+            <Table
               bordered
               size="small"
               dataSource={filteredSelectedProducts}
+              rowKey="id"
               locale={{ emptyText: '暂无已选商品' }}
               pagination={filteredSelectedProducts.length > 10 ? { pageSize: 10, size: 'small' } : false}
-              renderItem={(item: any) => (
-                <List.Item
-                  actions={[
-                    <Button type="link" size="small" onClick={() => handleRemoveSelectedProduct(item.id)}>
+              columns={[
+                {
+                  title: '商品名称',
+                  dataIndex: 'name',
+                  key: 'name',
+                  render: (text: string, record: any) => (
+                     <div>
+                        <div>{text}</div>
+                        <div style={{ fontSize: 12, color: '#999' }}>
+                          {record.brand ? record.brand : ''} {record.category ? record.category : ''}
+                        </div>
+                     </div>
+                  )
+                },
+                {
+                  title: '零售价',
+                  dataIndex: 'price',
+                  key: 'price',
+                  width: 100,
+                  render: (price: number) => `¥${Number(price).toFixed(2)}`,
+                },
+                {
+                  title: '折后零售价',
+                  key: 'discounted_price',
+                  width: 110,
+                  render: (_: any, record: any) => {
+                    if (!amount) return '-';
+                    let discounted = 0;
+                    const price = Number(record.price || 0);
+                    if (discountType === 'percent') {
+                      discounted = price * (Number(amount) / 10);
+                    } else {
+                      discounted = price - Number(amount);
+                    }
+                    discounted = Math.max(0, discounted);
+                    return <span style={{ color: '#f50' }}>¥{discounted.toFixed(2)}</span>;
+                  },
+                },
+                {
+                  title: '经销价',
+                  dataIndex: 'dealer_price',
+                  key: 'dealer_price',
+                  width: 100,
+                  render: (price: number) => price ? `¥${Number(price).toFixed(2)}` : '-',
+                },
+                {
+                  title: '折后经销价',
+                  key: 'discounted_dealer_price',
+                  width: 110,
+                  render: (_: any, record: any) => {
+                    if (!amount || !record.dealer_price) return '-';
+                    let discounted = 0;
+                    const price = Number(record.dealer_price);
+                    if (discountType === 'percent') {
+                      discounted = price * (Number(amount) / 10);
+                    } else {
+                      discounted = price - Number(amount);
+                    }
+                    discounted = Math.max(0, discounted);
+                    return <span style={{ color: '#f50' }}>¥{discounted.toFixed(2)}</span>;
+                  },
+                },
+                {
+                  title: '操作',
+                  key: 'action',
+                  width: 60,
+                  render: (_: any, record: any) => (
+                    <Button type="link" size="small" danger onClick={() => handleRemoveSelectedProduct(record.id)}>
                       移除
-                    </Button>,
-                  ]}
-                >
-                  <List.Item.Meta
-                    title={item.name}
-                    description={`¥${item.price}${item.brand ? ` / ${item.brand}` : ''}${item.category ? ` / ${item.category}` : ''}`}
-                  />
-                </List.Item>
-              )}
+                    </Button>
+                  ),
+                },
+              ]}
             />
           </Space>
         </Form.Item>
