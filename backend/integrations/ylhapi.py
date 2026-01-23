@@ -512,23 +512,26 @@ class YLHCallbackHandler:
         Returns:
             str: 签名字符串
         """
-        # 过滤空值和sign参数
+        self._debug_log("generate_sign_input", {"raw_params": params})
         filtered_params = {
-            k: v for k, v in params.items() 
+            k: v for k, v in params.items()
             if v is not None and str(v).strip() != '' and k.lower() != 'sign'
         }
-        
-        # 字典排序
         sorted_keys = sorted(filtered_params.keys())
-        
-        # 拼接字符串
-        sign_str = self.secret
-        for key in sorted_keys:
-            sign_str += f"{key}{filtered_params[key]}"
-        sign_str += self.secret
-        
-        # MD5加密并转大写
-        sign = hashlib.md5(sign_str.lower().encode('utf-8')).hexdigest().upper()
+        middle_parts = [f"{key}{filtered_params[key]}" for key in sorted_keys]
+        middle_str = "".join(middle_parts)
+        sign_str = self.secret + middle_str + self.secret
+        sign = hashlib.md5(sign_str.lower().encode("utf-8")).hexdigest().upper()
+        self._debug_log(
+            "generate_sign_detail",
+            {
+                "filtered_params": filtered_params,
+                "sorted_keys": sorted_keys,
+                "middle_str": middle_str,
+                "middle_str_length": len(middle_str),
+                "calculated_sign": sign,
+            },
+        )
         return sign
     
     def verify_sign(self, params: Dict[str, Any]) -> bool:

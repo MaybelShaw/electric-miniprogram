@@ -279,7 +279,7 @@
   - 回调安全：配置 `YLH_CALLBACK_APP_KEY` 与 `YLH_CALLBACK_SECRET` 做 AppKey 校验与签名验证
   - 调试日志：
     - `INTEGRATIONS_API_DEBUG=True` 时输出海尔/YLH API 请求与响应 debug 信息（已脱敏），并将 `integrations` 日志级别提升为 `DEBUG`
-    - `INTEGRATIONS_CALLBACK_DEBUG=True` 输出 YLH 回调处理 debug 信息（已脱敏）
+    - `INTEGRATIONS_CALLBACK_DEBUG=True` 输出 YLH 回调处理 debug 信息（已脱敏），包括签名生成的过滤参数、排序顺序和计算结果（不包含密钥本身）
 
 ## 错误处理与统一异常
 - 统一异常处理：`backend/common/exceptions.py:251`
