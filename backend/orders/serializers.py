@@ -608,9 +608,31 @@ class ReturnRequestCreateSerializer(serializers.ModelSerializer):
 
 
 class DiscountTargetSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    retail_price = serializers.DecimalField(source='product.price', max_digits=10, decimal_places=2, read_only=True)
+    dealer_price = serializers.DecimalField(source='product.dealer_price', max_digits=10, decimal_places=2, read_only=True)
+    discounted_retail_price = serializers.SerializerMethodField()
+    discounted_dealer_price = serializers.SerializerMethodField()
+
     class Meta:
         model = DiscountTarget
-        fields = ['id', 'discount', 'user', 'product']
+        fields = [
+            'id', 'discount', 'user', 'product', 
+            'product_name', 'retail_price', 'dealer_price', 
+            'discounted_retail_price', 'discounted_dealer_price'
+        ]
+
+    def get_discounted_retail_price(self, obj):
+        if not obj.product or obj.product.price is None:
+            return None
+        discount_amount = obj.discount.resolve_discount_amount(obj.product.price)
+        return obj.product.price - discount_amount
+
+    def get_discounted_dealer_price(self, obj):
+        if not obj.product or obj.product.dealer_price is None:
+            return None
+        discount_amount = obj.discount.resolve_discount_amount(obj.product.dealer_price)
+        return obj.product.dealer_price - discount_amount
 
 
 class DiscountSerializer(serializers.ModelSerializer):

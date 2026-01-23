@@ -1814,7 +1814,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
         # 折扣管理仅管理员可见；普通用户仅能查看与自己相关的折扣（用于调试），实际前端不暴露列表
         user = self.request.user
         if user.is_staff:
-            qs = Discount.objects.all()
+            qs = Discount.objects.prefetch_related('targets', 'targets__product').all()
             # 名称模糊搜索
             name = self.request.query_params.get('name')
             if name:

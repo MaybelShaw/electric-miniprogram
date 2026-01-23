@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormDateTimePicker, ProFormSelect } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List, Modal } from 'antd';
+import { Button, Popconfirm, message, Tag, Drawer, Descriptions, Form, Space, Input, List, Modal, Table } from 'antd';
 import { PlusOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import { getDiscounts, createDiscount, updateDiscount, deleteDiscount, getUsers, getProducts, getBrands, getCategories, exportDiscounts } from '@/services/api';
 import type { ActionType } from '@ant-design/pro-components';
@@ -597,12 +597,53 @@ export default function Discounts() {
             <Descriptions.Item label="适用商品" span={2}>
               {(() => {
                 const targets = currentDiscount.targets || [];
-                const productIds = [...new Set(targets.map((t: any) => t.product))];
-                const productNames = productIds.map(pid => {
-                  const product = products.find(p => p.id === pid);
-                  return product ? product.name : `商品${pid}`;
+                // Deduplicate by product id
+                const uniqueProducts = new Map();
+                targets.forEach((t: any) => {
+                  if (!uniqueProducts.has(t.product)) {
+                    uniqueProducts.set(t.product, t);
+                  }
                 });
-                return productNames.length > 0 ? productNames.join('、') : '无';
+                const dataSource = Array.from(uniqueProducts.values());
+                
+                const productColumns = [
+                  { title: '商品名称', dataIndex: 'product_name', key: 'product_name' },
+                  { 
+                    title: '零售价', 
+                    dataIndex: 'retail_price', 
+                    key: 'retail_price',
+                    render: (text: any) => text ? `¥${text}` : '-'
+                  },
+                  { 
+                    title: '折扣后零售价', 
+                    dataIndex: 'discounted_retail_price', 
+                    key: 'discounted_retail_price',
+                    render: (text: any) => text ? `¥${Number(text).toFixed(2)}` : '-'
+                  },
+                  { 
+                    title: '经销价', 
+                    dataIndex: 'dealer_price', 
+                    key: 'dealer_price',
+                    render: (text: any) => (text && parseFloat(text) > 0) ? `¥${text}` : '-'
+                  },
+                  { 
+                    title: '折扣后经销价', 
+                    dataIndex: 'discounted_dealer_price', 
+                    key: 'discounted_dealer_price',
+                    render: (text: any) => (text && parseFloat(text) > 0) ? `¥${Number(text).toFixed(2)}` : '-'
+                  },
+                ];
+
+                return (
+                  <Table
+                    dataSource={dataSource}
+                    columns={productColumns}
+                    rowKey="product"
+                    pagination={{ pageSize: 5 }}
+                    size="small"
+                    bordered
+                  />
+                );
               })()}
             </Descriptions.Item>
             <Descriptions.Item label="创建时间" span={2}>
