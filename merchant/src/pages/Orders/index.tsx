@@ -350,7 +350,6 @@ export default function Orders() {
   const handlePushToHaier = (record: Order) => {
     setCurrentOrder(record);
     pushForm.setFieldsValue({
-      source_system: 'MERCHANT_ADMIN',
       shop_name: '默认店铺',
     });
     setPushModalVisible(true);
@@ -1151,9 +1150,6 @@ export default function Orders() {
         confirmLoading={pushing}
       >
         <Form form={pushForm} layout="vertical">
-           <Form.Item name="source_system" label="源系统" rules={[{ required: true }]}>
-             <Input />
-           </Form.Item>
            <Form.Item name="shop_name" label="店铺名称" rules={[{ required: true }]}>
              <Input />
            </Form.Item>

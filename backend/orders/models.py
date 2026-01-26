@@ -99,12 +99,12 @@ class Order(models.Model):
             return sum(item.quantity for item in self.items.all())
         return self.items.aggregate(total=models.Sum('quantity')).get('total') or self.quantity
     
-    def prepare_haier_order_data(self, source_system='YOUR_SYSTEM', shop_name='默认店铺'):
+    def prepare_haier_order_data(self, source_system=None, shop_name='默认店铺'):
         """
         准备推送到海尔的订单数据
         
         Args:
-            source_system: 订单来源系统标识
+            source_system: 订单来源系统标识（已统一使用 settings.YLH_SOURCE_SYSTEM）
             shop_name: 店铺名称
         
         Returns:
@@ -140,6 +140,7 @@ class Order(models.Model):
             })
             total_qty = self.quantity
 
+        source_system = settings.YLH_SOURCE_SYSTEM
         return {
             'sourceSystem': source_system,
             'shopName': shop_name,

@@ -294,6 +294,7 @@ YLH_PASSWORD = EnvironmentConfig.get_env('YLH_PASSWORD', '')
 YLH_CLIENT_ID = EnvironmentConfig.get_env('YLH_CLIENT_ID', '')
 YLH_CLIENT_SECRET = EnvironmentConfig.get_env('YLH_CLIENT_SECRET', '')
 YLH_STOCK_BASE_URL = EnvironmentConfig.get_env('YLH_STOCK_BASE_URL', 'https://dev.ylhtest.com/ylh-cloud-service-stock-dev')
+YLH_SOURCE_SYSTEM = EnvironmentConfig.get_env('YLH_SOURCE_SYSTEM', 'skwl')
 
 # YLH Callback Configuration (for receiving Haier platform callbacks)
 YLH_CALLBACK_APP_KEY = EnvironmentConfig.get_env('YLH_CALLBACK_APP_KEY', '')

@@ -495,7 +495,7 @@ def ylh_create_order_view(request):
     
     请求体:
     {
-        "sourceSystem": "TEST_SYSTEM",
+        "sourceSystem": "skwl",
         "shopName": "测试店铺",
         "sellerCode": "8800539012",
         "consigneeName": "张三",
@@ -514,7 +514,8 @@ def ylh_create_order_view(request):
     }
     """
     try:
-        order_data = request.data
+        order_data = request.data.copy()
+        order_data['sourceSystem'] = settings.YLH_SOURCE_SYSTEM
         
         # 创建API实例
         api = YLHSystemAPI.from_settings()
@@ -554,20 +555,20 @@ def ylh_cancel_order_view(request):
     {
         "soId": "SUB202300001",
         "cancelReason": "客户要求取消",
-        "sourceSystem": "TEST_SYSTEM",
+        "sourceSystem": "skwl",
         "cancelTime": 1748931496000  // 可选
     }
     """
     try:
         so_id = request.data.get('soId')
         cancel_reason = request.data.get('cancelReason')
-        source_system = request.data.get('sourceSystem')
+        source_system = settings.YLH_SOURCE_SYSTEM
         cancel_time = request.data.get('cancelTime')
         
-        if not all([so_id, cancel_reason, source_system]):
+        if not all([so_id, cancel_reason]):
             return Response({
                 "success": False,
-                "message": "soId, cancelReason, sourceSystem为必填参数"
+                "message": "soId, cancelReason为必填参数"
             }, status=status.HTTP_400_BAD_REQUEST)
         
         # 创建API实例

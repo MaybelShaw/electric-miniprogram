@@ -697,7 +697,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     logger = logging.getLogger(__name__)
                     ylh_api = YLHSystemAPI.from_settings()
                     if ylh_api.authenticate():
-                        src = str(request.data.get('source_system', 'MERCHANT_ADMIN'))
+                        src = settings.YLH_SOURCE_SYSTEM
                         ylh_api.cancel_order(order.haier_so_id, order.cancel_reason or '', src)
                         logger.info(f'已同步易理货取消: order_id={order.id}, soId={order.haier_so_id}')
                     else:
@@ -1189,7 +1189,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             logger = logging.getLogger(__name__)
             
             # 准备订单数据
-            source_system = request.data.get('source_system', 'YOUR_SYSTEM')
+            source_system = settings.YLH_SOURCE_SYSTEM
             shop_name = request.data.get('shop_name', '默认店铺')
             order_data = order.prepare_haier_order_data(source_system, shop_name)
             

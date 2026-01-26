@@ -34,6 +34,7 @@ class YLHSystemAPI:
                 - password: 密码
                 - client_id: 客户端ID（用于Basic认证）
                 - client_secret: 客户端密钥（用于Basic认证）
+                - source_system: 订单来源系统（可选，设置后会覆盖传入值）
         """
         self.auth_url = config.get('auth_url')
         self.base_url = config.get('base_url')
@@ -43,6 +44,7 @@ class YLHSystemAPI:
         self.client_id = config.get('client_id', 'open_api_erp')
         self.client_secret = config.get('client_secret', '12345678')
         self.debug = bool(config.get('debug', False))
+        self.source_system = config.get('source_system')
         
         self.access_token = None
         self.token_type = None
@@ -60,6 +62,7 @@ class YLHSystemAPI:
             'client_id': getattr(settings, 'YLH_CLIENT_ID', 'open_api_erp'),
             'client_secret': getattr(settings, 'YLH_CLIENT_SECRET', '12345678'),
             'debug': getattr(settings, 'INTEGRATIONS_API_DEBUG', False),
+            'source_system': getattr(settings, 'YLH_SOURCE_SYSTEM', None),
         }
         return cls(config)
 
@@ -243,6 +246,9 @@ class YLHSystemAPI:
             return None
         
         try:
+            order_data = dict(order_data)
+            if self.source_system:
+                order_data['sourceSystem'] = self.source_system
             response = self._post_json(
                 f"{self.base_url}/api/page/hmm/retailorder/receive-hmm-retail-order",
                 order_data,
@@ -284,6 +290,7 @@ class YLHSystemAPI:
             return None
         
         try:
+            source_system = self.source_system or source_system
             body = {
                 "soId": so_id,
                 "cancelTime": str(cancel_time or int(datetime.now().timestamp() * 1000)),
@@ -861,7 +868,7 @@ if __name__ == "__main__":
     import random as _r
     so_id = f"SUB{int(_t.time()*1000)}"
     order_data = {
-        "sourceSystem": "TEST_SYSTEM",
+        "sourceSystem": "skwl",
         "shopName": "测试店铺",
         "sellerCode": "8800539012",
         "consigneeName": "李四",
@@ -893,7 +900,7 @@ if __name__ == "__main__":
 # | isGift | boolean | 非必须 |  | 是否赠品，例如 false |  |
     }
     print("create_order:", api.create_order(order_data))
-    print("cancel_order:", api.cancel_order(so_id, "测试取消", "TEST_SYSTEM", int(_t.time()*1000)))
+    print("cancel_order:", api.cancel_order(so_id, "测试取消", "skwl", int(_t.time()*1000)))
     dt = datetime.now().replace(hour=23, minute=59, second=59, microsecond=0)
     ts = int(dt.timestamp()*1000)
     print("update_distribution_time:", api.update_distribution_time("SO.TEST.000001", distribution_time=ts, install_time=ts))
