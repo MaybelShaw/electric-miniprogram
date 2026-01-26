@@ -35,6 +35,7 @@ class YLHSystemAPI:
                 - client_id: 客户端ID（用于Basic认证）
                 - client_secret: 客户端密钥（用于Basic认证）
                 - source_system: 订单来源系统（可选，设置后会覆盖传入值）
+                - shop_name: 店铺名称（可选，设置后会覆盖传入值）
         """
         self.auth_url = config.get('auth_url')
         self.base_url = config.get('base_url')
@@ -45,6 +46,7 @@ class YLHSystemAPI:
         self.client_secret = config.get('client_secret', '12345678')
         self.debug = bool(config.get('debug', False))
         self.source_system = config.get('source_system')
+        self.shop_name = config.get('shop_name')
         
         self.access_token = None
         self.token_type = None
@@ -63,6 +65,7 @@ class YLHSystemAPI:
             'client_secret': getattr(settings, 'YLH_CLIENT_SECRET', '12345678'),
             'debug': getattr(settings, 'INTEGRATIONS_API_DEBUG', False),
             'source_system': getattr(settings, 'YLH_SOURCE_SYSTEM', None),
+            'shop_name': getattr(settings, 'YLH_SHOP_NAME', None),
         }
         return cls(config)
 
@@ -249,6 +252,8 @@ class YLHSystemAPI:
             order_data = dict(order_data)
             if self.source_system:
                 order_data['sourceSystem'] = self.source_system
+            if self.shop_name:
+                order_data['shopName'] = self.shop_name
             response = self._post_json(
                 f"{self.base_url}/api/page/hmm/retailorder/receive-hmm-retail-order",
                 order_data,
@@ -869,7 +874,7 @@ if __name__ == "__main__":
     so_id = f"SUB{int(_t.time()*1000)}"
     order_data = {
         "sourceSystem": "skwl",
-        "shopName": "测试店铺",
+        "shopName": "默认店铺",
         "sellerCode": "8800539012",
         "consigneeName": "李四",
         "consigneeMobile": "13900139000",

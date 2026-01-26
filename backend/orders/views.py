@@ -1190,7 +1190,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             # 准备订单数据
             source_system = settings.YLH_SOURCE_SYSTEM
-            shop_name = request.data.get('shop_name', '默认店铺')
+            shop_name = settings.YLH_SHOP_NAME
             order_data = order.prepare_haier_order_data(source_system, shop_name)
             
             # 始终使用真实易理货API

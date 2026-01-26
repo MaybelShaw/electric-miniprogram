@@ -496,7 +496,7 @@ def ylh_create_order_view(request):
     请求体:
     {
         "sourceSystem": "skwl",
-        "shopName": "测试店铺",
+        "shopName": "默认店铺",
         "sellerCode": "8800539012",
         "consigneeName": "张三",
         "consigneeMobile": "13900139000",
@@ -516,6 +516,7 @@ def ylh_create_order_view(request):
     try:
         order_data = request.data.copy()
         order_data['sourceSystem'] = settings.YLH_SOURCE_SYSTEM
+        order_data['shopName'] = settings.YLH_SHOP_NAME
         
         # 创建API实例
         api = YLHSystemAPI.from_settings()

@@ -349,9 +349,7 @@ export default function Orders() {
 
   const handlePushToHaier = (record: Order) => {
     setCurrentOrder(record);
-    pushForm.setFieldsValue({
-      shop_name: '默认店铺',
-    });
+    pushForm.resetFields();
     setPushModalVisible(true);
   };
 
@@ -1150,9 +1148,7 @@ export default function Orders() {
         confirmLoading={pushing}
       >
         <Form form={pushForm} layout="vertical">
-           <Form.Item name="shop_name" label="店铺名称" rules={[{ required: true }]}>
-             <Input />
-           </Form.Item>
+          <div style={{ color: '#999' }}>店铺名称由后台配置</div>
         </Form>
       </Modal>
 
