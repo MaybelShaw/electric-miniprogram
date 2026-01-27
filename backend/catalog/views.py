@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, SpecialZoneCover, Case
 from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, SpecialZoneCoverSerializer, CaseSerializer
-from rest_framework.decorators import action
+from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from django.db.models import Q, Count, Max
 from django.core.exceptions import ValidationError
@@ -15,6 +15,7 @@ from common.permissions import IsAdminOrReadOnly, IsAdmin
 from common.excel import build_excel_response
 from common.utils import to_bool, parse_decimal, parse_int
 from common.pagination import LargeResultsSetPagination
+from common.throttles import CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle
 from .search import ProductSearchService
 from decimal import Decimal
 import uuid
@@ -28,9 +29,28 @@ try:
 except Exception:
     Image = None
 
+# Higher limits for read-only browse endpoints (products, categories, brands, home, etc.)
+class BrowseThrottleMixin:
+    browse_throttle_classes = [CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle]
+
+    def get_throttles(self):
+        action_name = getattr(self, 'action', None)
+        if action_name:
+            action_method = getattr(self, action_name, None)
+            if action_method is not None and hasattr(action_method, 'throttle_classes'):
+                return super().get_throttles()
+        if 'throttle_classes' in self.__class__.__dict__:
+            return super().get_throttles()
+        rest_framework_cfg = getattr(settings, 'REST_FRAMEWORK', {}) or {}
+        if not rest_framework_cfg.get('DEFAULT_THROTTLE_CLASSES'):
+            return super().get_throttles()
+        if self.request and self.request.method in permissions.SAFE_METHODS:
+            return [throttle() for throttle in self.browse_throttle_classes]
+        return super().get_throttles()
+
 # Create your views here.
 @extend_schema(tags=['Products'])
-class ProductViewSet(viewsets.ModelViewSet):
+class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing products with advanced search and filtering.
     
@@ -717,7 +737,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Categories'])
-class CategoryViewSet(viewsets.ModelViewSet):
+class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product categories.
     
@@ -790,7 +810,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Brands'])
-class BrandViewSet(viewsets.ModelViewSet):
+class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product brands.
     
@@ -939,6 +959,7 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         description='Get the most popular search keywords.',
     )
+    @throttle_classes([CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle])
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def hot_keywords(self, request):
         """
@@ -969,6 +990,7 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
         ],
         description='Get current user search history. Supports distinct keyword mode and limit.',
     )
+    @throttle_classes([CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle])
     @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def my_history(self, request):
         """
@@ -1264,7 +1286,7 @@ class MediaImageViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Home'])
-class HomeBannerViewSet(viewsets.ModelViewSet):
+class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     首页轮播图管理
     
@@ -1383,7 +1405,7 @@ class HomeBannerViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Home'])
-class SpecialZoneCoverViewSet(viewsets.ModelViewSet):
+class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     首页专区图片管理
 
@@ -1407,7 +1429,7 @@ class SpecialZoneCoverViewSet(viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Cases'])
-class CaseViewSet(viewsets.ModelViewSet):
+class CaseViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     queryset = Case.objects.all().order_by('order', '-id')
     serializer_class = CaseSerializer
     permission_classes = [IsAdminOrReadOnly]

@@ -75,3 +75,22 @@ class AnonPaymentRateThrottle(AnonRateThrottle):
     so this throttle may not be used frequently.
     """
     scope = 'payment'
+
+
+class CatalogBrowseRateThrottle(UserRateThrottle):
+    """
+    Throttle class for product browsing endpoints (authenticated users).
+
+    Provides higher limits for product list/detail/search/recommendations to
+    avoid throttling normal browsing behavior.
+    """
+    scope = 'catalog_browse_user'
+
+
+class CatalogBrowseAnonRateThrottle(AnonRateThrottle):
+    """
+    Throttle class for product browsing endpoints (anonymous users).
+
+    Provides higher limits for public product browsing endpoints.
+    """
+    scope = 'catalog_browse_anon'
