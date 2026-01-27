@@ -47,6 +47,7 @@ class Order(models.Model):
     haier_order_no = models.CharField(max_length=100, blank=True, default='', verbose_name='海尔订单号')
     haier_so_id = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name='海尔子订单号')
     haier_status = models.CharField(max_length=20, blank=True, default='', verbose_name='海尔订单状态')
+    haier_fail_msg = models.TextField(blank=True, default='', verbose_name='海尔失败信息')
     
     # 配送安装信息
     distribution_time = models.DateTimeField(null=True, blank=True, verbose_name='配送时间')
@@ -175,12 +176,16 @@ class Order(models.Model):
         """
         from django.utils import timezone
         
+        fail_msg = callback_data.get('FailMsg', '')
         if callback_data.get('State') == 1:  # 成功
             self.haier_order_no = callback_data.get('ExtOrderNo', '')
             self.haier_status = 'confirmed'
+            self.haier_fail_msg = ''
         else:  # 失败
             self.haier_status = 'failed'
-            self.note = f"{self.note}\n海尔订单失败: {callback_data.get('FailMsg', '')}"
+            self.haier_fail_msg = fail_msg
+            if fail_msg and fail_msg not in (self.note or ''):
+                self.note = f"{self.note}\n海尔订单失败: {fail_msg}".strip()
         
         self.updated_at = timezone.now()
         self.save()

@@ -267,6 +267,9 @@ class YLHSystemAPI:
             
             if response and response.status_code == 200:
                 data = response.json()
+                if isinstance(data, dict) and data.get('success') is False:
+                    logger.error(f"Failed to create order: {data}")
+                    return None
                 return data
             else:
                 code = response.status_code if response else 'N/A'
@@ -316,6 +319,9 @@ class YLHSystemAPI:
             
             if response and response.status_code == 200:
                 data = response.json()
+                if isinstance(data, dict) and data.get('success') is False:
+                    logger.error(f"Failed to cancel order: {data}")
+                    return None
                 return data
             else:
                 code = response.status_code if response else 'N/A'
@@ -707,14 +713,24 @@ class YLHCallbackHandler:
             if state == 1:
                 if ext_order_no:
                     order.haier_order_no = ext_order_no
-                order.haier_status = 'cancelled'
+                # 成功回调后再执行本地取消/退款
+                try:
+                    from orders.cancel_service import cancel_order_local
+                    cancel_order_local(order, operator=None, reason=order.cancel_reason or '', note='易理货取消成功')
+                    order.haier_status = 'cancelled'
+                    order.haier_fail_msg = ''
+                except Exception as cancel_exc:
+                    logger.exception(f'本地取消处理失败: {str(cancel_exc)}')
+                    order.haier_status = 'cancel_failed'
+                    order.haier_fail_msg = f'本地取消失败: {str(cancel_exc)}'
             else:
                 order.haier_status = 'cancel_failed'
-                if fail_msg:
-                    order.note = f"{order.note}\n海尔取消失败: {fail_msg}"
+                order.haier_fail_msg = fail_msg or ''
+                if fail_msg and fail_msg not in (order.note or ''):
+                    order.note = f"{order.note}\n海尔取消失败: {fail_msg}".strip()
 
             order.updated_at = timezone.now()
-            order.save(update_fields=['haier_order_no', 'haier_status', 'note', 'updated_at'])
+            order.save(update_fields=['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at'])
             self._debug_log("cancel_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
         except Exception as e:
             logger.exception(f"Failed to handle cancel callback for platform={platform_order_no}: {str(e)}")
@@ -770,15 +786,17 @@ class YLHCallbackHandler:
                 if ext_order_no:
                     order.haier_order_no = ext_order_no
                 order.haier_status = 'out_of_stock'
-                if fail_msg:
-                    order.note = f"{order.note}\n海尔缺货: {fail_msg}"
+                order.haier_fail_msg = fail_msg or ''
+                if fail_msg and fail_msg not in (order.note or ''):
+                    order.note = f"{order.note}\n海尔缺货: {fail_msg}".strip()
             else:
                 order.haier_status = 'out_of_stock_failed'
-                if fail_msg:
-                    order.note = f"{order.note}\n海尔缺货回调失败: {fail_msg}"
+                order.haier_fail_msg = fail_msg or ''
+                if fail_msg and fail_msg not in (order.note or ''):
+                    order.note = f"{order.note}\n海尔缺货回调失败: {fail_msg}".strip()
 
             order.updated_at = timezone.now()
-            order.save(update_fields=['haier_order_no', 'haier_status', 'note', 'updated_at'])
+            order.save(update_fields=['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at'])
             self._debug_log("outofstock_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
         except Exception as e:
             logger.exception(f"Failed to handle outofstock callback for platform={platform_order_no}: {str(e)}")

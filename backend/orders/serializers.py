@@ -216,6 +216,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'haier_order_no': obj.haier_order_no,
             'haier_so_id': obj.haier_so_id,
             'haier_status': obj.haier_status,
+            'haier_fail_msg': obj.haier_fail_msg,
             'product_code': primary_product.product_code,
         }
     

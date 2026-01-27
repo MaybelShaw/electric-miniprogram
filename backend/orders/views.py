@@ -546,173 +546,57 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
-            from django.utils import timezone
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
             reason = request.data.get('reason', '')
             logger.info('[ORDER_CANCEL] start', extra={'order_id': order.id, 'user_id': user.id, 'reason': reason, 'note': note})
-            if reason:
-                order.cancel_reason = reason
-            order.cancelled_at = timezone.now()
-            order.save(update_fields=['cancel_reason', 'cancelled_at'])
-
-            refundable_snapshot = PaymentService.calculate_refundable_amount(order)
-            pay_snapshot = order.payments.filter(status='succeeded', method='wechat').order_by('-created_at').first()
-            should_refund = bool(
-                pay_snapshot and refundable_snapshot > 0 and OrderStateMachine.can_transition(order.status, 'refunding')
+            from catalog.models import Product as CatalogProduct
+            primary_product = order.primary_product or order.product
+            is_haier_product = bool(
+                primary_product and getattr(primary_product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
             )
-            refund = None
-            refund_err = None
-            credit_refund_started = False
-            credit_refund_err = None
 
-            # 信用支付：未发货前自动冲减信用，发货后需人工处理
-            is_credit = getattr(order, 'payment_method', '') == 'credit'
-            if is_credit and order.status in ['pending', 'paid'] and order.status != 'shipped':
-                try:
-                    from users.credit_services import CreditAccountService
-                    if hasattr(order.user, 'credit_account') and order.user.credit_account:
-                        CreditAccountService.record_refund(
-                            credit_account=order.user.credit_account,
-                            amount=getattr(order, 'actual_amount', None) or order.total_amount,
-                            order_id=order.id,
-                            description=f'订单取消信用退款 #{order.order_number}'
-                        )
-                        credit_refund_started = True
-                    else:
-                        credit_refund_err = '未找到信用账户，需人工处理'
-                except Exception as exc:
-                    credit_refund_err = str(exc)
-                # 信用退款不走微信自动退款
-                should_refund = False
-            elif is_credit and order.status == 'shipped':
-                credit_refund_err = '信用支付订单已发货，需人工审核退款'
-                should_refund = False
+            # YLH 订单取消：先提交请求，等待回调后再做本地状态/退款
+            if is_haier_product and order.haier_so_id:
+                if order.haier_status in ['cancel_pending', 'cancelled']:
+                    return Response({"detail": "取消已提交或已完成"}, status=status.HTTP_400_BAD_REQUEST)
+                if not (
+                    OrderStateMachine.can_transition(order.status, 'cancelled')
+                    or OrderStateMachine.can_transition(order.status, 'refunding')
+                ):
+                    return Response({"detail": "当前状态不允许取消"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # 自动退款（微信支付）
-            try:
-                refundable = refundable_snapshot
-                pay = pay_snapshot
-                logger.info('[ORDER_CANCEL] refund check', extra={'order_id': order.id, 'refundable': str(refundable), 'pay_id': pay.id if pay else None, 'pay_status': getattr(pay, "status", None)})
-                if should_refund:
-                    reason_text = order.cancel_reason or note or '订单取消自动退款'
-                    refund, refund_err = PaymentService.start_order_refund(
-                        order,
-                        refundable,
-                        reason=reason_text,
-                        operator=user,
-                        payment=pay
-                    )
-                    if refund_err:
-                        logger.error(f'取消订单自动退款失败: order_id={order.id}, err={refund_err}', extra={'refund_id': refund.id if refund else None})
-                        try:
-                            from users.services import create_notification
-                            create_notification(
-                                order.user,
-                                title='退款发起失败',
-                                content=f'订单 {order.order_number} 退款发起失败，原因：{refund_err}',
-                                ntype='refund',
-                                metadata={
-                                    'order_id': order.id,
-                                    'order_number': order.order_number,
-                                    'refund_id': refund.id if refund else None,
-                                    'status': 'failed',
-                                    'page': f'pages/order-detail/index?id={order.id}',
-                                }
-                            )
-                        except Exception:
-                            pass
-                elif refundable > 0:
-                    logger.info(f'取消订单未退款：未找到可退款支付记录 order_id={order.id}')
-            except Exception as refund_exc:
-                refund_err = str(refund_exc)
-                logger.exception(f'取消订单触发退款异常: {refund_exc}')
-                try:
-                    from users.services import create_notification
-                    create_notification(
-                        order.user,
-                        title='退款发起失败',
-                        content=f'订单 {order.order_number} 退款发起失败，原因：{refund_err}',
-                        ntype='refund',
-                        metadata={
-                            'order_id': order.id,
-                            'order_number': order.order_number,
-                            'refund_id': refund.id if refund else None,
-                            'status': 'failed',
-                            'page': f'pages/order-detail/index?id={order.id}',
-                        }
-                    )
-                except Exception:
-                    pass
+                if reason:
+                    order.cancel_reason = reason
+                    order.save(update_fields=['cancel_reason'])
 
-            # 状态机更新（根据退款结果）
-            try:
-                if should_refund and not refund_err and OrderStateMachine.can_transition(order.status, 'refunding'):
-                    order = OrderStateMachine.transition(
-                        order,
-                        'refunding',
-                        operator=user,
-                        note=note or '订单取消，退款处理中'
-                    )
-                else:
-                    order = OrderStateMachine.transition(
-                        order,
-                        'cancelled',
-                        operator=user,
-                        note=note
-                    )
-            except Exception as state_exc:
-                logger.exception(f'取消订单状态更新失败: {state_exc}', extra={'order_id': order.id})
-                return Response({"detail": f"取消订单失败: {state_exc}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            try:
-                from users.services import create_notification
-                create_notification(
-                    order.user,
-                    title='订单已取消',
-                    content=f'订单 {order.order_number} 已取消' + (f'，原因：{order.cancel_reason}' if order.cancel_reason else ''),
-                    ntype='order',
-                    metadata={
-                        'order_id': order.id,
-                        'order_number': order.order_number,
-                        'status': 'cancelled',
-                        'page': f'pages/order-detail/index?id={order.id}',
-                        'subscription_data': {
-                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
-                            'time2': {'value': timezone.localtime(order.cancelled_at).strftime('%Y-%m-%d %H:%M') if order.cancelled_at else ''},
-                            'thing3': {'value': (order.cancel_reason or '订单已取消')[:20]},
-                        },
-                    }
-                )
-            except Exception:
-                pass
-            try:
-                from catalog.models import Product as CatalogProduct
-                primary_product = order.primary_product or order.product
-                is_haier_product = bool(
-                    primary_product and getattr(primary_product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
-                )
-                if is_haier_product and order.haier_so_id:
-                    from integrations.ylhapi import YLHSystemAPI
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    ylh_api = YLHSystemAPI.from_settings()
-                    if ylh_api.authenticate():
-                        src = settings.YLH_SOURCE_SYSTEM
-                        ylh_api.cancel_order(order.haier_so_id, order.cancel_reason or '', src)
-                        logger.info(f'已同步易理货取消: order_id={order.id}, soId={order.haier_so_id}')
-                    else:
-                        logger.error('易理货系统认证失败，取消不同步')
-            except Exception as sync_err:
-                import logging
-                logging.getLogger(__name__).error(f'同步易理货取消失败: {str(sync_err)}')
-            serializer = self.get_serializer(order)
+                from integrations.ylhapi import YLHSystemAPI
+                ylh_api = YLHSystemAPI.from_settings()
+                if not ylh_api.authenticate():
+                    return Response({'detail': '易理货系统认证失败，取消不同步'}, status=status.HTTP_502_BAD_GATEWAY)
+
+                result = ylh_api.cancel_order(order.haier_so_id, order.cancel_reason or '', settings.YLH_SOURCE_SYSTEM)
+                if not result:
+                    return Response({'detail': '推送易理货取消失败'}, status=status.HTTP_502_BAD_GATEWAY)
+
+                order.haier_status = 'cancel_pending'
+                order.haier_fail_msg = ''
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
+                serializer = self.get_serializer(order)
+                resp = serializer.data
+                resp.update({'detail': '取消已提交，等待回调'})
+                return Response(resp, status=status.HTTP_202_ACCEPTED)
+
+            # 非海尔订单：本地直接取消
+            from .cancel_service import cancel_order_local
+            result = cancel_order_local(order, operator=user, reason=reason, note=note)
+            serializer = self.get_serializer(result['order'])
             resp = serializer.data
-            # 返回退款发起结果，便于前端提示
             resp.update({
-                'refund_started': bool((should_refund and not refund_err and refund) or credit_refund_started),
-                'refund_id': refund.id if refund else None,
-                'refund_error': refund_err or credit_refund_err,
-                'refund_channel': 'wechat' if refund else ('credit' if credit_refund_started else None),
+                'refund_started': result['refund_started'],
+                'refund_id': result['refund_id'],
+                'refund_error': result['refund_error'],
+                'refund_channel': result['refund_channel'],
             })
             return Response(resp, status=200)
         except ValueError as e:
@@ -1175,8 +1059,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # 检查是否已推送
-        if order.haier_so_id:
+        # 检查是否已推送/处理中
+        if order.haier_status in ['push_pending', 'confirmed', 'cancel_pending', 'cancelled'] or (not order.haier_status and order.haier_so_id):
             return Response(
                 {'detail': '该订单已推送到海尔系统'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1218,23 +1102,25 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
-            logger.info(f'推送成功: order_id={order.id}')
+            logger.info(f'推送已提交: order_id={order.id}')
             
             order.haier_so_id = order_data['soId']
+            order.haier_status = 'push_pending'
+            order.haier_fail_msg = ''
             haier_order_no = ''
             if isinstance(result, dict):
                 data_section = result.get('data') if isinstance(result.get('data', None), dict) else result
                 if isinstance(data_section, dict):
                     haier_order_no = data_section.get('retailOrderNo', '') or data_section.get('retail_order_no', '')
             order.haier_order_no = haier_order_no
-            order.save()
+            order.save(update_fields=['haier_so_id', 'haier_status', 'haier_fail_msg', 'haier_order_no'])
             
             serializer = self.get_serializer(order)
             return Response({
-                'detail': '订单推送成功',
+                'detail': '订单已提交，等待回调确认',
                 'order': serializer.data,
                 'haier_response': result,
-            })
+            }, status=status.HTTP_202_ACCEPTED)
             
         except Exception as e:
             import logging

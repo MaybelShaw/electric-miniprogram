@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image } from 'antd';
+import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
 import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -19,6 +19,17 @@ const statusMap: Record<string, { text: string; color: string }> = {
   returning: { text: '退货中', color: 'purple' },
   refunding: { text: '退款中', color: 'purple' },
   refunded: { text: '已退款', color: 'magenta' },
+};
+
+const haierStatusMap: Record<string, { text: string; color: string }> = {
+  push_pending: { text: '推送中', color: 'processing' },
+  confirmed: { text: '已推送', color: 'green' },
+  failed: { text: '推送失败', color: 'red' },
+  cancel_pending: { text: '取消中', color: 'orange' },
+  cancelled: { text: '已取消', color: 'red' },
+  cancel_failed: { text: '取消失败', color: 'red' },
+  out_of_stock: { text: '缺货', color: 'orange' },
+  out_of_stock_failed: { text: '缺货回调失败', color: 'red' },
 };
 
 const returnStatusMap: Record<string, { text: string; color: string }> = {
@@ -114,8 +125,13 @@ export default function Orders() {
   const handleCancelSubmit = async (values: any) => {
     try {
       if (!cancellingOrder) return false;
-      await cancelOrder(cancellingOrder.id, values);
-      message.success('取消成功');
+      const res: any = await cancelOrder(cancellingOrder.id, values);
+      const haierStatus = res?.haier_order_info?.haier_status;
+      if (haierStatus === 'cancel_pending') {
+        message.success(res?.detail || '取消已提交，等待回调');
+      } else {
+        message.success('取消成功');
+      }
       setCancelModalVisible(false);
       actionRef.current?.reload();
       return true;
@@ -358,8 +374,8 @@ export default function Orders() {
       const values = await pushForm.validateFields();
       setPushing(true);
       if (currentOrder) {
-        await pushToHaier(currentOrder.id, values);
-        message.success('推送成功');
+        const res: any = await pushToHaier(currentOrder.id, values);
+        message.success(res?.detail || '推送已提交，等待回调');
         setPushModalVisible(false);
         actionRef.current?.reload();
       }
@@ -494,15 +510,22 @@ export default function Orders() {
       hideInSearch: true,
       render: (_, record) => {
         if (!record.is_haier_order) return <Tag>否</Tag>;
-        const hasPushed = record.haier_order_info?.haier_so_id;
+        const haierInfo = record.haier_order_info;
+        const haierStatus = haierInfo?.haier_status || (haierInfo?.haier_so_id ? 'confirmed' : '');
+        const failMsg = haierInfo?.haier_fail_msg;
+        const statusMeta = haierStatus ? haierStatusMap[haierStatus] : { text: '未推送', color: 'orange' };
+        const baseTag = (
+          <Tag color={statusMeta?.color || 'default'} style={{ fontSize: 11 }}>
+            {statusMeta?.text || haierStatus || '未推送'}
+          </Tag>
+        );
+        const statusTag = failMsg && haierStatus?.includes('failed')
+          ? <Tooltip title={failMsg}>{baseTag}</Tooltip>
+          : baseTag;
         return (
           <Space direction="vertical" size={0}>
             <Tag color="blue">是</Tag>
-            {hasPushed ? (
-              <Tag color="green" style={{ fontSize: 11 }}>已推送</Tag>
-            ) : (
-              <Tag color="orange" style={{ fontSize: 11 }}>未推送</Tag>
-            )}
+            {statusTag}
           </Space>
         );
       },
@@ -581,9 +604,13 @@ export default function Orders() {
         
         // 海尔订单相关操作
         const isHaierOrder = record.is_haier_order;
-        const hasPushed = record.haier_order_info?.haier_so_id;
+        const haierInfo = record.haier_order_info;
+        const haierStatus = haierInfo?.haier_status || (haierInfo?.haier_so_id ? 'confirmed' : '');
+        const canPushHaier = isHaierOrder && record.status === 'paid' && (!haierStatus || ['failed', 'cancel_failed', 'out_of_stock_failed'].includes(haierStatus));
+        const canViewLogistics = isHaierOrder && haierStatus === 'confirmed';
+        const isCancelPending = isHaierOrder && haierStatus === 'cancel_pending';
         
-        if (isHaierOrder && !hasPushed && record.status === 'paid') {
+        if (canPushHaier) {
           actions.push(
             <Button
               key="push"
@@ -597,7 +624,7 @@ export default function Orders() {
           );
         }
         
-        if (isHaierOrder && hasPushed) {
+        if (canViewLogistics) {
           actions.push(
             <Button
               key="logistics"
@@ -611,7 +638,7 @@ export default function Orders() {
           );
         }
         
-        if (record.status === 'paid') {
+        if (record.status === 'paid' && !isCancelPending) {
           actions.push(
             <Button
               key="ship"
@@ -652,6 +679,7 @@ export default function Orders() {
               danger
               icon={<CloseOutlined />}
               onClick={() => handleCancelClick(record)}
+              disabled={isCancelPending}
             >
               取消
             </Button>
@@ -1097,6 +1125,33 @@ export default function Orders() {
             <ProDescriptions.Item label="可退金额" render={(_, record) => `¥${record.refundable_amount ?? 0}`} />
             <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
             <ProDescriptions.Item label="备注" dataIndex="note" />
+          </ProDescriptions>
+        )}
+
+        {currentOrder?.is_haier_order && currentOrder.haier_order_info && (
+          <ProDescriptions
+            column={1}
+            title="海尔信息"
+            style={{ marginTop: 24 }}
+            dataSource={currentOrder.haier_order_info}
+          >
+            <ProDescriptions.Item
+              label="推送状态"
+              dataIndex="haier_status"
+              render={(_, record) => {
+                const rawStatus = record.haier_status || (record.haier_so_id ? 'confirmed' : '');
+                const statusMeta = rawStatus ? haierStatusMap[rawStatus] : undefined;
+                const text = statusMeta?.text || rawStatus || '未推送';
+                const color = statusMeta?.color || 'default';
+                return <Tag color={color}>{text}</Tag>;
+              }}
+            />
+            <ProDescriptions.Item label="海尔订单号" dataIndex="haier_order_no" />
+            <ProDescriptions.Item
+              label="失败原因"
+              dataIndex="haier_fail_msg"
+              render={(_, record) => record.haier_fail_msg || '-'}
+            />
           </ProDescriptions>
         )}
 

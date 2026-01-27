@@ -67,6 +67,9 @@ export interface Product {
 export interface HaierOrderInfo {
   haier_so_id?: string;
   haier_order_no?: string;
+  haier_status?: string;
+  haier_fail_msg?: string;
+  product_code?: string;
 }
 
 export interface LogisticsInfo {
