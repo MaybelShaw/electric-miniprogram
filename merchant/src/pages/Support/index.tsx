@@ -833,10 +833,17 @@ export default function Support() {
                  }
               ]}
               request={async (params) => {
-                const res: any = await getProducts({ page: params.current, page_size: params.pageSize, ...params });
+                const queryParams: any = {
+                  page: params.current,
+                  page_size: params.pageSize || 5,
+                };
+                if (params.name) {
+                  queryParams.search = params.name;
+                }
+                const res: any = await getProducts(queryParams);
                 return { data: res.results || [], total: res.total || res.count || 0, success: true };
               }}
-              pagination={{ pageSize: 5 }}
+              pagination={{ defaultPageSize: 5, showSizeChanger: true, pageSizeOptions: ['5', '10', '20', '50'] }}
               options={false}
             />
           </Modal>
