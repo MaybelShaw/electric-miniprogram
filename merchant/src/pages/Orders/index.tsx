@@ -616,6 +616,7 @@ export default function Orders() {
         const canPushHaier = isHaierOrder && record.status === 'paid' && (!haierStatus || ['failed', 'cancel_failed', 'out_of_stock_failed'].includes(haierStatus));
         const canViewLogistics = isHaierOrder && haierStatus === 'confirmed';
         const isCancelPending = isHaierOrder && haierStatus === 'cancel_pending';
+        const canRetryCancel = isHaierOrder && haierStatus === 'cancel_failed';
         
         if (canPushHaier) {
           actions.push(
@@ -677,7 +678,7 @@ export default function Orders() {
           );
         }
         
-        if (['pending', 'paid'].includes(record.status)) {
+        if (['pending', 'paid'].includes(record.status) || canRetryCancel) {
           actions.push(
             <Button
               key="cancel"
@@ -688,7 +689,7 @@ export default function Orders() {
               onClick={() => handleCancelClick(record)}
               disabled={isCancelPending}
             >
-              取消
+              {canRetryCancel ? '重试取消' : '取消'}
             </Button>
           );
         }

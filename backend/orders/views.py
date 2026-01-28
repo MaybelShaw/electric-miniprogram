@@ -554,7 +554,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             if order.haier_so_id:
                 if order.haier_status in ['cancel_pending', 'cancelled']:
                     return Response({"detail": "取消已提交或已完成"}, status=status.HTTP_400_BAD_REQUEST)
-                if not (
+                allow_retry_when_cancelled = order.haier_status == 'cancel_failed' and order.status == 'cancelled'
+                if not allow_retry_when_cancelled and not (
                     OrderStateMachine.can_transition(order.status, 'cancelled')
                     or OrderStateMachine.can_transition(order.status, 'refunding')
                 ):
