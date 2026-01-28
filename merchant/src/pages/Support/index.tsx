@@ -226,6 +226,10 @@ export default function Support() {
   };
 
   const handleSendOrder = async (order: any) => {
+    if (currentConversation && order?.user && order.user !== currentConversation.user) {
+      message.error('订单所属用户与当前会话用户不一致');
+      return;
+    }
     setOrderModalVisible(false);
     // Extract info for optimistic update
     const item = order.items && order.items.length > 0 ? order.items[0] : {};
@@ -869,8 +873,15 @@ export default function Support() {
                  }
               ]}
               request={async (params) => {
-                 const res: any = await getOrders({ page: params.current, page_size: params.pageSize, ...params });
-                 return { data: res.results, total: res.count, success: true };
+                 if (!currentConversation?.user) {
+                   return { data: [], total: 0, success: true };
+                 }
+                 const res: any = await getOrders({
+                   page: params.current,
+                   page_size: params.pageSize,
+                   user_id: currentConversation.user,
+                 });
+                 return { data: res.results || [], total: res.count || res.total || 0, success: true };
               }}
               pagination={{ pageSize: 5 }}
               options={false}
