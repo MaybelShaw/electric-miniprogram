@@ -504,6 +504,13 @@ export default function Orders() {
       },
     },
     {
+      title: '物流单号',
+      dataIndex: ['logistics_info', 'logistics_no'],
+      width: 140,
+      hideInSearch: true,
+      render: (_, record) => record.logistics_info?.logistics_no || '-',
+    },
+    {
       title: '海尔订单',
       dataIndex: 'is_haier_order',
       width: 100,
@@ -1123,6 +1130,9 @@ export default function Orders() {
             <ProDescriptions.Item label="实付款" render={(_, record) => `¥${record.actual_amount ?? record.total_amount}`} />
             <ProDescriptions.Item label="已退款" render={(_, record) => `¥${record.refunded_amount ?? 0}`} />
             <ProDescriptions.Item label="可退金额" render={(_, record) => `¥${record.refundable_amount ?? 0}`} />
+            {currentOrder.logistics_info?.logistics_no && (
+              <ProDescriptions.Item label="物流单号" render={() => currentOrder.logistics_info?.logistics_no} />
+            )}
             <ProDescriptions.Item label="取消原因" dataIndex="cancel_reason" />
             <ProDescriptions.Item label="备注" dataIndex="note" />
           </ProDescriptions>
