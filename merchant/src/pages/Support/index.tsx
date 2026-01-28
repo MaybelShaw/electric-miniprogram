@@ -9,6 +9,17 @@ import type { SupportConversation, SupportReplyTemplate } from '@/services/types
 import { getUser } from '@/utils/auth';
 import { useSupportChat, ExtendedSupportMessage } from './useSupportChat';
 
+const orderStatusMap: Record<string, { text: string; color: string }> = {
+  pending: { text: '待支付', color: 'orange' },
+  paid: { text: '已支付', color: 'blue' },
+  shipped: { text: '已发货', color: 'cyan' },
+  completed: { text: '已完成', color: 'green' },
+  cancelled: { text: '已取消', color: 'red' },
+  returning: { text: '退货中', color: 'purple' },
+  refunding: { text: '退款中', color: 'purple' },
+  refunded: { text: '已退款', color: 'magenta' },
+};
+
 export default function Support() {
   const actionRef = useRef<ActionType>();
   const [detailVisible, setDetailVisible] = useState(false);
@@ -233,6 +244,7 @@ export default function Support() {
     setOrderModalVisible(false);
     // Extract info for optimistic update
     const item = order.items && order.items.length > 0 ? order.items[0] : {};
+    const productImage = item.snapshot_image || item.product?.image || item.product?.cover || '';
     const orderInfo = {
       id: order.id,
       order_number: order.order_number,
@@ -240,7 +252,7 @@ export default function Support() {
       quantity: order.items?.reduce((acc: number, cur: any) => acc + cur.quantity, 0) || 0,
       total_amount: order.total_amount,
       product_name: item.product_name || '商品',
-      image: item.product_image || ''
+      image: productImage
     };
     await sendMessage('', undefined, undefined, { order_id: order.id }, { order_info: orderInfo });
   };
@@ -864,11 +876,49 @@ export default function Support() {
               search={false}
               rowKey="id"
               columns={[
-                 { title: '订单号', dataIndex: 'order_number' },
-                 { title: '金额', dataIndex: 'total_amount', render: (dom) => `¥${dom}` },
+                 { title: '订单号', dataIndex: 'order_number', width: 180 },
+                 {
+                   title: '商品',
+                   dataIndex: 'items',
+                   render: (_, record: any) => {
+                     const items = record.items || [];
+                     const first = items[0] || {};
+                     const image = first.snapshot_image || first.product?.image || first.product?.cover || '';
+                     const name = first.product_name || first.product?.name || '商品';
+                     const totalQty = items.reduce((acc: number, cur: any) => acc + (cur.quantity || 0), 0);
+                     return (
+                       <Space>
+                         {image ? (
+                           <AntImage src={image} width={36} height={36} style={{ objectFit: 'cover' }} />
+                         ) : (
+                           <Avatar size={36} icon={<UserOutlined />} />
+                         )}
+                         <div>
+                           <div style={{ maxWidth: 240, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</div>
+                           {items.length > 1 ? (
+                             <div style={{ fontSize: 12, color: '#999' }}>{`等 ${items.length} 件 · 共 ${totalQty} 件`}</div>
+                           ) : (
+                             <div style={{ fontSize: 12, color: '#999' }}>{`共 ${totalQty || first.quantity || 1} 件`}</div>
+                           )}
+                         </div>
+                       </Space>
+                     );
+                   },
+                 },
+                 {
+                   title: '状态',
+                   dataIndex: 'status',
+                   width: 100,
+                   render: (_, record: any) => {
+                     const meta = orderStatusMap[record.status] || { text: record.status, color: 'default' };
+                     return <Tag color={meta.color}>{meta.text}</Tag>;
+                   },
+                 },
+                 { title: '金额', dataIndex: 'total_amount', width: 120, render: (dom) => `¥${dom}` },
                  { 
                    title: '操作', 
                    valueType: 'option',
+                   width: 80,
                    render: (_, record) => <Button type="link" onClick={() => handleSendOrder(record)}>发送</Button>
                  }
               ]}
