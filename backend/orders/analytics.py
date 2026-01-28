@@ -19,6 +19,7 @@ class OrderAnalytics:
     
     # 缓存超时时间（秒）
     CACHE_TIMEOUT = 300  # 5分钟
+    SALES_STATUSES = ['paid', 'shipped', 'completed']
     
     @classmethod
     def get_sales_summary(
@@ -45,8 +46,8 @@ class OrderAnalytics:
         if result is not None:
             return result
         
-        # 查询已完成的订单
-        queryset = Order.objects.filter(status='completed')
+        # 查询已计入销量的订单
+        queryset = Order.objects.filter(status__in=cls.SALES_STATUSES)
         
         # 按日期范围筛选
         if start_date:
@@ -121,7 +122,7 @@ class OrderAnalytics:
         
         if product_id:
             from orders.models import OrderItem
-            item_qs = OrderItem.objects.filter(order__status='completed', product_id=product_id)
+            item_qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES, product_id=product_id)
             if start_date:
                 item_qs = item_qs.filter(order__created_at__date__gte=start_date)
             if end_date:
@@ -138,7 +139,7 @@ class OrderAnalytics:
             )
             result = list(item_qs if limit is None else item_qs[:int(limit)])
         else:
-            qs = Order.objects.filter(status='completed')
+            qs = Order.objects.filter(status__in=cls.SALES_STATUSES)
             if start_date:
                 qs = qs.filter(created_at__date__gte=start_date)
             if end_date:
@@ -205,7 +206,7 @@ class OrderAnalytics:
             return cached
         
         from orders.models import OrderItem
-        qs = OrderItem.objects.filter(order__status='completed', product_id=product_id)
+        qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES, product_id=product_id)
         if start_date:
             qs = qs.filter(order__created_at__date__gte=start_date)
         if end_date:
@@ -275,7 +276,7 @@ class OrderAnalytics:
             return cached
         
         from orders.models import OrderItem
-        qs = OrderItem.objects.filter(order__status='completed')
+        qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES)
         
         # 地区过滤
         filter_kwargs = {f'order__{region_field}': region_name}
@@ -332,7 +333,7 @@ class OrderAnalytics:
         from orders.models import OrderItem
         result = list(
             OrderItem.objects.filter(
-                order__status='completed',
+                order__status__in=cls.SALES_STATUSES,
                 order__created_at__gte=since
             )
             .values('product__id', 'product__name')
@@ -377,7 +378,7 @@ class OrderAnalytics:
         # 查询每日销售数据
         result = list(
             Order.objects.filter(
-                status='completed',
+                status__in=cls.SALES_STATUSES,
                 created_at__gte=since
             )
             .annotate(date=TruncDate('created_at'))

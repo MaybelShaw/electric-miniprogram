@@ -64,6 +64,11 @@ class OrderStateMachine:
         OrderStatus.CANCELLED: set(),      # 已取消，不允许转换
         OrderStatus.REFUNDED: set(),       # 已退款，不允许转换
     }
+    SALES_COUNT_STATUSES = {
+        OrderStatus.PAID.value,
+        OrderStatus.SHIPPED.value,
+        OrderStatus.COMPLETED.value,
+    }
     
     @classmethod
     def can_transition(cls, from_status: str, to_status: str) -> bool:
@@ -208,10 +213,6 @@ class OrderStateMachine:
         if new_status == OrderStatus.CANCELLED.value:
             cls._handle_order_cancelled(order, operator, old_status)
         
-        # 订单完成时，更新商品销量
-        elif new_status == OrderStatus.COMPLETED.value:
-            cls._handle_order_completed(order)
-        
         # 退款完成时，释放库存
         elif new_status == OrderStatus.REFUNDED.value:
             cls._handle_order_refunded(order, operator)
@@ -219,6 +220,9 @@ class OrderStateMachine:
         # 订单支付成功时，更新商品浏览次数
         elif new_status == OrderStatus.PAID.value:
             cls._handle_order_paid(order)
+
+        # 根据状态变更调整销量（付款即计入，退货/退款/取消移除）
+        cls._handle_sales_count_change(order, old_status, new_status)
     
     @classmethod
     def _handle_order_cancelled(cls, order, operator=None, old_status: Optional[str] = None):
@@ -274,23 +278,38 @@ class OrderStateMachine:
     def _handle_order_completed(cls, order):
         """处理订单完成
         
-        更新商品销量统计。
+        预留完成状态的业务逻辑。
         
         Args:
             order: Order对象
         """
+        pass
+
+    @classmethod
+    def _handle_sales_count_change(cls, order, old_status: str, new_status: str):
+        """根据订单状态变化更新商品销量。
+
+        计入：paid/shipped/completed
+        排除：pending/cancelled/returning/refunding/refunded
+        """
         from catalog.models import Product
         from django.db.models import F
-        
+
+        was_counted = old_status in cls.SALES_COUNT_STATUSES
+        now_counted = new_status in cls.SALES_COUNT_STATUSES
+        if was_counted == now_counted:
+            return
+
+        delta = 1 if now_counted else -1
         try:
             if order.items.exists():
                 for item in order.items.all():
                     Product.objects.filter(id=item.product_id).update(
-                        sales_count=F('sales_count') + item.quantity
+                        sales_count=F('sales_count') + (delta * item.quantity)
                     )
             elif order.product_id:
                 Product.objects.filter(id=order.product_id).update(
-                    sales_count=F('sales_count') + order.quantity
+                    sales_count=F('sales_count') + (delta * order.quantity)
                 )
         except Exception as e:
             # 记录错误但不中断流程
