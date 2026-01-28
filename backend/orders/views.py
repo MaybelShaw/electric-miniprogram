@@ -550,14 +550,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             note = request.data.get('note', '')
             reason = request.data.get('reason', '')
             logger.info('[ORDER_CANCEL] start', extra={'order_id': order.id, 'user_id': user.id, 'reason': reason, 'note': note})
-            from catalog.models import Product as CatalogProduct
-            primary_product = order.primary_product or order.product
-            is_haier_product = bool(
-                primary_product and getattr(primary_product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
-            )
-
             # YLH 订单取消：先提交请求，等待回调后再做本地状态/退款
-            if is_haier_product and order.haier_so_id:
+            if order.haier_so_id:
                 if order.haier_status in ['cancel_pending', 'cancelled']:
                     return Response({"detail": "取消已提交或已完成"}, status=status.HTTP_400_BAD_REQUEST)
                 if not (

@@ -195,6 +195,8 @@ class OrderSerializer(serializers.ModelSerializer):
     
     def get_is_haier_order(self, obj: Order) -> bool:
         """判断是否为海尔订单"""
+        if obj.haier_so_id or obj.haier_status:
+            return True
         if obj.items.exists():
             for item in obj.items.select_related('product').all():
                 if getattr(item.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier'):
@@ -207,8 +209,6 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""
         primary_product = obj.primary_product
-        if not primary_product:
-            return None
         if not self.get_is_haier_order(obj):
             return None
         
@@ -217,7 +217,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'haier_so_id': obj.haier_so_id,
             'haier_status': obj.haier_status,
             'haier_fail_msg': obj.haier_fail_msg,
-            'product_code': primary_product.product_code,
+            'product_code': primary_product.product_code if primary_product else '',
         }
     
     def get_logistics_info(self, obj: Order):

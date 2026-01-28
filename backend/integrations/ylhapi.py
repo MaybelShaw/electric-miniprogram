@@ -710,6 +710,7 @@ class YLHCallbackHandler:
                 logger.error(f"Order not found for cancel callback: platform={platform_order_no}")
                 return self._error_response("订单不存在", code="order_not_found")
 
+            update_fields = ['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at']
             if state == 1:
                 if ext_order_no:
                     order.haier_order_no = ext_order_no
@@ -728,9 +729,38 @@ class YLHCallbackHandler:
                 order.haier_fail_msg = fail_msg or ''
                 if fail_msg and fail_msg not in (order.note or ''):
                     order.note = f"{order.note}\n海尔取消失败: {fail_msg}".strip()
+                # 若本地已取消且未产生退款记录，尝试回退到取消前状态
+                if order.status == 'cancelled' and not order.refunds.exists():
+                    previous_status = order.status_history.filter(
+                        to_status='cancelled'
+                    ).order_by('-created_at').values_list('from_status', flat=True).first()
+                    if previous_status and previous_status != order.status:
+                        old_status = order.status
+                        order.status = previous_status
+                        update_fields.append('status')
+                        if '易理货取消失败回退' not in (order.note or ''):
+                            order.note = f"{order.note}\n易理货取消失败回退: {old_status} -> {previous_status}".strip()
+                        try:
+                            from orders.models import OrderStatusHistory
+                            OrderStatusHistory.objects.create(
+                                order=order,
+                                from_status=old_status,
+                                to_status=previous_status,
+                                operator=None,
+                                note='易理货取消失败回退'
+                            )
+                        except Exception:
+                            pass
+                        try:
+                            from orders.analytics import OrderAnalytics
+                            OrderAnalytics.on_order_status_changed(order.id)
+                        except Exception:
+                            pass
 
             order.updated_at = timezone.now()
-            order.save(update_fields=['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at'])
+            if 'status' in update_fields and 'updated_at' not in update_fields:
+                update_fields.append('updated_at')
+            order.save(update_fields=update_fields)
             self._debug_log("cancel_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
         except Exception as e:
             logger.exception(f"Failed to handle cancel callback for platform={platform_order_no}: {str(e)}")
