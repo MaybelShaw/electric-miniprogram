@@ -48,6 +48,7 @@ services:
                 uv run python manage.py migrate &&
                 uv run python manage.py seed_test_data &&
                 uv run python manage.py seed_test_products --products 10 --skus 3 &&
+                uv run python manage.py recalc_sales_count &&
                 uv run python manage.py createsuperuser --noinput || true &&
                 uv run python manage.py runserver 0.0.0.0:8000"
     ports:
