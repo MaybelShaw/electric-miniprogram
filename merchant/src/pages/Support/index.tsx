@@ -834,7 +834,7 @@ export default function Support() {
               ]}
               request={async (params) => {
                 const res: any = await getProducts({ page: params.current, page_size: params.pageSize, ...params });
-                return { data: res.results, total: res.count, success: true };
+                return { data: res.results || [], total: res.total || res.count || 0, success: true };
               }}
               pagination={{ pageSize: 5 }}
               options={false}
