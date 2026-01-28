@@ -184,8 +184,6 @@ class Order(models.Model):
         else:  # 失败
             self.haier_status = 'failed'
             self.haier_fail_msg = fail_msg
-            if fail_msg and fail_msg not in (self.note or ''):
-                self.note = f"{self.note}\n海尔订单失败: {fail_msg}".strip()
         
         self.updated_at = timezone.now()
         self.save()

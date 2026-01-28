@@ -710,7 +710,7 @@ class YLHCallbackHandler:
                 logger.error(f"Order not found for cancel callback: platform={platform_order_no}")
                 return self._error_response("订单不存在", code="order_not_found")
 
-            update_fields = ['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at']
+            update_fields = ['haier_order_no', 'haier_status', 'haier_fail_msg', 'updated_at']
             if state == 1:
                 if ext_order_no:
                     order.haier_order_no = ext_order_no
@@ -727,8 +727,6 @@ class YLHCallbackHandler:
             else:
                 order.haier_status = 'cancel_failed'
                 order.haier_fail_msg = fail_msg or ''
-                if fail_msg and fail_msg not in (order.note or ''):
-                    order.note = f"{order.note}\n海尔取消失败: {fail_msg}".strip()
                 # 若本地已取消且未产生退款记录，尝试回退到取消前状态
                 if order.status == 'cancelled' and not order.refunds.exists():
                     previous_status = order.status_history.filter(
@@ -738,8 +736,6 @@ class YLHCallbackHandler:
                         old_status = order.status
                         order.status = previous_status
                         update_fields.append('status')
-                        if '易理货取消失败回退' not in (order.note or ''):
-                            order.note = f"{order.note}\n易理货取消失败回退: {old_status} -> {previous_status}".strip()
                         try:
                             from orders.models import OrderStatusHistory
                             OrderStatusHistory.objects.create(
@@ -817,16 +813,12 @@ class YLHCallbackHandler:
                     order.haier_order_no = ext_order_no
                 order.haier_status = 'out_of_stock'
                 order.haier_fail_msg = fail_msg or ''
-                if fail_msg and fail_msg not in (order.note or ''):
-                    order.note = f"{order.note}\n海尔缺货: {fail_msg}".strip()
             else:
                 order.haier_status = 'out_of_stock_failed'
                 order.haier_fail_msg = fail_msg or ''
-                if fail_msg and fail_msg not in (order.note or ''):
-                    order.note = f"{order.note}\n海尔缺货回调失败: {fail_msg}".strip()
 
             order.updated_at = timezone.now()
-            order.save(update_fields=['haier_order_no', 'haier_status', 'haier_fail_msg', 'note', 'updated_at'])
+            order.save(update_fields=['haier_order_no', 'haier_status', 'haier_fail_msg', 'updated_at'])
             self._debug_log("outofstock_updated", {"order_id": order.id, "haier_order_no": order.haier_order_no, "haier_status": order.haier_status})
         except Exception as e:
             logger.exception(f"Failed to handle outofstock callback for platform={platform_order_no}: {str(e)}")

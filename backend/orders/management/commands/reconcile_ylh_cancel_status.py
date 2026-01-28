@@ -143,10 +143,7 @@ class Command(BaseCommand):
         old_status = order.status
         order.status = previous_status
         order.updated_at = timezone.now()
-        note = f'易理货取消失败回退: {old_status} -> {previous_status}'
-        if note not in (order.note or ''):
-            order.note = f"{order.note}\n{note}".strip()
-        order.save(update_fields=['status', 'note', 'updated_at'])
+        order.save(update_fields=['status', 'updated_at'])
 
         OrderStatusHistory.objects.create(
             order=order,
