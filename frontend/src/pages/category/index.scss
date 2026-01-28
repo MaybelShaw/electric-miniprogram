@@ -78,6 +78,42 @@
       background-color: $background-color-light;
       padding: 0 $spacing-md;
 
+      .all-products-banner {
+        margin: $spacing-md 0 $spacing-xl;
+        padding: $spacing-lg $spacing-md;
+        background: linear-gradient(135deg, $primary-color, lighten-c($primary-color, 15%));
+        border-radius: $border-radius-lg;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: $shadow-sm;
+        color: $white;
+        
+        .banner-info {
+          display: flex;
+          flex-direction: column;
+          
+          .banner-title {
+            font-size: $font-size-lg;
+            font-weight: bold;
+            margin-bottom: $spacing-xs;
+          }
+          
+          .banner-subtitle {
+            font-size: $font-size-sm;
+            opacity: 0.9;
+          }
+        }
+        
+        .banner-icon {
+          width: 80px;
+          height: 80px;
+          background-color: rgba(255, 255, 255, 0.2);
+          border-radius: 50%;
+          padding: 10px;
+        }
+      }
+
       .sub-category-section {
         margin-bottom: $spacing-xl;
 
@@ -102,7 +138,7 @@
             .item-image {
               width: 120px;
               height: 120px;
-              background-color: $background-color-base;
+              background-color: $white;
               border-radius: $border-radius-md;
               margin-bottom: $spacing-xs;
               pointer-events: none;

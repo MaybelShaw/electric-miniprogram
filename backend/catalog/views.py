@@ -421,7 +421,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         elif sort_by == 'created':
             products = products.order_by('-created_at')
         else:  # relevance or default
-            products = products.order_by('-sales_count', '-view_count')
+            products = products.order_by('-sales_count', '-created_at')
         
         # Calculate pagination
         total = products.count()
@@ -486,7 +486,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         elif sort_by == 'created':
             products = products.order_by('-created_at')
         else:  # relevance or default
-            products = products.order_by('-sales_count', '-view_count')
+            products = products.order_by('-sales_count', '-created_at')
         
         # Calculate pagination
         total = products.count()

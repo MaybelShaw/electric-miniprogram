@@ -57,10 +57,14 @@ export default function CategoryPage() {
   const loadMajorCategories = async () => {
     try {
       const data = await productService.getCategories({ level: 'major' })
-      setMajorCategories(data)
-      if (data.length > 0) {
+      // 添加"全部商品"选项
+      const allOption: Category = { id: -1, name: '全部商品', order: 0, level: 'major' }
+      const categories = [allOption, ...data]
+      setMajorCategories(categories)
+      
+      if (categories.length > 0) {
         // 默认选中第一个
-        setActiveMajorId(data[0].id)
+        setActiveMajorId(categories[0].id)
       }
     } catch (error) {
       console.error('加载品类失败', error)
@@ -71,6 +75,71 @@ export default function CategoryPage() {
   const loadSubCategories = async (parentId: number) => {
     setLoading(true)
     try {
+      if (parentId === -1) {
+        // 加载全部商品页面的特殊数据：热门品牌、热门分类
+        try {
+          const [brands, minors] = await Promise.all([
+            productService.getBrands(),
+            productService.getCategories({ level: 'minor' })
+          ])
+
+          const allProductsGroup: Category = {
+            id: -100,
+            name: '所有商品',
+            order: 0,
+            children: [{
+              id: -1,
+              name: '全部商品',
+              order: 0,
+              logo: 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'
+            }]
+          }
+
+          const brandsGroup: Category = {
+            id: -200,
+            name: '热门品牌',
+            order: 1,
+            children: brands.map(b => ({
+              id: b.id,
+              name: b.name,
+              logo: b.logo,
+              order: b.order,
+              // @ts-ignore
+              isBrand: true
+            } as any))
+          }
+
+          // 过滤掉"全部商品"本身，只显示真实的分类
+          const categoriesGroup: Category = {
+            id: -300,
+            name: '热门分类',
+            order: 2,
+            children: minors.map(c => ({
+              ...c,
+              // @ts-ignore
+              isCategory: true
+            }))
+          }
+
+          setSubCategories([allProductsGroup, brandsGroup, categoriesGroup])
+        } catch (err) {
+          console.error('Failed to load all products data', err)
+          // Fallback
+          setSubCategories([{
+            id: -100,
+            name: '全部',
+            order: 0,
+            children: [{
+              id: -1,
+              name: '全部商品',
+              order: 0,
+              logo: 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'
+            }]
+          }])
+        }
+        return
+      }
+
       // 获取该大类下的所有子类（包含品项）
       // 后端 get_children 会填充子类的 children 字段为品项列表
       const data = await productService.getCategories({ parent_id: parentId })
@@ -88,8 +157,36 @@ export default function CategoryPage() {
     setActiveMajorId(id)
   }
 
-  const handleItemClick = (item: Category, minorId: number) => {
+  const handleItemClick = (item: Category & { isBrand?: boolean, isCategory?: boolean }, minorId: number) => {
     console.log('handleItemClick', item, minorId)
+    
+    // 处理"全部商品"点击
+    if (item.id === -1) {
+      Taro.navigateTo({
+        url: '/pages/product-list/index?title=全部商品'
+      })
+      return
+    }
+
+    // 处理品牌点击
+    if (item.isBrand) {
+      Taro.navigateTo({
+        url: `/pages/product-list/index?brand=${encodeURIComponent(item.name)}&title=${encodeURIComponent(item.name)}`
+      })
+      return
+    }
+
+    // 处理热门分类点击 (二级分类)
+    if (item.isCategory) {
+      // 如果点击的是热门分类中的二级分类，跳转到商品列表并筛选该二级分类
+      // 需要同时传递 parent_id 作为 majorId，以便 product-list 页面正确加载左侧菜单
+      const majorId = item.parent_id || ''
+      Taro.navigateTo({
+        url: `/pages/product-list/index?majorId=${majorId}&minorId=${item.id}&title=${encodeURIComponent(item.name)}`
+      })
+      return
+    }
+
     // 跳转到商品列表页，携带分类筛选
     const url = `/pages/product-list/index?majorId=${activeMajorId}&minorId=${minorId}&itemId=${item.id}&title=${encodeURIComponent(item.name)}`
     console.log('navigating to', url)
@@ -140,33 +237,57 @@ export default function CategoryPage() {
         {/* 右侧内容区 */}
         <ScrollView className='sub-category-container' scrollY>
           {subCategories.length > 0 ? (
-            subCategories.map(subCat => (
-              <View key={subCat.id} className='sub-category-section'>
-                <View className='section-title'>{subCat.name}</View>
-                <View className='items-grid'>
-                  {subCat.children && subCat.children.length > 0 ? (
-                    subCat.children.map(item => (
-                      <View 
-                        key={item.id} 
-                        className='category-item-node'
-                        onClick={() => handleItemClick(item, subCat.id)}
-                      >
-                        <Image 
-                          className='item-image' 
-                          src={item.logo || 'https://placeholder.com/120'} 
-                          mode='aspectFit'
-                        />
-                        <View className='item-name'>{item.name}</View>
-                      </View>
-                    ))
-                  ) : (
-                    <View className='empty-items' style={{gridColumn: '1 / -1', textAlign: 'center', color: '#999', fontSize: '24px', padding: '20px 0'}}>
-                      暂无品项
+            subCategories.map(subCat => {
+              // 特殊处理"所有商品"分类，显示为 Banner 样式
+              if (subCat.id === -100 && subCat.children && subCat.children.length > 0) {
+                const item = subCat.children[0]
+                return (
+                  <View 
+                    key={subCat.id} 
+                    className='all-products-banner'
+                    onClick={() => handleItemClick(item, subCat.id)}
+                  >
+                    <View className='banner-info'>
+                      <View className='banner-title'>全部商品</View>
+                      <View className='banner-subtitle'>浏览所有商品列表</View>
                     </View>
-                  )}
+                    <Image 
+                      className='banner-icon' 
+                      src={item.logo || 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'} 
+                      mode='aspectFit'
+                    />
+                  </View>
+                )
+              }
+
+              return (
+                <View key={subCat.id} className='sub-category-section'>
+                  <View className='section-title'>{subCat.name}</View>
+                  <View className='items-grid'>
+                    {subCat.children && subCat.children.length > 0 ? (
+                      subCat.children.map(item => (
+                        <View 
+                          key={item.id} 
+                          className='category-item-node'
+                          onClick={() => handleItemClick(item, subCat.id)}
+                        >
+                          <Image 
+                            className='item-image' 
+                            src={item.logo || 'https://placeholder.com/120'} 
+                            mode='aspectFit'
+                          />
+                          <View className='item-name'>{item.name}</View>
+                        </View>
+                      ))
+                    ) : (
+                      <View className='empty-items' style={{gridColumn: '1 / -1', textAlign: 'center', color: '#999', fontSize: '24px', padding: '20px 0'}}>
+                        暂无品项
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
-            ))
+              )
+            })
           ) : (
             !loading && (
               <View className='empty-state'>

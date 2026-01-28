@@ -220,7 +220,7 @@ class ProductSearchService:
                     )
                 ).order_by('-name_match', '-sales_count', '-created_at')
             else:
-                queryset = queryset.order_by('-created_at')
+                queryset = queryset.order_by('-sales_count', '-created_at')
         
         return queryset
     

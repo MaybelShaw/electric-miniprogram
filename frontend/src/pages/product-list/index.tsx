@@ -8,7 +8,7 @@ import './index.scss'
 
 export default function ProductListPage() {
   const router = useRouter()
-  const { majorId, minorId, itemId, title } = router.params
+  const { majorId, minorId, itemId, title, brand } = router.params
 
   // State
   const [minors, setMinors] = useState<Category[]>([])
@@ -22,9 +22,22 @@ export default function ProductListPage() {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [activeCategoryName, setActiveCategoryName] = useState<string>('')
+  const [activeBrandName, setActiveBrandName] = useState<string>('')
   
   // Sort
   const [sortBy, setSortBy] = useState<'relevance' | 'sales' | 'price_asc' | 'price_desc'>('relevance')
+
+  const handleSortClick = (type: 'relevance' | 'sales' | 'price') => {
+    if (type === 'price') {
+      if (sortBy === 'price_asc') {
+        setSortBy('price_desc')
+      } else {
+        setSortBy('price_asc')
+      }
+    } else {
+      setSortBy(type)
+    }
+  }
 
   // Load Minors on mount
   useEffect(() => {
@@ -50,10 +63,21 @@ export default function ProductListPage() {
       const item = items.find(i => i.id === activeItemId)
       if (item) {
         setActiveCategoryName(item.name)
-        loadProducts(item.name, 1)
+        setActiveBrandName('')
+        loadProducts(item.name, null, 1)
       }
+    } else if (brand) {
+      const decodedBrand = decodeURIComponent(brand)
+      setActiveBrandName(decodedBrand)
+      setActiveCategoryName('')
+      loadProducts(null, decodedBrand, 1)
+    } else if (!majorId) {
+      // If no majorId (All Products mode), reload when sortBy changes
+      setActiveBrandName('')
+      setActiveCategoryName('')
+      loadProducts(null, null, 1)
     }
-  }, [activeItemId, sortBy, items])
+  }, [activeItemId, sortBy, items, majorId, brand])
 
   const loadMinors = async (pid: number) => {
     try {
@@ -100,15 +124,33 @@ export default function ProductListPage() {
     }
   }
 
-  const loadProducts = async (categoryName: string, pageNum = 1) => {
+  const loadProducts = async (categoryName: string | null, brandName: string | null, pageNum = 1) => {
     setLoading(true)
     try {
-      const res = await productService.getProductsByCategory({
-        category: categoryName,
-        sort_by: sortBy,
-        page: pageNum,
-        page_size: 20
-      })
+      let res;
+      if (brandName) {
+         res = await productService.getProductsByBrand({
+           brand: brandName,
+           sort_by: sortBy,
+           page: pageNum,
+           page_size: 20
+         })
+      } else if (categoryName) {
+        res = await productService.getProductsByCategory({
+          category: categoryName,
+          sort_by: sortBy,
+          page: pageNum,
+          page_size: 20
+        })
+      } else {
+        // Fetch all products
+        res = await productService.getProducts({
+          sort_by: sortBy === 'relevance' ? undefined : sortBy as any,
+          page: pageNum,
+          page_size: 20
+        })
+      }
+      
       setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setHasMore(res.has_next || false)
       setPage(pageNum)
@@ -120,8 +162,8 @@ export default function ProductListPage() {
   }
 
   const onLoadMore = () => {
-    if (!loading && hasMore && activeCategoryName) {
-      loadProducts(activeCategoryName, page + 1)
+    if (!loading && hasMore) {
+      loadProducts(activeCategoryName || null, activeBrandName || null, page + 1)
     }
   }
   
@@ -146,45 +188,66 @@ export default function ProductListPage() {
     <View className='product-list-page'>
       <View className='content-container'>
         {/* Left Sidebar (Minors) */}
-        <ScrollView className='sidebar' scrollY>
-          {minors.map(minor => (
-            <View
-              key={minor.id}
-              className={`sidebar-item ${activeMinorId === minor.id ? 'active' : ''}`}
-              onClick={() => {
+        {minors.length > 0 && (
+          <ScrollView className='sidebar' scrollY>
+            {minors.map(minor => (
+              <View
+                key={minor.id}
+                className={`sidebar-item ${activeMinorId === minor.id ? 'active' : ''}`}
+                onClick={() => {
                   setActiveMinorId(minor.id)
                   // Reset itemId param effect so it doesn't stick when switching minors
                   // But we can't easily clear router params.
                   // The logic in loadItems handles it by defaulting to first item if itemId not found.
-              }}
-            >
-              {minor.name}
-            </View>
-          ))}
-        </ScrollView>
+                }}
+              >
+                {minor.name}
+              </View>
+            ))}
+          </ScrollView>
+        )}
 
         {/* Right Content */}
         <View className='main-content'>
           {/* Top Items Bar */}
-          <ScrollView className='items-scroll' scrollX>
-            <View className='items-container'>
+          {items.length > 0 && (
+            <ScrollView className='items-scroll' scrollX>
+              <View className='items-container'>
                 {items.map(item => (
-                <View
+                  <View
                     key={item.id}
                     className={`item-pill ${activeItemId === item.id ? 'active' : ''}`}
                     onClick={() => setActiveItemId(item.id)}
-                >
+                  >
                     {item.name}
-                </View>
+                  </View>
                 ))}
-            </View>
-          </ScrollView>
+              </View>
+            </ScrollView>
+          )}
           
           {/* Sort Bar */}
           <View className='sort-bar'>
-              <View className={`sort-item ${sortBy === 'relevance' ? 'active' : ''}`} onClick={() => setSortBy('relevance')}>综合</View>
-              <View className={`sort-item ${sortBy === 'sales' ? 'active' : ''}`} onClick={() => setSortBy('sales')}>销量</View>
-              <View className={`sort-item ${sortBy === 'price_asc' ? 'active' : ''}`} onClick={() => setSortBy('price_asc')}>价格</View>
+              <View 
+                className={`sort-item ${sortBy === 'relevance' ? 'active' : ''}`} 
+                onClick={() => handleSortClick('relevance')}
+              >
+                综合
+              </View>
+              <View 
+                className={`sort-item ${sortBy === 'sales' ? 'active' : ''}`} 
+                onClick={() => handleSortClick('sales')}
+              >
+                销量
+              </View>
+              <View 
+                className={`sort-item ${sortBy.startsWith('price') ? 'active' : ''}`} 
+                onClick={() => handleSortClick('price')}
+              >
+                价格
+                {sortBy === 'price_asc' && <Text className='sort-arrow'>↑</Text>}
+                {sortBy === 'price_desc' && <Text className='sort-arrow'>↓</Text>}
+              </View>
           </View>
 
           {/* Product List */}
