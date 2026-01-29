@@ -258,10 +258,15 @@ export default function ProductListPage() {
                   <Image className='product-image' src={product.main_images[0] || ''} mode='aspectFill' />
                   <View className='product-info'>
                     <View className='name'>{product.name}</View>
-                    <View className='brand'>品牌: {product.brand}</View>
+                    <View className='meta-info'>
+                      <Text className='brand'>品牌: {product.brand}</Text>
+                    </View>
                     <View className='price-row'>
-                      <View className='price'>
-                        {formatPrice(getSellingPrice(product))}
+                      <View className='price-wrapper'>
+                        <View className='price'>
+                          {formatPrice(getSellingPrice(product))}
+                        </View>
+                        <Text className='sales'>  已售{product.sales_count}</Text>
                       </View>
                       <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>+</View>
                     </View>

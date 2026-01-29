@@ -155,7 +155,7 @@
             flex-direction: column;
             justify-content: space-between;
             min-width: 0;
-            height: 200px;
+            min-height: 200px;
             padding-right: 10px;
 
             .name {
@@ -166,15 +166,22 @@
               overflow: hidden;
               text-overflow: ellipsis;
               display: -webkit-box;
-              -webkit-line-clamp: 2;
+              -webkit-line-clamp: 3;
               -webkit-box-orient: vertical;
               font-weight: 500;
+              word-break: break-all;
             }
 
-            .brand {
-              font-size: $font-size-sm;
-              color: $text-color-secondary;
+            .meta-info {
               margin-bottom: auto;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+
+              .brand {
+                font-size: $font-size-sm;
+                color: $text-color-secondary;
+              }
             }
 
             .price-row {
@@ -182,11 +189,23 @@
               justify-content: space-between;
               align-items: flex-end;
 
+              .price-wrapper {
+                display: flex;
+                align-items: baseline;
+                gap: 8px;
+
+                .sales {
+                  font-size: 22px;
+                  color: $text-color-secondary;
+                }
+              }
+
               .price {
                 font-size: 32px;
                 color: $danger-color;
                 font-weight: bold;
                 font-family: 'DIN Alternate', sans-serif;
+                line-height: 1;
                 
                 .unit {
                     font-size: 22px;
