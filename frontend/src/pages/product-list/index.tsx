@@ -3,7 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Category, Product } from '../../types'
-import { formatPrice } from '../../utils/format'
+import { formatPrice, formatSalesCount } from '../../utils/format'
 import './index.scss'
 
 export default function ProductListPage() {
@@ -266,7 +266,7 @@ export default function ProductListPage() {
                         <View className='price'>
                           {formatPrice(getSellingPrice(product))}
                         </View>
-                        <Text className='sales'>  已售{product.sales_count}</Text>
+                        <Text className='sales'>已售{formatSalesCount(product.sales_count)}</Text>
                       </View>
                       <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>+</View>
                     </View>

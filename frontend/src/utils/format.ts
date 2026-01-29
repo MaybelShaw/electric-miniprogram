@@ -12,6 +12,19 @@ export function formatNumber(num: number): string {
   return num.toString()
 }
 
+// 格式化销量
+export function formatSalesCount(count: number): string {
+  if (count <= 100) {
+    return count.toString()
+  }
+  if (count < 10000) {
+    const hundreds = Math.floor(count / 100) * 100
+    return `${hundreds}+`
+  }
+  const tenThousands = Math.floor(count / 10000)
+  return `${tenThousands}万+`
+}
+
 // 格式化时间
 export function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
