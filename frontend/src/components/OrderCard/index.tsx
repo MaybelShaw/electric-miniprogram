@@ -42,6 +42,21 @@ export default function OrderCard({
     return Number.isFinite(num) ? num : 0
   }
   const refundedAmount = resolveNumber(order.refunded_amount)
+  const formatCountdown = (diff: number) => {
+    if (diff <= 0) return '已超时'
+    const totalSeconds = Math.floor(diff / 1000)
+    const days = Math.floor(totalSeconds / 86400)
+    const hours = Math.floor((totalSeconds % 86400) / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+    if (days > 0) {
+      return `${days}天${hours}小时${minutes}分${seconds}秒`
+    }
+    if (hours > 0) {
+      return `${hours}小时${minutes}分${seconds}秒`
+    }
+    return `${minutes}分${seconds}秒`
+  }
 
   useEffect(() => {
     if (order.status !== 'pending' || !order.expires_at) return
@@ -51,15 +66,8 @@ export default function OrderCard({
       const expireTime = new Date(order.expires_at!).getTime()
       const diff = expireTime - now
 
-      if (diff <= 0) {
-         setTimeLeft('已超时')
-         return
-      }
-
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-      
-      setTimeLeft(`${minutes}分${seconds}秒`)
+      const nextText = formatCountdown(diff)
+      setTimeLeft(nextText)
     }
 
     calculateTimeLeft()
