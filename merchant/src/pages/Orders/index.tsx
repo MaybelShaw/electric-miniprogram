@@ -80,6 +80,14 @@ export default function Orders() {
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
   const exportLockRef = useRef(false);
+  const adjustErrorMap: Record<string, string> = {
+    'Only pending orders can be adjusted': '仅待支付订单可改价',
+    'Payment is processing, cannot adjust amount': '支付处理中，无法改价，请稍后重试',
+    'Order has succeeded payment, cannot adjust amount': '订单已支付，无法改价',
+    'actual_amount cannot exceed current payable amount': '改后金额不能高于当前应付金额',
+    'actual_amount must be greater than 0': '改后金额必须大于 0',
+    'actual_amount is required': '请输入改后金额',
+  };
 
   const handleExport = async () => {
     if (exportLockRef.current) return;
@@ -162,7 +170,8 @@ export default function Orders() {
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '改价失败');
+      const detail = error?.response?.data?.detail;
+      message.error(adjustErrorMap[detail] || detail || '改价失败');
       return false;
     }
   };

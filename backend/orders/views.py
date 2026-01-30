@@ -199,8 +199,14 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
     def adjust_amount(self, request, pk=None):
+        import logging as pylogging
+        logger = pylogging.getLogger(__name__)
         order = self.get_object()
         if order.status != 'pending':
+            logger.info(
+                '[ORDER_ADJUST] blocked: status_not_pending',
+                extra={'order_id': order.id, 'order_status': order.status}
+            )
             return Response({'detail': 'Only pending orders can be adjusted'}, status=status.HTTP_400_BAD_REQUEST)
 
         from common.utils import parse_decimal
@@ -218,10 +224,22 @@ class OrderViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'actual_amount cannot exceed current payable amount'}, status=status.HTTP_400_BAD_REQUEST)
 
         if order.payments.filter(status='succeeded').exists():
+            logger.info(
+                '[ORDER_ADJUST] blocked: payment_succeeded',
+                extra={'order_id': order.id, 'order_status': order.status}
+            )
             return Response({'detail': 'Order has succeeded payment, cannot adjust amount'}, status=status.HTTP_400_BAD_REQUEST)
 
         processing_payment = order.payments.filter(status='processing').first()
         if processing_payment:
+            logger.info(
+                '[ORDER_ADJUST] blocked: payment_processing',
+                extra={
+                    'order_id': order.id,
+                    'order_status': order.status,
+                    'payment_id': processing_payment.id
+                }
+            )
             return Response({'detail': 'Payment is processing, cannot adjust amount'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
