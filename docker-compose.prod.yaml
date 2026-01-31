@@ -34,7 +34,7 @@ services:
                 uv sync &&
                 uv run python manage.py migrate &&
                 uv run python manage.py collectstatic --noinput &&
-                uv run python manage.py recalc_sales_count &&
+                # uv run python manage.py recalc_sales_count &&
                 uv run python manage.py runserver 0.0.0.0:8000"
     healthcheck:
       test:
