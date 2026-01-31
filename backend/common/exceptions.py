@@ -421,6 +421,19 @@ def _log_exception(exc, context, response):
     if str(exc):
         log_message += f': {str(exc)}'
     
+    # Build request metadata only for support chat 401 to reduce noise
+    client_meta = {}
+    if (
+        request
+        and response
+        and response.status_code == status.HTTP_401_UNAUTHORIZED
+        and request.path.startswith('/api/support/chat/')
+    ):
+        client_meta = {
+            'client_ip': request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR'),
+            'user_agent': request.META.get('HTTP_USER_AGENT'),
+        }
+
     # Log with context
     logger.log(
         log_level,
@@ -431,6 +444,7 @@ def _log_exception(exc, context, response):
             'request_method': request.method if request else None,
             'view_name': view.__class__.__name__ if view else None,
             'status_code': response.status_code if response else None,
+            **client_meta,
         }
     )
 
