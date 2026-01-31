@@ -433,6 +433,13 @@ def _log_exception(exc, context, response):
             'client_ip': request.META.get('HTTP_X_FORWARDED_FOR') or request.META.get('REMOTE_ADDR'),
             'user_agent': request.META.get('HTTP_USER_AGENT'),
         }
+        # Explicit log line for quick triage (formatter may drop extra fields)
+        logger.warning(
+            '[SUPPORT_CHAT_401] ip=%s ua=%s path=%s',
+            client_meta.get('client_ip'),
+            client_meta.get('user_agent'),
+            request.path
+        )
 
     # Log with context
     logger.log(
