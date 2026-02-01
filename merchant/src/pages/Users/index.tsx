@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Tag, Button, Popconfirm, message, Form, Modal } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
@@ -16,6 +16,16 @@ export default function Users() {
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
   const exportLockRef = useRef(false);
+
+  useEffect(() => {
+    if (!modalVisible) return;
+    if (editingRecord) {
+      form.setFieldsValue(editingRecord);
+    } else {
+      form.resetFields();
+      form.setFieldsValue({ role: 'individual', is_staff: false });
+    }
+  }, [modalVisible, editingRecord, form]);
 
   const handleExport = async () => {
     if (exportLockRef.current) return;
@@ -307,7 +317,13 @@ export default function Users() {
         form={form}
         title={editingRecord ? '编辑用户' : '新增用户'}
         open={modalVisible}
-        onOpenChange={setModalVisible}
+        onOpenChange={(open) => {
+          setModalVisible(open);
+          if (!open) {
+            setEditingRecord(null);
+            form.resetFields();
+          }
+        }}
         onValuesChange={(changedValues, allValues) => {
           if (changedValues.role) {
             if (changedValues.role === 'admin') {
@@ -340,7 +356,6 @@ export default function Users() {
             return false;
           }
         }}
-        initialValues={editingRecord || {}}
       >
         <ProFormText
           name="username"
