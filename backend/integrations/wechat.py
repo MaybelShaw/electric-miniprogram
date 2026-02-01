@@ -98,6 +98,7 @@ class WeChatMiniProgramClient:
             resp = requests.post(
                 f'https://api.weixin.qq.com/wxa/sec/order/upload_shipping_info?access_token={token}',
                 json=payload,
+                headers={'Content-Type': 'application/json; charset=utf-8'},
                 timeout=8,
             )
             data = resp.json() if resp.content else {}

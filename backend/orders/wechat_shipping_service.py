@@ -1,5 +1,6 @@
 import logging
 import json
+from copy import deepcopy
 from datetime import timedelta, datetime
 from typing import Dict, Optional, Tuple
 
@@ -38,6 +39,40 @@ def _build_item_desc(order) -> str:
 
     desc = '，'.join(parts)
     return desc[:120]
+
+
+def _sanitize_text(value: object, max_len: int | None = None) -> str:
+    if value is None:
+        return ''
+    text = str(value)
+    # Drop non-printable characters to avoid encoding issues
+    text = ''.join(ch for ch in text if ch.isprintable())
+    if max_len is not None:
+        text = text[:max_len]
+    return text
+
+
+def _mask_payload_for_log(payload: Dict) -> Dict:
+    masked = deepcopy(payload or {})
+    payer = masked.get('payer')
+    if isinstance(payer, dict):
+        openid = payer.get('openid') or ''
+        if openid:
+            payer['openid'] = f"{openid[:3]}****{openid[-3:]}" if len(openid) > 6 else '***'
+    shipping_list = masked.get('shipping_list') or []
+    if isinstance(shipping_list, list):
+        for item in shipping_list:
+            if not isinstance(item, dict):
+                continue
+            tracking = item.get('tracking_no') or ''
+            if tracking:
+                item['tracking_no'] = f"{tracking[:3]}****{tracking[-3:]}" if len(tracking) > 6 else '***'
+            contact = item.get('contact')
+            if isinstance(contact, dict):
+                for k, v in list(contact.items()):
+                    if v:
+                        contact[k] = _mask_contact(v)
+    return masked
 
 
 def _build_order_key(order) -> Optional[Dict[str, str]]:
@@ -126,14 +161,14 @@ def upload_shipping_info(
         for item in shipping_list:
             if not isinstance(item, dict):
                 return False, {}, 'invalid_shipping_list'
-            tracking = item.get('tracking_no')
-            company = item.get('express_company')
+            tracking = _sanitize_text(item.get('tracking_no'))
+            company = _sanitize_text(item.get('express_company'))
             if logistics_type == 1:
                 if not tracking:
                     return False, {}, 'missing_tracking_no'
                 if not company:
                     return False, {}, 'missing_express_company'
-            desc = (item.get('item_desc') or item_desc or _build_item_desc(order) or '').strip()[:120]
+            desc = _sanitize_text(item.get('item_desc') or item_desc or _build_item_desc(order) or '', 120).strip()
             if not desc:
                 return False, {}, 'missing_item_desc'
             shipping_item: Dict[str, object] = {
@@ -151,12 +186,14 @@ def upload_shipping_info(
                     shipping_item['contact'] = {'receiver_contact': contact}
             shipping_items.append(shipping_item)
     else:
-        desc = (item_desc or _build_item_desc(order) or '').strip()[:120]
+        desc = _sanitize_text(item_desc or _build_item_desc(order) or '', 120).strip()
         if not desc:
             return False, {}, 'missing_item_desc'
         shipping_item: Dict[str, object] = {
             'item_desc': desc,
         }
+        tracking_no = _sanitize_text(tracking_no)
+        express_company = _sanitize_text(express_company)
         if tracking_no:
             shipping_item['tracking_no'] = tracking_no
         if express_company:
@@ -211,6 +248,11 @@ def upload_shipping_info(
                 ensure_ascii=False,
             ),
         )
+        if attempt == 0:
+            logger.warning(
+                '[SHIP_DEBUG] wechat upload payload | %s',
+                json.dumps(_mask_payload_for_log(payload), ensure_ascii=False),
+            )
         ok, resp, err = client.upload_shipping_info(payload)
         last_resp = resp or {}
         last_err = err or ''

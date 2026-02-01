@@ -104,7 +104,14 @@ def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
     if errmsg:
         lowered = str(errmsg).lower()
         if 'not utf8' in lowered or 'data format error' in lowered:
-            return "发货数据格式错误（请检查物流单号/商品描述/联系方式是否包含非 UTF-8 字符）"
+            rid = None
+            if 'rid' in lowered:
+                try:
+                    rid = str(errmsg).split('rid:')[-1].strip()
+                except Exception:
+                    rid = None
+            suffix = f"（rid: {rid}）" if rid else ''
+            return f"发货数据格式错误（请检查物流单号/商品描述/联系方式是否包含非 UTF-8 字符）{suffix}"
         return f"微信返回错误：{errmsg}"
     if err:
         return f"微信接口异常（{err}），结果可能未同步，请先在微信后台确认后再重试"
