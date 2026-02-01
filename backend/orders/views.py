@@ -113,6 +113,13 @@ class _WechatShippingSyncException(Exception):
         self.status_code = status_code
         super().__init__(message)
 
+def _mask_tracking_no(value: str) -> str:
+    if not value:
+        return ''
+    if len(value) <= 6:
+        return '*' * len(value)
+    return f"{value[:3]}****{value[-3:]}"
+
 
 # Create your views here.
 @extend_schema(tags=['Orders'])
@@ -709,6 +716,20 @@ class OrderViewSet(viewsets.ModelViewSet):
             delivery_mode = request.data.get('delivery_mode')
             is_all_delivered = request.data.get('is_all_delivered')
             item_desc = request.data.get('item_desc')
+            logger.debug(
+                "ship request received",
+                extra={
+                    "order_id": order.id,
+                    "order_number": order.order_number,
+                    "delivery_mode": delivery_mode,
+                    "logistics_type": logistics_type,
+                    "express_company": express_company,
+                    "tracking_no": _mask_tracking_no(tracking_number or ''),
+                    "shipping_list_len": len(shipping_list) if isinstance(shipping_list, list) else None,
+                    "is_all_delivered": is_all_delivered,
+                    "has_item_desc": bool(item_desc),
+                },
+            )
             resolved_logistics_type = int(logistics_type or getattr(settings, 'WECHAT_SHIPPING_LOGISTICS_TYPE', 1) or 1)
             if resolved_logistics_type != 1:
                 return Response({"detail": "当前仅支持快递发货（logistics_type=1）"}, status=status.HTTP_400_BAD_REQUEST)
@@ -779,8 +800,19 @@ class OrderViewSet(viewsets.ModelViewSet):
                     getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False)
                     and order.payments.filter(status='succeeded', method='wechat').exists()
                 )
-            if should_sync and not getattr(order.user, 'openid', ''):
-                raise _WechatShippingSyncException("openid 缺失，无法同步微信发货信息")
+                logger.debug(
+                    "ship sync decision",
+                    extra={
+                        "order_id": order.id,
+                        "order_number": order.order_number,
+                        "should_sync": should_sync,
+                        "delivery_mode": resolved_delivery_mode,
+                        "logistics_type": resolved_logistics_type,
+                        "shipping_list_len": len(normalized_shipping_list) if normalized_shipping_list else 1,
+                    },
+                )
+                if should_sync and not getattr(order.user, 'openid', ''):
+                    raise _WechatShippingSyncException("openid 缺失，无法同步微信发货信息")
 
                 shipping_info = {
                     'logistics_type': resolved_logistics_type,
@@ -801,6 +833,14 @@ class OrderViewSet(viewsets.ModelViewSet):
                     operator=user,
                     note=note
                 )
+                logger.debug(
+                    "ship state transition done",
+                    extra={
+                        "order_id": order.id,
+                        "order_number": order.order_number,
+                        "status": order.status,
+                    },
+                )
                 if should_sync:
                     try:
                         from .wechat_shipping_service import upload_shipping_info
@@ -819,6 +859,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                             logger.warning('wechat shipping sync failed', extra={'order_id': order.id, 'error': err, 'resp': resp})
                             raise _WechatShippingSyncException(_wechat_shipping_error_message(err, resp))
                         wechat_synced = True
+                        logger.debug(
+                            "wechat shipping sync succeeded",
+                            extra={
+                                "order_id": order.id,
+                                "order_number": order.order_number,
+                                "delivery_mode": resolved_delivery_mode,
+                                "logistics_type": resolved_logistics_type,
+                            },
+                        )
                     except _WechatShippingSyncException:
                         raise
                     except Exception:

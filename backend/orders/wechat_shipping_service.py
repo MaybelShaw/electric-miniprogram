@@ -196,6 +196,17 @@ def upload_shipping_info(
     last_resp: Dict = {}
     last_err = ''
     for attempt in range(max_attempts):
+        logger.debug(
+            'wechat upload shipping info attempt',
+            extra={
+                'order_id': getattr(order, 'id', None),
+                'delivery_mode': delivery_mode,
+                'logistics_type': logistics_type,
+                'shipping_list_len': len(shipping_items),
+                'attempt': attempt + 1,
+                'max_attempts': max_attempts,
+            },
+        )
         ok, resp, err = client.upload_shipping_info(payload)
         last_resp = resp or {}
         last_err = err or ''
