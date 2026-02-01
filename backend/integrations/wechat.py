@@ -2,6 +2,7 @@
 WeChat mini program client helpers (access token + subscription message sending).
 """
 import logging
+import json
 from typing import Tuple
 
 import requests
@@ -121,7 +122,16 @@ class WeChatMiniProgramClient:
                 json={},
                 timeout=8,
             )
-            data = resp.json() if resp.content else {}
+            data = {}
+            if resp.content:
+                resp.encoding = 'utf-8'
+                try:
+                    data = resp.json()
+                except ValueError:
+                    try:
+                        data = json.loads(resp.content.decode('utf-8'))
+                    except Exception:
+                        data = {}
             if resp.status_code >= 300:
                 return False, data, f'http_status_{resp.status_code}'
             if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):

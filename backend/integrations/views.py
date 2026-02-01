@@ -68,7 +68,7 @@ def _get_client_ip(request) -> str:
 @permission_classes([IsAdminUser])
 def wechat_delivery_company_list_view(request):
     appid = getattr(settings, 'WECHAT_APPID', '') or 'default'
-    cache_key = f'wechat_delivery_company_list:{appid}'
+    cache_key = f'wechat_delivery_company_list:{appid}:delivery_list_v1'
     cached = cache.get(cache_key)
     if cached is not None:
         return Response({'company_list': cached, 'cached': True})
