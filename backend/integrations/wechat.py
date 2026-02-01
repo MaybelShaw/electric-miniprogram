@@ -6,6 +6,7 @@ import json
 from typing import Tuple
 
 import requests
+import json
 from django.conf import settings
 from django.core.cache import cache
 
@@ -95,9 +96,10 @@ class WeChatMiniProgramClient:
             return False, {}, 'missing_access_token'
 
         try:
+            body = json.dumps(payload or {}, ensure_ascii=False).encode('utf-8')
             resp = requests.post(
                 f'https://api.weixin.qq.com/wxa/sec/order/upload_shipping_info?access_token={token}',
-                json=payload,
+                data=body,
                 headers={'Content-Type': 'application/json; charset=utf-8'},
                 timeout=8,
             )

@@ -45,6 +45,8 @@ def _sanitize_text(value: object, max_len: int | None = None) -> str:
     if value is None:
         return ''
     text = str(value)
+    # Normalize to valid UTF-8, dropping invalid sequences
+    text = text.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
     # Drop non-printable characters to avoid encoding issues
     text = ''.join(ch for ch in text if ch.isprintable())
     if max_len is not None:
@@ -214,7 +216,7 @@ def upload_shipping_info(
         'logistics_type': logistics_type,
         'delivery_mode': delivery_mode,
         'shipping_list': shipping_items,
-        'upload_time': timezone.now().isoformat(),
+        'upload_time': timezone.localtime().isoformat(timespec='milliseconds'),
         'payer': {'openid': openid},
     }
     if delivery_mode == 2:
@@ -254,6 +256,11 @@ def upload_shipping_info(
                 json.dumps(_mask_payload_for_log(payload), ensure_ascii=False),
             )
         ok, resp, err = client.upload_shipping_info(payload)
+        if not ok:
+            logger.warning(
+                '[SHIP_DEBUG] wechat upload response | %s',
+                json.dumps(resp or {'error': err}, ensure_ascii=False),
+            )
         last_resp = resp or {}
         last_err = err or ''
         if ok:
