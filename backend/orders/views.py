@@ -42,6 +42,78 @@ from decimal import Decimal, ROUND_HALF_UP
 from .payment_service import PaymentService
 
 
+def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
+    errcode = None
+    errmsg = None
+    if isinstance(resp, dict):
+        errcode = resp.get('errcode')
+        errmsg = resp.get('errmsg')
+
+    errcode_map = {
+        -1: '系统繁忙，请稍后再试',
+        10060001: '支付单不存在，请核对订单号或交易号',
+        10060002: '支付单已完成发货，无法继续发货',
+        10060003: '该支付单已使用重新发货机会',
+        10060004: '支付单处于不可发货状态',
+        10060005: '物流类型有误',
+        10060006: '非快递发货不允许分拆发货',
+        10060007: '分拆发货必须填写 is_all_delivered',
+        10060008: '商品描述不能为空',
+        10060009: '商品描述过长',
+        10060012: '系统繁忙，请稍后再试',
+        10060014: '参数错误，请检查请求参数',
+        10060019: '系统繁忙，请稍后再试',
+        10060020: '未填写商品描述，无法完成发货',
+        10060023: '发货信息未更新',
+        10060024: '物流信息列表过长（最多 15 条）',
+        10060025: '物流公司编码过长',
+        10060026: '物流单号过长',
+        10060031: '订单不属于该用户 openid',
+        268485216: '上传时间格式非法，请使用 RFC3339',
+        268485224: '发货模式非法',
+        268485195: 'transaction_id 不能为空',
+        268485196: 'mchid 不能为空',
+        268485197: 'out_trade_no 不能为空',
+        268485194: '订单单号类型非法',
+        268485228: '统一发货模式下物流信息列表长度必须为 1',
+        268485226: '物流单号不能为空',
+        268485227: '物流公司编码不能为空',
+    }
+    internal_map = {
+        'missing_access_token': '微信 access_token 获取失败',
+        'missing_order_key': '订单号信息缺失，无法同步微信发货',
+        'missing_openid': 'openid 缺失，无法同步微信发货',
+        'missing_tracking_no': '物流单号缺失',
+        'missing_express_company': '物流公司编码缺失',
+        'missing_is_all_delivered': '分拆发货必须提供 is_all_delivered',
+        'missing_item_desc': '商品描述缺失',
+        'sync_disabled_or_not_wechat_paid': '该订单未开启或无需微信发货同步',
+        'invalid_shipping_list': '包裹列表格式不正确',
+        'shipping_list_empty': '包裹列表不能为空',
+        'shipping_list_too_long': '包裹数量不能超过 15 个',
+        'delivery_mode_mismatch': '发货模式与包裹数量不匹配',
+    }
+
+    if errcode in errcode_map:
+        return errcode_map[errcode]
+    if err in internal_map:
+        return internal_map[err]
+    if isinstance(err, str) and err.startswith('http_status_'):
+        return f"微信接口请求失败（HTTP {err.split('_')[-1]}），结果可能未同步，请先在微信后台确认后再重试"
+    if errmsg:
+        return f"微信返回错误：{errmsg}"
+    if err:
+        return f"微信接口异常（{err}），结果可能未同步，请先在微信后台确认后再重试"
+    return '微信发货同步失败'
+
+
+class _WechatShippingSyncException(Exception):
+    def __init__(self, message: str, status_code: int = status.HTTP_400_BAD_REQUEST):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(message)
+
+
 # Create your views here.
 @extend_schema(tags=['Orders'])
 class OrderViewSet(viewsets.ModelViewSet):
@@ -621,6 +693,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def ship(self, request, pk=None):
         """发货：仅管理员可操作，状态从 paid 转换到 shipped"""
+        logger = logging.getLogger(__name__)
         order = self.get_object()
         user = request.user
         if not (user.is_staff or getattr(user, 'role', '') == 'support'):
@@ -629,45 +702,168 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             from .state_machine import OrderStateMachine
             note = request.data.get('note', '')
+            express_company = request.data.get('express_company') or request.data.get('logistics_company_code') or ''
+            shipping_list = request.data.get('shipping_list')
             tracking_number = request.data.get('tracking_number') or request.data.get('logistics_no')
-            if not tracking_number:
-                return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
-            order.logistics_no = tracking_number
-            order.save()
-            order = OrderStateMachine.transition(
-                order,
-                'shipped',
-                operator=user,
-                note=note
-            )
-            try:
-                from users.services import create_notification
-                create_notification(
-                    order.user,
-                    title='订单已发货',
-                    content=f'订单 {order.order_number} 已发货，物流单号 {tracking_number}',
-                    ntype='order',
-                    metadata={
-                        'order_id': order.id,
-                        'order_number': order.order_number,
-                        'logistics_no': tracking_number,
-                        'status': 'shipped',
-                        'page': f'pages/order-detail/index?id={order.id}',
-                        'subscription_data': {
-                            'thing1': {'value': f'订单 {order.order_number}'[:20]},
-                            'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
-                            'thing3': {'value': f'物流单号 {tracking_number}'[:20]},
-                        },
+            logistics_type = request.data.get('logistics_type')
+            delivery_mode = request.data.get('delivery_mode')
+            is_all_delivered = request.data.get('is_all_delivered')
+            item_desc = request.data.get('item_desc')
+            resolved_logistics_type = int(logistics_type or getattr(settings, 'WECHAT_SHIPPING_LOGISTICS_TYPE', 1) or 1)
+            if resolved_logistics_type != 1:
+                return Response({"detail": "当前仅支持快递发货（logistics_type=1）"}, status=status.HTTP_400_BAD_REQUEST)
+            resolved_delivery_mode = int(delivery_mode or getattr(settings, 'WECHAT_SHIPPING_DELIVERY_MODE', 1) or 1)
+            normalized_shipping_list = None
+            if shipping_list is not None:
+                if not isinstance(shipping_list, list):
+                    return Response({"detail": "shipping_list 必须为数组"}, status=status.HTTP_400_BAD_REQUEST)
+                if len(shipping_list) == 0:
+                    return Response({"detail": "包裹列表不能为空"}, status=status.HTTP_400_BAD_REQUEST)
+                if len(shipping_list) > 15:
+                    return Response({"detail": "包裹数量不能超过 15 个"}, status=status.HTTP_400_BAD_REQUEST)
+                if delivery_mode in (None, ''):
+                    resolved_delivery_mode = 2 if len(shipping_list) > 1 else 1
+                if resolved_delivery_mode == 1 and len(shipping_list) != 1:
+                    return Response({"detail": "统一发货模式仅允许 1 个包裹"}, status=status.HTTP_400_BAD_REQUEST)
+                if resolved_delivery_mode == 2 and len(shipping_list) < 2:
+                    return Response({"detail": "分拆发货至少需要 2 个包裹"}, status=status.HTTP_400_BAD_REQUEST)
+
+                normalized_shipping_list = []
+                for idx, item in enumerate(shipping_list):
+                    if not isinstance(item, dict):
+                        return Response({"detail": f"包裹 {idx + 1} 格式不正确"}, status=status.HTTP_400_BAD_REQUEST)
+                    tracking = item.get('tracking_no') or item.get('logistics_no') or item.get('tracking_number')
+                    company = item.get('express_company') or item.get('logistics_company_code') or express_company
+                    if not tracking:
+                        return Response({"detail": f"包裹 {idx + 1} 缺少物流单号"}, status=status.HTTP_400_BAD_REQUEST)
+                    if not company:
+                        return Response({"detail": f"包裹 {idx + 1} 缺少物流公司"}, status=status.HTTP_400_BAD_REQUEST)
+                    if str(company).upper().startswith('SF') and not (item.get('contact') or getattr(order, 'snapshot_phone', '')):
+                        return Response({"detail": "顺丰发货需提供收件人联系方式"}, status=status.HTTP_400_BAD_REQUEST)
+                    normalized_item = {
+                        'tracking_no': tracking,
+                        'express_company': company,
                     }
+                    if item.get('item_desc'):
+                        normalized_item['item_desc'] = item.get('item_desc')
+                    if item.get('contact'):
+                        normalized_item['contact'] = item.get('contact')
+                    normalized_shipping_list.append(normalized_item)
+                if not tracking_number:
+                    tracking_number = normalized_shipping_list[0].get('tracking_no')
+                if not express_company:
+                    express_company = normalized_shipping_list[0].get('express_company')
+            else:
+                if resolved_delivery_mode == 2:
+                    return Response({"detail": "分拆发货必须提供包裹列表"}, status=status.HTTP_400_BAD_REQUEST)
+                if not express_company:
+                    return Response({"detail": "express_company 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+                if str(express_company).upper().startswith('SF') and not getattr(order, 'snapshot_phone', ''):
+                    return Response({"detail": "顺丰发货需提供收件人联系方式"}, status=status.HTTP_400_BAD_REQUEST)
+                if not tracking_number:
+                    return Response({"detail": "tracking_number 或 logistics_no 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+            if resolved_delivery_mode == 2 and is_all_delivered is None:
+                return Response({"detail": "分拆发货必须提供 is_all_delivered"}, status=status.HTTP_400_BAD_REQUEST)
+            wechat_synced = False
+            with transaction.atomic():
+                order = (
+                    Order.objects.select_for_update()
+                    .select_related('user')
+                    .get(pk=order.id)
                 )
-            except Exception:
-                pass
+                if not OrderStateMachine.can_transition(order.status, 'shipped'):
+                    allowed = OrderStateMachine.get_allowed_transitions(order.status)
+                    raise ValueError(f'当前状态不允许发货。允许的转换: {allowed}')
+
+                should_sync = (
+                    getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False)
+                    and order.payments.filter(status='succeeded', method='wechat').exists()
+                )
+            if should_sync and not getattr(order.user, 'openid', ''):
+                raise _WechatShippingSyncException("openid 缺失，无法同步微信发货信息")
+
+                shipping_info = {
+                    'logistics_type': resolved_logistics_type,
+                    'delivery_mode': resolved_delivery_mode,
+                    'is_all_delivered': bool(is_all_delivered) if resolved_delivery_mode == 2 else None,
+                    'shipping_list': normalized_shipping_list or [{
+                        'tracking_no': tracking_number,
+                        'express_company': express_company,
+                        **({'item_desc': item_desc} if item_desc else {}),
+                    }],
+                }
+                order.logistics_no = tracking_number
+                order.shipping_info = shipping_info
+                order.save(update_fields=['logistics_no', 'shipping_info'])
+                order = OrderStateMachine.transition(
+                    order,
+                    'shipped',
+                    operator=user,
+                    note=note
+                )
+                if should_sync:
+                    try:
+                        from .wechat_shipping_service import upload_shipping_info
+                        ok, resp, err = upload_shipping_info(
+                            order,
+                            tracking_no=tracking_number,
+                            express_company=express_company,
+                            logistics_type=resolved_logistics_type,
+                            delivery_mode=resolved_delivery_mode,
+                            is_all_delivered=is_all_delivered,
+                            item_desc=item_desc,
+                            retry_times=2,
+                            shipping_list=normalized_shipping_list,
+                        )
+                        if not ok:
+                            logger.warning('wechat shipping sync failed', extra={'order_id': order.id, 'error': err, 'resp': resp})
+                            raise _WechatShippingSyncException(_wechat_shipping_error_message(err, resp))
+                        wechat_synced = True
+                    except _WechatShippingSyncException:
+                        raise
+                    except Exception:
+                        logger.exception('wechat shipping sync failed', extra={'order_id': order.id})
+                        raise _WechatShippingSyncException("微信发货同步异常，请稍后重试", status.HTTP_502_BAD_GATEWAY)
+
+                def _send_ship_notification():
+                    try:
+                        from users.services import create_notification
+                        create_notification(
+                            order.user,
+                            title='订单已发货',
+                            content=f'订单 {order.order_number} 已发货，物流单号 {tracking_number}',
+                            ntype='order',
+                            metadata={
+                                'order_id': order.id,
+                                'order_number': order.order_number,
+                                'logistics_no': tracking_number,
+                                'status': 'shipped',
+                                'page': f'pages/order-detail/index?id={order.id}',
+                                'subscription_data': {
+                                    'thing1': {'value': f'订单 {order.order_number}'[:20]},
+                                    'time2': {'value': timezone.localtime(order.updated_at).strftime('%Y-%m-%d %H:%M') if order.updated_at else ''},
+                                    'thing3': {'value': f'物流单号 {tracking_number}'[:20]},
+                                },
+                            }
+                        )
+                    except Exception:
+                        pass
+
+                transaction.on_commit(_send_ship_notification)
             serializer = self.get_serializer(order)
             return Response(serializer.data, status=200)
+        except _WechatShippingSyncException as e:
+            return Response({"detail": e.message}, status=e.status_code)
         except ValueError as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            detail = str(e)
+            if 'wechat_synced' in locals() and wechat_synced:
+                detail = f"{detail}（微信已同步成功，请在微信后台核对订单）"
+            return Response({"detail": detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"detail": f"发货失败: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            detail = f"发货失败: {str(e)}"
+            if 'wechat_synced' in locals() and wechat_synced:
+                detail = "发货失败且微信已同步成功，请联系技术处理"
+            return Response({"detail": detail}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def complete(self, request, pk=None):

@@ -59,6 +59,7 @@ class Order(models.Model):
     logistics_no = models.CharField(max_length=100, blank=True, default='', verbose_name='物流单号')
     delivery_record_code = models.CharField(max_length=100, blank=True, default='', verbose_name='发货单号')
     sn_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SN码')
+    shipping_info = models.JSONField(default=dict, blank=True, verbose_name='发货信息')
     
     # 配送安装照片
     delivery_images = models.JSONField(default=list, blank=True, verbose_name='配送安装照片')
@@ -472,6 +473,43 @@ class OrderStatusHistory(models.Model):
 
     def __str__(self):
         return f'订单#{self.order_id} {self.from_status} -> {self.to_status}'
+
+
+class OrderShippingSync(models.Model):
+    """微信订单管理发货同步记录"""
+    STATUS_CHOICES = [
+        ('pending', '待同步'),
+        ('succeeded', '同步成功'),
+        ('failed', '同步失败'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        related_name='shipping_syncs',
+        verbose_name='订单'
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='同步状态')
+    payload = models.JSONField(default=dict, blank=True, verbose_name='请求数据')
+    response = models.JSONField(default=dict, blank=True, verbose_name='响应数据')
+    error = models.TextField(blank=True, default='', verbose_name='错误信息')
+    retry_count = models.PositiveIntegerField(default=0, verbose_name='重试次数')
+    next_retry_at = models.DateTimeField(null=True, blank=True, verbose_name='下次重试时间')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '发货同步记录'
+        verbose_name_plural = '发货同步记录'
+        indexes = [
+            models.Index(fields=['order']),
+            models.Index(fields=['status']),
+            models.Index(fields=['next_retry_at']),
+        ]
+
+    def __str__(self):
+        return f'发货同步#{self.id} 订单:{self.order_id} 状态:{self.status}'
 
 
 class Invoice(models.Model):

@@ -86,3 +86,47 @@ class WeChatMiniProgramClient:
         except Exception as exc:
             logger.error('WeChat subscribe message send failed: %s', exc)
             return False, str(exc)
+
+    def upload_shipping_info(self, payload: dict) -> Tuple[bool, dict, str]:
+        """Upload shipping info to WeChat order management."""
+        token = self.get_access_token()
+        if not token:
+            return False, {}, 'missing_access_token'
+
+        try:
+            resp = requests.post(
+                f'https://api.weixin.qq.com/wxa/sec/order/upload_shipping_info?access_token={token}',
+                json=payload,
+                timeout=8,
+            )
+            data = resp.json() if resp.content else {}
+            if resp.status_code >= 300:
+                return False, data, f'http_status_{resp.status_code}'
+            if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):
+                return False, data, data.get('errmsg') or 'wechat_error'
+            return True, data, ''
+        except Exception as exc:
+            logger.error('WeChat upload shipping info failed: %s', exc)
+            return False, {}, str(exc)
+
+    def get_delivery_company_list(self) -> Tuple[bool, dict, str]:
+        """Fetch delivery company list for order shipping."""
+        token = self.get_access_token()
+        if not token:
+            return False, {}, 'missing_access_token'
+
+        try:
+            resp = requests.post(
+                f'https://api.weixin.qq.com/product/delivery/get_company_list?access_token={token}',
+                json={},
+                timeout=8,
+            )
+            data = resp.json() if resp.content else {}
+            if resp.status_code >= 300:
+                return False, data, f'http_status_{resp.status_code}'
+            if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):
+                return False, data, data.get('errmsg') or 'wechat_error'
+            return True, data, ''
+        except Exception as exc:
+            logger.error('WeChat get delivery company list failed: %s', exc)
+            return False, {}, str(exc)

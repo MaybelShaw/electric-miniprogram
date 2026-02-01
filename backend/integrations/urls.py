@@ -12,6 +12,7 @@ from .views import (
     ylh_update_distribution_time_view,
     ylh_get_delivery_images_view,
     ylh_get_logistics_view,
+    wechat_delivery_company_list_view,
 )
 
 router = DefaultRouter()
@@ -30,4 +31,5 @@ urlpatterns = [
     path('ylh/orders/update-time/', ylh_update_distribution_time_view, name='ylh-update-time'),
     path('ylh/orders/delivery-images/', ylh_get_delivery_images_view, name='ylh-delivery-images'),
     path('ylh/orders/logistics/', ylh_get_logistics_view, name='ylh-logistics'),
+    path('wechat/delivery-companies/', wechat_delivery_company_list_view, name='wechat-delivery-companies'),
 ]

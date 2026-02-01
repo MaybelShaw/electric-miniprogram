@@ -5,6 +5,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, AllowAny
+from django.core.cache import cache
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
@@ -16,6 +17,7 @@ import json
 from .haierapi import HaierAPI
 from .ylhapi import YLHSystemAPI
 from .models import HaierConfig, HaierSyncLog
+from .wechat import WeChatMiniProgramClient
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,28 @@ def _get_client_ip(request) -> str:
     if xff:
         return xff.split(",")[0].strip()
     return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def wechat_delivery_company_list_view(request):
+    appid = getattr(settings, 'WECHAT_APPID', '') or 'default'
+    cache_key = f'wechat_delivery_company_list:{appid}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response({'company_list': cached, 'cached': True})
+
+    client = WeChatMiniProgramClient()
+    ok, data, err = client.get_delivery_company_list()
+    if ok:
+        company_list = data.get('company_list') or []
+        cache.set(cache_key, company_list, timeout=60 * 60 * 24)
+        return Response({'company_list': company_list})
+
+    if cached:
+        return Response({'company_list': cached, 'cached': True, 'warning': err})
+
+    return Response({'detail': err or 'fetch_failed', 'errcode': data.get('errcode')}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 class HaierConfigViewSet(viewsets.ModelViewSet):

@@ -1,10 +1,9 @@
-import { useRef } from 'react';
-import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit } from '@ant-design/pro-components';
+import { useEffect, useRef, useState } from 'react';
+import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormList } from '@ant-design/pro-components';
 import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
+import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { useState } from 'react';
 import type { Order } from '@/services/types';
 import { Upload } from 'antd';
 import { downloadBlob } from '@/utils/download';
@@ -58,6 +57,8 @@ export default function Orders() {
   const [logisticsData, setLogisticsData] = useState<any>(null);
   const [loadingLogistics, setLoadingLogistics] = useState(false);
   const [shipModalVisible, setShipModalVisible] = useState(false);
+  const [deliveryCompanies, setDeliveryCompanies] = useState<{ label: string; value: string }[]>([]);
+  const [deliveryCompanyLoading, setDeliveryCompanyLoading] = useState(false);
   const [refundModalVisible, setRefundModalVisible] = useState(false);
   const [refundDetail, setRefundDetail] = useState<any>(null);
   const [refundReviewVisible, setRefundReviewVisible] = useState(false);
@@ -89,6 +90,37 @@ export default function Orders() {
     'actual_amount is required': '请输入改后金额',
   };
 
+  useEffect(() => {
+    if (!shipModalVisible) return;
+    let cancelled = false;
+    const fetchDeliveryCompanies = async () => {
+      try {
+        setDeliveryCompanyLoading(true);
+        const res: any = await getDeliveryCompanies();
+        const list = res?.company_list || [];
+        const options = list.map((item: any) => ({
+          label: `${item.delivery_name} (${item.delivery_id})`,
+          value: item.delivery_id,
+        }));
+        if (!cancelled) {
+          setDeliveryCompanies(options);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          message.error(error?.response?.data?.detail || '加载快递公司列表失败');
+        }
+      } finally {
+        if (!cancelled) {
+          setDeliveryCompanyLoading(false);
+        }
+      }
+    };
+    fetchDeliveryCompanies();
+    return () => {
+      cancelled = true;
+    };
+  }, [shipModalVisible]);
+
   const handleExport = async () => {
     if (exportLockRef.current) return;
     exportLockRef.current = true;
@@ -114,7 +146,15 @@ export default function Orders() {
   const handleShipSubmit = async (values: any) => {
     try {
       if (!shippingOrder) return false;
-      await shipOrder(shippingOrder.id, values);
+      const payload = { ...values };
+      const deliveryMode = Number(payload.delivery_mode || 1);
+      if (deliveryMode === 1) {
+        delete payload.shipping_list;
+      } else {
+        delete payload.logistics_no;
+        delete payload.express_company;
+      }
+      await shipOrder(shippingOrder.id, payload);
       message.success('发货成功');
       setShipModalVisible(false);
       actionRef.current?.reload();
@@ -942,13 +982,117 @@ export default function Orders() {
         visible={shipModalVisible}
         onVisibleChange={setShipModalVisible}
         onFinish={handleShipSubmit}
+        initialValues={{ delivery_mode: 1, is_all_delivered: true }}
       >
-        <ProFormText
-          name="logistics_no"
-          label="物流单号"
-          placeholder="请输入物流单号"
-          rules={[{ required: true, message: '请输入物流单号' }]}
+        <ProFormRadio.Group
+          name="delivery_mode"
+          label="发货模式"
+          options={[
+            { label: '统一发货', value: 1 },
+            { label: '分拆发货', value: 2 },
+          ]}
         />
+        <ProFormDependency name={['delivery_mode']}>
+          {({ delivery_mode }) =>
+            delivery_mode === 2 ? (
+              <>
+                <ProFormSwitch name="is_all_delivered" label="是否全部发货" />
+                <ProFormList
+                  name="shipping_list"
+                  label="包裹列表"
+                  initialValue={[{}, {}]}
+                  rules={[
+                    {
+                      validator: async (_, value) => {
+                        if (!Array.isArray(value) || value.length < 2) {
+                          return Promise.reject(new Error('分拆发货至少需要 2 个包裹'));
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                  creatorButtonProps={{
+                    creatorButtonText: '添加包裹',
+                  }}
+                >
+                  {deliveryCompanies.length > 0 ? (
+                    <ProFormSelect
+                      name="express_company"
+                      label="物流公司"
+                      placeholder="请选择物流公司"
+                      rules={[{ required: true, message: '请选择物流公司' }]}
+                      options={deliveryCompanies}
+                      fieldProps={{
+                        loading: deliveryCompanyLoading,
+                        showSearch: true,
+                        optionFilterProp: 'label',
+                        filterOption: (input, option) =>
+                          String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                          String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+                      }}
+                    />
+                  ) : (
+                    <ProFormText
+                      name="express_company"
+                      label="物流公司编码"
+                      placeholder="请输入物流公司编码（如 STO/SF）"
+                      rules={[{ required: true, message: '请输入物流公司编码' }]}
+                    />
+                  )}
+                  <ProFormText
+                    name="tracking_no"
+                    label="物流单号"
+                    placeholder="请输入物流单号"
+                    rules={[{ required: true, message: '请输入物流单号' }]}
+                  />
+                  <ProFormText
+                    name="item_desc"
+                    label="商品描述"
+                    placeholder="可选，默认使用订单商品"
+                  />
+                </ProFormList>
+              </>
+            ) : (
+              <>
+                {deliveryCompanies.length > 0 ? (
+                  <ProFormSelect
+                    name="express_company"
+                    label="物流公司"
+                    placeholder="请选择物流公司"
+                    rules={[{ required: true, message: '请选择物流公司' }]}
+                    options={deliveryCompanies}
+                    fieldProps={{
+                      loading: deliveryCompanyLoading,
+                      showSearch: true,
+                      optionFilterProp: 'label',
+                      filterOption: (input, option) =>
+                        String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                        String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+                    }}
+                  />
+                ) : (
+                  <ProFormText
+                    name="express_company"
+                    label="物流公司编码"
+                    placeholder="请输入物流公司编码（如 STO/SF）"
+                    rules={[{ required: true, message: '请输入物流公司编码' }]}
+                  />
+                )}
+                <ProFormText
+                  name="logistics_no"
+                  label="物流单号"
+                  placeholder="请输入物流单号"
+                  rules={[{ required: true, message: '请输入物流单号' }]}
+                />
+                <ProFormText
+                  name="item_desc"
+                  label="商品描述"
+                  placeholder="可选，默认使用订单商品"
+                />
+              </>
+            )
+          }
+        </ProFormDependency>
       </ModalForm>
 
       {/* 取消订单弹窗 */}

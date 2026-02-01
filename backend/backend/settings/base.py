@@ -257,6 +257,14 @@ def _load_subscribe_templates():
 WECHAT_SUBSCRIBE_TEMPLATES = _load_subscribe_templates()
 WECHAT_SUBSCRIBE_DEFAULT_PAGE = EnvironmentConfig.get_env('WECHAT_SUBSCRIBE_DEFAULT_PAGE', 'pages/home/index')
 
+# WeChat Shipping Sync (Order Management) Configuration
+# WECHAT_SHIPPING_SYNC_ENABLED = EnvironmentConfig.get_env('WECHAT_SHIPPING_SYNC_ENABLED', 'False').lower() in ('1', 'true', 'yes', 'on')
+WECHAT_SHIPPING_SYNC_ENABLED = True
+WECHAT_SHIPPING_ORDER_NUMBER_TYPE = int(EnvironmentConfig.get_env('WECHAT_SHIPPING_ORDER_NUMBER_TYPE', '1'))
+WECHAT_SHIPPING_LOGISTICS_TYPE = int(EnvironmentConfig.get_env('WECHAT_SHIPPING_LOGISTICS_TYPE', '1'))
+WECHAT_SHIPPING_DELIVERY_MODE = int(EnvironmentConfig.get_env('WECHAT_SHIPPING_DELIVERY_MODE', '1'))
+WECHAT_SHIPPING_RETRY_INTERVAL_MINUTES = int(EnvironmentConfig.get_env('WECHAT_SHIPPING_RETRY_INTERVAL_MINUTES', '10'))
+
 # WeChat Pay Configuration (for future use)
 WECHAT_PAY_MCHID = EnvironmentConfig.get_env('WECHAT_PAY_MCHID', '')
 WECHAT_PAY_SECRET = EnvironmentConfig.get_env('WECHAT_PAY_SECRET', '')

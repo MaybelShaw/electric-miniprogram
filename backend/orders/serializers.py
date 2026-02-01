@@ -227,7 +227,8 @@ class OrderSerializer(serializers.ModelSerializer):
             obj.logistics_no,
             obj.delivery_record_code,
             obj.sn_code,
-            obj.delivery_images
+            obj.delivery_images,
+            obj.shipping_info,
         ]):
             return None
         
@@ -237,6 +238,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'delivery_record_code': obj.delivery_record_code,
             'sn_code': obj.sn_code,
             'delivery_images': [_build_media_url(url, request) for url in (obj.delivery_images or [])],
+            'shipping_info': obj.shipping_info or None,
         }
 
     def get_invoice_info(self, obj: Order):
