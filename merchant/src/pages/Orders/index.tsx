@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormList } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip } from 'antd';
+import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormList, ProFormGroup } from '@ant-design/pro-components';
+import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip, Card } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
 import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -1013,42 +1013,61 @@ export default function Orders() {
                   ]}
                   creatorButtonProps={{
                     creatorButtonText: '添加包裹',
+                    type: 'dashed',
+                    block: true,
                   }}
-                >
-                  {deliveryCompanies.length > 0 ? (
-                    <ProFormSelect
-                      name="express_company"
-                      label="物流公司"
-                      placeholder="请选择物流公司"
-                      rules={[{ required: true, message: '请选择物流公司' }]}
-                      options={deliveryCompanies}
-                      fieldProps={{
-                        loading: deliveryCompanyLoading,
-                        showSearch: true,
-                        optionFilterProp: 'label',
-                        filterOption: (input, option) =>
-                          String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
-                          String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
-                      }}
-                    />
-                  ) : (
-                    <ProFormText
-                      name="express_company"
-                      label="物流公司编码"
-                      placeholder="请输入物流公司编码（如 STO/SF）"
-                      rules={[{ required: true, message: '请输入物流公司编码' }]}
-                    />
+                  itemRender={(dom, listMeta) => (
+                    <Card
+                      size="small"
+                      title={`包裹 ${listMeta.index + 1}`}
+                      extra={dom.action}
+                      style={{ marginBottom: 12 }}
+                      bodyStyle={{ paddingTop: 8 }}
+                    >
+                      {dom.listDom}
+                    </Card>
                   )}
-                  <ProFormText
-                    name="tracking_no"
-                    label="物流单号"
-                    placeholder="请输入物流单号"
-                    rules={[{ required: true, message: '请输入物流单号' }]}
-                  />
+                >
+                  <ProFormGroup>
+                    {deliveryCompanies.length > 0 ? (
+                      <ProFormSelect
+                        name="express_company"
+                        label="物流公司"
+                        placeholder="请选择物流公司"
+                        rules={[{ required: true, message: '请选择物流公司' }]}
+                        options={deliveryCompanies}
+                        colProps={{ span: 12 }}
+                        fieldProps={{
+                          loading: deliveryCompanyLoading,
+                          showSearch: true,
+                          optionFilterProp: 'label',
+                          filterOption: (input, option) =>
+                            String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
+                            String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+                        }}
+                      />
+                    ) : (
+                      <ProFormText
+                        name="express_company"
+                        label="物流公司编码"
+                        placeholder="请输入物流公司编码（如 STO/SF）"
+                        rules={[{ required: true, message: '请输入物流公司编码' }]}
+                        colProps={{ span: 12 }}
+                      />
+                    )}
+                    <ProFormText
+                      name="tracking_no"
+                      label="物流单号"
+                      placeholder="请输入物流单号"
+                      rules={[{ required: true, message: '请输入物流单号' }]}
+                      colProps={{ span: 12 }}
+                    />
+                  </ProFormGroup>
                   <ProFormText
                     name="item_desc"
                     label="商品描述"
                     placeholder="可选，默认使用订单商品"
+                    colProps={{ span: 24 }}
                   />
                 </ProFormList>
               </>
