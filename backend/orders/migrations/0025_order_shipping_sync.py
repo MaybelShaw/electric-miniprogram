@@ -29,9 +29,9 @@ class Migration(migrations.Migration):
                 'verbose_name': '发货同步记录',
                 'verbose_name_plural': '发货同步记录',
                 'indexes': [
-                    models.Index(fields=['order']),
-                    models.Index(fields=['status']),
-                    models.Index(fields=['next_retry_at']),
+                    models.Index(fields=['order'], name='orders_ship_sync_order_idx'),
+                    models.Index(fields=['status'], name='orders_ship_sync_status_idx'),
+                    models.Index(fields=['next_retry_at'], name='orders_ship_sync_retry_idx'),
                 ],
             },
         ),
