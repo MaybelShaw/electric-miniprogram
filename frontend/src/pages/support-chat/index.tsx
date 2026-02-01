@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { View, Text, Input, Button, ScrollView, Image, Video } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
+import { TokenManager } from '../../utils/request'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
 import cameraIcon from '../../assets/icons/camera.png'
@@ -140,6 +141,7 @@ export default function SupportChat() {
   }, [])
 
   const startPolling = () => {
+    if (!TokenManager.getAccessToken()) return
     stopPolling()
     pollingRef.current = setInterval(() => {
       fetchMessages(lastFetchedAt)
@@ -162,6 +164,11 @@ export default function SupportChat() {
 
   const fetchMessages = async (after: string | null, isInitial = false) => {
     try {
+      if (!TokenManager.getAccessToken()) {
+        stopPolling()
+        if (isInitial) setLoading(false)
+        return
+      }
       const params: any = {}
       const resolvedAfter = resolveAfter(after)
       if (resolvedAfter) {
@@ -204,6 +211,9 @@ export default function SupportChat() {
       }
     } catch (error) {
       console.error('Polling error:', error)
+      if (String((error as any)?.message || '').includes('UNAUTHORIZED')) {
+        stopPolling()
+      }
     } finally {
       if (isInitial) setLoading(false)
     }
