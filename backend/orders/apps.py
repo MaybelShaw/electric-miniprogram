@@ -21,14 +21,29 @@ class OrdersConfig(AppConfig):
 
         def _wait_for_table():
             from django.db import connection
+            from orders.models import Order
+            required_columns = {field.column for field in Order._meta.local_fields}
             missing_logged = False
             while True:
                 try:
                     table_names = set(connection.introspection.table_names())
                     if 'orders_order' in table_names:
-                        if missing_logged:
-                            logger.info('orders_order table is ready, start auto-cancel loop')
-                        return
+                        with connection.cursor() as cursor:
+                            columns = {
+                                col.name
+                                for col in connection.introspection.get_table_description(cursor, 'orders_order')
+                            }
+                        missing = required_columns - columns
+                        if not missing:
+                            if missing_logged:
+                                logger.info('orders_order table is ready, start auto-cancel loop')
+                            return
+                        if not missing_logged:
+                            logger.warning(
+                                'orders_order columns not ready (%s), retry auto-cancel loop in 30s',
+                                ','.join(sorted(missing)),
+                            )
+                            missing_logged = True
                     if not missing_logged:
                         logger.warning('orders_order table not ready, retry auto-cancel loop in 30s')
                         missing_logged = True
