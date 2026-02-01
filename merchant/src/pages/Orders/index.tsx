@@ -1041,6 +1041,8 @@ export default function Orders() {
                           loading: deliveryCompanyLoading,
                           showSearch: true,
                           optionFilterProp: 'label',
+                          dropdownMatchSelectWidth: false,
+                          dropdownStyle: { minWidth: 360 },
                           filterOption: (input, option) =>
                             String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()) ||
                             String(option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
