@@ -196,7 +196,7 @@ def upload_shipping_info(
     last_resp: Dict = {}
     last_err = ''
     for attempt in range(max_attempts):
-        logger.debug(
+        logger.info(
             'wechat upload shipping info attempt',
             extra={
                 'order_id': getattr(order, 'id', None),

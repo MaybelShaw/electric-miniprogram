@@ -101,6 +101,9 @@ def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
     if isinstance(err, str) and err.startswith('http_status_'):
         return f"微信接口请求失败（HTTP {err.split('_')[-1]}），结果可能未同步，请先在微信后台确认后再重试"
     if errmsg:
+        lowered = str(errmsg).lower()
+        if 'not utf8' in lowered or 'data format error' in lowered:
+            return "发货数据格式错误（请检查物流单号/商品描述/联系方式是否包含非 UTF-8 字符）"
         return f"微信返回错误：{errmsg}"
     if err:
         return f"微信接口异常（{err}），结果可能未同步，请先在微信后台确认后再重试"
@@ -120,6 +123,9 @@ def _mask_tracking_no(value: str) -> str:
         return '*' * len(value)
     return f"{value[:3]}****{value[-3:]}"
 
+def _log_ship_debug(logger, message: str, extra: dict | None = None):
+    """Ensure shipping debug info is emitted even when DEBUG logs are disabled."""
+    logger.info(message, extra=extra or {})
 
 # Create your views here.
 @extend_schema(tags=['Orders'])
@@ -716,7 +722,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             delivery_mode = request.data.get('delivery_mode')
             is_all_delivered = request.data.get('is_all_delivered')
             item_desc = request.data.get('item_desc')
-            logger.debug(
+            _log_ship_debug(
+                logger,
                 "ship request received",
                 extra={
                     "order_id": order.id,
@@ -800,7 +807,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False)
                     and order.payments.filter(status='succeeded', method='wechat').exists()
                 )
-                logger.debug(
+                _log_ship_debug(
+                    logger,
                     "ship sync decision",
                     extra={
                         "order_id": order.id,
@@ -833,7 +841,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     operator=user,
                     note=note
                 )
-                logger.debug(
+                _log_ship_debug(
+                    logger,
                     "ship state transition done",
                     extra={
                         "order_id": order.id,
@@ -859,7 +868,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                             logger.warning('wechat shipping sync failed', extra={'order_id': order.id, 'error': err, 'resp': resp})
                             raise _WechatShippingSyncException(_wechat_shipping_error_message(err, resp))
                         wechat_synced = True
-                        logger.debug(
+                        _log_ship_debug(
+                            logger,
                             "wechat shipping sync succeeded",
                             extra={
                                 "order_id": order.id,
