@@ -38,6 +38,7 @@ from django.http import FileResponse
 from common.serializers import PDFOrImageFileValidator
 from common.logging import log_security
 import logging
+import json
 from decimal import Decimal, ROUND_HALF_UP
 from .payment_service import PaymentService
 
@@ -125,7 +126,8 @@ def _mask_tracking_no(value: str) -> str:
 
 def _log_ship_debug(logger, message: str, extra: dict | None = None):
     """Ensure shipping debug info is emitted even when DEBUG logs are disabled."""
-    logger.info(message, extra=extra or {})
+    payload = extra or {}
+    logger.warning(f"[SHIP_DEBUG] {message} | {json.dumps(payload, ensure_ascii=False)}")
 
 # Create your views here.
 @extend_schema(tags=['Orders'])

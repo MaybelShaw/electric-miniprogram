@@ -1,4 +1,5 @@
 import logging
+import json
 from datetime import timedelta, datetime
 from typing import Dict, Optional, Tuple
 
@@ -196,16 +197,19 @@ def upload_shipping_info(
     last_resp: Dict = {}
     last_err = ''
     for attempt in range(max_attempts):
-        logger.info(
-            'wechat upload shipping info attempt',
-            extra={
-                'order_id': getattr(order, 'id', None),
-                'delivery_mode': delivery_mode,
-                'logistics_type': logistics_type,
-                'shipping_list_len': len(shipping_items),
-                'attempt': attempt + 1,
-                'max_attempts': max_attempts,
-            },
+        logger.warning(
+            '[SHIP_DEBUG] wechat upload shipping info attempt | %s',
+            json.dumps(
+                {
+                    'order_id': getattr(order, 'id', None),
+                    'delivery_mode': delivery_mode,
+                    'logistics_type': logistics_type,
+                    'shipping_list_len': len(shipping_items),
+                    'attempt': attempt + 1,
+                    'max_attempts': max_attempts,
+                },
+                ensure_ascii=False,
+            ),
         )
         ok, resp, err = client.upload_shipping_info(payload)
         last_resp = resp or {}
