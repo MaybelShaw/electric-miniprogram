@@ -110,14 +110,14 @@ class WeChatMiniProgramClient:
             return False, {}, str(exc)
 
     def get_delivery_company_list(self) -> Tuple[bool, dict, str]:
-        """Fetch delivery company list for order shipping."""
+        """Fetch delivery list (运力 id 列表) for order shipping."""
         token = self.get_access_token()
         if not token:
             return False, {}, 'missing_access_token'
 
         try:
             resp = requests.post(
-                f'https://api.weixin.qq.com/product/delivery/get_company_list?access_token={token}',
+                f'https://api.weixin.qq.com/cgi-bin/express/delivery/open_msg/get_delivery_list?access_token={token}',
                 json={},
                 timeout=8,
             )

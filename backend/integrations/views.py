@@ -76,9 +76,9 @@ def wechat_delivery_company_list_view(request):
     client = WeChatMiniProgramClient()
     ok, data, err = client.get_delivery_company_list()
     if ok:
-        company_list = data.get('company_list') or []
+        company_list = data.get('delivery_list') or data.get('company_list') or []
         cache.set(cache_key, company_list, timeout=60 * 60 * 24)
-        return Response({'company_list': company_list})
+        return Response({'company_list': company_list, 'count': data.get('count', len(company_list))})
 
     if cached:
         return Response({'company_list': cached, 'cached': True, 'warning': err})
