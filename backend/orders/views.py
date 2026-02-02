@@ -474,7 +474,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             }
         """
         import logging
-        logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+
+def _contains_chinese(value: str) -> bool:
+    return any('\u4e00' <= ch <= '\u9fff' for ch in (value or ''))
         
         # 验证请求数据
         serializer = OrderCreateSerializer(
@@ -775,6 +779,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                         return Response({"detail": f"包裹 {idx + 1} 缺少物流单号"}, status=status.HTTP_400_BAD_REQUEST)
                     if not company:
                         return Response({"detail": f"包裹 {idx + 1} 缺少物流公司"}, status=status.HTTP_400_BAD_REQUEST)
+                    if _contains_chinese(company):
+                        return Response({"detail": f"包裹 {idx + 1} 物流公司编码不支持，请使用微信物流公司编码"}, status=status.HTTP_400_BAD_REQUEST)
                     if str(company).upper().startswith('SF') and not (item.get('contact') or getattr(order, 'snapshot_phone', '')):
                         return Response({"detail": "顺丰发货需提供收件人联系方式"}, status=status.HTTP_400_BAD_REQUEST)
                     normalized_item = {
@@ -795,6 +801,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     return Response({"detail": "分拆发货必须提供包裹列表"}, status=status.HTTP_400_BAD_REQUEST)
                 if not express_company:
                     return Response({"detail": "express_company 为必填"}, status=status.HTTP_400_BAD_REQUEST)
+                if _contains_chinese(express_company):
+                    return Response({"detail": "物流公司编码不支持，请使用微信物流公司编码"}, status=status.HTTP_400_BAD_REQUEST)
                 if str(express_company).upper().startswith('SF') and not getattr(order, 'snapshot_phone', ''):
                     return Response({"detail": "顺丰发货需提供收件人联系方式"}, status=status.HTTP_400_BAD_REQUEST)
                 if not tracking_number:
@@ -1364,6 +1372,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             # 认证
             if not ylh_api.authenticate():
                 logger.error('易理货系统认证失败')
+                order.haier_status = 'failed'
+                order.haier_fail_msg = '易理货系统认证失败'
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
                 return Response(
                     {'detail': '易理货系统认证失败'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1374,6 +1385,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             
             if not result:
                 logger.error(f'推送订单失败: order_id={order.id}')
+                order.haier_status = 'failed'
+                order.haier_fail_msg = '推送订单失败'
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
                 return Response(
                     {'detail': '推送订单失败'},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1403,6 +1417,12 @@ class OrderViewSet(viewsets.ModelViewSet):
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f'推送海尔订单失败: {str(e)}')
+            try:
+                order.haier_status = 'failed'
+                order.haier_fail_msg = f'推送失败: {str(e)}'
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
+            except Exception:
+                logger.exception('更新海尔推送失败状态异常')
             return Response(
                 {'detail': f'推送失败: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

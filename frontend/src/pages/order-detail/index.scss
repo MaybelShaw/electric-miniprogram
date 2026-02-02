@@ -270,6 +270,17 @@
         }
       }
     }
+
+    .logistics-action {
+      .action-btn {
+        font-size: 24px;
+        color: $primary-color;
+        border: 1px solid $primary-color;
+        padding: 6px 18px;
+        border-radius: 999px;
+        line-height: 1.2;
+      }
+    }
   }
 
   .price-card {

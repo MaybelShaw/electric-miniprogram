@@ -220,6 +220,9 @@ class OrderStateMachine:
         # 订单支付成功时，更新商品浏览次数
         elif new_status == OrderStatus.PAID.value:
             cls._handle_order_paid(order)
+        # 订单完成时，执行完成后的业务逻辑
+        elif new_status == OrderStatus.COMPLETED.value:
+            cls._handle_order_completed(order)
 
         # 根据状态变更调整销量（付款即计入，退货/退款/取消移除）
         cls._handle_sales_count_change(order, old_status, new_status)

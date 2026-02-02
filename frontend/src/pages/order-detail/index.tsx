@@ -10,6 +10,7 @@ import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import { resolvePaymentErrorMessage } from '../../utils/payment'
 import { BASE_URL, TokenManager } from '../../utils/request'
 import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
+import { openWechatLogistics } from '../../utils/wechat-logistics'
 import './index.scss'
 
 export default function OrderDetail() {
@@ -119,6 +120,38 @@ export default function OrderDetail() {
       }
     } catch (error) {
       // 静默失败
+    }
+  }
+
+  const resolveLogisticsParams = () => {
+    const shippingInfo = order?.logistics_info?.shipping_info
+    const shippingItem = shippingInfo?.shipping_list && shippingInfo.shipping_list.length > 0
+      ? shippingInfo.shipping_list[0]
+      : undefined
+    const deliveryId = shippingItem?.express_company || ''
+    const waybillId = shippingItem?.tracking_no || order?.logistics_info?.logistics_no || ''
+    const receiverPhone = shippingItem?.contact?.receiver_contact || order?.snapshot_phone
+    return { deliveryId, waybillId, receiverPhone }
+  }
+
+  const handleOpenLogistics = async (override?: { deliveryId?: string; waybillId?: string; receiverPhone?: string }) => {
+    const fallback = resolveLogisticsParams()
+    const deliveryId = override?.deliveryId || fallback.deliveryId
+    const waybillId = override?.waybillId || fallback.waybillId
+    const receiverPhone = override?.receiverPhone || fallback.receiverPhone
+    if (!deliveryId || !waybillId) {
+      Taro.showToast({ title: '暂无物流信息', icon: 'none' })
+      return
+    }
+    const sourcePath = `/pages/order-detail/index?id=${order?.id || ''}`
+    const result = await openWechatLogistics({
+      deliveryId,
+      waybillId,
+      receiverPhone,
+      sourcePath,
+    })
+    if (!result.opened && result.reason === 'unsupported') {
+      Taro.showToast({ title: '当前环境不支持物流查询', icon: 'none' })
     }
   }
 
@@ -636,6 +669,15 @@ export default function OrderDetail() {
     )
   }
 
+  const shippingInfo = order.logistics_info?.shipping_info
+  const shippingList = shippingInfo?.shipping_list && shippingInfo.shipping_list.length > 0
+    ? shippingInfo.shipping_list
+    : []
+  const { deliveryId, waybillId } = resolveLogisticsParams()
+  const canOpenLogistics = order.status === 'shipped' && (
+    shippingList.length > 0 || (!!deliveryId && !!waybillId)
+  )
+
   return (
     <View className='order-detail'>
       <ScrollView className='content' scrollY>
@@ -670,11 +712,39 @@ export default function OrderDetail() {
                 <Text className='info-value'>{order.logistics_info.delivery_record_code}</Text>
               </View>
             ) : null}
-             {order.logistics_info.sn_code ? (
+            {order.logistics_info.sn_code ? (
                <View className='info-row'>
                 <Text className='info-label'>SN码</Text>
                 <Text className='info-value'>{order.logistics_info.sn_code}</Text>
               </View>
+            ) : null}
+            {canOpenLogistics ? (
+              shippingList.length > 0 ? (
+                shippingList.map((item, idx) => (
+                  <View className='info-row logistics-action' key={`logistics-${idx}`}>
+                    <Text className='info-label'>物流轨迹{shippingList.length > 1 ? `（包裹${idx + 1}）` : ''}</Text>
+                    <View className='info-right'>
+                      <View
+                        className='action-btn'
+                        onClick={() => handleOpenLogistics({
+                          deliveryId: item.express_company,
+                          waybillId: item.tracking_no,
+                          receiverPhone: item.contact?.receiver_contact || order.snapshot_phone,
+                        })}
+                      >
+                        查看物流
+                      </View>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View className='info-row logistics-action'>
+                  <Text className='info-label'>物流轨迹</Text>
+                  <View className='info-right'>
+                    <View className='action-btn' onClick={() => handleOpenLogistics()}>查看物流</View>
+                  </View>
+                </View>
+              )
             ) : null}
           </View>
         )}

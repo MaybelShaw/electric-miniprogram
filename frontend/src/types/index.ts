@@ -194,6 +194,20 @@ export interface Order {
     delivery_record_code: string
     sn_code: string
     delivery_images: string[]
+    shipping_info?: {
+      logistics_type?: number
+      delivery_mode?: number
+      is_all_delivered?: boolean | null
+      shipping_list?: Array<{
+        tracking_no?: string
+        express_company?: string
+        express_company_name?: string
+        item_desc?: string
+        contact?: {
+          receiver_contact?: string
+        }
+      }>
+    }
   }
   invoice_info?: {
     id: number
