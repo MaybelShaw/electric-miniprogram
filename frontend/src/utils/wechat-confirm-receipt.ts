@@ -1,7 +1,8 @@
 import Taro from '@tarojs/taro'
 import type { Payment } from '../types'
 
-export const WECHAT_CONFIRM_RECEIPT_APPID = 'wx1183b055aeec94d1'
+export const getWechatConfirmReceiptAppId = () =>
+  process.env.TARO_APP_WECHAT_CONFIRM_RECEIPT_APPID || ''
 export const CONFIRM_RECEIPT_PENDING_KEY = 'wechat_confirm_receipt_pending'
 export const CONFIRM_RECEIPT_DEBUG_KEY = 'wechat_confirm_receipt_debug'
 

@@ -3,6 +3,7 @@ import Taro, { useLaunch } from '@tarojs/taro'
 import { orderService } from './services/order'
 import {
   clearPendingConfirmReceipt,
+  getWechatConfirmReceiptAppId,
   getPendingConfirmReceipt,
 } from './utils/wechat-confirm-receipt'
 
@@ -11,7 +12,10 @@ import './app.scss'
 function App({ children }: PropsWithChildren<any>) {
   const checkConfirmReceipt = (options: any) => {
     const referrerInfo = options?.referrerInfo
-    if (!referrerInfo || !referrerInfo.extraData) return
+    const expectedAppId = getWechatConfirmReceiptAppId()
+    if (!expectedAppId || !referrerInfo || referrerInfo.appid !== expectedAppId || !referrerInfo.extraData) {
+      return
+    }
 
     const extraData = referrerInfo.extraData || {}
     const status = extraData.status
