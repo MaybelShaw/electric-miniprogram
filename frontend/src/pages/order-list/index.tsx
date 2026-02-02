@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { View, ScrollView, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { orderService } from '../../services/order'
+import { paymentService } from '../../services/payment'
 import { Order } from '../../types'
 import OrderCard from '../../components/OrderCard'
+import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
 import './index.scss'
 
 export default function OrderList() {
@@ -31,6 +33,16 @@ export default function OrderList() {
 
   useEffect(() => {
     loadOrders(1)
+  }, [status])
+
+  useEffect(() => {
+    const handleReceiptConfirmed = () => {
+      loadOrders(1)
+    }
+    Taro.eventCenter.on('orderReceiptConfirmed', handleReceiptConfirmed)
+    return () => {
+      Taro.eventCenter.off('orderReceiptConfirmed', handleReceiptConfirmed)
+    }
   }, [status])
 
   const loadOrders = async (pageNum: number) => {
@@ -110,6 +122,66 @@ export default function OrderList() {
     })
 
     if (res.confirm) {
+      const targetOrder = orders.find(item => item.id === id)
+      if (!targetOrder?.payment_method || targetOrder.payment_method !== 'wechat') {
+        try {
+          await orderService.confirmReceipt(id)
+          Taro.showToast({ title: '确认收货成功', icon: 'success' })
+          loadOrders(1)
+        } catch (error) {
+          Taro.showToast({ title: '操作失败', icon: 'none' })
+        }
+        return
+      }
+
+      let transactionId: string | null = null
+      try {
+        const payments = await paymentService.getPayments({ order_id: id })
+        if (payments.results && payments.results.length > 0) {
+          const invalidStatuses = new Set(['cancelled', 'expired', 'failed'])
+          const validPayments = payments.results.filter((item) => !invalidStatuses.has(item.status))
+          
+          // Find the first payment with a transaction ID
+          for (const payment of validPayments) {
+            const tid = resolveTransactionIdFromPayment(payment)
+            if (tid) {
+              transactionId = tid
+              break
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch payments for order confirmation:', error)
+      }
+
+      const openResult = await openWechatConfirmReceipt({
+        orderId: id,
+        orderNumber: targetOrder?.order_number,
+        transactionId,
+      })
+
+      if (openResult.opened) {
+        Taro.showToast({ title: '已唤起微信确认收货', icon: 'none' })
+        return
+      }
+
+      if (openResult.reason === 'missing') {
+        const fallback = await Taro.showModal({
+          title: '无法唤起微信确认收货',
+          content: '未获取到微信交易号，是否仅确认本地收货？'
+        })
+        if (!fallback.confirm) return
+      } else if (openResult.reason === 'unsupported') {
+        const fallback = await Taro.showModal({
+          title: '当前微信版本不支持',
+          content: '是否仅确认本地收货？'
+        })
+        if (!fallback.confirm) return
+      } else if (openResult.reason === 'fail') {
+        Taro.showToast({ title: '唤起微信确认收货失败', icon: 'none' })
+        return
+      }
+
       try {
         await orderService.confirmReceipt(id)
         Taro.showToast({ title: '确认收货成功', icon: 'success' })

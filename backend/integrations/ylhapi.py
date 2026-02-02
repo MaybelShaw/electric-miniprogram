@@ -717,7 +717,24 @@ class YLHCallbackHandler:
                 # 成功回调后再执行本地取消/退款
                 try:
                     from orders.cancel_service import cancel_order_local
+                    status_before = order.status
                     cancel_order_local(order, operator=None, reason=order.cancel_reason or '', note='易理货取消成功')
+                    # Ensure local status synced if cancel_service didn't update
+                    order.refresh_from_db(fields=['status'])
+                    if order.status not in {'cancelled', 'refunding', 'refunded'}:
+                        try:
+                            from orders.state_machine import OrderStateMachine
+                            if OrderStateMachine.can_transition(order.status, 'cancelled'):
+                                OrderStateMachine.transition(
+                                    order,
+                                    'cancelled',
+                                    operator=None,
+                                    note='易理货取消成功(强制同步)'
+                                )
+                        except Exception as force_exc:
+                            logger.warning(
+                                f'取消成功但本地状态未更新: order_id={order.id}, before={status_before}, now={order.status}, err={force_exc}'
+                            )
                     order.haier_status = 'cancelled'
                     order.haier_fail_msg = ''
                 except Exception as cancel_exc:

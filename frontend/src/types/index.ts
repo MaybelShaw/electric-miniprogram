@@ -179,6 +179,7 @@ export interface Order {
   refundable_amount?: string
   refund_pending?: boolean
   refund_locked?: boolean
+  payment_method?: 'wechat' | 'alipay' | 'bank' | 'credit' | 'unknown'
   status: OrderStatus
   status_label: string
   note: string
