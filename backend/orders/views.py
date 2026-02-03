@@ -136,6 +136,10 @@ def _log_ship_debug(logger, message: str, extra: dict | None = None):
     payload = extra or {}
     logger.warning(f"[SHIP_DEBUG] {message} | {json.dumps(payload, ensure_ascii=False)}")
 
+
+def _contains_chinese(value: str) -> bool:
+    return any('\u4e00' <= ch <= '\u9fff' for ch in (value or ''))
+
 # Create your views here.
 @extend_schema(tags=['Orders'])
 class OrderViewSet(viewsets.ModelViewSet):
@@ -474,19 +478,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             }
         """
         import logging
-logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__)
 
-
-def _contains_chinese(value: str) -> bool:
-    return any('\u4e00' <= ch <= '\u9fff' for ch in (value or ''))
-        
-        # 验证请求数据
         serializer = OrderCreateSerializer(
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
 
-        # 获取目标用户（支持管理员为其他用户创建订单）
         target_user = request.user
         user_id_raw = request.data.get('user_id')
         if user_id_raw and (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
@@ -498,7 +496,6 @@ def _contains_chinese(value: str) -> bool:
                 logger.error(f'无效的user_id: {user_id_raw}, error: {str(e)}')
                 return Response({'detail': 'invalid user_id'}, status=400)
 
-        # 创建订单
         try:
             with transaction.atomic():
                 payment_method = serializer.validated_data.get("payment_method", "online")
@@ -519,10 +516,9 @@ def _contains_chinese(value: str) -> bool:
                     payment_method=payment_method,
                     items=items_payload,
                 )
-                
+
                 logger.info(f'订单创建成功: order_id={order.id}, user_id={target_user.id}, payment_method={payment_method}')
-                
-                # 只有在线支付才创建支付记录
+
                 payment = None
                 if payment_method == 'online':
                     payment_method_type = request.data.get('method', 'wechat')
@@ -534,23 +530,19 @@ def _contains_chinese(value: str) -> bool:
                     logger.info(f'支付记录创建成功: payment_id={payment.id}, order_id={order.id}')
                 else:
                     logger.info(f'信用支付订单，无需创建支付记录: order_id={order.id}')
-                
         except ValueError as e:
-            # 业务逻辑错误（如库存不足）
             logger.warning(f'创建订单失败: {str(e)}')
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # 系统错误
             logger.error(f'创建订单异常: {str(e)}')
             return Response(
                 {'detail': f'创建订单失败: {str(e)}'}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-        # 返回订单和支付信息
+
         order_serializer = OrderSerializer(order)
         pay_serializer = PaymentSerializer(payment) if payment else None
-        
+
         return Response({
             'order': order_serializer.data, 
             'payment': pay_serializer.data if pay_serializer else None
