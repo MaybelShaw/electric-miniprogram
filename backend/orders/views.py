@@ -161,6 +161,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         qs = qs.select_related('user', 'product', 'return_request').prefetch_related(
             'payments',
             'status_history',
+            'items',
             'items__product',
             'items__sku',
             'refunds',
