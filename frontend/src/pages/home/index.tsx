@@ -238,7 +238,7 @@ export default function Home() {
               <View className='section-title'>品类专区</View>
               <View className='more-btn' onClick={goToAllCategories}>更多 {'>'}</View>
             </View>
-            <ScrollView scrollX className='category-scroll'>
+            <View className='category-grid'>
               {majorCategories.map(cat => (
                 <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
                   {cat.logo ? (
@@ -249,7 +249,7 @@ export default function Home() {
                   <View className='category-name'>{cat.name}</View>
                 </View>
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
 
@@ -260,14 +260,14 @@ export default function Home() {
               <View className='section-title'>品牌专区</View>
               <View className='more-btn' onClick={goToAllBrands}>更多 {'>'}</View>
             </View>
-            <ScrollView scrollX className='brand-scroll'>
-              {brands.map(brand => (
+            <View className='brand-grid'>
+              {brands.slice(0, 4).map(brand => (
                 <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
                   <Image className='brand-logo' src={brand.logo} mode='aspectFit' />
                   <View className='brand-name'>{brand.name}</View>
                 </View>
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
 
