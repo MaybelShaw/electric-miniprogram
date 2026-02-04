@@ -414,6 +414,32 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'category_id': '商品必须关联到子品类或品项'})
         return attrs
 
+    def validate_product_code(self, value):
+        source = None
+        try:
+            source = (self.initial_data or {}).get('source')
+        except AttributeError:
+            source = None
+        if not source and self.instance is not None:
+            source = getattr(self.instance, 'source', None)
+
+        if isinstance(value, str):
+            value = value.strip()
+
+        if source == Product.SOURCE_HAIER:
+            if not value:
+                raise serializers.ValidationError('海尔商品必须设置产品编码')
+        else:
+            if not value:
+                return None
+
+        qs = Product.objects.filter(product_code=value)
+        if self.instance is not None:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError('海尔产品编码已存在，请使用唯一编码')
+        return value
+
     def _get_full_image_urls(self, images):
         """将图片URL转换为完整URL"""
         if not images:

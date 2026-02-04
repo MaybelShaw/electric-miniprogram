@@ -121,6 +121,11 @@
   - `GET/POST/... /addresses/` 地址 CRUD 与解析 `backend/users/urls.py:18`
 - 商品目录：
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
+    - 字段说明补充：
+      - `product_code`：海尔产品编码，数据库层面为唯一索引。
+        - 海尔商品（`source=haier`）必须填写且唯一；缺失将返回 `400 Bad Request`，错误信息“海尔商品必须设置产品编码”。
+        - 本地商品（`source=local`）可为空；当提交空白时后端会保存为 `NULL`，不参与唯一约束。
+        - 当提交已被其他商品占用的非空编码时，返回 `400 Bad Request`，错误信息为“海尔产品编码已存在，请使用唯一编码”。
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
   - `GET /products/by_brand/` 按品牌筛选 `backend/catalog/views.py`
   - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
