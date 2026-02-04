@@ -160,7 +160,7 @@ export default function Orders() {
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '操作失败');
+      message.error(error?.response?.data?.detail || error?.message || '操作失败');
       return false;
     }
   };
@@ -429,7 +429,7 @@ export default function Orders() {
         actionRef.current?.reload();
       }
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '推送失败');
+      message.error(error?.response?.data?.detail || error?.message || '推送失败');
     } finally {
       setPushing(false);
     }
@@ -442,7 +442,7 @@ export default function Orders() {
       const res: any = await getHaierLogistics(record.id);
       setLogisticsData(res.logistics_info);
     } catch (error: any) {
-      message.error(error?.response?.data?.detail || '查询物流失败');
+      message.error(error?.response?.data?.detail || error?.message || '查询物流失败');
       setLogisticsModalVisible(false);
     } finally {
       setLoadingLogistics(false);
@@ -695,7 +695,7 @@ export default function Orders() {
           );
         }
         
-        if (record.status === 'paid' && !isCancelPending) {
+        if (record.status === 'paid' && !isCancelPending && !isHaierOrder) {
           actions.push(
             <Button
               key="ship"

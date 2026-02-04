@@ -64,7 +64,19 @@ request.interceptors.request.use(
 );
 
 request.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    const res = response.data;
+    // 检查业务逻辑错误（如 Haier API 返回 200 但 success 为 false）
+    if (res && typeof res === 'object' && res.success === false && (res.errorMsg || res.msg || res.error)) {
+      const errorMsg = res.errorMsg || res.msg || res.error;
+      // 抛出错误以便在 catch 中捕获
+      const error: any = new Error(errorMsg);
+      error.response = response;
+      error.data = res;
+      throw error;
+    }
+    return res;
+  },
   (error) => {
     if (error.response?.status === 401) {
       message.error('登录已过期，请重新登录');

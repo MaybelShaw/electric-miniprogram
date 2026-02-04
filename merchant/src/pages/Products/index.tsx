@@ -378,8 +378,9 @@ export default function Products() {
           if (stockRes.success && stockRes.data) {
             updateValues.stock = stockRes.data.stock || 0;
           }
-        } catch (stockError) {
+        } catch (stockError: any) {
           console.warn('查询海尔库存失败', stockError);
+          message.warning(`查询库存失败: ${stockError.message || '未知错误'}`);
         }
 
         // 尝试查询价格
@@ -387,14 +388,21 @@ export default function Products() {
           const pricesRes: any = await getHaierPrices(productCode);
           if (pricesRes.success && pricesRes.data && pricesRes.data.length > 0) {
             const priceInfo = pricesRes.data[0];
-            updateValues.supply_price = priceInfo.supplyPrice;
-            updateValues.invoice_price = priceInfo.invoicePrice;
-            updateValues.market_price = priceInfo.marketPrice;
-            updateValues.stock_rebate = priceInfo.stockRebatePolicy;
-            updateValues.rebate_money = priceInfo.rebateMoney;
+            
+            // 检查价格接口返回的业务错误
+            if (priceInfo.reason || (priceInfo.isSales === '0' && !priceInfo.supplyPrice)) {
+               message.warning(`查询价格失败: ${priceInfo.reason || '商品不可售'}`);
+            } else {
+              updateValues.supply_price = priceInfo.supplyPrice;
+              updateValues.invoice_price = priceInfo.invoicePrice;
+              updateValues.market_price = priceInfo.marketPrice;
+              updateValues.stock_rebate = priceInfo.stockRebatePolicy;
+              updateValues.rebate_money = priceInfo.rebateMoney;
+            }
           }
-        } catch (priceError) {
+        } catch (priceError: any) {
           console.warn('查询海尔价格失败', priceError);
+          message.warning(`查询价格失败: ${priceError.message || '未知错误'}`);
         }
 
         form.setFieldsValue(updateValues);
@@ -402,8 +410,8 @@ export default function Products() {
       } else {
         message.warning('未找到海尔商品信息');
       }
-    } catch (error) {
-      message.error('查询失败');
+    } catch (error: any) {
+      message.error(error.message || '查询失败');
     } finally {
       setQueryLoading(false);
     }

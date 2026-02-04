@@ -1398,6 +1398,19 @@ class OrderViewSet(viewsets.ModelViewSet):
                     haier_order_no = data_section.get('retailOrderNo', '') or data_section.get('retail_order_no', '')
             order.haier_order_no = haier_order_no
             order.save(update_fields=['haier_so_id', 'haier_status', 'haier_fail_msg', 'haier_order_no'])
+
+            # 自动变更为已发货
+            try:
+                from .state_machine import OrderStateMachine
+                if OrderStateMachine.can_transition(order.status, 'shipped'):
+                    OrderStateMachine.transition(
+                        order, 
+                        'shipped', 
+                        operator=request.user, 
+                        note=f'海尔订单推送成功，自动发货。海尔单号: {haier_order_no or order.haier_so_id}'
+                    )
+            except Exception as e:
+                logger.warning(f'海尔订单自动发货失败: {str(e)}')
             
             serializer = self.get_serializer(order)
             return Response({
