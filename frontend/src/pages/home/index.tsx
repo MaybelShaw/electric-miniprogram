@@ -6,9 +6,10 @@ import { specialZoneCoverService } from '../../services/special-zone-cover'
 import { Product, Category, Brand, HomeBanner, SpecialZoneCover } from '../../types'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
+import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
 
-export default function Home() {
+function Home() {
   const [searchValue, setSearchValue] = useState('')
   const [majorCategories, setMajorCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
@@ -185,8 +186,8 @@ export default function Home() {
   }
 
   return (
-    <View className='home'>
-      {/* 搜索栏 */}
+    <View className="home">
+      {/* Search Bar */}
       <View className='search-bar'>
         <View className='search-input'>
           <View className='search-icon'>🔍</View>
@@ -314,3 +315,5 @@ export default function Home() {
     </View>
   )
 }
+
+export default withPrivacyCheck(Home)

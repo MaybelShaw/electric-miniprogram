@@ -72,5 +72,6 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tabbar/profile-active.png'
       }
     ]
-  }
+  },
+  __usePrivacyCheck__: true
 })

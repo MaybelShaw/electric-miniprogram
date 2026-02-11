@@ -5,9 +5,10 @@ import { authService } from '../../services/auth'
 import { notificationService } from '../../services/notification'
 import { TokenManager } from '../../utils/request'
 import { User } from '../../types'
+import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
 
-export default function Profile() {
+function Profile() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -310,3 +311,5 @@ export default function Profile() {
     </View>
   )
 }
+
+export default withPrivacyCheck(Profile)

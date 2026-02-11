@@ -121,11 +121,25 @@
   - `GET/POST/... /addresses/` 地址 CRUD 与解析 `backend/users/urls.py:18`
 - 商品目录：
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
-    - 字段说明补充：
+    - 字段与校验补充：
+      - `category_id`：商品必须挂在“子品类（minor）”或“品项（item）”下，否则返回 `400`，错误键为 `category_id`，错误信息“商品必须关联到子品类或品项”（`backend/catalog/serializers.py:409`，与 `Product.clean` 保持一致）。
       - `product_code`：海尔产品编码，数据库层面为唯一索引。
         - 海尔商品（`source=haier`）必须填写且唯一；缺失将返回 `400 Bad Request`，错误信息“海尔商品必须设置产品编码”。
         - 本地商品（`source=local`）可为空；当提交空白时后端会保存为 `NULL`，不参与唯一约束。
         - 当提交已被其他商品占用的非空编码时，返回 `400 Bad Request`，错误信息为“海尔产品编码已存在，请使用唯一编码”。
+      - 价格字段与展示：
+        - `price`：商户对外销售价；若从海尔同步且未手工调整，初始为“市场价（market_price）或供价（supply_price）”。
+        - `display_price`：展示价；对经销商优先使用经销价（dealer_price），否则回退零售价 `price`。
+        - `discounted_price`：折后价；基于当前登录用户与商品的最佳有效折扣计算（`orders.services.get_best_active_discount`）。
+        - `originalPrice`：原价字段；优先返回 `market_price`，否则返回 `price`。
+      - 海尔商品辅助字段：
+        - `is_haier_product`：是否为海尔商品，仅根据 `source == haier` 判断。
+        - `haier_info`：仅当为海尔商品且存在 `product_code` 时返回，结构为：`{ product_code, product_model, product_group, supply_price, invoice_price, market_price, is_sales, no_sales_reason, warehouse_code, warehouse_grade, last_sync_at }`。
+      - 图片与拉页：
+        - `main_images`：主图列表，优先使用本地上传的图片；如为空且存在海尔主图 `product_image_url`，则使用该 URL 作为主图。
+        - `detail_images`：详情图列表，优先使用海尔拉页 `product_page_urls`；若海尔拉页为空，则回退到本地上传的详情图（最多 50 张）。
+      - SKU 聚合：
+        - 当商品存在启用的 `skus` 时，响应中会附带 `skus` 与 `spec_options`，并自动聚合库存与价格：`stock` 为启用 SKU 库存之和，`price/display_price/discounted_price` 为对应最小值，便于前端直接展示区间内最低价格。
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
   - `GET /products/by_brand/` 按品牌筛选 `backend/catalog/views.py`
   - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
