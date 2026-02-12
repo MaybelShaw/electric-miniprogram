@@ -37,7 +37,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
-    navigationBarTitleText: '家电商城',
+    navigationBarTitleText: '庆勋愉悦家',
     navigationBarTextStyle: 'black',
     backgroundColor: '#F7F8FA'
   },

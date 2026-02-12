@@ -35,13 +35,13 @@ function Home() {
   }, [])
 
   useShareAppMessage(() => ({
-    title: '家电商城',
+    title: '庆勋愉悦家',
     path: '/pages/home/index',
     ...(banners[0]?.image_url ? { imageUrl: banners[0].image_url } : {}),
   }))
 
   useShareTimeline(() => ({
-    title: '家电商城',
+    title: '庆勋愉悦家',
     ...(banners[0]?.image_url ? { imageUrl: banners[0].image_url } : {}),
   }))
 
