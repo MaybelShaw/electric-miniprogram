@@ -45,6 +45,7 @@ export interface Product {
   is_active: boolean;
   sales_count?: number;
   view_count?: number;
+  tag?: string;
   source: 'local' | 'haier';
   min_price?: number;
   max_price?: number;

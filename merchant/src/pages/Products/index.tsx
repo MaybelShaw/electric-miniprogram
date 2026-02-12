@@ -99,6 +99,22 @@ export default function Products() {
       width: 120,
     },
     { 
+      title: '标签', 
+      dataIndex: 'tag',
+      width: 100,
+      valueType: 'select',
+      valueEnum: {
+        brand_direct: { text: '品牌直发', status: 'Warning' },
+        source_factory: { text: '源头厂家', status: 'Processing' },
+      },
+      render: (_, record) => {
+        if (!record.tag) return '-';
+        const color = record.tag === 'brand_direct' ? 'gold' : 'cyan';
+        const text = record.tag === 'brand_direct' ? '品牌直发' : '源头厂家';
+        return <Tag color={color}>{text}</Tag>;
+      },
+    },
+    { 
       title: '来源',
       dataIndex: 'source',
       width: 100,
@@ -286,6 +302,7 @@ export default function Products() {
           market_price: res.market_price,
           stock_rebate: res.stock_rebate,
           rebate_money: res.rebate_money,
+          tag: res.tag,
         });
       }, 100);
     } catch (error) {
@@ -642,6 +659,18 @@ export default function Products() {
             options={categories.map(item => ({ label: item.name, value: item.id }))}
             placeholder="请选择品项"
             showSearch
+            colProps={{ span: 12 }}
+          />
+
+          <ProFormSelect
+            name="tag"
+            label="商品标签"
+            options={[
+              { label: '无标签', value: '' },
+              { label: '品牌直发', value: 'brand_direct' },
+              { label: '源头厂家', value: 'source_factory' },
+            ]}
+            placeholder="请选择商品标签"
             colProps={{ span: 12 }}
           />
           

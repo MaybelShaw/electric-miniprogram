@@ -125,6 +125,23 @@ class Product(models.Model):
         verbose_name='商品来源',
         help_text='local=本地维护商品; haier=来自海尔API的商品',
     )
+
+    # 商品标签
+    TAG_BRAND_DIRECT = 'brand_direct'
+    TAG_SOURCE_FACTORY = 'source_factory'
+    TAG_CHOICES = [
+        ('', '无标签'),
+        (TAG_BRAND_DIRECT, '品牌直发'),
+        (TAG_SOURCE_FACTORY, '源头厂家'),
+    ]
+    tag = models.CharField(
+        max_length=20,
+        choices=TAG_CHOICES,
+        default='',
+        blank=True,
+        verbose_name='商品标签'
+    )
+
     stock = models.PositiveIntegerField(default=0, verbose_name='库存数量')
     
     # 海尔API相关字段

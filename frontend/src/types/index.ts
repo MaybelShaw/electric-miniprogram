@@ -59,6 +59,7 @@ export interface Product {
   is_active: boolean
   sales_count: number
   view_count: number
+  tag?: string  // 商品标签：brand_direct | source_factory
   discounted_price: number  // 折扣后价格
   originalPrice: number  // 原价
   show_in_gift_zone?: boolean

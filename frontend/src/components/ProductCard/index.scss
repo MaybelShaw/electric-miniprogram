@@ -49,6 +49,20 @@
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       margin-bottom: $spacing-sm;
+
+      .product-tag {
+        display: inline-block;
+        background-color: #333333;
+        color: #FFD700;
+        font-size: 20px; /* 10px in design, typically needs scaling or use rpx if needed, but here use px for now, considering standard text size */
+        /* Taro typically converts px to rpx by default, 20px might be 20rpx which is small. Let's use 20rpx which is ~10px */
+        font-size: 20rpx; 
+        padding: 0 8rpx;
+        border-radius: 4rpx;
+        margin-right: 8rpx;
+        vertical-align: middle;
+        line-height: 1.4;
+      }
     }
 
     .product-bottom {
