@@ -106,7 +106,7 @@
       - 管理员验收：`PATCH /api/orders/{id}/receive_return/`
       - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
 - 轮播图管理：
-  - 支持按位置管理轮播图：首页、礼品专区、设计师专区
+  - 支持按位置管理轮播图：首页、礼品专区、设计师专区、爆品专区
   - 功能：列表查看、新增、编辑、删除、启用/禁用
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/home-banners/`，`POST /api/catalog/home-banners/upload/`
 - 案例管理：

@@ -3,7 +3,7 @@ import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../ty
 
 export const productService = {
   // 获取轮播图列表
-  async getHomeBanners(position?: 'home' | 'gift' | 'designer'): Promise<HomeBanner[]> {
+  async getHomeBanners(position?: 'home' | 'gift' | 'designer' | 'best_seller'): Promise<HomeBanner[]> {
     const params = position ? { position } : undefined
     const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', params, false)
     return response.results || []
@@ -17,6 +17,7 @@ export const productService = {
     search?: string
     show_in_gift_zone?: boolean
     show_in_designer_zone?: boolean
+    show_in_best_seller_zone?: boolean
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/', params)
   },

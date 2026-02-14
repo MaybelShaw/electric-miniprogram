@@ -224,6 +224,21 @@ export default function Products() {
         </Tag>
       ),
     },
+    {
+      title: '爆品专区',
+      dataIndex: 'show_in_best_seller_zone',
+      width: 110,
+      valueType: 'select',
+      valueEnum: {
+        true: { text: '展示', status: 'Success' },
+        false: { text: '不展示', status: 'Default' },
+      },
+      render: (_, record) => (
+        <Tag color={record.show_in_best_seller_zone ? 'red' : 'default'}>
+          {record.show_in_best_seller_zone ? '展示' : '不展示'}
+        </Tag>
+      ),
+    },
     { 
       title: '销量', 
       dataIndex: 'sales_count', 
@@ -295,6 +310,7 @@ export default function Products() {
           is_active: res.is_active,
           show_in_gift_zone: res.show_in_gift_zone,
           show_in_designer_zone: res.show_in_designer_zone,
+          show_in_best_seller_zone: res.show_in_best_seller_zone,
           source: res.source || 'local',
           product_code: res.product_code || '',
           supply_price: res.supply_price,
@@ -331,9 +347,10 @@ export default function Products() {
       source: 'local',
       show_in_gift_zone: false,
       show_in_designer_zone: false,
+      show_in_best_seller_zone: false,
     });
     setModalVisible(true);
-  };
+    };
 
   const handleImageUpdate = async (productId: number, fieldName: string, urls: string[], skipDbUpdate: boolean = false) => {
     // 同步更新表单值，避免提交时被覆盖
@@ -495,6 +512,9 @@ export default function Products() {
           }
           if (params.show_in_designer_zone !== undefined) {
             exportQueryParams.show_in_designer_zone = params.show_in_designer_zone;
+          }
+          if (params.show_in_best_seller_zone !== undefined) {
+            exportQueryParams.show_in_best_seller_zone = params.show_in_best_seller_zone;
           }
 
           // 排序
@@ -741,6 +761,11 @@ export default function Products() {
           <ProFormSwitch
             name="show_in_designer_zone"
             label="设计师专区展示"
+            colProps={{ span: 6 }}
+          />
+          <ProFormSwitch
+            name="show_in_best_seller_zone"
+            label="爆品专区展示"
             colProps={{ span: 6 }}
           />
         </ProFormGroup>

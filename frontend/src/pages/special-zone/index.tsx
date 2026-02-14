@@ -49,7 +49,7 @@ export default function SpecialZone() {
 
   const loadBanners = async () => {
     try {
-        const res = await productService.getHomeBanners(type as 'gift' | 'designer')
+        const res = await productService.getHomeBanners(type as 'gift' | 'designer' | 'best_seller')
         setBanners(res)
     } catch (error) {
         console.error('Failed to load banners:', error)
@@ -74,6 +74,7 @@ export default function SpecialZone() {
         page_size: 20,
         ...(type === 'gift' ? { show_in_gift_zone: true } : {}),
         ...(type === 'designer' ? { show_in_designer_zone: true } : {}),
+        ...(type === 'best_seller' ? { show_in_best_seller_zone: true } : {}),
       })
       setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setHasMore(res.has_next || false)

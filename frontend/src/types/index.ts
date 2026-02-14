@@ -64,6 +64,7 @@ export interface Product {
   originalPrice: number  // 原价
   show_in_gift_zone?: boolean
   show_in_designer_zone?: boolean
+  show_in_best_seller_zone?: boolean
   created_at: string
   updated_at: string
 }
@@ -115,7 +116,7 @@ export interface Brand {
 export interface HomeBanner {
   id: number
   title: string
-  position: 'home' | 'gift' | 'designer'
+  position: 'home' | 'gift' | 'designer' | 'best_seller'
   order: number
   image_url: string
   image_id: number
@@ -126,7 +127,7 @@ export interface HomeBanner {
 // 首页专区图片
 export interface SpecialZoneCover {
   id: number
-  type: 'gift' | 'designer'
+  type: 'gift' | 'designer' | 'best_seller'
   is_active: boolean
   image_url: string
   image_id: number

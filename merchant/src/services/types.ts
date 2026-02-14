@@ -63,6 +63,7 @@ export interface Product {
   no_sales_reason?: string;
   show_in_gift_zone?: boolean;
   show_in_designer_zone?: boolean;
+  show_in_best_seller_zone?: boolean;
 }
 
 export interface HaierOrderInfo {

@@ -54,6 +54,7 @@ class ProductSearchService:
         is_active: Optional[bool] = None,
         show_in_gift_zone: Optional[bool] = None,
         show_in_designer_zone: Optional[bool] = None,
+        show_in_best_seller_zone: Optional[bool] = None,
         sort_by: str = 'relevance',
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -71,6 +72,7 @@ class ProductSearchService:
             is_active: Filter by active flag
             show_in_gift_zone: Filter by gift zone flag
             show_in_designer_zone: Filter by designer zone flag
+            show_in_best_seller_zone: Filter by best seller zone flag
             sort_by: Sort strategy (relevance, price_asc, price_desc, sales, created, views)
             page: Page number (1-indexed)
             page_size: Number of results per page
@@ -153,6 +155,9 @@ class ProductSearchService:
 
         if show_in_designer_zone is not None:
             queryset = queryset.filter(show_in_designer_zone=bool(show_in_designer_zone))
+
+        if show_in_best_seller_zone is not None:
+            queryset = queryset.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
         
         # Apply sorting
         queryset = cls._apply_sorting(queryset, sort_by, keyword)

@@ -52,7 +52,7 @@
 
 ## 服务层接口清单
 - 商品服务：`frontend/src/services/product.ts:4`
-  - `getHomeBanners` 获取轮播图（支持 `position=home|gift|designer`）
+  - `getHomeBanners` 获取轮播图（支持 `position=home|gift|designer|best_seller`）
   - `getProducts` 列表（分页/排序/搜索）`frontend/src/services/product.ts:6`
   - `getProductDetail` 详情 `frontend/src/services/product.ts:16`
   - `getProductsByCategory`/`getProductsByBrand` 分类/品牌筛选 `frontend/src/services/product.ts:21`
@@ -84,11 +84,11 @@
 
 ## 页面与功能
 - 首页（`/pages/home/index`）：
-  - 分类、品牌、特色专区、轮播与商品列表，分页加载与下拉刷新
+  - 分类、品牌、特色专区（含爆品专区）、轮播与商品列表，分页加载与下拉刷新
   - 加载商品列表：`frontend/src/pages/home/index.tsx:67`
 - 专区页（`/pages/special-zone/index`）：
   - 场景展示（通过 `position` 获取轮播图）与商品列表展示
-  - 支持“礼品专区”与“设计师专区”两种模式，通过 `type` 参数控制
+  - 支持“礼品专区”、“设计师专区”与“爆品专区”三种模式，通过 `type` 参数控制
   - 设计师专区展示精选案例（`Case`）
 - 品牌列表页（`/pages/brand-list/index`）：
   - 展示所有品牌，支持点击跳转至品牌详情页

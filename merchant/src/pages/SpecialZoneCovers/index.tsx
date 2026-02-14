@@ -91,6 +91,7 @@ export default function SpecialZoneCovers() {
       valueEnum: {
         gift: { text: '礼品专区', status: 'Processing' },
         designer: { text: '设计师专区', status: 'Success' },
+        best_seller: { text: '爆品专区', status: 'Error' },
       },
       width: 120,
     },
@@ -238,6 +239,7 @@ export default function SpecialZoneCovers() {
           valueEnum={{
             gift: '礼品专区',
             designer: '设计师专区',
+            best_seller: '爆品专区',
           }}
           rules={[{ required: true, message: '请选择专区类型' }]}
           initialValue="gift"

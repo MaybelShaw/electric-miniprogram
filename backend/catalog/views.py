@@ -105,6 +105,15 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                     qs = qs.filter(show_in_designer_zone=parsed)
                 except Exception:
                     pass
+
+        best_seller_flag = self.request.query_params.get('show_in_best_seller_zone')
+        if best_seller_flag is not None:
+            parsed = to_bool(best_seller_flag)
+            if parsed is not None:
+                try:
+                    qs = qs.filter(show_in_best_seller_zone=parsed)
+                except Exception:
+                    pass
         return qs
 
     @extend_schema(
@@ -284,6 +293,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             '上架状态',
             '礼品专区',
             '设计师专区',
+            '爆品专区',
             '销量',
             '浏览量',
             '创建时间',
@@ -302,6 +312,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                 '上架' if product.is_active else '下架',
                 '是' if product.show_in_gift_zone else '否',
                 '是' if product.show_in_designer_zone else '否',
+                '是' if product.show_in_best_seller_zone else '否',
                 product.sales_count,
                 product.view_count,
                 product.created_at,

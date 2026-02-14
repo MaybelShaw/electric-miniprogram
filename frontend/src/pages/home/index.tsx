@@ -17,6 +17,7 @@ function Home() {
   const [banners, setBanners] = useState<HomeBanner[]>([])
   const [giftZoneCover, setGiftZoneCover] = useState<SpecialZoneCover | null>(null)
   const [designerZoneCover, setDesignerZoneCover] = useState<SpecialZoneCover | null>(null)
+  const [bestSellerZoneCover, setBestSellerZoneCover] = useState<SpecialZoneCover | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -58,12 +59,14 @@ function Home() {
   // 加载专区图片
   const loadSpecialZones = async () => {
     try {
-      const [gift, designer] = await Promise.all([
+      const [gift, designer, bestSeller] = await Promise.all([
         specialZoneCoverService.getCovers({ type: 'gift' }),
         specialZoneCoverService.getCovers({ type: 'designer' }),
+        specialZoneCoverService.getCovers({ type: 'best_seller' }),
       ])
       setGiftZoneCover(gift[0] || null)
       setDesignerZoneCover(designer[0] || null)
+      setBestSellerZoneCover(bestSeller[0] || null)
     } catch (error) {
       // 静默失败
     }
@@ -166,12 +169,23 @@ function Home() {
   }
 
   // 跳转专区
-  const goToSpecialZone = (type: 'gift' | 'designer', title: string) => {
+  const goToSpecialZone = (type: 'gift' | 'designer' | 'best_seller', title: string) => {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
-  const handleZoneClick = (type: 'gift' | 'designer') => {
-    const title = type === 'gift' ? '礼品专区' : '设计师专区'
+  const handleZoneClick = (type: 'gift' | 'designer' | 'best_seller') => {
+    let title = ''
+    switch (type) {
+      case 'gift':
+        title = '礼品专区'
+        break
+      case 'designer':
+        title = '设计师专区'
+        break
+      case 'best_seller':
+        title = '爆品专区'
+        break
+    }
     goToSpecialZone(type, title)
   }
 
@@ -228,6 +242,15 @@ function Home() {
           <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
             {designerZoneCover?.image_url && (
               <Image className='zone-image' src={designerZoneCover.image_url} mode='aspectFill' />
+            )}
+          </View>
+        </View>
+
+        {/* 爆品专区 (单独一行) */}
+        <View className='special-zones'>
+          <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
+            {bestSellerZoneCover?.image_url && (
+              <Image className='zone-image' src={bestSellerZoneCover.image_url} mode='aspectFill' />
             )}
           </View>
         </View>

@@ -166,6 +166,7 @@ class Product(models.Model):
     is_active = models.BooleanField(default=True, verbose_name='是否上架')
     show_in_gift_zone = models.BooleanField(default=False, verbose_name='礼品专区展示')
     show_in_designer_zone = models.BooleanField(default=False, verbose_name='设计师专区展示')
+    show_in_best_seller_zone = models.BooleanField(default=False, verbose_name='爆品专区展示')
     is_sales = models.CharField(max_length=1, default='1', verbose_name='海尔是否可采(1可采,0不可采)')
     no_sales_reason = models.CharField(max_length=200, blank=True, default='', verbose_name='不可采原因')
     view_count = models.PositiveIntegerField(default=0, verbose_name='浏览次数')
@@ -373,10 +374,12 @@ class HomeBanner(models.Model):
     POSITION_HOME = 'home'
     POSITION_GIFT = 'gift'
     POSITION_DESIGNER = 'designer'
+    POSITION_BEST_SELLER = 'best_seller'
     POSITION_CHOICES = [
         (POSITION_HOME, '首页'),
         (POSITION_GIFT, '礼品专区'),
         (POSITION_DESIGNER, '设计师专区'),
+        (POSITION_BEST_SELLER, '爆品专区'),
     ]
 
     id = models.BigAutoField(primary_key=True)
@@ -417,9 +420,11 @@ class HomeBanner(models.Model):
 class SpecialZoneCover(models.Model):
     TYPE_GIFT = 'gift'
     TYPE_DESIGNER = 'designer'
+    TYPE_BEST_SELLER = 'best_seller'
     TYPE_CHOICES = [
         (TYPE_GIFT, '礼品专区'),
         (TYPE_DESIGNER, '设计师专区'),
+        (TYPE_BEST_SELLER, '爆品专区'),
     ]
 
     id = models.BigAutoField(primary_key=True)
