@@ -192,6 +192,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         is_active = to_bool(request.query_params.get('is_active'))
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
+        show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
         
         # Parse pagination parameters
         page = parse_int(request.query_params.get('page')) or 1
@@ -210,6 +211,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             is_active=is_active,
             show_in_gift_zone=show_in_gift_zone,
             show_in_designer_zone=show_in_designer_zone,
+            show_in_best_seller_zone=show_in_best_seller_zone,
             sort_by=sort_by,
             page=page,
             page_size=page_size,
@@ -257,6 +259,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         is_active = to_bool(request.query_params.get('is_active'))
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
+        show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
 
         if sort_by not in ProductSearchService.VALID_SORT_OPTIONS:
             sort_by = 'relevance'
@@ -278,6 +281,8 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             qs = qs.filter(show_in_gift_zone=bool(show_in_gift_zone))
         if show_in_designer_zone is not None:
             qs = qs.filter(show_in_designer_zone=bool(show_in_designer_zone))
+        if show_in_best_seller_zone is not None:
+            qs = qs.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
 
         qs = ProductSearchService._apply_sorting(qs, sort_by, keyword)
 
