@@ -250,7 +250,7 @@ function Home() {
         <View className='special-zones'>
           <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
             {bestSellerZoneCover?.image_url && (
-              <Image className='zone-image' src={bestSellerZoneCover.image_url} mode='aspectFill' />
+              <Image className='zone-image' src={bestSellerZoneCover.image_url} mode='widthFix' />
             )}
           </View>
         </View>

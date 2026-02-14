@@ -107,7 +107,7 @@ export default function SpecialZone() {
   }
 
   return (
-    <View className='special-zone'>
+    <View className={`special-zone ${type}-zone`}>
       <ScrollView
         className='content'
         scrollY
@@ -156,7 +156,7 @@ export default function SpecialZone() {
 
         {/* 产品展示 */}
         <View className='product-display'>
-          <View className='section-title'>产品展示</View>
+          {type === 'designer' && <View className='section-title'>产品展示</View>}
           <View className='product-list'>
             {products.map(product => (
               <ProductCard

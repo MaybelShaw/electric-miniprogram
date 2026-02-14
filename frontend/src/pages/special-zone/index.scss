@@ -117,4 +117,17 @@
     color: #999;
     font-size: 28px;
   }
+
+  &.designer-zone {
+    .section-title {
+      text-align: center;
+    }
+  }
+
+  &.gift-zone,
+  &.best_seller-zone {
+    .product-display {
+      padding-top: 20px;
+    }
+  }
 }
