@@ -58,6 +58,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     sku = ProductSKUSerializer(read_only=True)
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     sku_id = serializers.IntegerField(source='sku.id', read_only=True, allow_null=True)
+    is_haier_item = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -79,7 +80,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'receive_qty',
             'return_qty',
             'reject_qty',
+            'is_haier_item',
         ]
+
+    def get_is_haier_item(self, obj: 'OrderItem') -> bool:
+        """判断是否为海尔商品"""
+        product = getattr(obj, 'product', None)
+        if not product:
+            return False
+        return getattr(product, 'source', None) == getattr(product.__class__, 'SOURCE_HAIER', 'haier')
 
 
 class OrderSerializer(serializers.ModelSerializer):
