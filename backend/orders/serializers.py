@@ -58,6 +58,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
     sku = ProductSKUSerializer(read_only=True)
     product_id = serializers.IntegerField(source='product.id', read_only=True)
     sku_id = serializers.IntegerField(source='sku.id', read_only=True, allow_null=True)
+    is_haier_item = serializers.SerializerMethodField()
 
     class Meta:
         model = OrderItem
@@ -76,7 +77,18 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'actual_amount',
             'snapshot_image',
             'created_at',
+            'receive_qty',
+            'return_qty',
+            'reject_qty',
+            'is_haier_item',
         ]
+
+    def get_is_haier_item(self, obj: 'OrderItem') -> bool:
+        """判断是否为海尔商品"""
+        product = getattr(obj, 'product', None)
+        if not product:
+            return False
+        return getattr(product, 'source', None) == getattr(product.__class__, 'SOURCE_HAIER', 'haier')
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -97,6 +109,9 @@ class OrderSerializer(serializers.ModelSerializer):
     refund_pending = serializers.SerializerMethodField()
     refund_action_required = serializers.SerializerMethodField()
     refund_locked = serializers.SerializerMethodField()
+    child_orders = serializers.SerializerMethodField()
+    order_type = serializers.CharField(read_only=True)
+    parent_order = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Order
@@ -141,6 +156,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "cancel_reason",
             "cancelled_at",
             "items",
+            "order_type",
+            "parent_order",
+            "child_orders",
         ]
 
     def get_quantity(self, obj: Order) -> int:
@@ -281,6 +299,41 @@ class OrderSerializer(serializers.ModelSerializer):
             timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
             return obj.created_at + timedelta(minutes=timeout)
         return None
+
+    def get_child_orders(self, obj: Order):
+        """获取子订单列表（仅当为主订单时返回）"""
+        if obj.order_type != 'main':
+            return []
+
+        # 使用预加载的 child_orders（如果可用）
+        # Django 的 prefetch_related 将结果存储在 _prefetched_objects_cache 字典中
+        child_orders = getattr(obj, '_prefetched_objects_cache', {}).get('child_orders', None)
+        if child_orders is None:
+            child_orders = obj.child_orders.all().order_by('created_at')
+
+        result = []
+        for child in child_orders:
+            # 使用预加载的 items（如果可用）
+            # prefetch_related('child_orders__items') 会将 items 存储在 _prefetched_objects_cache['items'] 中
+            items = getattr(child, '_prefetched_objects_cache', {}).get('items', None)
+            if items is None:
+                product_count = child.items.count()
+            else:
+                product_count = len(items)  # items 已是列表，直接使用 len()
+
+            result.append({
+                'id': child.id,
+                'order_number': child.order_number,
+                'order_type': child.order_type,
+                'status': child.status,
+                'status_label': self.get_status_label(child),
+                'total_amount': str(child.total_amount),
+                'discount_amount': str(child.discount_amount),
+                'actual_amount': str(child.actual_amount),
+                'product_count': product_count,
+                'quantity': child.total_quantity,
+            })
+        return result
 
 
 class OrderCreateItemSerializer(serializers.Serializer):
