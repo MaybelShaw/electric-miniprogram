@@ -1311,12 +1311,12 @@ class OrderViewSet(viewsets.ModelViewSet):
     def push_to_haier(self, request, pk=None):
         """
         推送订单到海尔系统
-        
+
         支持场景:
         - 海尔子订单 (order_type='haier') - 直接推送
         - 主订单 (order_type='main') - 拒绝，提示推送子订单
         - 普通海尔订单 - 兼容旧逻辑
-        
+
         需要管理员权限
         """
         if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
@@ -1324,12 +1324,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         order = self.get_object()
 
+        # 兼容旧订单：迁移前创建的订单 order_type 可能为 NULL 或空字符串
+        order_type = getattr(order, 'order_type', None) or 'main'
+
         # 场景 1: 海尔子订单 - 直接推送
-        if order.order_type == 'haier':
+        if order_type == 'haier':
             return self._push_haier_child_order(request, order)
 
         # 场景 2: 主订单 - 拒绝推送
-        if order.order_type == 'main':
+        if order_type == 'main':
             return Response(
                 {'detail': '主订单不能直接推送，请推送海尔子订单'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1433,7 +1436,6 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def _push_legacy_haier_order(self, request, order):
         """推送普通海尔订单（兼容旧逻辑）"""
-        import logging
         logger = logging.getLogger(__name__)
         from catalog.models import Product as CatalogProduct
 
@@ -1467,8 +1469,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         try:
             from django.conf import settings
-            import logging
-            
             logger = logging.getLogger(__name__)
             
             # 准备订单数据

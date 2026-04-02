@@ -297,18 +297,20 @@ class OrderSerializer(serializers.ModelSerializer):
             return []
 
         # 使用预加载的 child_orders（如果可用）
-        child_orders = getattr(obj, '_prefetched_child_orders', None)
+        # Django 的 prefetch_related 将结果存储在 _prefetched_objects_cache 字典中
+        child_orders = getattr(obj, '_prefetched_objects_cache', {}).get('child_orders', None)
         if child_orders is None:
             child_orders = obj.child_orders.all().order_by('created_at')
 
         result = []
         for child in child_orders:
             # 使用预加载的 items（如果可用）
+            # prefetch_related('child_orders__items') 会将 items 存储在 _prefetched_objects_cache['items'] 中
             items = getattr(child, '_prefetched_objects_cache', {}).get('items', None)
             if items is None:
                 product_count = child.items.count()
             else:
-                product_count = len(items)
+                product_count = len(items)  # items 已是列表，直接使用 len()
 
             result.append({
                 'id': child.id,
