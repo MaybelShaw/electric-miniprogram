@@ -97,6 +97,9 @@ class OrderSerializer(serializers.ModelSerializer):
     refund_pending = serializers.SerializerMethodField()
     refund_action_required = serializers.SerializerMethodField()
     refund_locked = serializers.SerializerMethodField()
+    child_orders = serializers.SerializerMethodField()
+    order_type = serializers.CharField(read_only=True)
+    parent_order = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Order
@@ -141,6 +144,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "cancel_reason",
             "cancelled_at",
             "items",
+            "order_type",
+            "parent_order",
+            "child_orders",
         ]
 
     def get_quantity(self, obj: Order) -> int:
@@ -281,6 +287,28 @@ class OrderSerializer(serializers.ModelSerializer):
             timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
             return obj.created_at + timedelta(minutes=timeout)
         return None
+
+    def get_child_orders(self, obj: Order):
+        """获取子订单列表（仅当为主订单时返回）"""
+        if obj.order_type != 'main':
+            return []
+
+        child_orders = obj.child_orders.all().order_by('created_at')
+        result = []
+        for child in child_orders:
+            result.append({
+                'id': child.id,
+                'order_number': child.order_number,
+                'order_type': child.order_type,
+                'status': child.status,
+                'status_label': self.get_status_label(child),
+                'total_amount': str(child.total_amount),
+                'discount_amount': str(child.discount_amount),
+                'actual_amount': str(child.actual_amount),
+                'product_count': child.items.count(),
+                'quantity': child.total_quantity,
+            })
+        return result
 
 
 class OrderCreateItemSerializer(serializers.Serializer):

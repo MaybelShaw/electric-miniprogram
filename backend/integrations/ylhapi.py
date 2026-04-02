@@ -699,16 +699,66 @@ class YLHCallbackHandler:
         fail_msg = data.get('FailMsg', '')
         
         logger.info(f"Order cancel callback: platform={platform_order_no}, ext={ext_order_no}, state={state}")
-        self._debug_log("cancel", {"platform_order_no": platform_order_no, "ext_order_no": ext_order_no, "state": state, "fail_msg": fail_msg})
+
+        # 海尔 4.2 新增：解析 itemList 商品明细
+        item_list = data.get('itemList', [])
+        if isinstance(item_list, str):
+            try:
+                item_list = json.loads(item_list)
+            except Exception:
+                item_list = []
+
+        self._debug_log("cancel", {
+            "platform_order_no": platform_order_no,
+            "ext_order_no": ext_order_no,
+            "state": state,
+            "fail_msg": fail_msg,
+            "item_list": item_list
+        })
 
         try:
             from django.utils import timezone
-            from orders.models import Order
+            from orders.models import Order, OrderItem
+            from catalog.models import Product
 
-            order = Order.objects.filter(order_number=platform_order_no).first()
+            # 优先根据 haier_order_no 查找海尔子订单，其次用 platform_order_no
+            order = Order.objects.filter(haier_order_no=ext_order_no).first()
             if not order:
-                logger.error(f"Order not found for cancel callback: platform={platform_order_no}")
+                order = Order.objects.filter(order_number=platform_order_no).first()
+            if not order:
+                logger.error(f"Order not found for cancel callback: platform={platform_order_no}, ext={ext_order_no}")
                 return self._error_response("订单不存在", code="order_not_found")
+
+            update_fields = ['haier_order_no', 'haier_status', 'haier_fail_msg', 'updated_at']
+
+            # 处理 itemList - 更新 OrderItem 的签收/退货/拒收数量
+            if item_list:
+                for item_data in item_list:
+                    product_code = item_data.get('productCode', '')
+                    receive_qty = int(item_data.get('receiveQty', 0) or 0)
+                    return_qty = int(item_data.get('returnQty', 0) or 0)
+                    reject_qty = int(item_data.get('rejectQty', 0) or 0)
+
+                    logger.info(f"Processing item: product_code={product_code}, receive={receive_qty}, return={return_qty}, reject={reject_qty}")
+
+                    # 根据 product_code 查找对应的 OrderItem
+                    try:
+                        product = Product.objects.filter(product_code=product_code).first()
+                        if product:
+                            order_item = OrderItem.objects.filter(order=order, product=product).first()
+                            if order_item:
+                                # 累加数量（因为可能多次回调）
+                                order_item.receive_qty = receive_qty
+                                order_item.return_qty = return_qty
+                                order_item.reject_qty = reject_qty
+                                order_item.save(update_fields=['receive_qty', 'return_qty', 'reject_qty'])
+                                logger.info(f"Updated OrderItem {order_item.id}: receive={receive_qty}, return={return_qty}, reject={reject_qty}")
+                            else:
+                                logger.warning(f"OrderItem not found for product {product_code} in order {order.id}")
+                        else:
+                            logger.warning(f"Product not found for code {product_code}")
+                    except Exception as item_exc:
+                        logger.error(f"Failed to update OrderItem for product_code={product_code}: {item_exc}")
 
             update_fields = ['haier_order_no', 'haier_status', 'haier_fail_msg', 'updated_at']
             if state == 1:
@@ -741,6 +791,13 @@ class YLHCallbackHandler:
                     logger.exception(f'本地取消处理失败: {str(cancel_exc)}')
                     order.haier_status = 'cancel_failed'
                     order.haier_fail_msg = f'本地取消失败: {str(cancel_exc)}'
+            elif state == 2:
+                # 部分成功 - 更新 OrderItem 状态后，根据剩余数量决定订单状态
+                if ext_order_no:
+                    order.haier_order_no = ext_order_no
+                order.haier_status = 'partially_cancelled'
+                order.haier_fail_msg = ''
+                logger.info(f"Partial cancel: order_id={order.id}, haier_status={order.haier_status}")
             else:
                 order.haier_status = 'cancel_failed'
                 order.haier_fail_msg = fail_msg or ''

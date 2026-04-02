@@ -633,9 +633,282 @@ def cancel_order(order):
                 reason='order_cancelled',
                 operator=order.user
             )
-        
+
         # 更新订单状态
         order.status = 'cancelled'
         order.save(update_fields=['status', 'updated_at'])
-    
+
     return order
+
+
+def create_order_with_split(user, items, address_id, note='', payment_method='online'):
+    """
+    创建订单，支持海尔 + 本地混合订单自动拆分
+
+    Args:
+        user: 用户对象
+        items: 商品列表 [{product_id, sku_id, quantity}]
+        address_id: 地址 ID
+        note: 订单备注
+        payment_method: 支付方式 ('online' 或 'credit')
+
+    Returns:
+        Order: 主订单对象（用于支付）
+    """
+    from catalog.models import Product as CatalogProduct
+    from django.conf import settings
+
+    if not address_id:
+        raise ValueError('缺少 address_id')
+
+    address = Address.objects.get(id=address_id, user=user)
+
+    if not items or len(items) == 0:
+        raise ValueError('商品列表不能为空')
+
+    # 解析所有商品，按来源分组
+    haier_items = []
+    local_items = []
+
+    for item in items:
+        product_id = item.get('product_id')
+        sku_id = item.get('sku_id')
+        qty = int(item.get('quantity') or 1)
+
+        if not product_id or qty <= 0:
+            raise ValueError('商品或数量无效')
+
+        product = Product.objects.get(id=product_id)
+        is_haier = getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')
+
+        if is_haier:
+            haier_items.append(item)
+        else:
+            local_items.append(item)
+
+    # 计算地址全称
+    full_address = f"{address.province} {address.city} {address.district} {address.detail}"
+
+    # 情况 1: 只有海尔商品或只有本地商品 - 不拆单，直接创建单个订单
+    if len(haier_items) == 0 or len(local_items) == 0:
+        # 没有混合商品，使用原有的 create_order 逻辑
+        return create_order(
+            user=user,
+            address_id=address_id,
+            note=note,
+            payment_method=payment_method,
+            items=items,
+        )
+
+    # 情况 2: 海尔 + 本地混合订单 - 需要拆单
+    with transaction.atomic():
+        # 1. 创建主订单（用于聚合和支付）
+        # 先计算所有商品的总金额
+        total_amount = Decimal('0')
+        total_discount = Decimal('0')
+
+        all_items_data = []
+        for item_list in [haier_items, local_items]:
+            for item in item_list:
+                product = Product.objects.get(id=item['product_id'])
+                sku = None
+                if item.get('sku_id'):
+                    from catalog.models import ProductSKU
+                    sku = ProductSKU.objects.get(id=item['sku_id'], product_id=item['product_id'])
+
+                base_price = resolve_base_price(user, product, sku=sku)
+                discount_amount = get_best_active_discount(user, product, base_price=base_price)
+                actual_unit_price = base_price - discount_amount
+
+                total_amount += base_price * item['quantity']
+                total_discount += discount_amount * item['quantity']
+
+                all_items_data.append({
+                    'product': product,
+                    'sku': sku,
+                    'quantity': item['quantity'],
+                    'unit_price': base_price,
+                    'discount_amount': discount_amount * item['quantity'],
+                    'actual_amount': actual_unit_price * item['quantity'],
+                    'sku_specs': sku.specs if sku else {},
+                    'sku_code': getattr(sku, 'sku_code', '') or getattr(product, 'product_code', '') or '',
+                    'product_name': product.name,
+                    'is_haier': getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier'),
+                })
+
+        actual_amount = total_amount - total_discount
+
+        # 创建主订单
+        main_order = Order.objects.create(
+            user=user,
+            product=all_items_data[0]['product'] if all_items_data else None,
+            quantity=sum(item['quantity'] for item in all_items_data),
+            total_amount=total_amount,
+            discount_amount=total_discount,
+            actual_amount=actual_amount,
+            snapshot_contact_name=address.contact_name,
+            snapshot_phone=address.phone,
+            snapshot_address=full_address,
+            snapshot_province=address.province,
+            snapshot_city=address.city,
+            snapshot_district=address.district,
+            snapshot_town=address.town,
+            note=note,
+            order_type='main',
+        )
+
+        # 2. 创建海尔子订单（如果有海尔商品）
+        haier_order = None
+        if haier_items:
+            haier_items_data = [item for item in all_items_data if item['is_haier']]
+            haier_total = sum(item['actual_amount'] for item in haier_items_data)
+            haier_total_original = sum(item['unit_price'] * item['quantity'] for item in haier_items_data)
+            haier_total_discount = sum(item['discount_amount'] for item in haier_items_data)
+
+            haier_order = Order.objects.create(
+                user=user,
+                parent_order=main_order,
+                product=haier_items_data[0]['product'] if haier_items_data else None,
+                quantity=sum(item['quantity'] for item in haier_items_data),
+                total_amount=haier_total_original,
+                discount_amount=haier_total_discount,
+                actual_amount=haier_total,
+                snapshot_contact_name=address.contact_name,
+                snapshot_phone=address.phone,
+                snapshot_address=full_address,
+                snapshot_province=address.province,
+                snapshot_city=address.city,
+                snapshot_district=address.district,
+                snapshot_town=address.town,
+                note=note,
+                order_type='haier',
+            )
+
+            # 创建海尔子订单的订单行
+            haier_order_items = []
+            for item in haier_items_data:
+                haier_order_items.append(
+                    OrderItem(
+                        order=haier_order,
+                        product=item['product'],
+                        sku=item['sku'],
+                        product_name=item['product_name'],
+                        sku_specs=item['sku_specs'],
+                        sku_code=item['sku_code'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                        discount_amount=item['discount_amount'],
+                        actual_amount=item['actual_amount'],
+                        snapshot_image='',
+                    )
+                )
+            OrderItem.objects.bulk_create(haier_order_items)
+
+        # 3. 创建本地子订单（如果有本地商品）
+        local_order = None
+        if local_items:
+            local_items_data = [item for item in all_items_data if not item['is_haier']]
+            local_total = sum(item['actual_amount'] for item in local_items_data)
+            local_total_original = sum(item['unit_price'] * item['quantity'] for item in local_items_data)
+            local_total_discount = sum(item['discount_amount'] for item in local_items_data)
+
+            local_order = Order.objects.create(
+                user=user,
+                parent_order=main_order,
+                product=local_items_data[0]['product'] if local_items_data else None,
+                quantity=sum(item['quantity'] for item in local_items_data),
+                total_amount=local_total_original,
+                discount_amount=local_total_discount,
+                actual_amount=local_total,
+                snapshot_contact_name=address.contact_name,
+                snapshot_phone=address.phone,
+                snapshot_address=full_address,
+                snapshot_province=address.province,
+                snapshot_city=address.city,
+                snapshot_district=address.district,
+                snapshot_town=address.town,
+                note=note,
+                order_type='local',
+            )
+
+            # 创建本地子订单的订单行
+            local_order_items = []
+            for item in local_items_data:
+                local_order_items.append(
+                    OrderItem(
+                        order=local_order,
+                        product=item['product'],
+                        sku=item['sku'],
+                        product_name=item['product_name'],
+                        sku_specs=item['sku_specs'],
+                        sku_code=item['sku_code'],
+                        quantity=item['quantity'],
+                        unit_price=item['unit_price'],
+                        discount_amount=item['discount_amount'],
+                        actual_amount=item['actual_amount'],
+                        snapshot_image='',
+                    )
+                )
+            OrderItem.objects.bulk_create(local_order_items)
+
+        # 4. 为主订单创建订单行（包含所有商品）
+        main_order_items = []
+        for item in all_items_data:
+            main_order_items.append(
+                OrderItem(
+                    order=main_order,
+                    product=item['product'],
+                    sku=item['sku'],
+                    product_name=item['product_name'],
+                    sku_specs=item['sku_specs'],
+                    sku_code=item['sku_code'],
+                    quantity=item['quantity'],
+                    unit_price=item['unit_price'],
+                    discount_amount=item['discount_amount'],
+                    actual_amount=item['actual_amount'],
+                    snapshot_image='',
+                )
+            )
+        OrderItem.objects.bulk_create(main_order_items)
+
+        # 5. 锁定库存
+        for item in all_items_data:
+            if item['is_haier']:
+                # 海尔商品校验库存（不锁定）
+                from integrations.haierapi import check_haier_stock
+                check_haier_stock(item['product'], address, item['quantity'])
+            else:
+                # 本地商品锁定库存
+                InventoryService.lock_stock(
+                    product_id=item['product'].id,
+                    sku_id=item['sku'].id if item['sku'] else None,
+                    quantity=item['quantity'],
+                    reason='order_created',
+                    operator=user
+                )
+
+        # 6. 信用支付直接记账并标记为已支付
+        if payment_method == 'credit':
+            if user.role != 'dealer':
+                raise ValueError('只有经销商可以使用信用支付')
+            if not hasattr(user, 'credit_account'):
+                raise ValueError('您还没有信用账户')
+
+            from users.credit_services import CreditAccountService
+            CreditAccountService.record_purchase(
+                credit_account=user.credit_account,
+                amount=actual_amount,
+                order_id=main_order.id,
+                description=f'订单 #{main_order.order_number}'
+            )
+            main_order.status = 'paid'
+            main_order.save(update_fields=['status', 'updated_at'])
+
+        # 7. 记录订单分析
+        try:
+            from .analytics import OrderAnalytics
+            OrderAnalytics.on_order_created(main_order.id)
+        except Exception:
+            pass
+
+    return main_order

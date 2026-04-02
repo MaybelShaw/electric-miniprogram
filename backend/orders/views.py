@@ -19,7 +19,7 @@ from .serializers import (
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .services import create_order, get_or_create_cart, add_to_cart, remove_from_cart, resolve_base_price
+from .services import create_order, create_order_with_split, get_or_create_cart, add_to_cart, remove_from_cart, resolve_base_price
 from .analytics import OrderAnalytics
 from catalog.models import Product
 from django.utils import timezone
@@ -508,14 +508,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                         'sku_id': serializer.validated_data.get("sku_id"),
                     }]
 
-                order = create_order(
+                order = create_order_with_split(
                     user=target_user,
-                    product_id=serializer.validated_data.get("product_id"),
+                    items=items_payload,
                     address_id=serializer.validated_data["address_id"],
-                    quantity=serializer.validated_data.get("quantity", 1),
                     note=serializer.validated_data.get("note", ""),
                     payment_method=payment_method,
-                    items=items_payload,
                 )
 
                 logger.info(f'订单创建成功: order_id={order.id}, user_id={target_user.id}, payment_method={payment_method}')
@@ -605,12 +603,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         
         try:
             with transaction.atomic():
-                order = create_order(
+                order = create_order_with_split(
                     user=request.user,
+                    items=normalized_items,
                     address_id=address_id,
                     note=note,
                     payment_method=payment_method,
-                    items=normalized_items,
                 )
                 
                 # 只有在线支付才创建支付记录

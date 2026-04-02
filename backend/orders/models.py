@@ -45,7 +45,7 @@ class Order(models.Model):
     
     # 海尔订单相关字段
     haier_order_no = models.CharField(max_length=100, blank=True, default='', verbose_name='海尔订单号')
-    haier_so_id = models.CharField(max_length=100, blank=True, null=True, unique=True, verbose_name='海尔子订单号')
+    haier_so_id = models.CharField(max_length=100, blank=True, null=True, verbose_name='海尔子订单号')
     haier_status = models.CharField(max_length=20, blank=True, default='', verbose_name='海尔订单状态')
     haier_fail_msg = models.TextField(blank=True, default='', verbose_name='海尔失败信息')
     
@@ -72,6 +72,27 @@ class Order(models.Model):
     cancel_reason = models.CharField(max_length=200, blank=True, default='', verbose_name='取消原因')
     cancelled_at = models.DateTimeField(null=True, blank=True, verbose_name='取消时间')
 
+    # 父子订单关系（用于海尔 + 本地混合订单拆分）
+    ORDER_TYPE_CHOICES = [
+        ('main', '主订单'),
+        ('haier', '海尔子订单'),
+        ('local', '本地子订单'),
+    ]
+    parent_order = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='child_orders',
+        verbose_name='主订单'
+    )
+    order_type = models.CharField(
+        max_length=20,
+        choices=ORDER_TYPE_CHOICES,
+        default='main',
+        verbose_name='订单类型'
+    )
+
     class Meta:
         verbose_name = '订单'
         verbose_name_plural = '订单'
@@ -81,6 +102,8 @@ class Order(models.Model):
             models.Index(fields=['user']),
             models.Index(fields=['haier_order_no']),
             models.Index(fields=['haier_so_id']),
+            models.Index(fields=['parent_order']),
+            models.Index(fields=['order_type']),
         ]
 
     def __str__(self):
@@ -220,6 +243,11 @@ class OrderItem(models.Model):
     actual_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='实付金额')
     snapshot_image = models.URLField(max_length=500, blank=True, default='', verbose_name='商品主图')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    # 海尔 4.2 回调状态字段（签收/退货/拒收数量）
+    receive_qty = models.PositiveIntegerField(default=0, verbose_name='签收数量')
+    return_qty = models.PositiveIntegerField(default=0, verbose_name='退货数量')
+    reject_qty = models.PositiveIntegerField(default=0, verbose_name='拒收数量')
 
     class Meta:
         verbose_name = '订单商品'
