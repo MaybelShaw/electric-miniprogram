@@ -60,3 +60,6 @@ frontend/project.config.json
 
 #test
 suanfa.py
+
+# Worktrees
+.worktrees/
