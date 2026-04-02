@@ -14,10 +14,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend
 ```bash
 cd backend
-uv sync                    # 安装依赖
-python manage.py migrate   # 数据库迁移
-python manage.py runserver # 启动开发服务器 (http://localhost:8000)
-python manage.py test      # 运行测试
+uv sync                    # 安装/同步依赖
+uv add <package>           # 添加新依赖
+uv remove <package>        # 删除依赖
+uv run python manage.py migrate   # 数据库迁移
+uv run python manage.py runserver # 启动开发服务器 (http://localhost:8000)
+uv run python manage.py test      # 运行测试
 ```
 
 ### Frontend (小程序)
