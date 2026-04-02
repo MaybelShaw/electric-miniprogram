@@ -155,3 +155,10 @@ python manage.py test integrations.test_ylh_callback
 - `DEVELOPER_GUIDE.md` - 开发者技术指南
 - `haier_api.md` - 海尔 API 对接详情
 - `docs/` - 部署和运维文档
+
+## 注意事项
+
+- 这是本地开发环境，没有配置postgresql数据库，请考虑其他方式进行测试
+- 开发、重构、测试、回答问题前请先阅读相关文档和代码
+- 开发、重构、测试后更新相关文档
+- 禁止修改haier_api.md，这是要对接的接口

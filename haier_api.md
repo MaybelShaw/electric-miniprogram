@@ -589,52 +589,47 @@ curl --location --request POST 'https://your-callback-url.com/confirm-order' \
 }
 ```
 
-### 4.2 取消订单回调-需要对接方实现
+### 4.2 取消订单/拦截/拒收回调 - 需要对接方实现
 
-#### Data请求参数
+> ⚠️ **重要说明**  
+> 因为正向流程支持接收一型号多台订单，所以发起退货时可能存在部分鉴定成功（退货成功）、部分鉴定失败（退货失败）的情况，以及客户可能存在部分拒收的情况。  
+> 基于这种情况，对4.2回调通知接口做此调整：**回调通知时带入商品数量明细（签收、拒收、退货）**，由客户团队基于明细数量进行逻辑判断。  
+> **特别注意**：拒收通知是在客户团队没有发起取消请求时触发的，即海尔主动触发通知，需要客户团队支持这种情况。
+
+---
+
+#### 1. Data请求参数
+
 | 参数名 | 是否必须 | 类型 | 描述 |
 |--------|----------|------|------|
-| ExtOrderNo | 非必须 | string | 海尔订单号，成功时，必须 |
+| ExtOrderNo | 非必须 | string | 海尔订单号，成功时必须 |
 | PlatformOrderNo | 必须 | string | 客户平台订单号 |
-| State | 必须 | int | 状态：1、成功；0、失败 |
+| State | 必须 | int | 状态：`1`=成功；`0`=失败；`2`=部分成功 |
 | FailMsg | 非必须 | string(100) | 失败原因 |
+| itemList | 必须 | Array | 商品明细列表 |
 
-#### Curl示例（平台调用客户接口）
-```bash
-curl --location --request POST 'https://your-callback-url.com/cancel-order' \
---header 'Content-Type: application/x-www-form-urlencoded' \
---data-urlencode 'AppKey=hmma904eb75643b4eaa' \
---data-urlencode 'Data={"ExtOrderNo":"海尔订单号","PlatformOrderNo":"客户平台订单号","State":1}' \
---data-urlencode 'Method=hmm.scm_heorder.cancel' \
---data-urlencode 'Sign=7D4EA63E69B225C20B150D8F65938218' \
---data-urlencode 'TimeStamp=20230912113528'
+##### itemList 商品明细字段
+
+| 参数名 | 是否必须 | 类型 | 描述 |
+|--------|----------|------|------|
+| productCode | 必须 | string | 商品编码，例如 `"BS01U000N"` |
+| totalQty | 必须 | int | 商品总数量（订单完成时：总数量 = 签收数量 + 拒收数量） |
+| receiveQty | 必须 | int | 商品签收数量 |
+| returnQty | 必须 | int | 商品退货数量（退货数量 ≤ 签收数量） |
+| rejectQty | 必须 | int | 商品拒收/拦截数量 |
+
+---
+
+#### 2. POST请求示例
+
+```
+AppKey=hmma904eb75643b4eaa&Data={"ExtOrderNo":"海尔订单号","PlatformOrderNo":"客户平台订单号"}&Method=hmm.scm_heorder.cancel&Sign=7D4EA63E69B225C20B150D8F65938218&TimeStamp=20230912113528
 ```
 
-#### 请求参数
-**Headers：**
-| 参数名称 | 参数值 | 是否必须 | 示例 | 备注 |
-|----------|--------|----------|------|------|
-| Content-Type | application/x-www-form-urlencoded | 是 | application/x-www-form-urlencoded |  |
+---
 
-**Body:**
-| 参数名称 | 参数类型 | 是否必须 | 示例 | 备注 |
-|----------|----------|----------|------|------|
-| AppKey | T文本 | 是 |  | string类型，应用 ID |
-| TimeStamp | T文本 | 是 |  | string类型，时间戳，格式：20201123162059 |
-| Sign | T文本 | 是 |  | string类型，签名 |
-| Method | T文本 | 是 |  | 固定值"hmm.scm_heorder.cancel" |
-| Data | T文本 | 否 |  | 请求参数体，参数内容见Data请求参数 |
+#### 3. 返回结果示例
 
-#### 返回数据
-| 名称 | 类型 | 是否必须 | 默认值 | 备注 | 其他信息 |
-|------|------|----------|--------|------|----------|
-| data | object | 必须 |  | 业务数据 | 备注:业务数据 |
-| code | string | 必须 |  | 业务成功或错误编码,success表示成功 |  |
-| description | string | 必须 |  | 业务成功或错误说明 |  |
-| timeStamp | string | 必须 |  | 时间戳，格式：20201123162059 |  |
-| success | boolean | 必须 |  | 是否成功 |  |
-
-#### 返回结果示例
 ```json
 {
   "success": true,
@@ -642,12 +637,47 @@ curl --location --request POST 'https://your-callback-url.com/cancel-order' \
   "description": "成功",
   "timeStamp": "20250625133956",
   "data": {
-    "statusCode": "200",
+    "statusCode": 200,
     "message": "成功",
     "platformOrderNo": "PO20240826369763"
   }
 }
 ```
+
+---
+
+#### 4. 请求参数说明
+
+##### Headers
+
+| 参数名称 | 参数值 | 是否必须 | 示例 | 备注 |
+|----------|--------|----------|------|------|
+| Content-Type | application/x-www-form-urlencoded | 是 | application/x-www-form-urlencoded | - |
+
+##### Body 参数
+
+| 参数名称 | 参数类型 | 是否必须 | 示例 | 备注 |
+|----------|----------|----------|------|------|
+| AppKey | 文本 | 是 | - | string类型，应用ID |
+| TimeStamp | 文本 | 是 | - | string类型，时间戳，格式：`20201123162059` |
+| Sign | 文本 | 是 | - | string类型，签名（签名规则见第4章简介） |
+| Method | 文本 | 是 | - | 固定值 `hmm.scm_heorder.cancel` |
+| Data | 文本 | 否 | - | 请求参数体，内容见上方「1. Data请求参数」 |
+
+---
+
+#### 5. 返回数据说明
+
+| 名称 | 类型 | 是否必须 | 默认值 | 备注 |
+|------|------|----------|--------|------|
+| data | object | 必须 | - | 业务数据 |
+| code | string | 必须 | - | 业务成功或错误编码，`success` 表示成功 |
+| description | string | 必须 | - | 业务成功或错误说明 |
+| timeStamp | string | 必须 | - | 时间戳，格式：`20201123162059` |
+| success | boolean | 必须 | - | 是否成功 |
+
+---
+
 
 ### 4.3 订单缺货回调-需要对接方实现
 
