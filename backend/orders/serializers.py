@@ -76,6 +76,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
             'actual_amount',
             'snapshot_image',
             'created_at',
+            'receive_qty',
+            'return_qty',
+            'reject_qty',
         ]
 
 
@@ -293,9 +296,20 @@ class OrderSerializer(serializers.ModelSerializer):
         if obj.order_type != 'main':
             return []
 
-        child_orders = obj.child_orders.all().order_by('created_at')
+        # 使用预加载的 child_orders（如果可用）
+        child_orders = getattr(obj, '_prefetched_child_orders', None)
+        if child_orders is None:
+            child_orders = obj.child_orders.all().order_by('created_at')
+
         result = []
         for child in child_orders:
+            # 使用预加载的 items（如果可用）
+            items = getattr(child, '_prefetched_objects_cache', {}).get('items', None)
+            if items is None:
+                product_count = child.items.count()
+            else:
+                product_count = len(items)
+
             result.append({
                 'id': child.id,
                 'order_number': child.order_number,
@@ -305,7 +319,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 'total_amount': str(child.total_amount),
                 'discount_amount': str(child.discount_amount),
                 'actual_amount': str(child.actual_amount),
-                'product_count': child.items.count(),
+                'product_count': product_count,
                 'quantity': child.total_quantity,
             })
         return result

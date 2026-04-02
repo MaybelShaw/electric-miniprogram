@@ -156,7 +156,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = Order.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Order.objects.filter(user=user)
-        
+
         # Optimize queries by prefetching related objects
         qs = qs.select_related('user', 'product', 'return_request').prefetch_related(
             'payments',
@@ -165,6 +165,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             'items__product',
             'items__sku',
             'refunds',
+            'child_orders',  # 预加载子订单用于 get_child_orders
+            'child_orders__items',  # 预加载子订单的订单项
         )
 
         # 订单状态筛选
