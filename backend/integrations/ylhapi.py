@@ -748,11 +748,11 @@ class YLHCallbackHandler:
                             order_item = OrderItem.objects.filter(order=order, product=product).first()
                             if order_item:
                                 # 累加数量（因为可能多次回调）
-                                order_item.receive_qty = receive_qty
-                                order_item.return_qty = return_qty
-                                order_item.reject_qty = reject_qty
+                                order_item.receive_qty = (order_item.receive_qty or 0) + receive_qty
+                                order_item.return_qty = (order_item.return_qty or 0) + return_qty
+                                order_item.reject_qty = (order_item.reject_qty or 0) + reject_qty
                                 order_item.save(update_fields=['receive_qty', 'return_qty', 'reject_qty'])
-                                logger.info(f"Updated OrderItem {order_item.id}: receive={receive_qty}, return={return_qty}, reject={reject_qty}")
+                                logger.info(f"Updated OrderItem {order_item.id}: receive={order_item.receive_qty}, return={order_item.return_qty}, reject={order_item.reject_qty}")
                             else:
                                 logger.warning(f"OrderItem not found for product {product_code} in order {order.id}")
                         else:
