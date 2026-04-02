@@ -1312,28 +1312,149 @@ class OrderViewSet(viewsets.ModelViewSet):
         """
         推送订单到海尔系统
         
-        仅对海尔产品订单有效，需要管理员权限
+        支持场景:
+        - 海尔子订单 (order_type='haier') - 直接推送
+        - 主订单 (order_type='main') - 拒绝，提示推送子订单
+        - 普通海尔订单 - 兼容旧逻辑
+        
+        需要管理员权限
         """
         if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
         order = self.get_object()
-        
-        # 检查是否为海尔订单：只根据 product.source 判断
+
+        # 场景 1: 海尔子订单 - 直接推送
+        if order.order_type == 'haier':
+            return self._push_haier_child_order(request, order)
+
+        # 场景 2: 主订单 - 拒绝推送
+        if order.order_type == 'main':
+            return Response(
+                {'detail': '主订单不能直接推送，请推送海尔子订单'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 场景 3: 普通订单 (兼容旧逻辑)
+        return self._push_legacy_haier_order(request, order)
+
+    def _push_haier_child_order(self, request, order):
+        """推送海尔子订单"""
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # 检查是否已推送
+        if order.haier_status in ['push_pending', 'confirmed', 'cancelled'] or order.haier_so_id:
+            return Response(
+                {'detail': '该子订单已推送到海尔系统'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        items = list(order.items.select_related('product').all())
+        if not items:
+            return Response(
+                {'detail': '子订单无商品，无法推送'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            from django.conf import settings
+            from catalog.models import Product as CatalogProduct
+
+            source_system = settings.YLH_SOURCE_SYSTEM
+            shop_name = settings.YLH_SHOP_NAME
+            order_data = order.prepare_haier_order_data(source_system, shop_name)
+
+            from integrations.ylhapi import YLHSystemAPI
+            logger.info(f'推送海尔子订单：order_id={order.id}, parent_order_id={order.parent_order_id}')
+
+            ylh_api = YLHSystemAPI.from_settings()
+
+            if not ylh_api.authenticate():
+                logger.error('易理货系统认证失败')
+                order.haier_status = 'failed'
+                order.haier_fail_msg = '易理货系统认证失败'
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
+                return Response(
+                    {'detail': '易理货系统认证失败'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            result = ylh_api.create_order(order_data)
+
+            if not result:
+                logger.error(f'推送子订单失败：order_id={order.id}')
+                order.haier_status = 'failed'
+                order.haier_fail_msg = '推送子订单失败'
+                order.save(update_fields=['haier_status', 'haier_fail_msg'])
+                return Response(
+                    {'detail': '推送子订单失败'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            logger.info(f'推送已提交：order_id={order.id}')
+
+            order.haier_so_id = order_data['soId']
+            order.haier_status = 'push_pending'
+            order.haier_fail_msg = ''
+            haier_order_no = ''
+            if isinstance(result, dict):
+                data_section = result.get('data') if isinstance(result.get('data', None), dict) else result
+                if isinstance(data_section, dict):
+                    haier_order_no = data_section.get('retailOrderNo', '') or data_section.get('retail_order_no', '')
+            order.haier_order_no = haier_order_no
+            order.save(update_fields=['haier_so_id', 'haier_status', 'haier_fail_msg', 'haier_order_no'])
+
+            try:
+                from .state_machine import OrderStateMachine
+                if OrderStateMachine.can_transition(order.status, 'shipped'):
+                    OrderStateMachine.transition(
+                        order,
+                        'shipped',
+                        operator=request.user,
+                        note=f'海尔子订单推送成功，自动发货。海尔单号：{haier_order_no or order.haier_so_id}'
+                    )
+            except Exception as sm_exc:
+                logger.warning(f'状态机流转失败：{sm_exc}')
+
+            serializer = self.get_serializer(order)
+            return Response({
+                'detail': '海尔子订单推送成功',
+                'order': serializer.data,
+                'haier_response': result,
+            }, status=status.HTTP_202_ACCEPTED)
+
+        except Exception as e:
+            logger.exception(f'推送海尔子订单异常：{str(e)}')
+            return Response(
+                {'detail': f'推送子订单异常：{str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def _push_legacy_haier_order(self, request, order):
+        """推送普通海尔订单（兼容旧逻辑）"""
+        import logging
+        logger = logging.getLogger(__name__)
+        from catalog.models import Product as CatalogProduct
+
         items = list(order.items.select_related('product').all())
         product = order.product or (items[0].product if items else None)
-        from catalog.models import Product as CatalogProduct
         haier_items = [it for it in items if getattr(it.product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier')]
+
         if not haier_items and product:
             if getattr(product, 'source', None) == getattr(CatalogProduct, 'SOURCE_HAIER', 'haier'):
                 haier_items = items or [None]
+
         if not haier_items:
             return Response(
                 {'detail': '该订单不是海尔产品订单，无需推送'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # 混合订单拒绝推送
         if items and len(haier_items) != len(items):
             return Response(
-                {'detail': '订单含非海尔商品，暂不支持混合推送'},
+                {'detail': '订单含非海尔商品，请使用拆单后的海尔子订单推送'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
