@@ -25,7 +25,10 @@
 
 ## 其他文档
 
-- [api.md](../api.md) - 完整 API 接口文档
+- [API 文档](./api/) - 完整 API 接口文档、海尔 API 对接详情
 - [DEVELOPER_GUIDE.md](../DEVELOPER_GUIDE.md) - 开发者技术指南
-- [haier_api.md](../haier_api.md) - 海尔 API 对接详情
 - [CLAUDE.md](../CLAUDE.md) - Claude Code 开发指南
+
+## 资源文件
+
+- [生态商开放接口 20260120.pdf](./assets/生态商开放接口 20260120.pdf) - 海尔生态商接口规范

@@ -532,4 +532,4 @@ class OrderItemSerializer(serializers.ModelSerializer):
 - `backend/orders/models.py` - 订单模型
 - `backend/orders/services.py` - 订单服务
 - `backend/integrations/ylhapi.py` - 易理货 API 集成
-- `haier_api.md` - 海尔 API 文档 4.2 节
+- `docs/api/haier_api.md` - 海尔 API 文档 4.2 节

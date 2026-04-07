@@ -2,7 +2,7 @@
 
 ## 概述
 - 服务组成：后端 `Django + DRF`、商户前端 `Vite + React`、数据库 `PostgreSQL 17`、反向代理 `Nginx`。
-- Compose 文件：开发 `docker-compose.dev.yaml`，预发布 `docker-compose.preprod.yaml`，生产 `docker-compose.prod.yaml`。
+- Compose 文件：开发 `docker/docker-compose.dev.yaml`，预发布 `docker/docker-compose.preprod.yaml`，生产 `docker/docker-compose.prod.yaml`。
 - Nginx 配置：`deploy/nginx.conf`，转发 `/api` 到后端，提供静态资源，并将 `/merchant/admin` 与 `/merchant/support` 通过重写交由前端 SPA 处理。
 
 ## 前置准备
@@ -14,24 +14,24 @@
 ## 开发环境部署
 1. 启动：
    ```bash.
-   docker compose -f docker-compose.dev.yaml up -d
+   docker compose -f docker/docker-compose.dev.yaml up -d
    ```
 2. 代码更新后的生效方式（服务器开发环境常见）：
-   - 拉取代码后，前端容器一般会自动热更新；若浏览器仍看到旧行为，可执行 `docker compose -f docker-compose.dev.yaml restart merchant`。
-   - 后端代码更新后建议执行 `docker compose -f docker-compose.dev.yaml restart backend`；如涉及迁移再补充运行 `migrate`。
+   - 拉取代码后，前端容器一般会自动热更新；若浏览器仍看到旧行为，可执行 `docker compose -f docker/docker-compose.dev.yaml restart merchant`。
+   - 后端代码更新后建议执行 `docker compose -f docker/docker-compose.dev.yaml restart backend`；如涉及迁移再补充运行 `migrate`。
 3. 访问：
    - 后端：`http://localhost:8000`
    - 前端：`http://localhost:3001`
 4. 数据库迁移（如需手动）：
    ```bash
-   docker compose -f docker-compose.dev.yaml exec backend uv run python manage.py migrate
+   docker compose -f docker/docker-compose.dev.yaml exec backend uv run python manage.py migrate
    ```
 5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`
    - 必填变量见 `backend/backend/settings/env_config.py:246-260`，包括 `SECRET_KEY/ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS/POSTGRES_*`、`WECHAT_*`、`YLH_*`。
-   - 将 `docker-compose.prod.yaml:23-24` 的 `env_file` 更新为服务器路径：
+   - 将 `docker/docker-compose.prod.yaml:23-24` 的 `env_file` 更新为服务器路径：
      ```yaml
      env_file:
        - /etc/electric-miniprogram/.env.production
@@ -61,22 +61,22 @@
      ```
 2. 启动：
    ```bash
-   docker compose -f docker-compose.prod.yaml up -d
+   docker compose -f docker/docker-compose.prod.yaml up -d
    ```
 3. 首次初始化（已自动执行）与手动执行：
    ```bash
-   docker compose -f docker-compose.prod.yaml exec backend uv run python manage.py migrate
-   docker compose -f docker-compose.prod.yaml exec backend uv run python manage.py collectstatic --noinput
+   docker compose -f docker/docker-compose.prod.yaml exec backend uv run python manage.py migrate
+   docker compose -f docker/docker-compose.prod.yaml exec backend uv run python manage.py collectstatic --noinput
    ```
 4. 创建超级管理员（更安全的方式）：
    - 交互式创建（推荐）：
      ```bash
-     docker compose -f docker-compose.prod.yaml exec backend uv run python manage.py createsuperuser
+     docker compose -f docker/docker-compose.prod.yaml exec backend uv run python manage.py createsuperuser
      ```
    - 一次性创建（避免在 Compose 中写入凭证）：
      - 使用临时环境变量运行一次命令，不将 `DJANGO_SUPERUSER_*` 写入配置文件或仓库：
        ```bash
-       docker compose -f docker-compose.prod.yaml exec \
+       docker compose -f docker/docker-compose.prod.yaml exec \
          -e DJANGO_SUPERUSER_USERNAME=admin \
          -e DJANGO_SUPERUSER_EMAIL=admin@yourdomain.com \
          -e DJANGO_SUPERUSER_PASSWORD='your-strong-password' \
@@ -114,19 +114,19 @@
   - `WECHAT_APPID/WECHAT_SECRET`
   - `YLH_CLIENT_ID/YLH_CLIENT_SECRET/YLH_CALLBACK_APP_KEY/YLH_CALLBACK_SECRET`
 - `ORDER_PAYMENT_TIMEOUT_MINUTES`（未支付订单自动取消超时，默认 `10`）
-  - 外部 `env_file` 路径（本地示例）：`/Users/bobo/.envs/electric-miniprogram/.env.production`（`docker-compose.prod.yaml:23-24`、`docker-compose.preprod.yaml:23-29`）
+  - 外部 `env_file` 路径（本地示例）：`/Users/bobo/.envs/electric-miniprogram/.env.production`（`docker/docker-compose.prod.yaml:23-24`、`docker/docker-compose.preprod.yaml:23-29`）
   - 服务器推荐路径：`/etc/electric-miniprogram/.env.production`（请更新 Compose 中的 `env_file`）
 
 ## 预发布环境部署
 1. 使用与生产相同的外部 `env_file`：`/etc/electric-miniprogram/.env.production`
 2. 启动：
    ```bash
-   docker compose -f docker-compose.preprod.yaml up -d
+   docker compose -f docker/docker-compose.preprod.yaml up -d
    ```
 3. 差异覆盖：
-   - `ALLOWED_HOSTS` 包含 `localhost,127.0.0.1`（`docker-compose.preprod.yaml:26`）
-   - `CORS_ALLOWED_ORIGINS` 使用 `http`（`docker-compose.preprod.yaml:27`）
-  - `SECURE_SSL_REDIRECT=false`（`docker-compose.preprod.yaml:29`）
+   - `ALLOWED_HOSTS` 包含 `localhost,127.0.0.1`（`docker/docker-compose.preprod.yaml:26`）
+   - `CORS_ALLOWED_ORIGINS` 使用 `http`（`docker/docker-compose.preprod.yaml:27`）
+  - `SECURE_SSL_REDIRECT=false`（`docker/docker-compose.preprod.yaml:29`）
 
 ## Ubuntu 24.04 LTS 服务器部署
 1. 系统准备：
@@ -173,7 +173,7 @@
    sudo chown root:root /etc/electric-miniprogram/.env.production
    ```
 5. 更新 Compose 的 `env_file`（在仓库中）：
-   - 修改 `docker-compose.prod.yaml:23-24` 与 `docker-compose.preprod.yaml:23-29` 为：
+   - 修改 `docker/docker-compose.prod.yaml:23-24` 与 `docker/docker-compose.preprod.yaml:23-29` 为：
      ```yaml
      env_file:
        - /etc/electric-miniprogram/.env.production
@@ -181,8 +181,8 @@
 6. 启动与验证：
    ```bash
    cd /opt/electric-miniprogram
-   docker compose -f docker-compose.prod.yaml up -d
-   docker compose -f docker-compose.prod.yaml logs -f nginx
+   docker compose -f docker/docker-compose.prod.yaml up -d
+   docker compose -f docker/docker-compose.prod.yaml logs -f nginx
    ```
 7. 证书与支付密钥（可选）：
    - 微信支付私钥与公钥建议放置于：`/etc/electric-miniprogram/certs/wechat/`，并在外部 `env_file` 中更新路径。
@@ -193,35 +193,35 @@
 ## 数据库与运维
 - 登录数据库：
   ```bash
-  docker compose -f docker-compose.prod.yaml exec db psql -U electric -d electric_miniprogram
+  docker compose -f docker/docker-compose.prod.yaml exec db psql -U electric -d electric_miniprogram
   ```
 - 备份：
   ```bash
-  docker compose -f docker-compose.prod.yaml exec db pg_dump -U electric electric_miniprogram > backup.sql
+  docker compose -f docker/docker-compose.prod.yaml exec db pg_dump -U electric electric_miniprogram > backup.sql
   ```
 - 恢复：
   ```bash
-  cat backup.sql | docker compose -f docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
+  cat backup.sql | docker compose -f docker/docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
   ```
 - 创建管理员：
   ```bash
-  docker compose -f docker-compose.prod.yaml exec backend uv run python manage.py createsuperuser
+  docker compose -f docker/docker-compose.prod.yaml exec backend uv run python manage.py createsuperuser
   ```
 
 ## 常用命令
 - 查看日志：
   ```bash
-  docker compose -f docker-compose.prod.yaml logs -f nginx
-  docker compose -f docker-compose.prod.yaml logs -f backend
+  docker compose -f docker/docker-compose.prod.yaml logs -f nginx
+  docker compose -f docker/docker-compose.prod.yaml logs -f backend
   ```
 - 重启服务：
   ```bash
-  docker compose -f docker-compose.prod.yaml restart nginx backend
+  docker compose -f docker/docker-compose.prod.yaml restart nginx backend
   ```
 - 停止与清理：
   ```bash
-  docker compose -f docker-compose.prod.yaml down
-  docker compose -f docker-compose.dev.yaml down --volumes --remove-orphans --rmi all
+  docker compose -f docker/docker-compose.prod.yaml down
+  docker compose -f docker/docker-compose.dev.yaml down --volumes --remove-orphans --rmi all
   ```
 
 ## 常见问题
@@ -232,7 +232,7 @@
 
 ## 安全建议
 - 不在仓库或 Compose 中写入真实密钥与凭证，统一使用环境变量或 Secret 管理（外部 `env_file`、Docker/K8s Secrets）。
-- Compose 通过外部 `env_file` 加载变量：`docker-compose.prod.yaml:23-24`、`docker-compose.preprod.yaml:23-29`。
+- Compose 通过外部 `env_file` 加载变量：`docker/docker-compose.prod.yaml:23-24`、`docker/docker-compose.preprod.yaml:23-29`。
 - 生产禁用调试（`DEBUG=False`）并严格设置 `ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS`（`backend/backend/settings/production.py:11, 23-26`）。
 - 强制 HTTPS：启用 `SECURE_SSL_REDIRECT=True`、设置 HSTS（`production.py:17-21`），在 Nginx 层终止 TLS。
 - 生产后端使用 WSGI/ASGI 服务器替代 `runserver`：
@@ -285,41 +285,41 @@ server {
 
 ### 预发布验证（推荐）
 - 步骤：
-  - 更新代码与依赖（如需）：在仓库中拉取最新代码；如有新依赖，预发布的 `backend` 重启时会自动执行 `uv sync` 与迁移（`docker-compose.preprod.yaml:34-38`）。
-  - 重建前端产物：`docker compose -f docker-compose.preprod.yaml restart merchant-build`
-  - 重启后端并执行迁移与静态收集：`docker compose -f docker-compose.preprod.yaml restart backend`
-  - 查看日志：`docker compose -f docker-compose.preprod.yaml logs -f backend`
-  - 健康检查（容器内）：`docker compose -f docker-compose.preprod.yaml exec backend curl -s http://127.0.0.1:8000/healthz`
+  - 更新代码与依赖（如需）：在仓库中拉取最新代码；如有新依赖，预发布的 `backend` 重启时会自动执行 `uv sync` 与迁移（`docker/docker-compose.preprod.yaml:34-38`）。
+  - 重建前端产物：`docker compose -f docker/docker-compose.preprod.yaml restart merchant-build`
+  - 重启后端并执行迁移与静态收集：`docker compose -f docker/docker-compose.preprod.yaml restart backend`
+  - 查看日志：`docker compose -f docker/docker-compose.preprod.yaml logs -f backend`
+  - 健康检查（容器内）：`docker compose -f docker/docker-compose.preprod.yaml exec backend curl -s http://127.0.0.1:8000/healthz`
   - 前端验证：访问预发布入口，确认主要页面与功能可用。
 
 ### 生产升级（最小停机流程）
 - 1. 备份数据库：
   ```bash
-  docker compose -f docker-compose.prod.yaml exec -T db pg_dump -U electric electric_miniprogram > backup-$(date +%F-%H%M).sql
+  docker compose -f docker/docker-compose.prod.yaml exec -T db pg_dump -U electric electric_miniprogram > backup-$(date +%F-%H%M).sql
   ```
 - 2. 重建前端构建产物（不影响服务）：
   ```bash
-  docker compose -f docker-compose.prod.yaml restart merchant-build
+  docker compose -f docker/docker-compose.prod.yaml restart merchant-build
   ```
 - 3. 重启后端（自动依赖安装、迁移与静态收集）：
   ```bash
-  docker compose -f docker-compose.prod.yaml restart backend
+  docker compose -f docker/docker-compose.prod.yaml restart backend
   ```
 - 4. 如有 Nginx 配置变更，重启 Nginx：
   ```bash
-  docker compose -f docker-compose.prod.yaml restart nginx
+  docker compose -f docker/docker-compose.prod.yaml restart nginx
   ```
 - 5. 验证：
   ```bash
-  docker compose -f docker-compose.prod.yaml logs -f backend
-  docker compose -f docker-compose.prod.yaml exec backend curl -s http://127.0.0.1:8000/healthz
+  docker compose -f docker/docker-compose.prod.yaml logs -f backend
+  docker compose -f docker/docker-compose.prod.yaml exec backend curl -s http://127.0.0.1:8000/healthz
   curl -I http://localhost/api/
   ```
 
 ### 环境变量与证书变更
 - 外部 `env_file` 更新后需要重启后端：
   - 服务器路径：`/etc/electric-miniprogram/.env.production`
-  - 执行：`docker compose -f docker-compose.prod.yaml restart backend`
+  - 执行：`docker compose -f docker/docker-compose.prod.yaml restart backend`
 - 微信支付证书与密钥：
   - 建议存放：`/etc/electric-miniprogram/certs/wechat/`
   - 更新 `.env.production` 中路径，并按需为 `backend` 添加只读卷挂载后重启。
@@ -329,11 +329,11 @@ server {
   - 回滚代码到上一版本（Git 或文件回退）。
   - 重启后端与前端构建容器：
     ```bash
-    docker compose -f docker-compose.prod.yaml restart backend merchant-build
+    docker compose -f docker/docker-compose.prod.yaml restart backend merchant-build
     ```
   - 如数据库迁移导致问题，使用备份文件恢复：
     ```bash
-    cat backup-<timestamp>.sql | docker compose -f docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
+    cat backup-<timestamp>.sql | docker compose -f docker/docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
     ```
 
 ### 版本与镜像

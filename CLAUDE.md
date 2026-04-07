@@ -98,7 +98,7 @@ merchant/src/
 ### 添加新 API 端点
 1. 在对应 app 的 `views.py` 创建 ViewSet
 2. 在 `urls.py` 注册路由
-3. 更新 `api.md` 或 `DEVELOPER_GUIDE.md`
+3. 更新 `docs/api/api.md` 或 `DEVELOPER_GUIDE.md`
 
 ### 小程序新增页面
 1. `frontend/src/pages/` 创建页面目录和 `index.tsx`
@@ -151,14 +151,27 @@ python manage.py test integrations.test_ylh_callback
 
 ## Related Documentation
 
-- `api.md` - 完整 API 文档
+- `docs/api/` - API 文档目录
+  - `api.md` - 完整 API 接口文档
+  - `haier_api.md` - 海尔 API 对接详情
 - `DEVELOPER_GUIDE.md` - 开发者技术指南
-- `haier_api.md` - 海尔 API 对接详情
 - `docs/` - 部署和运维文档
+
+## Docker Commands
+
+```bash
+# 开发环境
+docker compose -f docker/docker-compose.dev.yaml up -d
+docker compose -f docker/docker-compose.dev.yaml down --volumes --remove-orphans
+
+# 生产环境
+docker compose -f docker/docker-compose.prod.yaml up -d
+docker compose -f docker/docker-compose.prod.yaml down
+```
 
 ## 注意事项
 
 - 这是本地开发环境，没有配置postgresql数据库，请考虑其他方式进行测试
 - 开发、重构、测试、回答问题前请先阅读相关文档和代码
 - 开发、重构、测试后更新相关文档
-- 禁止修改haier_api.md，这是要对接的接口
+- 禁止修改 docs/api/haier_api.md，这是要对接的接口
