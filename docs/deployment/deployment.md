@@ -338,4 +338,4 @@ server {
 
 ### 版本与镜像
 - 基础镜像：`python:3.12-slim`、`node:20-alpine`、`nginx:alpine`；建议定期执行 `docker compose pull` 以获取安全更新。
-- 后端与前端代码通过宿主目录挂载（`./backend:/app`、`./merchant:/app`），升级主要通过代码变更与容器重启完成。
+- 后端与前端代码通过宿主目录挂载（`../backend:/app`、`../merchant:/app`），升级主要通过代码变更与容器重启完成。
