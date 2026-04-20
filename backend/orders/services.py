@@ -205,20 +205,24 @@ def check_haier_stock(product, address, quantity):
         logger.error(f'海尔库存查询失败: product_code={product.product_code}')
         raise ValueError('海尔库存查询失败：无法获取库存信息')
     
-    # 检查库存是否充足
-    available_stock = stock_info.get('stock', 0)
-    
+    # 检查库存是否充足 - data 是仓库列表，需汇总各仓库库存
+    warehouses = stock_info.get('data') or []
+    available_stock = sum(int(wh.get('stock', 0)) for wh in warehouses)
+
+    # 选择库存最多的仓库
+    best_warehouse = max(warehouses, key=lambda wh: int(wh.get('stock', 0))) if warehouses else {}
+
     logger.info(f'海尔库存查询成功: product_code={product.product_code}, stock={available_stock}, required={quantity}')
-    
+
     if available_stock < quantity:
         raise ValueError(f'海尔产品库存不足，当前库存: {available_stock}，需要: {quantity}')
-    
+
     return {
         'available': True,
         'stock': available_stock,
-        'warehouse_code': stock_info.get('secCode', ''),
-        'warehouse_grade': stock_info.get('warehouseGrade', ''),
-        'timeliness_data': stock_info.get('timelinessData', {})
+        'warehouse_code': best_warehouse.get('secCode', ''),
+        'warehouse_grade': best_warehouse.get('warehouseGrade', ''),
+        'timeliness_data': best_warehouse.get('timelinessData', {})
     }
 
 

@@ -284,15 +284,17 @@ class Product(models.Model):
     def update_stock_from_haier(self, stock_data: dict):
         """
         从海尔API更新库存信息
-        
+
         Args:
-            stock_data: 海尔库存API返回的数据
+            stock_data: 海尔库存API返回的数据，结构为 {"success": true, "data": [{"secCode": ..., "stock": ...}, ...]}
         """
         from django.utils import timezone
-        
-        self.stock = int(stock_data.get('stock', 0))
-        self.warehouse_code = stock_data.get('secCode', '')
-        self.warehouse_grade = stock_data.get('warehouseGrade', '')
+
+        warehouses = stock_data.get('data') or []
+        self.stock = sum(int(wh.get('stock', 0)) for wh in warehouses)
+        best = max(warehouses, key=lambda wh: int(wh.get('stock', 0))) if warehouses else {}
+        self.warehouse_code = best.get('secCode', '')
+        self.warehouse_grade = best.get('warehouseGrade', '')
         self.last_sync_at = timezone.now()
         self.save()
     
