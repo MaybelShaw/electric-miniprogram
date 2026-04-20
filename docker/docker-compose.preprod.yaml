@@ -19,7 +19,7 @@ services:
     image: python:3.12-slim
     working_dir: /app
     volumes:
-      - ./backend:/app
+      - ../backend:/app
       - /etc/electric-miniprogram/certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
     env_file:
       - /etc/electric-miniprogram/.env.production
@@ -44,7 +44,7 @@ services:
     image: node:20-alpine
     working_dir: /app
     volumes:
-      - ./merchant:/app
+      - ../merchant:/app
       - merchant_dist:/app/dist
     command: sh -c "(npm ci || npm install) && npm run build && tail -f /dev/null"
     restart: unless-stopped
@@ -58,8 +58,8 @@ services:
       - "80:80"
     volumes:
       - merchant_dist:/usr/share/nginx/html:ro
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./backend:/var/www/backend:ro
+      - ../deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../backend:/var/www/backend:ro
     restart: unless-stopped
 
 volumes:
