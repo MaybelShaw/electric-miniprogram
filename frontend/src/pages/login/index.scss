@@ -1,32 +1,86 @@
+@import '../../styles/variables.scss';
+
 .login-page {
   min-height: 100vh;
-  padding: 48px 24px;
-  background: #f7f8fa;
+  padding: $spacing-md;
+  padding-top: $spacing-xl;
   box-sizing: border-box;
+  background: $background-color-base;
 }
 
 .login-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 28px 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  background: $background-color-light;
+  border-radius: $spacing-md;
+  padding: $spacing-xl $spacing-lg;
+  box-shadow: $shadow-sm;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle at top right, rgba(25, 137, 250, 0.08), transparent 70%);
+    border-radius: 0 $spacing-md 0 100%;
+  }
+}
+
+.card-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: $spacing-xl;
+}
+
+.avatar {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  margin-bottom: $spacing-md;
+  border: 4px solid $white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .title {
   display: block;
-  font-size: 20px;
-  font-weight: 600;
-  color: #323233;
-  margin-bottom: 12px;
+  font-size: $font-size-xl;
+  font-weight: bold;
+  color: $text-color-base;
+  margin-bottom: $spacing-sm;
 }
 
 .desc {
   display: block;
-  font-size: 14px;
-  color: #969799;
-  margin-bottom: 20px;
+  font-size: $font-size-md;
+  color: $text-color-secondary;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .login-btn {
   width: 100%;
+  height: 88px;
+  line-height: 88px;
+  border-radius: 44px;
+  font-size: $font-size-lg;
+  font-weight: 600;
+  background: $primary-color;
+  color: $white;
+  border: none;
+  position: relative;
+  z-index: 1;
+
+  &::after {
+    border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.7;
+  }
 }
