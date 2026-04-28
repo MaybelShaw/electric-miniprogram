@@ -241,7 +241,7 @@ Authorization: Bearer <access_token>
   - 请求体：`{ "product_id": number, "address_id": number, "quantity"?: number, "note"?: string }`
   - 响应：`{ "order": Order, "payment": Payment }`
   - 说明：
-    - 同时创建初始支付记录，默认过期30分钟
+    - 同时创建初始支付记录，默认过期24小时
     - 库存自动锁定，库存不足返回 `400 BAD_REQUEST`
   - 错误码：
     - `400 BAD_REQUEST`: 库存不足或参数错误
@@ -350,7 +350,7 @@ Authorization: Bearer <access_token>
     - 生产环境：仅允许真实的微信回调
     - 支付成功时自动更新订单状态为 `paid`
     - 支付过期时自动更新订单状态为 `cancelled` 并释放库存
-    - 支付超时默认 `10` 分钟，可通过环境变量 `ORDER_PAYMENT_TIMEOUT_MINUTES` 调整
+    - 支付超时默认 `1440` 分钟（24小时），可通过环境变量 `ORDER_PAYMENT_TIMEOUT_MINUTES` 调整
 
 ### 回调示例
 

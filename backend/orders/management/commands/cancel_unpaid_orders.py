@@ -30,7 +30,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--timeout-minutes',
             type=int,
-            default=getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10),
+            default=getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440),
             help='Payment timeout in minutes (default from settings.ORDER_PAYMENT_TIMEOUT_MINUTES)',
         )
         parser.add_argument(

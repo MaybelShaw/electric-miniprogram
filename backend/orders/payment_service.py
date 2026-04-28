@@ -1144,9 +1144,9 @@ class PaymentService:
                 order_amount = order.actual_amount or order.total_amount
                 return False, f'支付金额{payment_amount}与订单金额{order_amount}不一致'
         
-        # 检查订单是否过期（订单创建超过24小时）
-        from datetime import timedelta
-        if timezone.now() - order.created_at > timedelta(hours=24):
+        # 检查订单是否过期（按配置的支付超时时间）
+        timeout_minutes = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440)
+        if timezone.now() - order.created_at > timezone.timedelta(minutes=timeout_minutes):
             return False, '订单已过期，请重新创建'
         
         return True, ''

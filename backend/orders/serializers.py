@@ -296,7 +296,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     def get_expires_at(self, obj: Order):
         if obj.status == 'pending':
-            timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
+            timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440)
             return obj.created_at + timedelta(minutes=timeout)
         return None
 

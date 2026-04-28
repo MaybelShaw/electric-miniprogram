@@ -331,7 +331,7 @@ class Payment(models.Model):
     def create_for_order(cls, order, method='wechat', ttl_minutes=None):
         now = timezone.now()
         from django.conf import settings as dj_settings
-        ttl = ttl_minutes if ttl_minutes is not None else getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10)
+        ttl = ttl_minutes if ttl_minutes is not None else getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440)
         amount = order.actual_amount or order.total_amount
         payment = cls.objects.create(
             order=order,

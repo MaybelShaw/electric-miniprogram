@@ -63,7 +63,7 @@ class OrdersConfig(AppConfig):
             while True:
                 try:
                     now = timezone.now()
-                    cutoff = now - timedelta(minutes=getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 10))
+                    cutoff = now - timedelta(minutes=getattr(dj_settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440))
                     qs = Order.objects.filter(status='pending', created_at__lt=cutoff).prefetch_related('payments')
                     for order in qs:
                         if order.payments.filter(status='succeeded').exists():

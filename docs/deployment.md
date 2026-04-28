@@ -56,7 +56,7 @@
     YLH_CALLBACK_SECRET=...
     YLH_SOURCE_SYSTEM=skwl
     YLH_SHOP_NAME=默认店铺
-    ORDER_PAYMENT_TIMEOUT_MINUTES=10
+    ORDER_PAYMENT_TIMEOUT_MINUTES=1440
      SECURE_SSL_REDIRECT=True
      ```
 2. 启动：
@@ -113,7 +113,7 @@
   - `POSTGRES_DB/USER/PASSWORD/HOST/PORT`
   - `WECHAT_APPID/WECHAT_SECRET`
   - `YLH_CLIENT_ID/YLH_CLIENT_SECRET/YLH_CALLBACK_APP_KEY/YLH_CALLBACK_SECRET`
-- `ORDER_PAYMENT_TIMEOUT_MINUTES`（未支付订单自动取消超时，默认 `10`）
+- `ORDER_PAYMENT_TIMEOUT_MINUTES`（未支付订单自动取消超时，默认 `1440`，即 24 小时）
   - 外部 `env_file` 路径（本地示例）：`/Users/bobo/.envs/electric-miniprogram/.env.production`（`docker/docker-compose.prod.yaml:23-24`、`docker/docker-compose.preprod.yaml:23-29`）
   - 服务器推荐路径：`/etc/electric-miniprogram/.env.production`（请更新 Compose 中的 `env_file`）
 

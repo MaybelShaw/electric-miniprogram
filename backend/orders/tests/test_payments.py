@@ -76,3 +76,15 @@ class PaymentServiceTests(TestCase):
 
         self.assertTrue(ok)
         self.assertEqual(msg, '')
+
+    @override_settings(ORDER_PAYMENT_TIMEOUT_MINUTES=30)
+    def test_validate_payment_creation_respects_configured_timeout(self):
+        Order.objects.filter(id=self.order.id).update(
+            created_at=timezone.now() - timezone.timedelta(minutes=31)
+        )
+        self.order.refresh_from_db()
+
+        ok, msg = PaymentService.validate_payment_creation(self.order)
+
+        self.assertFalse(ok)
+        self.assertIn('订单已过期', msg)
