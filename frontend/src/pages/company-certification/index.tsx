@@ -3,6 +3,7 @@ import { View, Form, Input, Button, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { companyService } from '../../services/company'
 import { TokenManager } from '../../utils/request'
+import { requireLogin } from '../../utils/login-guard'
 import './index.scss'
 
 export default function CompanyCertification() {
@@ -32,13 +33,7 @@ export default function CompanyCertification() {
   const checkLoginAndLoad = async () => {
     const token = TokenManager.getAccessToken()
     if (!token) {
-      Taro.showToast({
-        title: '请先登录',
-        icon: 'none'
-      })
-      setTimeout(() => {
-        Taro.switchTab({ url: '/pages/profile/index' })
-      }, 1500)
+      await requireLogin()
       return
     }
     loadCompanyInfo()

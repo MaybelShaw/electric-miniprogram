@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { notificationService, SubscribeTemplate, NotificationStats } from '../../services/notification'
 import { Notification } from '../../types'
 import { TokenManager } from '../../utils/request'
+import { requireLogin } from '../../utils/login-guard'
 import './index.scss'
 
 const TYPE_META: Record<
@@ -35,7 +36,7 @@ export default function MessageCenter() {
     if (!TokenManager.getAccessToken()) {
       setNotifications([])
       setStats({ unread_count: 0, pending_count: 0, total: 0 })
-      Taro.showToast({ title: '请先登录后查看消息', icon: 'none' })
+      requireLogin()
       return
     }
     refreshAll()

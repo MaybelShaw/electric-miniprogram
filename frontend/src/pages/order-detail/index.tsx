@@ -11,6 +11,7 @@ import { resolvePaymentErrorMessage } from '../../utils/payment'
 import { BASE_URL, TokenManager } from '../../utils/request'
 import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
 import { openWechatLogistics } from '../../utils/wechat-logistics'
+import { requireLogin } from '../../utils/login-guard'
 import './index.scss'
 
 export default function OrderDetail() {
@@ -386,11 +387,10 @@ export default function OrderDetail() {
 
   const handleDownloadInvoice = async () => {
     if (!order?.invoice_info?.id) return;
+    const loggedIn = await requireLogin()
+    if (!loggedIn) return
     const token = TokenManager.getAccessToken();
-    if (!token) {
-        Taro.showToast({ title: '请先登录', icon: 'none' });
-        return;
-    }
+    if (!token) return
     const url = `${BASE_URL}/invoices/${order.invoice_info.id}/download/`;
     
     Taro.showLoading({ title: '下载中...' });

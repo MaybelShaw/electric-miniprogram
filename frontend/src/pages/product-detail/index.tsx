@@ -6,6 +6,7 @@ import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
 import { Product, ProductSKU } from '../../types'
 import ProductCard from '../../components/ProductCard'
+import { requireLogin } from '../../utils/login-guard'
 import './index.scss'
 
 export default function ProductDetail() {
@@ -24,6 +25,7 @@ export default function ProductDetail() {
   const [activeTab, setActiveTab] = useState('product')
   const [scrollIntoView, setScrollIntoView] = useState('')
   const [navOpacity, setNavOpacity] = useState(0)
+  const [hasAutoResumed, setHasAutoResumed] = useState(false)
 
   useEffect(() => {
     // 确保显示分享菜单
@@ -81,6 +83,17 @@ export default function ProductDetail() {
       loadRelatedProducts(product.id, product.category_id, product.category)
     }
   }, [product?.id, product?.category_id, product?.category])
+
+  useEffect(() => {
+    if (!product || hasAutoResumed) return
+    if (!TokenManager.getAccessToken()) return
+
+    const intent = router.params?.intent
+    if (intent !== 'buy' && intent !== 'cart') return
+
+    setHasAutoResumed(true)
+    handleShowQuantityPopup(intent)
+  }, [router.params?.intent, hasAutoResumed, product])
 
   const loadProduct = async (id: number) => {
     setLoading(true)
@@ -170,9 +183,9 @@ export default function ProductDetail() {
 
 
 
-  const handleShowQuantityPopup = (type: 'cart' | 'buy') => {
-    if (!TokenManager.getAccessToken()) {
-      Taro.showToast({ title: '请先登录', icon: 'none' })
+  const handleShowQuantityPopup = async (type: 'cart' | 'buy') => {
+    const loggedIn = await requireLogin({ intent: type })
+    if (!loggedIn) {
       return
     }
 
