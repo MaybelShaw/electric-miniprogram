@@ -58,11 +58,11 @@ export default function LoginPage() {
         <View className='card-content'>
           <View className='avatar' />
           <View className='title'>登录授权</View>
-          <Text className='desc'>登录后可继续购买、查看消息与企业认证流程。</Text>
+          <Text className='desc'>登陆后可继续操作</Text>
+          <Button className='login-btn' loading={loading} disabled={loading} onTap={handleLogin}>
+            {loading ? '登录中...' : '微信授权登录'}
+          </Button>
         </View>
-        <Button className='login-btn' loading={loading} disabled={loading} onTap={handleLogin}>
-          {loading ? '登录中...' : '微信授权登录'}
-        </Button>
       </View>
     </View>
   )
