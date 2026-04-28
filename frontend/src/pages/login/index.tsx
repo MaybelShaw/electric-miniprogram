@@ -56,9 +56,11 @@ export default function LoginPage() {
     <View className='login-page'>
       <View className='login-card'>
         <View className='card-content'>
-          <View className='avatar' />
-          <View className='title'>登录授权</View>
-          <Text className='desc'>登陆后可继续操作</Text>
+          <View className='top-content'>
+            <View className='avatar' />
+            <View className='title'>登录授权</View>
+            <Text className='desc'>登陆后可继续操作</Text>
+          </View>
           <Button className='login-btn' loading={loading} disabled={loading} onTap={handleLogin}>
             {loading ? '登录中...' : '微信授权登录'}
           </Button>
