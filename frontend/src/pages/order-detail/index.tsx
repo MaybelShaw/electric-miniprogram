@@ -597,28 +597,28 @@ export default function OrderDetail() {
     !order.refund_locked &&
     getRefundableAmount(order) > 0
 
-  const getDisplayStatus = (order: Order) => {
-    const refundedAmount = getRefundedAmount(order)
-    if (order.refund_pending) {
-      return order.status === 'refunding' ? '退款处理中' : '退款审核中'
+  const getDisplayStatus = (targetOrder: Order) => {
+    const refundedAmount = getRefundedAmount(targetOrder)
+    if (targetOrder.refund_pending) {
+      return targetOrder.status === 'refunding' ? '退款处理中' : '退款审核中'
     }
     if (refundedAmount > 0) {
       return `已退款 ${formatPrice(refundedAmount)}`
     }
-    if (order.return_info) {
-      const returnStatus = order.return_info.status;
+    if (targetOrder.return_info) {
+      const returnStatus = targetOrder.return_info.status;
       if (returnStatus === 'requested') return '待商家处理';
       if (returnStatus === 'approved') return '待退货';
       if (returnStatus === 'in_transit') return '退货中';
       if (returnStatus === 'received') return '商家已收货';
       if (returnStatus === 'rejected') return '退货被拒';
     }
-    return getOrderStatusText(order.status);
+    return getOrderStatusText(targetOrder.status);
   }
 
-  const getStatusIcon = (order: Order) => {
-    if (order.return_info) {
-      const returnStatus = order.return_info.status;
+  const getStatusIcon = (targetOrder: Order) => {
+    if (targetOrder.return_info) {
+      const returnStatus = targetOrder.return_info.status;
       if (returnStatus === 'requested') return '⏳';
       if (returnStatus === 'approved') return '📦';
       if (returnStatus === 'in_transit') return '🚚';
@@ -626,7 +626,7 @@ export default function OrderDetail() {
       if (returnStatus === 'rejected') return '❌';
     }
     
-    switch (order.status) {
+    switch (targetOrder.status) {
       case 'pending': return '⏰';
       case 'paid': return '✅';
       case 'shipped': return '🚚';
@@ -639,18 +639,18 @@ export default function OrderDetail() {
     }
   }
 
-  const getStatusClass = (order: Order) => {
-    if (order.return_info) {
-       if (order.return_info.status === 'rejected') return 'cancelled';
+  const getStatusClass = (targetOrder: Order) => {
+    if (targetOrder.return_info) {
+       if (targetOrder.return_info.status === 'rejected') return 'cancelled';
        return 'returning';
     }
-    if (order.refund_pending) {
+    if (targetOrder.refund_pending) {
       return 'refunding'
     }
-    if (getRefundedAmount(order) > 0) {
+    if (getRefundedAmount(targetOrder) > 0) {
       return 'refunded'
     }
-    return order.status;
+    return targetOrder.status;
   }
 
   if (loading) {
@@ -859,11 +859,13 @@ export default function OrderDetail() {
               <Text className='info-label'>发票</Text>
               <View className='info-value'>
                 {order.invoice_info ? (
-                   <Text style={{
-                     color: order.invoice_info.status === 'issued' ? '#07c160' : 
-                            order.invoice_info.status === 'cancelled' ? '#ff4d4f' : '#faad14',
-                     fontWeight: 'bold'
-                   }}>
+                   <Text
+                     style={{
+                       color: order.invoice_info.status === 'issued' ? '#07c160' :
+                              order.invoice_info.status === 'cancelled' ? '#ff4d4f' : '#faad14',
+                       fontWeight: 'bold'
+                     }}
+                   >
                      {order.invoice_info.status_display}
                    </Text>
                 ) : (
@@ -989,10 +991,10 @@ export default function OrderDetail() {
               <Textarea
                 className='refund-textarea'
                 placeholder='请填写退款原因'
-                  value={refundReason}
-                  onInput={(e) => setRefundReason(e.detail.value)}
-                  maxlength={200}
-                />
+                value={refundReason}
+                onInput={(e) => setRefundReason(e.detail.value)}
+                maxlength={200}
+              />
               </View>
               <View className='refund-field'>
                 <Text className='refund-label'>凭证图片（可选，最多3张）</Text>

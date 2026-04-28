@@ -346,7 +346,7 @@ export default function ProductDetail() {
         scrollWithAnimation
         onScroll={handleScroll}
       >
-        <View id="product-anchor">
+        <View id='product-anchor'>
         {/* 商品主图 */}
         <View className='image-container'>
           <Swiper 
@@ -453,7 +453,7 @@ export default function ProductDetail() {
         </View>
 
         {/* 商品详情 */}
-        <View id="detail-anchor" className='detail-section'>
+        <View id='detail-anchor' className='detail-section'>
           <View className='section-title'>
             <View className='title-line' />
             <Text className='title-text'>商品详情</Text>
@@ -489,7 +489,7 @@ export default function ProductDetail() {
         </View>
 
         {/* 猜你喜欢 */}
-        <View id="recommend-anchor" className='recommend-section'>
+        <View id='recommend-anchor' className='recommend-section'>
           <View className='recommend-header'>
             <View className='recommend-title'>
               <View className='dot' />
