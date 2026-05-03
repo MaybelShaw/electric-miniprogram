@@ -151,11 +151,15 @@ python manage.py test integrations.test_ylh_callback
 
 ## Related Documentation
 
+- `docs/plan/` - 执行计划与路线图
+  - `README.md` - 计划目录约定、命名、归档规则
+  - `2026-04-29-platform-upgrade-v3.md` - **平台升级实施计划 v3**（多店铺平台化、结算单与子单、微信快捷登录、小程序设计系统/UI、「优惠专区 promotion」等分阶段顺序）
+- `docs/README.md` - 文档总索引（含计划入口）
 - `docs/api/` - API 文档目录
   - `api.md` - 完整 API 接口文档
   - `haier_api.md` - 海尔 API 对接详情
-- `DEVELOPER_GUIDE.md` - 开发者技术指南
-- `docs/` - 部署和运维文档
+- `DEVELOPER_GUIDE.md` - 开发者技术指南（若存在）
+- `docs/deployment/` - 部署和运维文档
 
 ## Docker Commands
 
@@ -172,6 +176,7 @@ docker compose -f docker/docker-compose.prod.yaml down
 ## 注意事项
 
 - 这是本地开发环境，没有配置postgresql数据库，请考虑其他方式进行测试
-- 开发、重构、测试、回答问题前请先阅读相关文档和代码
+- 开发、重构、测试、回答问题前请先阅读相关文档和代码；**大范围改造前先对照** `docs/plan/2026-04-29-platform-upgrade-v3.md` 是否与当前任务一致，并按 `docs/plan/README.md` 维护计划文件与归档
 - 开发、重构、测试后更新相关文档
 - 禁止修改 docs/api/haier_api.md，这是要对接的接口
+- **Git 提交前**：先展示当前分支、`git status`、变更摘要（如 `git diff --stat`）、拟纳入提交的文件列表与拟定提交说明；经使用者明确同意后再执行 `git add` / `git commit`。若对方在同一句话里已要求「先看变更再提交」，展示变更后即可视为已授权提交。
