@@ -5,6 +5,7 @@
 - `frontend/`: Taro + React mini-program; entry config `src/app.config.ts`; UI pages in `src/pages/*`, shared components in `src/components/`, API helpers in `src/services/`, types in `src/types/`.
 - `merchant/`: React + Ant Design Pro admin; routes and pages in `src/`, API calls via `axios`; Vite config in `vite.config.ts`.
 - `docs/` and top-level `*.md`: reference guides; `deploy/` contains compose files and ops scripts.
+- `docs/plan/`: active execution plans (one independent task per file, naming `YYYY-MM-DD-short-title.md`); `docs/plan/archive/` holds completed plans after code, tests, and Git commit. Read [docs/plan/README.md](docs/plan/README.md) before starting sizable features or refactors. Current roadmap: [docs/plan/2026-04-29-platform-upgrade-v3.md](docs/plan/2026-04-29-platform-upgrade-v3.md) (platform multi-store, checkout/sub-orders, WeChat login, mini-program UI, promotion zone).
 
 ## Build, Test, and Development Commands
 - Backend setup: `uv sync` (preferred) or `python -m venv .venv && pip install -r requirements.txt` to install deps.
@@ -29,6 +30,11 @@
 - Commits: use Conventional Commit prefixes (`feat`, `fix`, `chore`, `docs`, etc.) and keep messages scoped (e.g., `feat(orders): add cancel flow`).
 - PRs: include summary, key commands run, and screenshots for UI changes (mini-program or merchant views). Link issues/tasks and note migrations, env vars, or data scripts required for rollout.
 - Keep diffs small and self-contained; update docs/config when adding new endpoints, pages, or env settings.
+- Planning: for new epics or multi-phase work, add or update a plan under `docs/plan/` (see `docs/plan/README.md`); move the file to `docs/plan/archive/` when implementation, required tests, and commits are done.
+
+### Confirm before commit (agents and automation)
+- Before running `git add` / `git commit`, show the user: current branch, `git status`, `git diff --stat` (or an equivalent summary of what would be staged), paths to be committed, and the proposed commit message.
+- Run the commit only after the user explicitly confirms. If the user already asked to commit in the same message *after* review (e.g. “看一下 diff 然后提交”), treat that as confirmation once the preview has been shown.
 
 ## Environment & Security Notes
 - Secrets: load via env vars; never commit keys or tokens. Local dev may use `.env` loaded by settings; production uses `env_config.py` to map required vars.
