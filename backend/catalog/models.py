@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from stores.models import get_main_store_pk
 
@@ -388,6 +389,99 @@ class MediaImage(models.Model):
         return f'{self.original_name} ({self.id})'
 
 
+class SpecialZone(models.Model):
+    KIND_ACTIVITY = 'activity'
+    KIND_PROMOTION = 'promotion'
+    KIND_CATEGORY = 'category'
+    KIND_BRAND = 'brand'
+    KIND_CUSTOM = 'custom'
+    KIND_CHOICES = [
+        (KIND_ACTIVITY, '活动专区'),
+        (KIND_PROMOTION, '优惠专区'),
+        (KIND_CATEGORY, '品类专区'),
+        (KIND_BRAND, '品牌专区'),
+        (KIND_CUSTOM, '自定义专区'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='special_zones', default=get_main_store_pk, verbose_name='店铺')
+    title = models.CharField(max_length=100, verbose_name='专区标题')
+    slug = models.SlugField(max_length=80, verbose_name='专区标识')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_ACTIVITY, verbose_name='专区类型')
+    subtitle = models.CharField(max_length=200, blank=True, default='', verbose_name='副标题')
+    cover_image = models.URLField(max_length=500, blank=True, default='', verbose_name='封面图')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    show_on_home = models.BooleanField(default=True, verbose_name='首页展示')
+    home_order = models.IntegerField(default=0, verbose_name='首页排序')
+    start_at = models.DateTimeField(null=True, blank=True, verbose_name='开始时间')
+    end_at = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '动态运营专区'
+        verbose_name_plural = '动态运营专区'
+        ordering = ['home_order', 'id']
+        indexes = [
+            models.Index(fields=['store', 'is_active', 'show_on_home', 'home_order']),
+            models.Index(fields=['store', 'kind']),
+            models.Index(fields=['start_at', 'end_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['store', 'slug'], name='unique_special_zone_store_slug'),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        errors = {}
+        if self.title is not None:
+            self.title = str(self.title).strip()
+        if self.slug is not None:
+            self.slug = str(self.slug).strip()
+        if self.start_at and self.end_at and self.end_at < self.start_at:
+            errors['end_at'] = '结束时间不能早于开始时间'
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class SpecialZoneProduct(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    zone = models.ForeignKey('catalog.SpecialZone', on_delete=models.CASCADE, related_name='zone_products', verbose_name='专区')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='special_zone_links', verbose_name='商品')
+    is_active = models.BooleanField(default=True, verbose_name='是否展示')
+    order = models.IntegerField(default=0, verbose_name='排序')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '动态专区商品'
+        verbose_name_plural = '动态专区商品'
+        ordering = ['order', 'id']
+        indexes = [
+            models.Index(fields=['zone', 'is_active', 'order']),
+            models.Index(fields=['product']),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['zone', 'product'], name='unique_special_zone_product'),
+        ]
+
+    def __str__(self):
+        return f'{self.zone_id}:{self.product_id}'
+
+    def clean(self):
+        if self.zone_id and self.product_id and self.zone.store_id != self.product.store_id:
+            raise ValidationError({'product': '专区商品必须属于同一店铺'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class HomeBanner(models.Model):
     """
     首页轮播图
@@ -423,6 +517,14 @@ class HomeBanner(models.Model):
         blank=True,
         verbose_name='跳转商品'
     )
+    special_zone = models.ForeignKey(
+        'catalog.SpecialZone',
+        on_delete=models.SET_NULL,
+        related_name='home_banners',
+        null=True,
+        blank=True,
+        verbose_name='动态专区',
+    )
     title = models.CharField(max_length=100, blank=True, default='', verbose_name='标题')
     position = models.CharField(max_length=20, choices=POSITION_CHOICES, default=POSITION_HOME, verbose_name='展示位置')
     order = models.IntegerField(default=0, verbose_name='排序')
@@ -437,11 +539,20 @@ class HomeBanner(models.Model):
         indexes = [
             models.Index(fields=['is_active', 'order']),
             models.Index(fields=['store', 'is_active', 'order']),
+            models.Index(fields=['special_zone', 'is_active', 'order']),
             models.Index(fields=['position', 'is_active', 'order']),
         ]
 
     def __str__(self):
         return self.title or f'Banner {self.id}'
+
+    def clean(self):
+        if self.special_zone_id and self.special_zone.store_id != self.store_id:
+            raise ValidationError({'special_zone': '专区轮播图必须属于同一店铺'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class SpecialZoneCover(models.Model):

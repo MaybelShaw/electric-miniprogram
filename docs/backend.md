@@ -159,11 +159,18 @@
   - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
   - `GET/POST/... /home-banners/` 首页轮播图管理 `backend/catalog/urls.py:8`
     - GET（公开）：返回启用的轮播图列表，按 `order` 升序。
+    - 查询参数：`position` 继续支持固定专区轮播；`special_zone=<id>` 返回指定动态运营专区轮播。
     - POST/PATCH/DELETE（管理员）：创建/更新/删除轮播图。
-    - 数据结构：`{ id, title, link_url, order, is_active, image_id, image_url, created_at }`。
+    - 数据结构：`{ id, title, position, special_zone, special_zone_id, order, is_active, image_id, image_url, created_at }`。
   - `POST /home-banners/upload/` 上传图片并创建轮播图（管理员） `backend/catalog/views.py`
     - 表单字段：`file`（必填）、`title`（可选）、`link_url`（可选）、`order`（可选，默认 `0`）、`is_active`（可选，默认 `true`）。
     - 返回：已创建轮播图数据，包含 `image_url` 为完整可访问地址。
+  - `GET/POST/PATCH/DELETE /special-zones/` 动态运营专区 `backend/catalog/urls.py`
+    - `GET /special-zones/?store=<store_id>`：公开返回指定店铺下 `is_active=true`、`show_on_home=true` 且处于有效期内的专区，按 `home_order` 升序。
+    - 字段：`store_id`、`title`、`slug`、`kind(activity|promotion|category|brand|custom)`、`subtitle`、`cover_image`、`is_active`、`show_on_home`、`home_order`、`start_at`、`end_at`。
+    - 权限：平台管理员可跨店创建和维护；店铺成员只能维护自己店铺下的专区。
+    - 商品绑定：`GET/POST/DELETE /special-zones/{id}/products/` 读取或维护专区商品；商品必须与专区属于同一店铺，返回时只包含启用绑定并按绑定 `order` 排序。
+    - 商品列表兼容：`GET /products/?special_zone=<id>` 可按动态专区筛选商品；旧固定专区字段与 `position` 仍保留兼容。
   - `GET /cases/` 案例列表（公开）`backend/catalog/urls.py`
     - 返回字段：`{ id, title, order, is_active, cover_image_id, cover_image_url, created_at, updated_at }`
     - 说明：非管理员默认只返回 `is_active=true` 的案例，并按 `order` 升序。

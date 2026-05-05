@@ -1,9 +1,9 @@
 from rest_framework import viewsets, permissions, status
-from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, SpecialZoneCover, Case
-from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, SpecialZoneCoverSerializer, CaseSerializer
+from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, SpecialZone, SpecialZoneProduct, SpecialZoneCover, Case
+from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, SpecialZoneSerializer, SpecialZoneProductSerializer, SpecialZoneCoverSerializer, CaseSerializer
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
-from django.db.models import Q, Count, Max
+from django.db.models import Q, Count, Max, F
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
@@ -16,7 +16,8 @@ from common.excel import build_excel_response
 from common.utils import to_bool, parse_decimal, parse_int
 from common.pagination import LargeResultsSetPagination
 from common.throttles import CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle
-from stores.permissions import filter_queryset_by_store, get_requested_store
+from stores.models import Store
+from stores.permissions import can_manage_store, get_accessible_stores, get_active_memberships, is_platform_admin, filter_queryset_by_store, get_requested_store
 from .search import ProductSearchService
 from decimal import Decimal
 import uuid
@@ -129,6 +130,13 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
                     qs = qs.filter(show_in_promotion_zone=parsed)
                 except Exception:
                     pass
+        special_zone_id = parse_int(self.request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            qs = qs.filter(
+                special_zone_links__zone_id=special_zone_id,
+                special_zone_links__is_active=True,
+                special_zone_links__zone__store_id=F('store_id'),
+            ).distinct()
         return qs
 
     @extend_schema(
@@ -210,8 +218,12 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
         show_in_promotion_zone = to_bool(request.query_params.get('show_in_promotion_zone'))
-        store_scoped_products = filter_queryset_by_store(Product.objects.all(), request)
-        store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
+        special_zone_id = parse_int(request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            store_ids = None
+        else:
+            store_scoped_products = filter_queryset_by_store(Product.objects.all(), request)
+            store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
         
         # Parse pagination parameters
         page = parse_int(request.query_params.get('page')) or 1
@@ -232,6 +244,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
             show_in_designer_zone=show_in_designer_zone,
             show_in_best_seller_zone=show_in_best_seller_zone,
             show_in_promotion_zone=show_in_promotion_zone,
+            special_zone=special_zone_id,
             store_ids=store_ids,
             sort_by=sort_by,
             page=page,
@@ -1330,6 +1343,125 @@ class MediaImageViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(tags=['SpecialZones'])
+class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+    queryset = SpecialZone.objects.all().select_related('store').order_by('home_order', 'id')
+    serializer_class = SpecialZoneSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.method not in permissions.SAFE_METHODS:
+            if self.request.user and self.request.user.is_authenticated:
+                return qs
+            return qs.none()
+
+        user = getattr(self.request, 'user', None)
+        requested_store_id = self._requested_store_id()
+        if user and user.is_authenticated and (is_platform_admin(user) or get_active_memberships(user).exists()):
+            if is_platform_admin(user):
+                if requested_store_id is not None:
+                    return qs.filter(store_id=requested_store_id)
+                return qs
+            accessible_store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if requested_store_id is not None:
+                if requested_store_id not in accessible_store_ids:
+                    return qs.none()
+                return qs.filter(store_id=requested_store_id)
+            return qs.filter(store_id__in=accessible_store_ids)
+
+        if requested_store_id is not None:
+            qs = qs.filter(store_id=requested_store_id)
+        elif self.kwargs.get(self.lookup_field):
+            pass
+        else:
+            main_store = Store.objects.filter(is_main=True).first()
+            if main_store:
+                qs = qs.filter(store=main_store)
+        return self._visible_home_zones(qs)
+
+    def _requested_store_id(self):
+        return parse_int(
+            self.request.query_params.get('store')
+            or self.request.query_params.get('store_id')
+        )
+
+    def _visible_home_zones(self, qs):
+        now = timezone.now()
+        return qs.filter(
+            is_active=True,
+            show_on_home=True,
+        ).filter(
+            Q(start_at__isnull=True) | Q(start_at__lte=now),
+            Q(end_at__isnull=True) | Q(end_at__gte=now),
+        ).order_by('home_order', 'id')
+
+    def perform_create(self, serializer):
+        store = get_requested_store(self.request, required=True)
+        if not can_manage_store(self.request.user, store):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save(store=store)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if not can_manage_store(self.request.user, instance.store):
+            raise PermissionDenied('You cannot manage this store.')
+        target_store = serializer.validated_data.get('store', instance.store)
+        if target_store != instance.store and not is_platform_admin(self.request.user):
+            raise PermissionDenied('You cannot move this zone to another store.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not can_manage_store(self.request.user, instance.store):
+            raise PermissionDenied('You cannot manage this store.')
+        instance.delete()
+
+    @action(detail=True, methods=['get', 'post', 'delete'])
+    def products(self, request, pk=None):
+        zone = self.get_object()
+        if request.method == 'GET':
+            products = Product.objects.filter(
+                special_zone_links__zone=zone,
+                special_zone_links__is_active=True,
+                special_zone_links__zone__store_id=F('store_id'),
+            ).select_related('category', 'brand').order_by(
+                'special_zone_links__order',
+                'special_zone_links__id',
+            )
+            serializer = ProductSerializer(products, many=True, context=self.get_serializer_context())
+            return Response(serializer.data)
+
+        if not can_manage_store(request.user, zone.store):
+            raise PermissionDenied('You cannot manage this store.')
+
+        product_id = request.data.get('product_id') or request.data.get('product')
+        product = Product.objects.filter(id=product_id).first()
+        if product is None:
+            return Response({'product_id': ['商品不存在']}, status=status.HTTP_400_BAD_REQUEST)
+        if product.store_id != zone.store_id:
+            return Response({'product_id': ['专区商品必须属于同一店铺']}, status=status.HTTP_400_BAD_REQUEST)
+
+        if request.method == 'DELETE':
+            SpecialZoneProduct.objects.filter(zone=zone, product=product).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        is_active_raw = request.data.get('is_active')
+        is_active = to_bool(is_active_raw) if is_active_raw is not None else True
+        if is_active is None:
+            is_active = True
+        order = parse_int(request.data.get('order')) or 0
+        binding, _ = SpecialZoneProduct.objects.update_or_create(
+            zone=zone,
+            product=product,
+            defaults={
+                'is_active': is_active,
+                'order': order,
+            },
+        )
+        serializer = SpecialZoneProductSerializer(binding, context={**self.get_serializer_context(), 'zone': zone})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
 @extend_schema(tags=['Home'])
 class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
@@ -1345,7 +1477,14 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        qs = filter_queryset_by_store(qs, self.request)
+        special_zone_id = parse_int(self.request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            zone = SpecialZone.objects.filter(id=special_zone_id).first()
+            if zone is None:
+                return qs.none()
+            qs = qs.filter(store_id=zone.store_id, special_zone=zone)
+        else:
+            qs = filter_queryset_by_store(qs, self.request)
         
         # position filter
         position = self.request.query_params.get('position')
@@ -1364,7 +1503,14 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         from stores.permissions import get_active_memberships
         if not user or (not user.is_staff and not get_active_memberships(user).exists()):
             raise PermissionDenied('仅管理员可创建轮播图')
-        serializer.save(store=get_requested_store(self.request, required=True))
+        special_zone = serializer.validated_data.get('special_zone')
+        if special_zone is not None:
+            store = special_zone.store
+        else:
+            store = get_requested_store(self.request, required=True)
+        if not can_manage_store(user, store):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save(store=store)
 
     @extend_schema(
         operation_id='home_banners_upload',

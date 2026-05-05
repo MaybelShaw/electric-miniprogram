@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZoneCover, Case, CaseDetailBlock
+from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZone, SpecialZoneProduct, SpecialZoneCover, Case, CaseDetailBlock
 from orders.services import get_best_active_discount, resolve_base_price
 from django.conf import settings
 from urllib.parse import urlparse
@@ -668,6 +668,77 @@ class SearchLogSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'keyword', 'user_id', 'username', 'created_at']
 
 
+class SpecialZoneSerializer(serializers.ModelSerializer):
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(),
+        source='store',
+        required=False,
+    )
+
+    class Meta:
+        model = SpecialZone
+        fields = [
+            'id',
+            'store',
+            'store_id',
+            'title',
+            'slug',
+            'kind',
+            'subtitle',
+            'cover_image',
+            'is_active',
+            'show_on_home',
+            'home_order',
+            'start_at',
+            'end_at',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'store', 'created_at', 'updated_at']
+        validators = []
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        store = attrs.get('store') or getattr(self.instance, 'store', None)
+        slug = attrs.get('slug') or getattr(self.instance, 'slug', None)
+        if store and slug:
+            qs = SpecialZone.objects.filter(store=store, slug=slug)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({'slug': '同一店铺下专区标识已存在'})
+        return attrs
+
+
+class SpecialZoneProductSerializer(serializers.ModelSerializer):
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source='product',
+    )
+    product = ProductSerializer(read_only=True)
+
+    class Meta:
+        model = SpecialZoneProduct
+        fields = [
+            'id',
+            'zone',
+            'product',
+            'product_id',
+            'is_active',
+            'order',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'zone', 'product', 'created_at']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        zone = self.context.get('zone') or attrs.get('zone') or getattr(self.instance, 'zone', None)
+        product = attrs.get('product') or getattr(self.instance, 'product', None)
+        if zone and product and zone.store_id != product.store_id:
+            raise serializers.ValidationError({'product_id': '专区商品必须属于同一店铺'})
+        return attrs
+
+
 class HomeBannerSerializer(serializers.ModelSerializer):
     store_id = serializers.PrimaryKeyRelatedField(
         queryset=Store.objects.all(),
@@ -683,16 +754,23 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         required=False
     )
     product_name = serializers.CharField(source='product.name', read_only=True, default='')
+    special_zone_id = serializers.PrimaryKeyRelatedField(
+        queryset=SpecialZone.objects.all(),
+        source='special_zone',
+        allow_null=True,
+        required=False,
+    )
 
     class Meta:
         model = HomeBanner
         fields = [
             'id', 'title', 'position', 'order', 'is_active',
             'store', 'store_id',
+            'special_zone', 'special_zone_id',
             'product_id', 'product_name',
             'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]
-        read_only_fields = ['id', 'store', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
+        read_only_fields = ['id', 'store', 'special_zone', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
 
     def get_image_url(self, obj: HomeBanner):
         request = self.context.get('request')
@@ -700,6 +778,14 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         if not url:
             return ''
         return _ensure_https(request.build_absolute_uri(url) if request else url, request)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        store = attrs.get('store') or getattr(self.instance, 'store', None)
+        special_zone = attrs.get('special_zone') or getattr(self.instance, 'special_zone', None)
+        if store and special_zone and special_zone.store_id != store.id:
+            raise serializers.ValidationError({'special_zone_id': '专区轮播图必须属于同一店铺'})
+        return attrs
 
 
 class SpecialZoneCoverSerializer(serializers.ModelSerializer):
