@@ -172,6 +172,7 @@
     - 字段：`store_id`、`title`、`slug`、`kind(activity|promotion|category|brand|custom)`、`subtitle`、`cover_image`、`is_active`、`show_on_home`、`home_order`、`start_at`、`end_at`。
     - 权限：平台管理员可跨店创建和维护；店铺成员只能维护自己店铺下的专区。
     - 商品绑定：`GET/POST/DELETE /special-zones/{id}/products/` 读取或维护专区商品；商品必须与专区属于同一店铺，返回时只包含启用绑定并按绑定 `order` 排序。
+    - 管理端商品绑定：店铺成员或平台管理员可追加 `include_inactive=true` 读取绑定记录，返回 `product`、`order`、`is_active`，用于后台调整排序和恢复隐藏商品。
     - 商品列表兼容：`GET /products/?special_zone=<id>` 可按动态专区筛选商品；旧固定专区字段与 `position` 仍保留兼容。
   - `GET /cases/` 案例列表（公开）`backend/catalog/urls.py`
     - 返回字段：`{ id, title, order, is_active, cover_image_id, cover_image_url, created_at, updated_at }`

@@ -96,6 +96,34 @@ export interface Product {
   store?: number;
 }
 
+export interface SpecialZone {
+  id: number;
+  store: number;
+  store_id?: number;
+  title: string;
+  slug: string;
+  kind: 'activity' | 'promotion' | 'category' | 'brand' | 'custom';
+  subtitle: string;
+  cover_image: string;
+  is_active: boolean;
+  show_on_home: boolean;
+  home_order: number;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SpecialZoneProduct {
+  id: number;
+  zone: number;
+  product: Product;
+  product_id: number;
+  is_active: boolean;
+  order: number;
+  created_at: string;
+}
+
 export interface HaierOrderInfo {
   haier_so_id?: string;
   haier_order_no?: string;
@@ -162,13 +190,15 @@ export interface PaginationResult<T> {
 export interface HomeBanner {
   id: number;
   title: string;
-  position: 'home' | 'gift' | 'designer';
+  position: 'home' | 'gift' | 'designer' | 'best_seller' | 'promotion';
   order: number;
   is_active: boolean;
   image_id: number;
   image_url: string;
   product_id?: number | null;
   product_name?: string;
+  special_zone?: number | null;
+  special_zone_id?: number | null;
   store?: number;
   created_at: string;
   updated_at: string;

@@ -54,6 +54,7 @@
   - `/account-transactions` 账务交易记录
   - `/invoices` 发票管理
   - `/home-banners` 轮播图管理
+  - `/special-zones` 动态运营专区
   - `/cases` 案例管理
 
 ## 页面与操作流程
@@ -109,8 +110,16 @@
       - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
 - 轮播图管理：
   - 支持按位置管理轮播图：首页、礼品专区、设计师专区、爆品专区、优惠专区
+  - 支持选择动态运营专区作为轮播归属，用于 `618大促`、`夏季大促` 等专区页顶部轮播
   - 功能：列表查看、新增、编辑、删除、启用/禁用
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/home-banners/`，`POST /api/catalog/home-banners/upload/`
+- 动态运营专区：
+  - 页面位置：`merchant/src/pages/SpecialZones/index.tsx`，菜单入口 `/admin/special-zones`
+  - 平台管理员可在专区表单选择店铺，为任意店铺创建、编辑、删除活动、优惠、品类、品牌或自定义专区
+  - 店铺用户只看到并维护本店专区；请求会随当前店铺上下文带上 `store` 参数
+  - 配置字段：标题、标识、类型、副标题、封面、首页排序、首页显示、启停、开始时间、结束时间
+  - 商品绑定：在专区列表点击“商品”，可搜索本店商品并维护专区内排序与显隐，跨店商品由后端拒绝
+  - 接口：`GET/POST/PATCH/DELETE /api/catalog/special-zones/`，`GET/POST/DELETE /api/catalog/special-zones/{id}/products/`
 - 案例管理：
 - 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`

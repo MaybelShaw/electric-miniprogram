@@ -17,6 +17,7 @@ import {
   AppstoreAddOutlined,
   CustomerServiceOutlined,
   BookOutlined,
+  PartitionOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
@@ -37,6 +38,7 @@ export const adminMenuItems = [
   { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
   { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
   { key: '/admin/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
+  { key: '/admin/special-zones', icon: <PartitionOutlined />, label: '动态专区' },
   { key: '/admin/special-zone-covers', icon: <AppstoreAddOutlined />, label: '首页专区图片' },
   { key: '/admin/cases', icon: <BookOutlined />, label: '案例管理' },
   { key: '/admin/brands', icon: <TagOutlined />, label: '品牌管理' },
@@ -56,6 +58,7 @@ export const supportMenuItems = [
 
 const storeUserMenuKeys = new Set([
   '/admin/home-banners',
+  '/admin/special-zones',
   '/admin/special-zone-covers',
   '/admin/brands',
   '/admin/categories',

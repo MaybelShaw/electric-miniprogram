@@ -150,6 +150,25 @@ class DynamicSpecialZoneTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual([item["id"] for item in self.results(response)], [first.id, second.id])
 
+    def test_store_manager_can_list_special_zone_bindings_with_inactive_items(self):
+        zone = self.create_zone(self.zhibang, "软装专区", slug="soft-zone")
+        visible = self.create_product(self.zhibang, "可见绑定商品")
+        hidden = self.create_product(self.zhibang, "隐藏绑定商品")
+        SpecialZoneProduct.objects.create(zone=zone, product=visible, order=20)
+        SpecialZoneProduct.objects.create(zone=zone, product=hidden, order=10, is_active=False)
+        self.client.force_authenticate(self.zhibang_admin)
+
+        response = self.client.get(
+            f"/api/catalog/special-zones/{zone.id}/products/",
+            {"include_inactive": "true"},
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        data = self.results(response)
+        self.assertEqual([item["product"]["id"] for item in data], [hidden.id, visible.id])
+        self.assertEqual([item["is_active"] for item in data], [False, True])
+        self.assertEqual([item["order"] for item in data], [10, 20])
+
     def test_special_zone_product_binding_rejects_cross_store_product(self):
         zone = self.create_zone(self.zhibang, "床垫专区", slug="mattress-zone")
         cross_store_product = self.create_product(self.other_store, "其他店铺商品")

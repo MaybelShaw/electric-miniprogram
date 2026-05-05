@@ -1420,6 +1420,22 @@ class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     def products(self, request, pk=None):
         zone = self.get_object()
         if request.method == 'GET':
+            include_inactive = to_bool(request.query_params.get('include_inactive'))
+            if include_inactive:
+                if not can_manage_store(request.user, zone.store):
+                    raise PermissionDenied('You cannot manage this store.')
+                bindings = SpecialZoneProduct.objects.filter(zone=zone).select_related(
+                    'product',
+                    'product__category',
+                    'product__brand',
+                ).order_by('order', 'id')
+                serializer = SpecialZoneProductSerializer(
+                    bindings,
+                    many=True,
+                    context={**self.get_serializer_context(), 'zone': zone},
+                )
+                return Response(serializer.data)
+
             products = Product.objects.filter(
                 special_zone_links__zone=zone,
                 special_zone_links__is_active=True,

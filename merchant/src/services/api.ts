@@ -157,7 +157,8 @@ export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cance
 
 // 轮播图管理
 export const getHomeBanners = (params?: any) => request.get('/catalog/home-banners/', { params });
-export const createHomeBanner = (data: any) => request.post('/catalog/home-banners/', data);
+export const createHomeBanner = (data: any) =>
+  request.post('/catalog/home-banners/', data, { params: data?.store_id ? { store: data.store_id } : undefined });
 export const updateHomeBanner = (id: number, data: any) => request.patch(`/catalog/home-banners/${id}/`, data);
 export const deleteHomeBanner = (id: number) => request.delete(`/catalog/home-banners/${id}/`);
 export const uploadHomeBanner = (file: File, data?: any) => {
@@ -176,6 +177,21 @@ export const getSpecialZoneCovers = (params?: any) => request.get('/catalog/spec
 export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', data);
 export const updateSpecialZoneCover = (id: number, data: any) => request.patch(`/catalog/special-zone-covers/${id}/`, data);
 export const deleteSpecialZoneCover = (id: number) => request.delete(`/catalog/special-zone-covers/${id}/`);
+
+// 动态运营专区管理
+export const getSpecialZones = (params?: any) => request.get('/catalog/special-zones/', { params });
+export const createSpecialZone = (data: any) =>
+  request.post('/catalog/special-zones/', data, { params: data?.store_id ? { store: data.store_id } : undefined });
+export const updateSpecialZone = (id: number, data: any) => request.patch(`/catalog/special-zones/${id}/`, data);
+export const deleteSpecialZone = (id: number) => request.delete(`/catalog/special-zones/${id}/`);
+export const getSpecialZoneProducts = (zoneId: number, params?: any) =>
+  request.get(`/catalog/special-zones/${zoneId}/products/`, { params });
+export const bindSpecialZoneProduct = (zoneId: number, data: any) =>
+  request.post(`/catalog/special-zones/${zoneId}/products/`, data);
+export const updateSpecialZoneProduct = (zoneId: number, productId: number, data: any) =>
+  request.post(`/catalog/special-zones/${zoneId}/products/`, { product_id: productId, ...data });
+export const removeSpecialZoneProduct = (zoneId: number, productId: number) =>
+  request.delete(`/catalog/special-zones/${zoneId}/products/`, { data: { product_id: productId } });
 
 // 案例管理
 export const getCases = (params?: any) => request.get('/catalog/cases/', { params });
