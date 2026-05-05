@@ -15,6 +15,7 @@ class UserSerializer(serializers.ModelSerializer):
     orders_count = serializers.SerializerMethodField()
     completed_orders_count = serializers.SerializerMethodField()
     company_info = serializers.SerializerMethodField()
+    store_roles = serializers.SerializerMethodField()
     
     class Meta:
         model = User
@@ -50,6 +51,20 @@ class UserSerializer(serializers.ModelSerializer):
                 'status': obj.company_info.status,
             }
         return None
+
+    def get_store_roles(self, obj):
+        try:
+            return [
+                {
+                    'store': membership.store_id,
+                    'store_name': membership.store.name,
+                    'role': membership.role,
+                    'status': membership.status,
+                }
+                for membership in obj.store_memberships.select_related('store').filter(status='active')
+            ]
+        except Exception:
+            return []
 
 class UserProfileSerializer(serializers.ModelSerializer):
     has_company_info = serializers.SerializerMethodField()

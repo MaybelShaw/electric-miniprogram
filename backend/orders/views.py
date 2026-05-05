@@ -29,6 +29,7 @@ from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin
+from stores.permissions import get_accessible_stores
 from common.excel import build_excel_response
 from common.utils import parse_int, parse_datetime
 from common.throttles import PaymentRateThrottle
@@ -155,10 +156,17 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Order.objects.filter(user=user)
+        if user.is_staff or getattr(user, 'role', '') == 'support':
+            qs = Order.objects.all()
+        else:
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if store_ids:
+                qs = Order.objects.filter(store_id__in=store_ids)
+            else:
+                qs = Order.objects.filter(user=user)
 
         # Optimize queries by prefetching related objects
-        qs = qs.select_related('user', 'product', 'return_request').prefetch_related(
+        qs = qs.select_related('user', 'store', 'product', 'return_request').prefetch_related(
             'payments',
             'status_history',
             'items',

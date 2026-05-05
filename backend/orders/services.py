@@ -347,6 +347,7 @@ def create_order(
         order = Order.objects.create(
             user=user,
             product=normalized_items[0]['product'] if normalized_items else None,
+            store=normalized_items[0]['product'].store if normalized_items else None,
             quantity=sum(i['quantity'] for i in normalized_items),
             total_amount=total_amount,
             discount_amount=total_discount,
@@ -746,6 +747,7 @@ def create_order_with_split(user, items, address_id, note='', payment_method='on
         main_order = Order.objects.create(
             user=user,
             product=all_items_data[0]['product'] if all_items_data else None,
+            store=all_items_data[0]['product'].store if all_items_data else None,
             quantity=sum(item['quantity'] for item in all_items_data),
             total_amount=total_amount,
             discount_amount=total_discount,
@@ -773,6 +775,7 @@ def create_order_with_split(user, items, address_id, note='', payment_method='on
                 user=user,
                 parent_order=main_order,
                 product=haier_items_data[0]['product'] if haier_items_data else None,
+                store=haier_items_data[0]['product'].store if haier_items_data else None,
                 quantity=sum(item['quantity'] for item in haier_items_data),
                 total_amount=haier_total_original,
                 discount_amount=haier_total_discount,
@@ -820,6 +823,7 @@ def create_order_with_split(user, items, address_id, note='', payment_method='on
                 user=user,
                 parent_order=main_order,
                 product=local_items_data[0]['product'] if local_items_data else None,
+                store=local_items_data[0]['product'].store if local_items_data else None,
                 quantity=sum(item['quantity'] for item in local_items_data),
                 total_amount=local_total_original,
                 discount_amount=local_total_discount,

@@ -10,6 +10,7 @@ from common.serializers import (
     PriceField,
     StockField,
 )
+from stores.models import Store
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -44,6 +45,11 @@ def _ensure_https(url: str, request=None) -> str:
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(),
+        source='store',
+        required=False,
+    )
     parent_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(),
         source='parent',
@@ -54,7 +60,8 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ["id", "name", "order", "logo", "level", "parent_id", "children"]
+        fields = ["id", "store", "store_id", "name", "order", "logo", "level", "parent_id", "children"]
+        read_only_fields = ["store"]
         # Disable default validators to allow custom duplicate check in validate()
         validators = []
 
@@ -86,6 +93,7 @@ class CategorySerializer(serializers.ModelSerializer):
                 'order': c.order,
                 'logo': c.logo,
                 'level': c.level,
+                'store': c.store_id,
                 'parent_id': obj.id,
             }
             for c in qs
@@ -107,7 +115,8 @@ class CategorySerializer(serializers.ModelSerializer):
         
         # Check for duplicates
         if level and name:
-            qs = Category.objects.filter(level=level, name=name, parent=parent)
+            store = attrs.get('store') or getattr(self.instance, 'store', None)
+            qs = Category.objects.filter(store=store, level=level, name=name, parent=parent)
             if self.instance:
                 qs = qs.exclude(pk=self.instance.pk)
             
@@ -135,11 +144,17 @@ class BrandSerializer(serializers.ModelSerializer):
     """
     name = SecureCharField(max_length=100)
     description = SecureCharField(required=False, allow_blank=True)
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(),
+        source='store',
+        required=False,
+    )
     
     class Meta:
         model = Brand
-        fields = ["id", "name", "logo", "description", "order", "is_active", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        fields = ["id", "store", "store_id", "name", "logo", "description", "order", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "store", "created_at", "updated_at"]
+        validators = []
     
     def validate_name(self, value):
         """Validate brand name is not empty after stripping."""
@@ -241,6 +256,7 @@ class ProductSerializer(serializers.ModelSerializer):
     # 读：显示名称和ID；写：通过 *_id 设置关联
     category = serializers.StringRelatedField(read_only=True)
     brand = serializers.StringRelatedField(read_only=True)
+    store_id = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), source='store', required=False)
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category')
     brand_id = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), source='brand')
     discounted_price = serializers.SerializerMethodField()
@@ -284,7 +300,19 @@ class ProductSerializer(serializers.ModelSerializer):
             'skus',
             'spec_options',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'last_sync_at', 'view_count', 'sales_count']
+        read_only_fields = ['id', 'store', 'created_at', 'updated_at', 'last_sync_at', 'view_count', 'sales_count']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        store = attrs.get('store') or getattr(self.instance, 'store', None)
+        category = attrs.get('category') or getattr(self.instance, 'category', None)
+        brand = attrs.get('brand') or getattr(self.instance, 'brand', None)
+
+        if store and category and category.store_id != store.id:
+            raise serializers.ValidationError({'category_id': '商品分类必须属于同一店铺'})
+        if store and brand and brand.store_id != store.id:
+            raise serializers.ValidationError({'brand_id': '商品品牌必须属于同一店铺'})
+        return attrs
 
     def validate_main_images(self, value):
         return self._normalize_images(value)
@@ -641,6 +669,11 @@ class SearchLogSerializer(serializers.ModelSerializer):
 
 
 class HomeBannerSerializer(serializers.ModelSerializer):
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(),
+        source='store',
+        required=False,
+    )
     image_id = serializers.IntegerField(source='image.id', read_only=True)
     image_url = serializers.SerializerMethodField()
     product_id = serializers.PrimaryKeyRelatedField(
@@ -655,10 +688,11 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         model = HomeBanner
         fields = [
             'id', 'title', 'position', 'order', 'is_active',
+            'store', 'store_id',
             'product_id', 'product_name',
             'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
+        read_only_fields = ['id', 'store', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
 
     def get_image_url(self, obj: HomeBanner):
         request = self.context.get('request')
@@ -669,15 +703,21 @@ class HomeBannerSerializer(serializers.ModelSerializer):
 
 
 class SpecialZoneCoverSerializer(serializers.ModelSerializer):
+    store_id = serializers.PrimaryKeyRelatedField(
+        queryset=Store.objects.all(),
+        source='store',
+        required=False,
+    )
     image_id = serializers.IntegerField(source='image.id', read_only=True)
     image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SpecialZoneCover
         fields = [
-            'id', 'type', 'is_active', 'image_id', 'image_url', 'created_at', 'updated_at', 'image'
+            'id', 'store', 'store_id', 'type', 'is_active', 'image_id', 'image_url', 'created_at', 'updated_at', 'image'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'image_id', 'image_url']
+        read_only_fields = ['id', 'store', 'created_at', 'updated_at', 'image_id', 'image_url']
+        validators = []
 
     def get_image_url(self, obj: SpecialZoneCover):
         request = self.context.get('request')

@@ -1,4 +1,4 @@
-import { Layout as AntLayout, Menu, Button, Badge, notification } from 'antd';
+import { Layout as AntLayout, Menu, Button, Badge, Select, notification } from 'antd';
 import {
   UserOutlined,
   TagOutlined,
@@ -21,7 +21,9 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
-import { getSupportTickets } from '@/services/api';
+import { getCurrentStoreContext, getSupportTickets } from '@/services/api';
+import type { CurrentStoreContext } from '@/services/types';
+import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
 import './index.css';
 
 const { Header, Sider, Content, Footer } = AntLayout;
@@ -52,6 +54,17 @@ export const supportMenuItems = [
   { key: '/support/templates', icon: <BookOutlined />, label: '模板管理' },
 ];
 
+const storeUserMenuKeys = new Set([
+  '/admin/home-banners',
+  '/admin/special-zone-covers',
+  '/admin/brands',
+  '/admin/categories',
+  '/admin/products',
+  '/admin/orders',
+  '/admin/invoices',
+  '/admin/discounts',
+]);
+
 interface LayoutProps {
   children: React.ReactNode;
   menuItems?: any[];
@@ -62,9 +75,29 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
+  const [selectedStoreId, setSelectedStoreIdState] = useState<number | null>(getSelectedStoreId());
   const lastCountRef = useRef<number | null>(null);
 
   const isSupportLayout = title === '客服系统' || menuItems.some(item => item.key === '/support/tickets');
+
+  useEffect(() => {
+    if (isSupportLayout) return;
+
+    getCurrentStoreContext()
+      .then((context) => {
+        setStoreContext(context);
+        const availableIds = new Set(context.stores.map(store => store.id));
+        const fallbackStoreId = context.default_store?.id || context.stores[0]?.id || null;
+        if ((!selectedStoreId || !availableIds.has(selectedStoreId)) && fallbackStoreId) {
+          setSelectedStoreId(fallbackStoreId);
+          setSelectedStoreIdState(fallbackStoreId);
+        }
+      })
+      .catch(() => {
+        setStoreContext(null);
+      });
+  }, [isSupportLayout, selectedStoreId]);
 
   useEffect(() => {
     if (!isSupportLayout) return;
@@ -104,7 +137,11 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     navigate('/login');
   };
 
-  const itemsWithBadge = menuItems.map(item => {
+  const visibleMenuItems = storeContext && !storeContext.is_platform_admin
+    ? menuItems.filter(item => storeUserMenuKeys.has(item.key))
+    : menuItems;
+
+  const itemsWithBadge = visibleMenuItems.map(item => {
     if (item.key === '/support/tickets' && unreadCount > 0) {
       return {
         ...item,
@@ -132,7 +169,19 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
         />
       </Sider>
       <AntLayout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end' }}>
+        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          {storeContext?.is_platform_admin && storeContext.stores.length > 0 && (
+            <Select
+              style={{ width: 180 }}
+              value={selectedStoreId || storeContext.default_store?.id}
+              options={storeContext.stores.map(store => ({ label: store.name, value: store.id }))}
+              onChange={(storeId) => {
+                setSelectedStoreId(storeId);
+                setSelectedStoreIdState(storeId);
+                window.location.reload();
+              }}
+            />
+          )}
           <Button icon={<LogoutOutlined />} onClick={handleLogout}>
             退出登录
           </Button>

@@ -15,6 +15,7 @@
 - 分层：`views`（控制器）→ `serializers`（数据转换）→ `models`（领域模型）→ `services`（业务服务）
 - 应用划分：
   - `users/` 用户、地址、公司认证、信用账户与账务
+  - `stores/` 店铺、店铺成员、店铺支付配置与结算规则
   - `catalog/` 商品、分类、品牌、媒体资源、搜索日志
   - `orders/` 购物车、订单、支付、折扣、状态机与分析
   - `integrations/` 海尔与易理货系统的对接
@@ -23,7 +24,7 @@
 
 ## 目录结构
 - 主工程：`backend/backend/`（环境配置、入口、路由）
-- 模块：`catalog/`（商品）、`orders/`（订单与支付）、`users/`（用户与地址、信用账户）、`integrations/`（海尔/易理货对接）、`common/`（权限、分页、异常等）
+- 模块：`stores/`（店铺与权限）、`catalog/`（商品）、`orders/`（订单与支付）、`users/`（用户与地址、信用账户）、`integrations/`（海尔/易理货对接）、`common/`（权限、分页、异常等）
   - 新增：`support/`（客服工单与消息）
 
 ## 快速开始
@@ -82,6 +83,7 @@
 ## 路由入口
 - 路由入口：
 - 用户与认证：`backend/users/urls.py:25`
+- 店铺与上下文：`backend/stores/urls.py:1`
 - 订单与支付：`backend/orders/urls.py:1`
 - 商品与品牌：`backend/catalog/urls.py:5`
 - 集成与回调：`backend/integrations/urls.py:17`
@@ -94,6 +96,13 @@
   - 管理员或只读：`backend/common/permissions.py:70`
   - 仅管理员：`backend/common/permissions.py:101`
   - 环境感知权限：`backend/common/permissions.py:126`
+
+## 店铺与数据隔离
+- `stores.Store` 是平台店铺主模型；迁移会创建唯一主店 `main_store`，历史商品、分类、品牌、轮播和订单默认归属主店。
+- `stores.StoreMember` 绑定用户、店铺和角色，角色包含 `platform_admin`、`store_admin`、`store_staff`。
+- `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
+- 平台管理员可跨店查看和代配置；店铺成员只能访问自己店铺下的商品、分类、品牌、轮播图和订单。
+- 只有主店允许启用海尔能力，分店开启 `allow_haier` 会触发模型校验错误。
 
 ## 核心模块
 - 用户与地址（`users/`）：微信登录、密码登录、用户资料、地址管理、公司认证、信用账户与账务对账

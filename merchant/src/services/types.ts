@@ -14,6 +14,34 @@ export interface User {
   } | null;
 }
 
+export interface Store {
+  id: number;
+  name: string;
+  code: string;
+  status: 'active' | 'disabled';
+  is_main: boolean;
+  allow_haier: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMember {
+  id: number;
+  user: number;
+  username: string;
+  store: number;
+  store_name: string;
+  role: 'platform_admin' | 'store_admin' | 'store_staff';
+  status: 'active' | 'disabled';
+}
+
+export interface CurrentStoreContext {
+  is_platform_admin: boolean;
+  default_store: Store | null;
+  stores: Store[];
+  memberships: StoreMember[];
+}
+
 export interface Brand {
   id: number;
   name: string;
@@ -64,6 +92,8 @@ export interface Product {
   show_in_gift_zone?: boolean;
   show_in_designer_zone?: boolean;
   show_in_best_seller_zone?: boolean;
+  show_in_promotion_zone?: boolean;
+  store?: number;
 }
 
 export interface HaierOrderInfo {
@@ -139,6 +169,7 @@ export interface HomeBanner {
   image_url: string;
   product_id?: number | null;
   product_name?: string;
+  store?: number;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +180,7 @@ export interface SpecialZoneCover {
   is_active: boolean;
   image_id: number;
   image_url: string;
+  store?: number;
   created_at: string;
   updated_at: string;
 }

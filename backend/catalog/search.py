@@ -55,6 +55,8 @@ class ProductSearchService:
         show_in_gift_zone: Optional[bool] = None,
         show_in_designer_zone: Optional[bool] = None,
         show_in_best_seller_zone: Optional[bool] = None,
+        show_in_promotion_zone: Optional[bool] = None,
+        store_ids: Optional[List[int]] = None,
         sort_by: str = 'relevance',
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -73,6 +75,8 @@ class ProductSearchService:
             show_in_gift_zone: Filter by gift zone flag
             show_in_designer_zone: Filter by designer zone flag
             show_in_best_seller_zone: Filter by best seller zone flag
+            show_in_promotion_zone: Filter by promotion zone flag
+            store_ids: Filter by accessible store IDs
             sort_by: Sort strategy (relevance, price_asc, price_desc, sales, created, views)
             page: Page number (1-indexed)
             page_size: Number of results per page
@@ -109,6 +113,9 @@ class ProductSearchService:
             queryset = Product.objects.all()
         else:
             queryset = Product.objects.filter(is_active=True)
+
+        if store_ids is not None:
+            queryset = queryset.filter(store_id__in=store_ids)
         
         # Apply keyword search
         if keyword and keyword.strip():
@@ -158,6 +165,9 @@ class ProductSearchService:
 
         if show_in_best_seller_zone is not None:
             queryset = queryset.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
+
+        if show_in_promotion_zone is not None:
+            queryset = queryset.filter(show_in_promotion_zone=bool(show_in_promotion_zone))
         
         # Apply sorting
         queryset = cls._apply_sorting(queryset, sort_by, keyword)

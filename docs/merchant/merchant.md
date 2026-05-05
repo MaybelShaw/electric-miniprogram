@@ -14,7 +14,7 @@
   - `pages/` 页面模块（用户、品牌、品类、商品、订单、折扣、公司认证、信用账户、对账单、交易）
   - `components/` 布局与通用组件（如 `Layout`）
   - `services/` 统一 API 封装 `merchant/src/services/api.ts:1`
-  - `utils/` 认证工具与通用方法
+  - `utils/` 认证、当前店铺选择与通用方法
   - `App.tsx`：路由与登录保护 `merchant/src/App.tsx:16`
 
 ## 开发与构建
@@ -39,6 +39,8 @@
 
 ## 路由结构
 - 登录保护：`merchant/src/App.tsx:16`
+- 店铺上下文：登录后 `Layout` 调用 `GET /api/stores/current/`，平台管理员可在顶栏选择当前店铺；选中店铺会随请求作为 `store` 参数透传。
+- 店铺用户：拥有激活 `StoreMember` 的账号可登录商家后台，菜单收敛为本店商品、分类、品牌、轮播、订单、发票和折扣等业务入口。
 - 主要路由：`merchant/src/App.tsx:31`
   - `/users` 用户管理
   - `/brands` 品牌管理
@@ -106,7 +108,7 @@
       - 管理员验收：`PATCH /api/orders/{id}/receive_return/`
       - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
 - 轮播图管理：
-  - 支持按位置管理轮播图：首页、礼品专区、设计师专区、爆品专区
+  - 支持按位置管理轮播图：首页、礼品专区、设计师专区、爆品专区、优惠专区
   - 功能：列表查看、新增、编辑、删除、启用/禁用
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/home-banners/`，`POST /api/catalog/home-banners/upload/`
 - 案例管理：

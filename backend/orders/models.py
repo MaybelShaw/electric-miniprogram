@@ -6,6 +6,7 @@ from datetime import timedelta
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from decimal import Decimal, ROUND_HALF_UP
+from stores.models import get_main_store_pk
 
 # Create your models here.
 def generate_order_number():
@@ -27,6 +28,7 @@ class Order(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     order_number = models.CharField(max_length=100, unique=True,default=generate_order_number,verbose_name='订单号')
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='orders', default=get_main_store_pk, verbose_name='店铺')
     user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='orders', verbose_name='用户')
     product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, null=True, blank=True, related_name='orders', verbose_name='产品')
     quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
@@ -100,6 +102,7 @@ class Order(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
             models.Index(fields=['user']),
+            models.Index(fields=['store', 'status']),
             models.Index(fields=['haier_order_no']),
             models.Index(fields=['haier_so_id']),
             models.Index(fields=['parent_order']),
@@ -108,6 +111,12 @@ class Order(models.Model):
 
     def __str__(self):
         return self.order_number
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.product_id and self.product.store_id != self.store_id:
+            raise ValidationError({'product': '订单商品必须属于同一店铺'})
     
     @property
     def primary_item(self):

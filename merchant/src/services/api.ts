@@ -1,4 +1,5 @@
 import request from '@/utils/request';
+import type { CurrentStoreContext } from './types';
 
 // 登录
 export const loginAdmin = (data: { username: string; password: string }) =>
@@ -10,6 +11,16 @@ export const loginSupport = (data: { username: string; password: string }) =>
 // 兼容旧调用
 export const login = (data: { username: string; password: string }) =>
   request.post('/admin/login/', data);
+
+// 店铺上下文
+export const getCurrentStoreContext = (): Promise<CurrentStoreContext> =>
+  request.get('/stores/current/');
+export const getStores = (params?: any) => request.get('/stores/', { params });
+export const createStore = (data: any) => request.post('/stores/', data);
+export const updateStore = (id: number, data: any) => request.patch(`/stores/${id}/`, data);
+export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
+export const createStoreMember = (data: any) => request.post('/stores/members/', data);
+export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
 
 // 用户管理
 export const getUsers = (params?: any) => request.get('/users/', { params });

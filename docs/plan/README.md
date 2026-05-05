@@ -41,4 +41,12 @@
 
 ## 当前计划
 
-- [平台升级实施计划 v3](./2026-04-29-platform-upgrade-v3.md)
+- [平台升级实施计划 v3（动态专区修订）](./2026-04-29-platform-upgrade-v3.md) - 总览与阶段顺序，不单独归档代码任务
+- [平台多店铺底座](./2026-05-05-store-platform-foundation.md)
+- [动态运营专区后端基础](./2026-05-05-dynamic-special-zones-backend.md)
+- [动态运营专区商家后台配置](./2026-05-05-dynamic-special-zones-merchant.md)
+- [动态运营专区小程序接入](./2026-05-05-dynamic-special-zones-miniprogram.md)
+- [结算单与子订单拆分](./2026-05-05-checkout-suborders.md)
+- [微信显式快捷登录](./2026-05-05-wechat-explicit-login.md)
+- [小程序设计系统与 UI 改版](./2026-05-05-miniprogram-design-system-ui.md)
+- [服务商分账与利润结算](./2026-05-05-service-provider-profit-sharing.md)

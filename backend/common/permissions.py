@@ -94,8 +94,16 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         if request.method in permissions.SAFE_METHODS:
             return True
         
-        # Require authentication and admin status for write methods
-        return request.user and request.user.is_staff
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or getattr(user, 'role', '') == 'admin':
+            return True
+        try:
+            from stores.permissions import get_active_memberships
+            return get_active_memberships(user).exists()
+        except Exception:
+            return False
 
 
 class IsAdmin(permissions.BasePermission):
@@ -186,3 +194,21 @@ class IsAuthenticatedOrReadOnly(permissions.BasePermission):
         
         # Require authentication for write methods
         return request.user and request.user.is_authenticated
+
+
+class IsStoreStaffOrAdmin(permissions.BasePermission):
+    """
+    Allows platform administrators or active store members.
+    """
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_staff or getattr(user, 'role', '') == 'admin':
+            return True
+        try:
+            from stores.permissions import get_active_memberships
+            return get_active_memberships(user).exists()
+        except Exception:
+            return False

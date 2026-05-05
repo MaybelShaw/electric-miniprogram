@@ -16,6 +16,7 @@ from common.excel import build_excel_response
 from common.utils import to_bool, parse_decimal, parse_int
 from common.pagination import LargeResultsSetPagination
 from common.throttles import CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle
+from stores.permissions import filter_queryset_by_store, get_requested_store
 from .search import ProductSearchService
 from decimal import Decimal
 import uuid
@@ -48,9 +49,14 @@ class BrowseThrottleMixin:
             return [throttle() for throttle in self.browse_throttle_classes]
         return super().get_throttles()
 
+
+class StoreScopedCreateMixin:
+    def perform_create(self, serializer):
+        serializer.save(store=get_requested_store(self.request, required=True))
+
 # Create your views here.
 @extend_schema(tags=['Products'])
-class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing products with advanced search and filtering.
     
@@ -75,6 +81,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         """Get base queryset with is_active filter support and optimized queries."""
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         
         # Optimize queries by prefetching related objects
         qs = qs.select_related('category', 'brand')
@@ -112,6 +119,14 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             if parsed is not None:
                 try:
                     qs = qs.filter(show_in_best_seller_zone=parsed)
+                except Exception:
+                    pass
+        promotion_flag = self.request.query_params.get('show_in_promotion_zone')
+        if promotion_flag is not None:
+            parsed = to_bool(promotion_flag)
+            if parsed is not None:
+                try:
+                    qs = qs.filter(show_in_promotion_zone=parsed)
                 except Exception:
                     pass
         return qs
@@ -167,6 +182,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
             OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
             OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
+            OpenApiParameter('show_in_promotion_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在优惠专区展示'),
             OpenApiParameter('page', OT.INT, OpenApiParameter.QUERY, description='Page number (default: 1)'),
             OpenApiParameter('page_size', OT.INT, OpenApiParameter.QUERY, description='Results per page (default: 20, max: 100)'),
         ],
@@ -193,6 +209,9 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
+        show_in_promotion_zone = to_bool(request.query_params.get('show_in_promotion_zone'))
+        store_scoped_products = filter_queryset_by_store(Product.objects.all(), request)
+        store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
         
         # Parse pagination parameters
         page = parse_int(request.query_params.get('page')) or 1
@@ -212,6 +231,8 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             show_in_gift_zone=show_in_gift_zone,
             show_in_designer_zone=show_in_designer_zone,
             show_in_best_seller_zone=show_in_best_seller_zone,
+            show_in_promotion_zone=show_in_promotion_zone,
+            store_ids=store_ids,
             sort_by=sort_by,
             page=page,
             page_size=page_size,
@@ -243,6 +264,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
             OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
             OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
+            OpenApiParameter('show_in_promotion_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在优惠专区展示'),
         ],
         description='Export products with advanced search and filtering.',
     )
@@ -260,6 +282,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
+        show_in_promotion_zone = to_bool(request.query_params.get('show_in_promotion_zone'))
 
         if sort_by not in ProductSearchService.VALID_SORT_OPTIONS:
             sort_by = 'relevance'
@@ -283,6 +306,8 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             qs = qs.filter(show_in_designer_zone=bool(show_in_designer_zone))
         if show_in_best_seller_zone is not None:
             qs = qs.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
+        if show_in_promotion_zone is not None:
+            qs = qs.filter(show_in_promotion_zone=bool(show_in_promotion_zone))
 
         qs = ProductSearchService._apply_sorting(qs, sort_by, keyword)
 
@@ -299,6 +324,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             '礼品专区',
             '设计师专区',
             '爆品专区',
+            '优惠专区',
             '销量',
             '浏览量',
             '创建时间',
@@ -318,6 +344,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                 '是' if product.show_in_gift_zone else '否',
                 '是' if product.show_in_designer_zone else '否',
                 '是' if product.show_in_best_seller_zone else '否',
+                '是' if product.show_in_promotion_zone else '否',
                 product.sales_count,
                 product.view_count,
                 product.created_at,
@@ -753,7 +780,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Categories'])
-class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class CategoryViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product categories.
     
@@ -767,6 +794,7 @@ class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -826,7 +854,7 @@ class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Brands'])
-class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class BrandViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product brands.
     
@@ -857,6 +885,7 @@ class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         - search: Brand name substring search
         """
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -1316,6 +1345,7 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         
         # position filter
         position = self.request.query_params.get('position')
@@ -1323,15 +1353,18 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             qs = qs.filter(position=position)
 
         # 公开接口默认只返回启用的轮播图
-        if self.request and self.request.method == 'GET' and not self.request.user.is_staff:
+        from stores.permissions import get_active_memberships
+        is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
+        if self.request and self.request.method == 'GET' and not self.request.user.is_staff and not is_store_member:
             return qs.filter(is_active=True)
         return qs
 
     def perform_create(self, serializer):
         user = getattr(self.request, 'user', None)
-        if not user or not user.is_staff:
+        from stores.permissions import get_active_memberships
+        if not user or (not user.is_staff and not get_active_memberships(user).exists()):
             raise PermissionDenied('仅管理员可创建轮播图')
-        serializer.save()
+        serializer.save(store=get_requested_store(self.request, required=True))
 
     @extend_schema(
         operation_id='home_banners_upload',
@@ -1347,7 +1380,8 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def upload(self, request):
         user = getattr(request, 'user', None)
-        if not user or not user.is_staff:
+        from stores.permissions import get_active_memberships
+        if not user or (not user.is_staff and not get_active_memberships(user).exists()):
             raise PermissionDenied('仅管理员可上传轮播图')
 
         file: UploadedFile | None = request.FILES.get('file')
@@ -1394,6 +1428,7 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
         banner = HomeBanner.objects.create(
             image=media,
+            store=get_requested_store(request, required=True),
             title=title,
             product=product,
             position=position,
@@ -1421,7 +1456,7 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Home'])
-class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class SpecialZoneCoverViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     首页专区图片管理
 
@@ -1434,12 +1469,15 @@ class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
 
         zone_type = self.request.query_params.get('type')
         if zone_type:
             qs = qs.filter(type=zone_type)
 
-        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False):
+        from stores.permissions import get_active_memberships
+        is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
+        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False) and not is_store_member:
             return qs.filter(is_active=True)
         return qs
 

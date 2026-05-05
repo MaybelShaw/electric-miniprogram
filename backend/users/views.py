@@ -234,12 +234,18 @@ class PasswordLoginView(APIView):
 
         # 权限校验：仅在系统无管理员的情况下提升为管理员以完成首次引导
         if not user.is_staff:
+            has_store_membership = False
+            try:
+                from stores.permissions import get_active_memberships
+                has_store_membership = get_active_memberships(user).exists()
+            except Exception:
+                has_store_membership = False
             if not admin_exists:
                 user.is_staff = True
                 user.is_superuser = True
                 user.role = 'admin'
                 user.save()
-            elif getattr(user, 'role', '') != 'support':
+            elif getattr(user, 'role', '') != 'support' and not has_store_membership:
                 return Response({"error": "无管理员权限"}, status=status.HTTP_403_FORBIDDEN)
         
         # 确保管理员用户的 role 字段正确

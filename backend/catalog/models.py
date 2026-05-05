@@ -1,9 +1,11 @@
 from django.db import models
 from django.core.validators import MinValueValidator
+from stores.models import get_main_store_pk
 
 # Create your models here.
 class Category(models.Model):
     id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='categories', default=get_main_store_pk, verbose_name='店铺')
     name = models.CharField(max_length=100, verbose_name='类别名称', default='默认分类')
     order = models.IntegerField(default=0, verbose_name='排序')
     logo = models.URLField(max_length=500, blank=True, default='', verbose_name='分类Logo')
@@ -28,7 +30,7 @@ class Category(models.Model):
         ordering = ['order', 'id']
         constraints = [
             models.UniqueConstraint(
-                fields=['level', 'parent', 'name'],
+                fields=['store', 'level', 'parent', 'name'],
                 name='unique_category_level_parent_name',
             ),
         ]
@@ -44,6 +46,7 @@ class Category(models.Model):
         if self.level and self.name:
             if self.parent_id is None:
                 exists = Category.objects.filter(
+                    store=self.store,
                     level=self.level,
                     parent__isnull=True,
                     name=self.name,
@@ -52,6 +55,7 @@ class Category(models.Model):
                     raise ValidationError({'name': '同层级根分类名称已存在'})
             else:
                 exists = Category.objects.filter(
+                    store=self.store,
                     level=self.level,
                     parent_id=self.parent_id,
                     name=self.name,
@@ -61,6 +65,8 @@ class Category(models.Model):
         # 品类（大类）不能有父类别
         if self.level == self.LEVEL_MAJOR and self.parent is not None:
             raise ValidationError({'parent': '品类不允许设置父类别'})
+        if self.parent is not None and self.parent.store_id != self.store_id:
+            raise ValidationError({'parent': '父类别必须属于同一店铺'})
         # 子品类（小类）必须有父类别，且父类别必须是品类（大类）
         if self.level == self.LEVEL_MINOR:
             if self.parent is None:
@@ -82,7 +88,8 @@ class Category(models.Model):
 
 class Brand(models.Model):
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=100, unique=True, verbose_name='品牌名称')
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='brands', default=get_main_store_pk, verbose_name='店铺')
+    name = models.CharField(max_length=100, verbose_name='品牌名称')
     logo = models.URLField(max_length=500, blank=True, default='', verbose_name='品牌Logo')
     description = models.TextField(blank=True, default='', verbose_name='品牌描述')
     order = models.IntegerField(default=0, verbose_name='排序')
@@ -97,6 +104,9 @@ class Brand(models.Model):
         indexes = [
             models.Index(fields=['is_active', 'order']),
         ]
+        constraints = [
+            models.UniqueConstraint(fields=['store', 'name'], name='unique_brand_store_name'),
+        ]
 
     def __str__(self):
         return self.name
@@ -104,6 +114,7 @@ class Brand(models.Model):
 
 class Product(models.Model):
     id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='products', default=get_main_store_pk, verbose_name='店铺')
     name = models.CharField(max_length=200, verbose_name='产品名称')
     description = models.TextField(blank=True, default='', verbose_name='产品描述')
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='products', verbose_name='类别')
@@ -167,6 +178,7 @@ class Product(models.Model):
     show_in_gift_zone = models.BooleanField(default=False, verbose_name='礼品专区展示')
     show_in_designer_zone = models.BooleanField(default=False, verbose_name='设计师专区展示')
     show_in_best_seller_zone = models.BooleanField(default=False, verbose_name='爆品专区展示')
+    show_in_promotion_zone = models.BooleanField(default=False, verbose_name='优惠专区展示')
     is_sales = models.CharField(max_length=1, default='1', verbose_name='海尔是否可采(1可采,0不可采)')
     no_sales_reason = models.CharField(max_length=200, blank=True, default='', verbose_name='不可采原因')
     view_count = models.PositiveIntegerField(default=0, verbose_name='浏览次数')
@@ -190,21 +202,30 @@ class Product(models.Model):
             models.Index(fields=['is_active', '-view_count']),
             models.Index(fields=['category', 'is_active']),
             models.Index(fields=['brand', 'is_active']),
+            models.Index(fields=['store', 'is_active']),
             models.Index(fields=['-created_at']),
             models.Index(fields=['product_code']),
             models.Index(fields=['is_sales']),
             models.Index(fields=['show_in_gift_zone', 'is_active']),
             models.Index(fields=['show_in_designer_zone', 'is_active']),
+            models.Index(fields=['show_in_promotion_zone', 'is_active']),
         ]
 
     def __str__(self):
         return self.name
-    
+
     def clean(self):
         # 兼容旧数据：允许关联到小类或品项；新数据推荐关联到品项
         from django.core.exceptions import ValidationError
+        errors = {}
         if self.category and getattr(self.category, 'level', None) not in {Category.LEVEL_MINOR, Category.LEVEL_ITEM}:
-            raise ValidationError({'category': '商品必须关联到子品类或品项'})
+            errors['category'] = '商品必须关联到子品类或品项'
+        if self.category_id and self.category.store_id != self.store_id:
+            errors['category'] = '商品分类必须属于同一店铺'
+        if self.brand_id and self.brand.store_id != self.store_id:
+            errors['brand'] = '商品品牌必须属于同一店铺'
+        if errors:
+            raise ValidationError(errors)
 
     @classmethod
     def sync_from_haier(cls, haier_data: dict, category=None, brand=None):
@@ -377,14 +398,17 @@ class HomeBanner(models.Model):
     POSITION_GIFT = 'gift'
     POSITION_DESIGNER = 'designer'
     POSITION_BEST_SELLER = 'best_seller'
+    POSITION_PROMOTION = 'promotion'
     POSITION_CHOICES = [
         (POSITION_HOME, '首页'),
         (POSITION_GIFT, '礼品专区'),
         (POSITION_DESIGNER, '设计师专区'),
         (POSITION_BEST_SELLER, '爆品专区'),
+        (POSITION_PROMOTION, '优惠专区'),
     ]
 
     id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='home_banners', default=get_main_store_pk, verbose_name='店铺')
     image = models.ForeignKey(
         'catalog.MediaImage',
         on_delete=models.PROTECT,
@@ -412,6 +436,7 @@ class HomeBanner(models.Model):
         ordering = ['order', '-id']
         indexes = [
             models.Index(fields=['is_active', 'order']),
+            models.Index(fields=['store', 'is_active', 'order']),
             models.Index(fields=['position', 'is_active', 'order']),
         ]
 
@@ -423,14 +448,17 @@ class SpecialZoneCover(models.Model):
     TYPE_GIFT = 'gift'
     TYPE_DESIGNER = 'designer'
     TYPE_BEST_SELLER = 'best_seller'
+    TYPE_PROMOTION = 'promotion'
     TYPE_CHOICES = [
         (TYPE_GIFT, '礼品专区'),
         (TYPE_DESIGNER, '设计师专区'),
         (TYPE_BEST_SELLER, '爆品专区'),
+        (TYPE_PROMOTION, '优惠专区'),
     ]
 
     id = models.BigAutoField(primary_key=True)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_GIFT, unique=True, verbose_name='专区类型')
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='special_zone_covers', default=get_main_store_pk, verbose_name='店铺')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_GIFT, verbose_name='专区类型')
     image = models.ForeignKey(
         'catalog.MediaImage',
         on_delete=models.PROTECT,
@@ -447,6 +475,10 @@ class SpecialZoneCover(models.Model):
         ordering = ['type']
         indexes = [
             models.Index(fields=['type', 'is_active']),
+            models.Index(fields=['store', 'type', 'is_active']),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=['store', 'type'], name='unique_special_zone_cover_store_type'),
         ]
 
     def __str__(self):
