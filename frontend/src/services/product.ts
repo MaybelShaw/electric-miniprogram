@@ -1,11 +1,18 @@
 import { fetchAllPaginated, http } from '../utils/request'
-import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../types/index'
+import { Product, ProductListResponse, Category, Brand, HomeBanner, HomeBannerPosition } from '../types/index'
+
+interface HomeBannerParams {
+  position?: HomeBannerPosition
+  special_zone?: number
+  store?: number | string
+  store_id?: number | string
+}
 
 export const productService = {
   // 获取轮播图列表
-  async getHomeBanners(position?: 'home' | 'gift' | 'designer' | 'best_seller'): Promise<HomeBanner[]> {
-    const params = position ? { position } : undefined
-    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', params, false)
+  async getHomeBanners(params?: HomeBannerPosition | HomeBannerParams): Promise<HomeBanner[]> {
+    const query = typeof params === 'string' ? { position: params } : params
+    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', query, false)
     return response.results || []
   },
 
@@ -18,6 +25,10 @@ export const productService = {
     show_in_gift_zone?: boolean
     show_in_designer_zone?: boolean
     show_in_best_seller_zone?: boolean
+    show_in_promotion_zone?: boolean
+    special_zone?: number
+    store?: number | string
+    store_id?: number | string
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/', params)
   },

@@ -65,6 +65,7 @@ export interface Product {
   show_in_gift_zone?: boolean
   show_in_designer_zone?: boolean
   show_in_best_seller_zone?: boolean
+  show_in_promotion_zone?: boolean
   created_at: string
   updated_at: string
 }
@@ -112,22 +113,49 @@ export interface Brand {
   is_active: boolean
 }
 
+export type LegacySpecialZoneType = 'gift' | 'designer' | 'best_seller' | 'promotion'
+export type HomeBannerPosition = 'home' | LegacySpecialZoneType
+
 // 轮播图
 export interface HomeBanner {
   id: number
   title: string
-  position: 'home' | 'gift' | 'designer' | 'best_seller'
+  position: HomeBannerPosition
   order: number
   image_url: string
   image_id: number
+  special_zone?: number | null
+  special_zone_id?: number | null
   product_id?: number | null
   product_name?: string
+}
+
+export type SpecialZoneKind = 'activity' | 'promotion' | 'category' | 'brand' | 'custom'
+
+export interface SpecialZone {
+  id: number
+  store: number
+  store_id?: number
+  title: string
+  slug: string
+  kind: SpecialZoneKind
+  subtitle: string
+  cover_image: string
+  is_active: boolean
+  show_on_home: boolean
+  home_order: number
+  start_at?: string | null
+  end_at?: string | null
+  created_at: string
+  updated_at: string
 }
 
 // 首页专区图片
 export interface SpecialZoneCover {
   id: number
-  type: 'gift' | 'designer' | 'best_seller'
+  store?: number
+  store_id?: number
+  type: LegacySpecialZoneType
   is_active: boolean
   image_url: string
   image_id: number

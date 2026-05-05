@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
+import { specialZoneService } from '../../services/special-zone'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
-import { Product, Category, Brand, HomeBanner, SpecialZoneCover } from '../../types'
+import { Product, Category, Brand, HomeBanner, SpecialZone, SpecialZoneCover } from '../../types'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
 
 function Home() {
+  const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [majorCategories, setMajorCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
+  const [dynamicSpecialZones, setDynamicSpecialZones] = useState<SpecialZone[]>([])
   const [giftZoneCover, setGiftZoneCover] = useState<SpecialZoneCover | null>(null)
   const [designerZoneCover, setDesignerZoneCover] = useState<SpecialZoneCover | null>(null)
   const [bestSellerZoneCover, setBestSellerZoneCover] = useState<SpecialZoneCover | null>(null)
@@ -23,8 +26,9 @@ function Home() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const storeId = router.params?.store_id || router.params?.store
     loadBanners()
-    loadSpecialZones()
+    loadSpecialZones(storeId)
     loadCategories()
     loadBrands()
     loadProducts(1)
@@ -57,7 +61,14 @@ function Home() {
   }
 
   // 加载专区图片
-  const loadSpecialZones = async () => {
+  const loadSpecialZones = async (storeId?: string) => {
+    try {
+      const zones = await specialZoneService.getZones(storeId)
+      setDynamicSpecialZones(zones)
+    } catch (error) {
+      setDynamicSpecialZones([])
+    }
+
     try {
       const [gift, designer, bestSeller] = await Promise.all([
         specialZoneCoverService.getCovers({ type: 'gift' }),
@@ -173,6 +184,10 @@ function Home() {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
+  const goToDynamicSpecialZone = (zone: SpecialZone) => {
+    Taro.navigateTo({ url: `/pages/special-zone/index?zone_id=${zone.id}` })
+  }
+
   const handleZoneClick = (type: 'gift' | 'designer' | 'best_seller') => {
     let title = ''
     switch (type) {
@@ -232,28 +247,46 @@ function Home() {
           ))}
         </Swiper>
 
-        {/* 特色专区 */}
-        <View className='special-zones'>
-          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
-            {giftZoneCover?.image_url && (
-              <Image className='zone-image' src={giftZoneCover.image_url} mode='aspectFill' />
-            )}
+        {dynamicSpecialZones.length > 0 ? (
+          <View className='special-zones dynamic-special-zones'>
+            {dynamicSpecialZones.map(zone => (
+              <View key={zone.id} className='zone-item dynamic-zone' onClick={() => goToDynamicSpecialZone(zone)}>
+                {zone.cover_image && (
+                  <Image className='zone-image' src={zone.cover_image} mode='aspectFill' />
+                )}
+                <View className='zone-content'>
+                  <View className='zone-title'>{zone.title}</View>
+                  {zone.subtitle && <View className='zone-subtitle'>{zone.subtitle}</View>}
+                </View>
+              </View>
+            ))}
           </View>
-          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
-            {designerZoneCover?.image_url && (
-              <Image className='zone-image' src={designerZoneCover.image_url} mode='aspectFill' />
-            )}
-          </View>
-        </View>
+        ) : (
+          <>
+            {/* 特色专区 */}
+            <View className='special-zones'>
+              <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
+                {giftZoneCover?.image_url && (
+                  <Image className='zone-image' src={giftZoneCover.image_url} mode='aspectFill' />
+                )}
+              </View>
+              <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
+                {designerZoneCover?.image_url && (
+                  <Image className='zone-image' src={designerZoneCover.image_url} mode='aspectFill' />
+                )}
+              </View>
+            </View>
 
-        {/* 爆品专区 (单独一行) */}
-        <View className='special-zones'>
-          <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
-            {bestSellerZoneCover?.image_url && (
-              <Image className='zone-image' src={bestSellerZoneCover.image_url} mode='widthFix' />
-            )}
-          </View>
-        </View>
+            {/* 爆品专区 (单独一行) */}
+            <View className='special-zones'>
+              <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
+                {bestSellerZoneCover?.image_url && (
+                  <Image className='zone-image' src={bestSellerZoneCover.image_url} mode='widthFix' />
+                )}
+              </View>
+            </View>
+          </>
+        )}
 
         {/* 品类专区 (原空间专区) */}
         {majorCategories.length > 0 && (
