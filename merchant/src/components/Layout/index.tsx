@@ -24,6 +24,7 @@ import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
 import { getCurrentStoreContext, getSupportTickets } from '@/services/api';
 import type { CurrentStoreContext } from '@/services/types';
+import { canAccessAdminRoute, STORE_DEFAULT_ROUTE, STORE_OPERATION_ROUTE_KEYS } from '@/utils/permissions';
 import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
 import './index.css';
 
@@ -55,18 +56,6 @@ export const supportMenuItems = [
   { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '消息' },
   { key: '/support/templates', icon: <BookOutlined />, label: '模板管理' },
 ];
-
-const storeUserMenuKeys = new Set([
-  '/admin/home-banners',
-  '/admin/special-zones',
-  '/admin/special-zone-covers',
-  '/admin/brands',
-  '/admin/categories',
-  '/admin/products',
-  '/admin/orders',
-  '/admin/invoices',
-  '/admin/discounts',
-]);
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -101,6 +90,13 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
         setStoreContext(null);
       });
   }, [isSupportLayout, selectedStoreId]);
+
+  useEffect(() => {
+    if (isSupportLayout || !storeContext || storeContext.is_platform_admin) return;
+    if (!canAccessAdminRoute(location.pathname, storeContext)) {
+      navigate(STORE_DEFAULT_ROUTE, { replace: true });
+    }
+  }, [isSupportLayout, location.pathname, navigate, storeContext]);
 
   useEffect(() => {
     if (!isSupportLayout) return;
@@ -141,8 +137,9 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   };
 
   const visibleMenuItems = storeContext && !storeContext.is_platform_admin
-    ? menuItems.filter(item => storeUserMenuKeys.has(item.key))
+    ? menuItems.filter(item => STORE_OPERATION_ROUTE_KEYS.has(item.key))
     : menuItems;
+  const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
 
   const itemsWithBadge = visibleMenuItems.map(item => {
     if (item.key === '/support/tickets' && unreadCount > 0) {
@@ -173,6 +170,9 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
       </Sider>
       <AntLayout>
         <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+          {storeContext && !storeContext.is_platform_admin && currentStore && (
+            <span style={{ color: '#666' }}>当前店铺：{currentStore.name}</span>
+          )}
           {storeContext?.is_platform_admin && storeContext.stores.length > 0 && (
             <Select
               style={{ width: 180 }}

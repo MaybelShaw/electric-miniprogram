@@ -6,6 +6,7 @@ import { specialZoneService } from '../../services/special-zone'
 import { caseService } from '../../services/case'
 import { Product, Case, HomeBanner, LegacySpecialZoneType, SpecialZone as DynamicSpecialZone } from '../../types'
 import ProductCard from '../../components/ProductCard'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 const LEGACY_ZONE_TITLES: Record<LegacySpecialZoneType, string> = {
@@ -27,6 +28,7 @@ export default function SpecialZone() {
   const legacyType = (router.params.type || 'gift') as LegacySpecialZoneType
   const routeTitle = router.params.title || LEGACY_ZONE_TITLES[legacyType] || '专区'
   const routeZoneId = Number(router.params.zone_id || 0)
+  const routeStoreId = router.params.store_id || router.params.store
   const zoneId = routeZoneId > 0 ? routeZoneId : undefined
   
   const [products, setProducts] = useState<Product[]>([])
@@ -51,8 +53,8 @@ export default function SpecialZone() {
     setProducts([])
     setPage(1)
     setHasMore(true)
-    loadBanners(zoneId, legacyType)
-    loadProducts(1, zoneId, legacyType)
+    loadBanners(zoneId, legacyType, routeStoreId)
+    loadProducts(1, zoneId, legacyType, routeStoreId)
     if (zoneId) {
       loadZone(zoneId)
       setCases([])
@@ -61,7 +63,7 @@ export default function SpecialZone() {
     } else {
       setCases([])
     }
-  }, [zoneId, legacyType, routeTitle])
+  }, [zoneId, legacyType, routeTitle, routeStoreId])
 
   useShareAppMessage(() => ({
     title: pageTitle || '家电商城',
@@ -88,11 +90,15 @@ export default function SpecialZone() {
     }
   }
 
-  const loadBanners = async (currentZoneId?: number, currentType: LegacySpecialZoneType = legacyType) => {
+  const loadBanners = async (
+    currentZoneId?: number,
+    currentType: LegacySpecialZoneType = legacyType,
+    currentStoreId?: string
+  ) => {
     try {
       const res = currentZoneId
         ? await productService.getHomeBanners({ special_zone: currentZoneId })
-        : await productService.getHomeBanners(currentType)
+        : await productService.getHomeBanners(currentStoreId ? { position: currentType, store: currentStoreId } : currentType)
       setBanners(res)
     } catch (error) {
       console.error('Failed to load banners:', error)
@@ -111,7 +117,8 @@ export default function SpecialZone() {
   const loadProducts = async (
     pageNum = 1,
     currentZoneId = zoneId,
-    currentType: LegacySpecialZoneType = legacyType
+    currentType: LegacySpecialZoneType = legacyType,
+    currentStoreId = routeStoreId
   ) => {
     if (loading) return
     setLoading(true)
@@ -122,6 +129,7 @@ export default function SpecialZone() {
         : await productService.getProducts({
           ...params,
           ...getLegacyProductParams(currentType),
+          ...(currentStoreId ? { store: currentStoreId } : {}),
         })
       setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setHasMore(res.has_next || false)
@@ -134,12 +142,12 @@ export default function SpecialZone() {
   }
 
   const onRefresh = () => {
-    loadProducts(1, zoneId, legacyType)
+    loadProducts(1, zoneId, legacyType, routeStoreId)
   }
 
   const onLoadMore = () => {
     if (hasMore && !loading) {
-      loadProducts(page + 1, zoneId, legacyType)
+      loadProducts(page + 1, zoneId, legacyType, routeStoreId)
     }
   }
 
@@ -175,10 +183,10 @@ export default function SpecialZone() {
               >
               {banners.map((banner) => (
                   <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
-                  <Image 
-                      src={banner.image_url} 
-                      className='scene-image' 
-                      mode='aspectFill' 
+                  <Image
+                      src={resolveLocalMediaUrl(banner.image_url)}
+                      className='scene-image'
+                      mode='aspectFill'
                   />
                   </SwiperItem>
               ))}
@@ -193,7 +201,7 @@ export default function SpecialZone() {
             <ScrollView scrollX className='case-scroll'>
               {cases.map(item => (
                 <View key={item.id} className='case-card' onClick={() => goToCaseDetail(item.id)}>
-                  <Image src={item.cover_image_url || ''} className='case-image' mode='aspectFill' />
+                  <Image src={resolveLocalMediaUrl(item.cover_image_url)} className='case-image' mode='aspectFill' />
                   <View className='case-title'>{item.title}</View>
                 </View>
               ))}

@@ -20,6 +20,15 @@ export interface Store {
   code: string;
   status: 'active' | 'disabled';
   is_main: boolean;
+  store_type?: 'self_operated' | 'partner' | 'supplier';
+  platform_store?: number | null;
+  logo?: string;
+  cover_image?: string;
+  description?: string;
+  show_on_home?: boolean;
+  home_order?: number;
+  contact_phone?: string;
+  address?: string;
   allow_haier: boolean;
   created_at: string;
   updated_at: string;

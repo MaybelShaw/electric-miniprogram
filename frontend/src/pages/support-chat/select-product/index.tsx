@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { fetchAllPaginated } from '../../../utils/request'
 import { formatPrice } from '../../../utils/format'
+import { resolveLocalMediaUrl } from '../../../utils/media'
 import './index.scss'
 
 export default function SelectProduct() {
@@ -56,7 +57,7 @@ export default function SelectProduct() {
         {!loading && products.length === 0 && <View className="empty">暂无商品</View>}
         
         {products.map(product => {
-           const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+  const image = resolveLocalMediaUrl(product.product_image_url || (product.main_images && product.main_images[0]) || '')
            return (
             <View key={product.id} className="product-item" onClick={() => handleSelect(product)}>
               <Image src={image} mode="aspectFill" className="product-img" />

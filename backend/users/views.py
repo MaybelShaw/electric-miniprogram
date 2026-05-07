@@ -24,7 +24,7 @@ from .serializers import (
     NotificationSerializer,
 )
 from django.db.models import Q
-from common.permissions import IsOwnerOrAdmin, IsAdmin
+from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
 from common.throttles import LoginRateThrottle
 from common.address_parser import address_parser
 from common.utils import to_bool
@@ -1142,7 +1142,8 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return CompanyInfo.objects.none()
         
-        if user.is_staff:
+        from stores.permissions import is_platform_admin
+        if is_platform_admin(user):
             # Admin can see all
             qs = super().get_queryset()
             # Filter by status
@@ -1156,7 +1157,10 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         """List company info - admin sees all, users see their own"""
-        if not request.user.is_staff:
+        from stores.permissions import get_active_memberships, is_platform_admin
+        if not is_platform_admin(request.user):
+            if get_active_memberships(request.user).exists():
+                return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
             # For regular users, return their company info or empty
             try:
                 company_info = CompanyInfo.objects.get(user=request.user)
@@ -1479,6 +1483,8 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
     ).order_by('-period_end', '-created_at')
     
     def get_permissions(self):
+        if self.action in ['list', 'export_list']:
+            return [IsAuthenticated(), IsStoreStaffOrAdmin()]
         if self.action in ['my_statements', 'retrieve', 'confirm']:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdmin()]
@@ -1493,43 +1499,43 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return AccountStatement.objects.none()
         
-        if user.is_staff:
-            # Admin can see all
+        from stores.permissions import get_accessible_stores, get_active_memberships, is_platform_admin, is_support_user
+        if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
-
-            search = self.request.query_params.get('search')
-            if search:
-                qs = qs.filter(
-                    Q(credit_account__user__username__icontains=search) |
-                    Q(credit_account__user__company_info__company_name__icontains=search)
-                )
-
-            # Filter by status
-            status_filter = self.request.query_params.get('status')
-            if status_filter:
-                qs = qs.filter(status=status_filter)
-            
-            # Filter by credit account
-            credit_account_id = self.request.query_params.get('credit_account')
-            if credit_account_id:
-                qs = qs.filter(credit_account_id=credit_account_id)
-            
-            # Filter by date range
-            start_date = self.request.query_params.get('start_date')
-            end_date = self.request.query_params.get('end_date')
-            if start_date:
-                qs = qs.filter(period_start__gte=start_date)
-            if end_date:
-                qs = qs.filter(period_end__lte=end_date)
-            
-            return qs
+        elif get_active_memberships(user).exists():
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
+            qs = super().get_queryset().filter(transactions__order_id__in=order_ids).distinct()
         else:
-            # Dealers can only see their own
             try:
                 credit_account = CreditAccount.objects.get(user=user)
                 return AccountStatement.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountStatement.objects.none()
+
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(credit_account__user__username__icontains=search) |
+                Q(credit_account__user__company_info__company_name__icontains=search)
+            )
+
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        credit_account_id = self.request.query_params.get('credit_account')
+        if credit_account_id:
+            qs = qs.filter(credit_account_id=credit_account_id)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date:
+            qs = qs.filter(period_start__gte=start_date)
+        if end_date:
+            qs = qs.filter(period_end__lte=end_date)
+
+        return qs
 
     @action(detail=False, methods=['get'], url_path='export')
     def export_list(self, request):
@@ -1905,6 +1911,8 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['my_transactions']:
             return [IsAuthenticated()]
+        if self.action in ['list', 'retrieve', 'export']:
+            return [IsAuthenticated(), IsStoreStaffOrAdmin()]
         return [IsAuthenticated(), IsAdmin()]
     
     def get_queryset(self):
@@ -1912,55 +1920,53 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         if not user or not user.is_authenticated:
             return AccountTransaction.objects.none()
         
-        if user.is_staff:
-            # Admin can see all
+        from stores.permissions import get_accessible_stores, get_active_memberships, is_platform_admin, is_support_user
+        if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
-
-            search = self.request.query_params.get('search')
-            if search:
-                qs = qs.filter(
-                    Q(credit_account__user__username__icontains=search) |
-                    Q(credit_account__user__company_info__company_name__icontains=search)
-                )
-            
-            # Filter by credit account
-            credit_account_id = self.request.query_params.get('credit_account')
-            if credit_account_id:
-                qs = qs.filter(credit_account_id=credit_account_id)
-            
-            # Filter by transaction type
-            transaction_type = self.request.query_params.get('transaction_type')
-            if transaction_type:
-                qs = qs.filter(transaction_type=transaction_type)
-            
-            # Filter by payment status
-            payment_status = self.request.query_params.get('payment_status')
-            if payment_status:
-                qs = qs.filter(payment_status=payment_status)
-            
-            # Filter by date range
-            start_date = self.request.query_params.get('start_date')
-            end_date = self.request.query_params.get('end_date')
-            if start_date:
-                qs = qs.filter(created_at__gte=start_date)
-            if end_date:
-                # Handle end_date inclusive for DateTimeField
-                try:
-                    from datetime import datetime, timedelta
-                    ed = datetime.strptime(end_date, '%Y-%m-%d')
-                    ed_end = ed + timedelta(days=1)
-                    qs = qs.filter(created_at__lt=ed_end)
-                except (ValueError, TypeError):
-                    qs = qs.filter(created_at__lte=end_date)
-            
-            return qs
+        elif get_active_memberships(user).exists():
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
+            qs = super().get_queryset().filter(order_id__in=order_ids)
         else:
-            # Dealers can only see their own
             try:
                 credit_account = CreditAccount.objects.get(user=user)
                 return AccountTransaction.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountTransaction.objects.none()
+
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(credit_account__user__username__icontains=search) |
+                Q(credit_account__user__company_info__company_name__icontains=search)
+            )
+
+        credit_account_id = self.request.query_params.get('credit_account')
+        if credit_account_id:
+            qs = qs.filter(credit_account_id=credit_account_id)
+
+        transaction_type = self.request.query_params.get('transaction_type')
+        if transaction_type:
+            qs = qs.filter(transaction_type=transaction_type)
+
+        payment_status = self.request.query_params.get('payment_status')
+        if payment_status:
+            qs = qs.filter(payment_status=payment_status)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date:
+            qs = qs.filter(created_at__gte=start_date)
+        if end_date:
+            try:
+                from datetime import datetime, timedelta
+                ed = datetime.strptime(end_date, '%Y-%m-%d')
+                ed_end = ed + timedelta(days=1)
+                qs = qs.filter(created_at__lt=ed_end)
+            except (ValueError, TypeError):
+                qs = qs.filter(created_at__lte=end_date)
+
+        return qs
 
     @action(detail=False, methods=['get'])
     def export(self, request):

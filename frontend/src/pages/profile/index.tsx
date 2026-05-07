@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { authService } from '../../services/auth'
 import { notificationService } from '../../services/notification'
 import { TokenManager } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import { User } from '../../types'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
@@ -174,7 +175,7 @@ function Profile() {
       <View className='user-section'>
         {user ? (
           <View className='user-info' onTap={goToProfileEdit}>
-            <Image className='avatar' src={user.avatar_url || '/assets/default-avatar.png'} />
+                <Image className='avatar' src={resolveLocalMediaUrl(user.avatar_url) || '/assets/default-avatar.png'} />
             <View className='user-details'>
               <View className='username'>{user.username || '未设置昵称'}</View>
               {user.company_name && user.role === 'dealer' && (

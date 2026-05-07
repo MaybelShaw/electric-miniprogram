@@ -2,7 +2,7 @@ import { View, Image, Text } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import { Order } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
-import { BASE_URL } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 interface OrderCardProps {
@@ -24,17 +24,8 @@ export default function OrderCard({
   const [timeLeft, setTimeLeft] = useState('')
   const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
   const displayProduct = primaryItem?.product || order.product
-  const resolveImageUrl = (url?: string) => {
-    if (!url) return ''
-    if (url.startsWith('https://')) return url
-    if (url.startsWith('http://')) return `https://${url.slice(7)}`
-    if (url.startsWith('//')) return `https:${url}`
-    const base = BASE_URL.replace(/\/api\/?$/, '')
-    if (url.startsWith('/')) return `${base}${url}`
-    return `${base}/${url}`
-  }
-  const displayImage = resolveImageUrl(primaryItem?.snapshot_image) ||
-    resolveImageUrl(displayProduct?.main_images?.[0]) ||
+  const displayImage = resolveLocalMediaUrl(primaryItem?.snapshot_image) ||
+    resolveLocalMediaUrl(displayProduct?.main_images?.[0]) ||
     '/assets/icons/product.png'
   const specsText = primaryItem?.sku_specs ? Object.values(primaryItem.sku_specs).join(' / ') : ''
   const resolveNumber = (value: any) => {

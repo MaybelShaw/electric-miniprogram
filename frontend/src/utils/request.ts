@@ -1,6 +1,8 @@
 import Taro from '@tarojs/taro'
 
-export const BASE_URL = process.env.TARO_APP_API_BASE_URL || 'https://qxelectric.cn/api'
+const DEFAULT_LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api'
+
+export const BASE_URL = process.env.TARO_APP_API_BASE_URL || DEFAULT_LOCAL_API_BASE_URL
 
 interface RequestOptions {
   url: string

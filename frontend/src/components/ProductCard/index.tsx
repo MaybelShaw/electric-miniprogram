@@ -2,6 +2,7 @@ import { View, Image, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Product } from '../../types'
 import { formatPrice } from '../../utils/format'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 interface ProductCardProps {
@@ -28,16 +29,21 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   const tagText = getTagText(product.tag)
+  const productImage = resolveLocalMediaUrl(product.main_images?.[0])
 
   return (
     <View className='product-card' onClick={goToDetail}>
       {/* 商品图片 */}
       <View className='product-image-wrapper'>
-        <Image 
-          className='product-image' 
-          src={product.main_images?.[0] || 'https://via.placeholder.com/330x330/FFFFFF/CCCCCC?text=No+Image'} 
-          mode='aspectFill' 
-        />
+        {productImage ? (
+          <Image
+            className='product-image'
+            src={productImage}
+            mode='aspectFill'
+          />
+        ) : (
+          <View className='product-image-placeholder'>暂无图片</View>
+        )}
       </View>
 
       {/* 商品信息 */}

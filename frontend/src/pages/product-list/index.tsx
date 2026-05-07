@@ -4,11 +4,12 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Category, Product } from '../../types'
 import { formatPrice, formatSalesCount } from '../../utils/format'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function ProductListPage() {
   const router = useRouter()
-  const { majorId, minorId, itemId, title, brand } = router.params
+  const { majorId, minorId, itemId, title, brand, store } = router.params
 
   // State
   const [minors, setMinors] = useState<Category[]>([])
@@ -47,14 +48,14 @@ export default function ProductListPage() {
     if (majorId) {
       loadMinors(Number(majorId))
     }
-  }, [majorId])
+  }, [majorId, store])
 
   // Load Items when activeMinorId changes
   useEffect(() => {
     if (activeMinorId) {
       loadItems(activeMinorId)
     }
-  }, [activeMinorId])
+  }, [activeMinorId, store])
 
   // Load Products when activeItemId changes or sortBy changes
   useEffect(() => {
@@ -77,11 +78,11 @@ export default function ProductListPage() {
       setActiveCategoryName('')
       loadProducts(null, null, 1)
     }
-  }, [activeItemId, sortBy, items, majorId, brand])
+  }, [activeItemId, sortBy, items, majorId, brand, store])
 
   const loadMinors = async (pid: number) => {
     try {
-      const data = await productService.getCategories({ parent_id: pid })
+      const data = await productService.getCategories({ parent_id: pid, ...(store ? { store } : {}) })
       setMinors(data)
       
       // Set default active minor
@@ -97,7 +98,7 @@ export default function ProductListPage() {
 
   const loadItems = async (pid: number) => {
     try {
-      const data = await productService.getCategories({ parent_id: pid })
+      const data = await productService.getCategories({ parent_id: pid, ...(store ? { store } : {}) })
       setItems(data)
       
       // Set default active item
@@ -133,21 +134,24 @@ export default function ProductListPage() {
            brand: brandName,
            sort_by: sortBy,
            page: pageNum,
-           page_size: 20
+           page_size: 20,
+           ...(store ? { store } : {})
          })
       } else if (categoryName) {
         res = await productService.getProductsByCategory({
           category: categoryName,
           sort_by: sortBy,
           page: pageNum,
-          page_size: 20
+          page_size: 20,
+          ...(store ? { store } : {})
         })
       } else {
         // Fetch all products
         res = await productService.getProducts({
           sort_by: sortBy === 'relevance' ? undefined : sortBy as any,
           page: pageNum,
-          page_size: 20
+          page_size: 20,
+          ...(store ? { store } : {})
         })
       }
       
@@ -255,7 +259,7 @@ export default function ProductListPage() {
             {products.length > 0 ? (
               products.map(product => (
                 <View key={product.id} className='product-card' onClick={() => handleProductClick(product.id)}>
-                  <Image className='product-image' src={product.main_images[0] || ''} mode='aspectFill' />
+                  <Image className='product-image' src={resolveLocalMediaUrl(product.main_images[0])} mode='aspectFill' />
                   <View className='product-info'>
                     <View className='name'>{product.name}</View>
                     <View className='meta-info'>

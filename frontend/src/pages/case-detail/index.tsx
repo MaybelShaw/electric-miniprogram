@@ -3,6 +3,7 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { caseService } from '../../services/case'
 import { Case } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function CaseDetail() {
@@ -43,10 +44,13 @@ export default function CaseDetail() {
             )}
             {block.block_type === 'image' && block.image_url && (
               <Image 
-                src={block.image_url} 
+            src={resolveLocalMediaUrl(block.image_url)}
                 className='block-image' 
                 mode='widthFix'
-                onClick={() => Taro.previewImage({ urls: [block.image_url!] })}
+            onClick={() => {
+              const imageUrl = resolveLocalMediaUrl(block.image_url)
+              if (imageUrl) Taro.previewImage({ urls: [imageUrl] })
+            }}
               />
             )}
           </View>

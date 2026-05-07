@@ -2,6 +2,7 @@ import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { fetchAllPaginated } from '../../../utils/request'
+import { resolveLocalMediaUrl } from '../../../utils/media'
 import './index.scss'
 
 export default function SelectOrder() {
@@ -64,7 +65,7 @@ export default function SelectOrder() {
         {orders.map(order => {
           const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
           const product = primaryItem?.product || order.product || {}
-          const image = primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || ''
+  const image = resolveLocalMediaUrl(primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || '')
           
           return (
             <View key={order.id} className="order-item" onClick={() => handleSelect(order)}>

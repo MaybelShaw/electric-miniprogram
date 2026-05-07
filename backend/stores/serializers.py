@@ -12,11 +12,38 @@ class StoreSerializer(serializers.ModelSerializer):
             "code",
             "status",
             "is_main",
+            "store_type",
+            "platform_store",
+            "logo",
+            "cover_image",
+            "description",
+            "show_on_home",
+            "home_order",
+            "contact_phone",
+            "address",
             "allow_haier",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PublicStoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Store
+        fields = [
+            "id",
+            "name",
+            "code",
+            "store_type",
+            "platform_store",
+            "logo",
+            "cover_image",
+            "description",
+            "contact_phone",
+            "address",
+            "home_order",
+        ]
 
 
 class StoreMemberSerializer(serializers.ModelSerializer):

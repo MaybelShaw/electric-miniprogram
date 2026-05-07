@@ -7,6 +7,7 @@ import { refundService } from '../../services/refund'
 import { uploadService } from '../../services/upload'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import { resolvePaymentErrorMessage } from '../../utils/payment'
 import { BASE_URL, TokenManager } from '../../utils/request'
 import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
@@ -238,16 +239,6 @@ export default function OrderDetail() {
   const getRefundedAmount = (target: Order | null) => resolveNumber(target?.refunded_amount)
 
   const getRefundableAmount = (target: Order | null) => resolveNumber(target?.refundable_amount)
-
-  const resolveImageUrl = (url?: string) => {
-    if (!url) return ''
-    if (url.startsWith('https://')) return url
-    if (url.startsWith('http://')) return `https://${url.slice(7)}`
-    if (url.startsWith('//')) return `https:${url}`
-    const base = BASE_URL.replace(/\/api\/?$/, '')
-    if (url.startsWith('/')) return `${base}${url}`
-    return `${base}/${url}`
-  }
 
   const requestWechatPayment = async (payParams: WechatPayParams) => {
     const payload: any = {
@@ -773,8 +764,8 @@ export default function OrderDetail() {
                   <Image
                     className='product-image'
                     src={
-                      resolveImageUrl(item.snapshot_image || item.product?.main_images?.[0]) ||
-                      '/assets/icons/product.png'
+                            resolveLocalMediaUrl(item.snapshot_image || item.product?.main_images?.[0]) ||
+                            '/assets/icons/product.png'
                     }
                     mode='aspectFill'
                   />
@@ -794,7 +785,7 @@ export default function OrderDetail() {
             <View className='product-item'>
               <Image
                 className='product-image'
-                src={resolveImageUrl(order.product?.main_images?.[0]) || '/assets/icons/product.png'}
+                    src={resolveLocalMediaUrl(order.product?.main_images?.[0]) || '/assets/icons/product.png'}
                 mode='aspectFill'
               />
               <View className='product-info'>
@@ -1001,7 +992,7 @@ export default function OrderDetail() {
                 <View className='refund-image-list'>
                   {refundImages.map((url, index) => (
                     <View key={url} className='refund-image-item'>
-                      <Image className='refund-image' src={url} mode='aspectFill' />
+                      <Image className='refund-image' src={resolveLocalMediaUrl(url)} mode='aspectFill' />
                       <View className='refund-image-remove' onClick={() => handleRefundRemoveImage(index)}>×</View>
                     </View>
                   ))}

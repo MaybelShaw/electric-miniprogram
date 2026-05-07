@@ -5,6 +5,7 @@ import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
 import { CartItem } from '../../types'
 import { formatPrice } from '../../utils/format'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function Cart() {
@@ -242,7 +243,7 @@ export default function Cart() {
             />
             <Image
               className='product-image'
-              src={item.sku?.image || item.product.main_images[0]}
+                          src={resolveLocalMediaUrl(item.sku?.image || item.product.main_images[0])}
               mode='aspectFill'
               onClick={() => goToDetail(item.product.id)}
             />

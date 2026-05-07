@@ -3,6 +3,7 @@ import { View, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Product } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function BrandPage() {
@@ -65,7 +66,7 @@ export default function BrandPage() {
         <View className='product-list'>
           {products.map(product => (
             <View key={product.id} className='product-item' onClick={() => goToDetail(product.id)}>
-              <Image className='product-image' src={product.main_images[0]} mode='aspectFill' />
+              <Image className='product-image' src={resolveLocalMediaUrl(product.main_images[0])} mode='aspectFill' />
               <View className='product-info'>
                 <View className='product-name'>{product.name}</View>
                 <View className='product-bottom'>

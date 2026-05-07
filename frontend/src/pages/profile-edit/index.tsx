@@ -3,6 +3,7 @@ import { View, Input, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function ProfileEdit() {
@@ -108,7 +109,7 @@ export default function ProfileEdit() {
           <View className='item-content' onClick={handleChooseAvatar}>
             <Image 
               className='avatar' 
-              src={avatarUrl || '/assets/default-avatar.png'} 
+              src={resolveLocalMediaUrl(avatarUrl) || '/assets/default-avatar.png'}
             />
             <View className='arrow-icon'>›</View>
           </View>

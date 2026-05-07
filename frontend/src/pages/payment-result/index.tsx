@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
@@ -268,14 +268,9 @@ export default function PaymentResult() {
   return (
     <View className='payment-result-page'>
       <View className='result-card'>
-        <Image
-          className='result-icon'
-          src={
-            status === 'success'
-              ? 'https://img.icons8.com/fluency/96/ok.png'
-              : 'https://img.icons8.com/color/96/cancel--v1.png'
-          }
-        />
+        <View className={`result-icon ${status === 'success' ? 'success' : 'fail'}`}>
+          {status === 'success' ? '✓' : '!'}
+        </View>
         <Text className='result-title'>
           {status === 'success' ? '支付成功' : '支付未完成'}
         </Text>

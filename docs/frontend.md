@@ -167,6 +167,8 @@
   - 自动携带 `Authorization: Bearer <access_token>`
   - 401 自动刷新：`frontend/src/utils/request.ts:93`
 - 错误与限流提示：`frontend/src/utils/request.ts:108`
+- 本地/Docker 开发默认请求 `http://127.0.0.1:8000/api`，不回退到线上域名；需要连接其他环境时显式设置 `TARO_APP_API_BASE_URL`。
+- 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 过滤；本地/Docker 默认只允许本地后端、私有网段、临时文件和本地 `/assets/` 资源，若正式环境确需 CDN 图片，必须显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=true`。
 
 ## 数据与缓存
 - 分类与品牌本地缓存，减少重复请求：`frontend/src/pages/home/index.tsx:33`
@@ -194,3 +196,11 @@
 
 ## 资源与限制
 - 微信小程序不支持 SVG，请统一使用 `png/jpg/jpeg` 格式的图片资源（如聊天动作面板图标 `camera.png`、`picture.png`）。
+
+## 入驻合作方店铺入口
+- 首页继续作为庆勋愉悦家平台默认浏览入口，同时新增“合作方专区”入口聚合，数据来自 `frontend/src/services/store.ts` 的公开店铺接口。
+- `kind='brand'` 的品牌店铺专区入口跳转到 `/pages/store-list/index`，不再用商品卡片模拟店铺入口。
+- 入驻店铺列表页 `/pages/store-list/index` 展示当前平台下 `show_on_home=true` 且启用中的合作方店铺。
+- 店铺详情页 `/pages/store-detail/index?id=<store_id>` 展示该真实经营店铺的介绍、轮播、分类、动态专区和商品摘要。
+- 店铺详情内进入专区时携带 `store_id`：`/pages/special-zone/index?zone_id=<id>&store_id=<store_id>`，专区页和商品列表页会按该店铺上下文查询数据。
+- 进入合作方店铺详情只改变前台浏览上下文，不代表用户获得该店铺后台权限。

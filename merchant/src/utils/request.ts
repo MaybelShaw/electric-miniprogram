@@ -59,9 +59,10 @@ request.interceptors.request.use(
     }
     const selectedStoreId = getSelectedStoreId();
     if (selectedStoreId) {
+      const explicitStore = config.params?.store || config.params?.store_id;
       config.params = {
         ...(config.params || {}),
-        store: config.params?.store || config.params?.store_id || selectedStoreId,
+        ...(explicitStore ? {} : { store_id: selectedStoreId }),
       };
     }
     return config;

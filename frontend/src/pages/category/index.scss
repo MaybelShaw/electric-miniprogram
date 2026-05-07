@@ -112,6 +112,14 @@
           border-radius: 50%;
           padding: 10px;
         }
+
+        .banner-icon-placeholder {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: $font-size-lg;
+          font-weight: bold;
+        }
       }
 
       .sub-category-section {
@@ -142,6 +150,15 @@
               border-radius: $border-radius-md;
               margin-bottom: $spacing-xs;
               pointer-events: none;
+            }
+
+            .item-image-placeholder {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: $text-color-secondary;
+              font-size: $font-size-lg;
+              font-weight: 500;
             }
             
             .item-name {

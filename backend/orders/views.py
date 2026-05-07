@@ -28,8 +28,8 @@ from django.db import transaction
 from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
-from common.permissions import IsOwnerOrAdmin, IsAdmin
-from stores.permissions import get_accessible_stores
+from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
+from stores.permissions import get_accessible_stores, get_requested_store, is_platform_admin, is_support_user
 from common.excel import build_excel_response
 from common.utils import parse_int, parse_datetime
 from common.throttles import PaymentRateThrottle
@@ -156,7 +156,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff or getattr(user, 'role', '') == 'support':
+        if is_platform_admin(user) or is_support_user(user):
             qs = Order.objects.all()
         else:
             store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
@@ -164,6 +164,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 qs = Order.objects.filter(store_id__in=store_ids)
             else:
                 qs = Order.objects.filter(user=user)
+
+        requested_store = get_requested_store(self.request)
+        if requested_store is not None:
+            qs = qs.filter(store=requested_store)
 
         # Optimize queries by prefetching related objects
         qs = qs.select_related('user', 'store', 'product', 'return_request').prefetch_related(
@@ -3039,7 +3043,27 @@ class AnalyticsViewSet(viewsets.ViewSet):
     - User growth statistics
     - Order status distribution
     """
-    permission_classes = [IsAdmin]
+    permission_classes = [IsStoreStaffOrAdmin]
+    store_scoped_actions = {
+        'regional_sales',
+        'export_regional_sales',
+        'product_region_distribution',
+        'export_product_region_distribution',
+        'region_product_stats',
+        'export_region_product_stats',
+    }
+
+    def get_permissions(self):
+        permission_classes = [IsStoreStaffOrAdmin] if self.action in self.store_scoped_actions else [IsAdmin]
+        return [permission() for permission in permission_classes]
+
+    def _get_store_scope_ids(self, request):
+        requested_store = get_requested_store(request)
+        if requested_store is not None:
+            return [requested_store.id]
+        if is_platform_admin(request.user) or is_support_user(request.user):
+            return None
+        return list(get_accessible_stores(request.user).values_list('id', flat=True))
     
     @action(detail=False, methods=['get'])
     def sales_summary(self, request):
@@ -3233,6 +3257,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         product_id = request.query_params.get('product_id')
         order_by = request.query_params.get('order_by', 'amount')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
         
         try:
             product_id = int(product_id) if product_id is not None else None
@@ -3259,6 +3284,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             product_id=product_id,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3270,6 +3296,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         product_id = request.query_params.get('product_id')
         order_by = request.query_params.get('order_by', 'amount')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
 
         try:
             product_id = int(product_id) if product_id is not None else None
@@ -3296,6 +3323,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             product_id=product_id,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         headers = ['地区', '订单数', '销售数量', '销售金额']
         rows = [
@@ -3330,6 +3358,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
+        store_ids = self._get_store_scope_ids(request)
         
         try:
             product_id = int(product_id)
@@ -3350,6 +3379,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             start_date=start_date,
             end_date=end_date,
             order_by=str(order_by).lower(),
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3360,6 +3390,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
+        store_ids = self._get_store_scope_ids(request)
 
         try:
             product_id = int(product_id)
@@ -3380,6 +3411,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             start_date=start_date,
             end_date=end_date,
             order_by=str(order_by).lower(),
+            store_ids=store_ids,
         )
         headers = ['地区', '订单数', '销售数量', '销售金额']
         rows = [
@@ -3416,6 +3448,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
         
         if not region_name:
             return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3440,6 +3473,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             end_date=end_date,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3451,6 +3485,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
 
         if not region_name:
             return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3475,6 +3510,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             end_date=end_date,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         headers = ['商品', '订单数', '销售数量', '销售金额']
         rows = [

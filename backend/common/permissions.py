@@ -49,8 +49,26 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         Returns:
             bool: True if user is admin or owner, False otherwise
         """
-        # Administrators and support staff have access to all objects
-        if request.user and (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+        try:
+            from stores.permissions import can_access_store, is_platform_admin, is_support_user
+        except Exception:
+            can_access_store = None
+            is_platform_admin = None
+            is_support_user = None
+
+        if request.user and (
+            (is_platform_admin and is_platform_admin(request.user))
+            or (is_support_user and is_support_user(request.user))
+        ):
+            return True
+
+        store = getattr(obj, 'store', None)
+        if store is None and hasattr(obj, 'order'):
+            try:
+                store = obj.order.store
+            except Exception:
+                store = None
+        if store is not None and can_access_store and can_access_store(request.user, store):
             return True
         
         # Get the owner from the object
@@ -97,10 +115,10 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-        if user.is_staff or getattr(user, 'role', '') == 'admin':
-            return True
         try:
-            from stores.permissions import get_active_memberships
+            from stores.permissions import get_active_memberships, is_platform_admin
+            if is_platform_admin(user):
+                return True
             return get_active_memberships(user).exists()
         except Exception:
             return False
@@ -128,7 +146,11 @@ class IsAdmin(permissions.BasePermission):
         Returns:
             bool: True if user is admin, False otherwise
         """
-        return request.user and request.user.is_staff
+        try:
+            from stores.permissions import is_platform_admin
+            return request.user and is_platform_admin(request.user)
+        except Exception:
+            return False
 
 
 class EnvironmentAwarePermission(permissions.BasePermission):
@@ -205,10 +227,10 @@ class IsStoreStaffOrAdmin(permissions.BasePermission):
         user = getattr(request, 'user', None)
         if not user or not user.is_authenticated:
             return False
-        if user.is_staff or getattr(user, 'role', '') == 'admin':
-            return True
         try:
-            from stores.permissions import get_active_memberships
+            from stores.permissions import get_active_memberships, is_platform_admin
+            if is_platform_admin(user):
+                return True
             return get_active_memberships(user).exists()
         except Exception:
             return False

@@ -3,6 +3,7 @@ import { View, ScrollView, Image, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Category } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function CategoryPage() {
@@ -91,7 +92,7 @@ export default function CategoryPage() {
               id: -1,
               name: '全部商品',
               order: 0,
-              logo: 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'
+              logo: ''
             }]
           }
 
@@ -133,7 +134,7 @@ export default function CategoryPage() {
               id: -1,
               name: '全部商品',
               order: 0,
-              logo: 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'
+              logo: ''
             }]
           }])
         }
@@ -251,11 +252,15 @@ export default function CategoryPage() {
                       <View className='banner-title'>全部商品</View>
                       <View className='banner-subtitle'>浏览所有商品列表</View>
                     </View>
-                    <Image 
-                      className='banner-icon' 
-                      src={item.logo || 'https://at.alicdn.com/t/c/font_4437976_t0j8w0x2l9.png'} 
-                      mode='aspectFit'
-                    />
+                    {item.logo ? (
+                      <Image
+                        className='banner-icon'
+                        src={resolveLocalMediaUrl(item.logo)}
+                        mode='aspectFit'
+                      />
+                    ) : (
+                      <View className='banner-icon banner-icon-placeholder'>全</View>
+                    )}
                   </View>
                 )
               }
@@ -271,11 +276,15 @@ export default function CategoryPage() {
                           className='category-item-node'
                           onClick={() => handleItemClick(item, subCat.id)}
                         >
-                          <Image 
-                            className='item-image' 
-                            src={item.logo || 'https://placeholder.com/120'} 
-                            mode='aspectFit'
-                          />
+                          {item.logo ? (
+                            <Image
+                              className='item-image'
+                              src={resolveLocalMediaUrl(item.logo)}
+                              mode='aspectFit'
+                            />
+                          ) : (
+                            <View className='item-image item-image-placeholder'>{item.name.charAt(0)}</View>
+                          )}
                           <View className='item-name'>{item.name}</View>
                         </View>
                       ))

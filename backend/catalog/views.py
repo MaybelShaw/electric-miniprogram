@@ -1366,7 +1366,7 @@ class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             accessible_store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
             if requested_store_id is not None:
                 if requested_store_id not in accessible_store_ids:
-                    return qs.none()
+                    raise PermissionDenied('You cannot access this store.')
                 return qs.filter(store_id=requested_store_id)
             return qs.filter(store_id__in=accessible_store_ids)
 

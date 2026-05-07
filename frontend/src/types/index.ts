@@ -40,6 +40,8 @@ export interface Notification {
 // 商品相关
 export interface Product {
   id: number
+  store?: number
+  store_id?: number
   name: string
   description: string
   category: string  // 分类名称
@@ -363,4 +365,28 @@ export interface PaginatedResponse<T> {
   total_pages: number
   has_next: boolean
   has_previous: boolean
+}
+
+export type StoreType = 'self_operated' | 'partner' | 'supplier'
+
+export interface Store {
+  id: number
+  name: string
+  code: string
+  store_type: StoreType
+  platform_store?: number | null
+  logo?: string
+  cover_image?: string
+  description?: string
+  contact_phone?: string
+  address?: string
+  home_order?: number
+}
+
+export interface PublicStoreDetail {
+  store: Store
+  banners: HomeBanner[]
+  categories: Category[]
+  special_zones: SpecialZone[]
+  products: Product[]
 }

@@ -1,4 +1,4 @@
-from rest_framework import permissions, status, viewsets
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -6,11 +6,82 @@ from rest_framework.response import Response
 from .models import Store, StoreMember, StorePaymentConfig, StoreSettlementRule
 from .permissions import get_accessible_stores, get_default_store, is_platform_admin
 from .serializers import (
+    PublicStoreSerializer,
     StoreMemberSerializer,
     StorePaymentConfigSerializer,
     StoreSerializer,
     StoreSettlementRuleSerializer,
 )
+
+
+class IsPlatformAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return is_platform_admin(getattr(request, "user", None))
+
+
+class PublicPartnerStoreListAPIView(generics.ListAPIView):
+    serializer_class = PublicStoreSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        platform_id = self.request.query_params.get("platform") or self.request.query_params.get("platform_store")
+        platform = None
+        if platform_id not in (None, ""):
+            try:
+                platform = Store.objects.get(id=int(platform_id), status=Store.STATUS_ACTIVE)
+            except (Store.DoesNotExist, ValueError, TypeError):
+                return Store.objects.none()
+        else:
+            platform = Store.objects.filter(is_main=True, status=Store.STATUS_ACTIVE).first()
+
+        qs = Store.objects.filter(
+            status=Store.STATUS_ACTIVE,
+            store_type=Store.TYPE_PARTNER,
+            show_on_home=True,
+        )
+        if platform is not None:
+            qs = qs.filter(platform_store=platform)
+        return qs.order_by("home_order", "id")
+
+
+class PublicStoreDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = PublicStoreSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        return Store.objects.filter(status=Store.STATUS_ACTIVE)
+
+    def retrieve(self, request, *args, **kwargs):
+        store = self.get_object()
+        from catalog.models import Category, HomeBanner, Product, SpecialZone
+        from catalog.serializers import CategorySerializer, HomeBannerSerializer, ProductSerializer, SpecialZoneSerializer
+
+        context = self.get_serializer_context()
+        return Response(
+            {
+                "store": PublicStoreSerializer(store, context=context).data,
+                "banners": HomeBannerSerializer(
+                    HomeBanner.objects.filter(store=store, is_active=True).order_by("order", "-id"),
+                    many=True,
+                    context=context,
+                ).data,
+                "categories": CategorySerializer(
+                    Category.objects.filter(store=store, level=Category.LEVEL_MAJOR).order_by("order", "id"),
+                    many=True,
+                    context=context,
+                ).data,
+                "special_zones": SpecialZoneSerializer(
+                    SpecialZone.objects.filter(store=store, is_active=True, show_on_home=True).order_by("home_order", "id"),
+                    many=True,
+                    context=context,
+                ).data,
+                "products": ProductSerializer(
+                    Product.objects.filter(store=store, is_active=True).select_related("category", "brand").order_by("id")[:20],
+                    many=True,
+                    context=context,
+                ).data,
+            }
+        )
 
 
 class StoreViewSet(viewsets.ModelViewSet):
@@ -52,12 +123,10 @@ class StoreViewSet(viewsets.ModelViewSet):
 
 class StoreMemberViewSet(viewsets.ModelViewSet):
     serializer_class = StoreMemberSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsPlatformAdmin]
 
     def get_queryset(self):
-        if is_platform_admin(self.request.user):
-            return StoreMember.objects.select_related("user", "store").all()
-        return StoreMember.objects.select_related("user", "store").filter(user=self.request.user)
+        return StoreMember.objects.select_related("user", "store").all()
 
     def perform_create(self, serializer):
         if not is_platform_admin(self.request.user):
@@ -72,7 +141,7 @@ class StoreMemberViewSet(viewsets.ModelViewSet):
 
 class StorePaymentConfigViewSet(viewsets.ModelViewSet):
     serializer_class = StorePaymentConfigSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsPlatformAdmin]
 
     def get_queryset(self):
         stores = get_accessible_stores(self.request.user)
@@ -81,7 +150,7 @@ class StorePaymentConfigViewSet(viewsets.ModelViewSet):
 
 class StoreSettlementRuleViewSet(viewsets.ModelViewSet):
     serializer_class = StoreSettlementRuleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsPlatformAdmin]
 
     def get_queryset(self):
         stores = get_accessible_stores(self.request.user)

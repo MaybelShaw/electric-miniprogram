@@ -98,11 +98,17 @@
   - 环境感知权限：`backend/common/permissions.py:126`
 
 ## 店铺与数据隔离
-- `stores.Store` 是平台店铺主模型；迁移会创建唯一主店 `main_store`，历史商品、分类、品牌、轮播和订单默认归属主店。
+- `stores.Store` 是真实经营主体模型；庆勋愉悦家自身也是一个 `Store`，合作方入驻店铺也是 `Store`，不是“主店挂载子店铺”的组织层级。
+- `Store.is_main=true` 表示默认平台入口店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`；合作方店铺通过 `platform_store` 指向庆勋愉悦家平台入口店铺，表达入驻展示和结算关系。
+- `Store.logo`、`cover_image`、`description`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示。
 - `stores.StoreMember` 绑定用户、店铺和角色，角色包含 `platform_admin`、`store_admin`、`store_staff`。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
-- 平台管理员可跨店查看和代配置；店铺成员只能访问自己店铺下的商品、分类、品牌、轮播图和订单。
-- 只有主店允许启用海尔能力，分店开启 `allow_haier` 会触发模型校验错误。
+- 平台管理员只认超级用户或主平台店铺有效 `StoreMember(role='platform_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
+- 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计和账务数据。
+- 店铺成员、支付配置、结算规则接口仅平台管理员可访问；合作方管理员不可见不可改。
+- 公开接口 `GET /api/stores/public/partners/?platform=<store_id>` 返回某个平台下 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
+- 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、轮播、分类、动态专区和商品摘要，数据只来自该真实店铺。
+- 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
 
 ## 核心模块
 - 用户与地址（`users/`）：微信登录、密码登录、用户资料、地址管理、公司认证、信用账户与账务对账

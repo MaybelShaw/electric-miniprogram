@@ -44,6 +44,7 @@ export const productService = {
     sort_by?: 'relevance' | 'sales' | 'price_asc' | 'price_desc'
     page?: number
     page_size?: number
+    store?: number | string
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_category/', params)
   },
@@ -54,18 +55,19 @@ export const productService = {
     sort_by?: 'relevance' | 'sales' | 'price_asc' | 'price_desc'
     page?: number
     page_size?: number
+    store?: number | string
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_brand/', params)
   },
   
   // 获取分类列表
-  async getCategories(params?: { level?: 'major' | 'minor' | 'item'; parent_id?: number }): Promise<Category[]> {
+  async getCategories(params?: { level?: 'major' | 'minor' | 'item'; parent_id?: number; store?: number | string }): Promise<Category[]> {
     return fetchAllPaginated<Category>('/catalog/categories/', params)
   },
   
   // 获取品牌列表
-  async getBrands(): Promise<Brand[]> {
-    return fetchAllPaginated<Brand>('/catalog/brands/')
+  async getBrands(params?: { store?: number | string }): Promise<Brand[]> {
+    return fetchAllPaginated<Brand>('/catalog/brands/', params)
   },
   
 

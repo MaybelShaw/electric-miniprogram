@@ -21,6 +21,7 @@ import SpecialZoneCovers from './pages/SpecialZoneCovers';
 import Cases from './pages/Cases';
 import Support from './pages/Support';
 import { getUser } from './utils/auth';
+import { isPlatformUserFromStoredUser, isStoreBackendUser, PLATFORM_DEFAULT_ROUTE, STORE_DEFAULT_ROUTE } from './utils/permissions';
 
 const RootRedirect = () => {
   const user = getUser();
@@ -30,6 +31,15 @@ const RootRedirect = () => {
     return <Navigate to="/support" replace />;
   }
   return <Navigate to="/admin" replace />;
+};
+
+const AdminDefaultRedirect = () => {
+  const user = getUser();
+  if (!user) return <Navigate to="/admin/login" replace />;
+  if (isStoreBackendUser(user) && !isPlatformUserFromStoredUser(user)) {
+    return <Navigate to={STORE_DEFAULT_ROUTE.replace('/admin/', '')} replace />;
+  }
+  return <Navigate to={PLATFORM_DEFAULT_ROUTE.replace('/admin/', '')} replace />;
 };
 
 function App() {
@@ -48,7 +58,7 @@ function App() {
             <RoleGuard allowedRoles={['admin']}>
               <Layout menuItems={adminMenuItems} title="商户管理">
                 <Routes>
-                  <Route path="/" element={<Navigate to="users" replace />} />
+                  <Route path="/" element={<AdminDefaultRedirect />} />
                   <Route path="users" element={<Users />} />
                   <Route path="user-stats" element={<UserStats />} />
                   <Route path="sales-stats" element={<SalesStats />} />

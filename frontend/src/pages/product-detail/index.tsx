@@ -4,6 +4,7 @@ import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/t
 import { productService } from '../../services/product'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import { Product, ProductSKU } from '../../types'
 import ProductCard from '../../components/ProductCard'
 import { requireLogin } from '../../utils/login-guard'
@@ -47,7 +48,7 @@ export default function ProductDetail() {
         path: '/pages/home/index',
       }
     }
-    const imageUrl = product?.main_images?.[0]
+    const imageUrl = resolveLocalMediaUrl(product?.main_images?.[0])
     return {
       title: product?.name || '商品详情',
       path: `/pages/product-detail/index?id=${productId}`,
@@ -62,7 +63,7 @@ export default function ProductDetail() {
         title: '家电商城',
       }
     }
-    const imageUrl = product?.main_images?.[0]
+    const imageUrl = resolveLocalMediaUrl(product?.main_images?.[0])
     return {
       title: product?.name || '商品详情',
       query: `id=${productId}`,
@@ -236,12 +237,14 @@ export default function ProductDetail() {
   const handleImagePreview = (index: number, isDetailImage = false) => {
     if (!product) return
     
-    const images = isDetailImage ? product.detail_images : product.main_images
+    const images = (isDetailImage ? product.detail_images : product.main_images)
+      ?.map(resolveLocalMediaUrl)
+      .filter(Boolean)
     if (!images || images.length === 0) return
     
     Taro.previewImage({
       urls: images,
-      current: images[index]
+      current: images[index] || images[0]
     })
   }
 
@@ -357,9 +360,9 @@ export default function ProductDetail() {
           >
             {product.main_images.map((img, index) => (
               <SwiperItem key={index}>
-                <Image 
-                  className='product-image' 
-                  src={img} 
+                <Image
+                  className='product-image'
+                  src={resolveLocalMediaUrl(img)}
                   mode='aspectFill'
                   onClick={() => handleImagePreview(index)}
                 />
@@ -464,9 +467,9 @@ export default function ProductDetail() {
             <View className='detail-images'>
               {product.detail_images.map((img, index) => (
                 <View key={index} className='detail-image-wrapper'>
-                  <Image 
-                    className='detail-image' 
-                    src={img} 
+                  <Image
+                    className='detail-image'
+                    src={resolveLocalMediaUrl(img)}
                     mode='widthFix'
                     lazyLoad
                     onClick={() => handleImagePreview(index, true)}
@@ -559,7 +562,7 @@ export default function ProductDetail() {
           <View className='quantity-popup' onClick={(e) => e.stopPropagation()}>
             <View className='popup-header'>
               <View className='popup-product-info'>
-                <Image className='popup-product-image' src={currentSku?.image || product.main_images[0]} mode='aspectFill' />
+                <Image className='popup-product-image' src={resolveLocalMediaUrl(currentSku?.image || product.main_images[0])} mode='aspectFill' />
                 <View className='popup-product-details'>
                   <View className='popup-product-name'>{product.name}</View>
                   <View className='popup-product-price-row'>

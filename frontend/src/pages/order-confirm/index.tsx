@@ -7,6 +7,7 @@ import { orderService } from '../../services/order'
 import { userService } from '../../services/user'
 import { creditService } from '../../services/credit'
 import { Address, Product, ProductSKU, User } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 interface OrderItem {
@@ -255,7 +256,7 @@ export default function OrderConfirm() {
       <View className='order-confirm-product-card'>
         {items.map((item, index) => (
             <View key={index} className='product-item'>
-              <Image className='product-image' src={item.sku?.image || item.product!.main_images[0]} mode='aspectFill' />
+              <Image className='product-image' src={resolveLocalMediaUrl(item.sku?.image || item.product!.main_images[0])} mode='aspectFill' />
               <View className='product-info'>
                 <View className='product-name'>{item.product!.name}</View>
                 {item.sku?.specs && (
