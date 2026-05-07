@@ -12,6 +12,57 @@ from stores.models import get_main_store_pk
 def generate_order_number():
     return f"{int(time.time())}{random.randint(100000, 999999)}"
 
+
+class CheckoutOrder(models.Model):
+    STATUS_CHOICES = [
+        ('pending', '待支付'),
+        ('paid', '已支付'),
+        ('cancelled', '已取消'),
+        ('refunding', '退款中'),
+        ('refunded', '已退款'),
+    ]
+    PAYMENT_STATUS_CHOICES = [
+        ('init', '待支付'),
+        ('processing', '支付中'),
+        ('succeeded', '支付成功'),
+        ('failed', '支付失败'),
+        ('cancelled', '已取消'),
+        ('expired', '已过期'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    checkout_number = models.CharField(max_length=100, unique=True, default=generate_order_number, verbose_name='结算单号')
+    user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='checkout_orders', verbose_name='用户')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name='结算状态')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='init', verbose_name='支付状态')
+    payment_number = models.CharField(max_length=100, blank=True, default='', verbose_name='支付单号')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='总金额')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
+    actual_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='实付金额')
+    snapshot_contact_name = models.CharField(max_length=50, default='', verbose_name='联系人')
+    snapshot_phone = models.CharField(max_length=20, default='', verbose_name='手机号')
+    snapshot_address = models.TextField(default='', verbose_name='收货地址')
+    snapshot_province = models.CharField(max_length=50, blank=True, default='', verbose_name='省', db_index=True)
+    snapshot_city = models.CharField(max_length=50, blank=True, default='', verbose_name='市', db_index=True)
+    snapshot_district = models.CharField(max_length=50, blank=True, default='', verbose_name='区', db_index=True)
+    snapshot_town = models.CharField(max_length=50, blank=True, default='', verbose_name='县/街道', db_index=True)
+    note = models.TextField(blank=True, default='', verbose_name='用户备注')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '结算单'
+        verbose_name_plural = '结算单'
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['payment_status']),
+        ]
+
+    def __str__(self):
+        return self.checkout_number
+
+
 class Order(models.Model):
     STATUS_CHOICES = [
         ('pending', '待支付'),
@@ -88,6 +139,14 @@ class Order(models.Model):
         related_name='child_orders',
         verbose_name='主订单'
     )
+    checkout_order = models.ForeignKey(
+        'orders.CheckoutOrder',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='orders',
+        verbose_name='结算单'
+    )
     order_type = models.CharField(
         max_length=20,
         choices=ORDER_TYPE_CHOICES,
@@ -106,6 +165,7 @@ class Order(models.Model):
             models.Index(fields=['haier_order_no']),
             models.Index(fields=['haier_so_id']),
             models.Index(fields=['parent_order']),
+            models.Index(fields=['checkout_order']),
             models.Index(fields=['order_type']),
         ]
 
@@ -277,6 +337,63 @@ class OrderItem(models.Model):
         return ' / '.join([f'{k}:{v}' for k, v in self.sku_specs.items()])
 
 
+class SubOrder(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    suborder_number = models.CharField(max_length=100, unique=True, default=generate_order_number, verbose_name='子单号')
+    checkout_order = models.ForeignKey(CheckoutOrder, on_delete=models.PROTECT, related_name='suborders', verbose_name='结算单')
+    legacy_order = models.OneToOneField(Order, on_delete=models.PROTECT, related_name='suborder_record', verbose_name='兼容订单')
+    user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='suborders', verbose_name='用户')
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='suborders', verbose_name='店铺')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='suborders', verbose_name='商品SPU')
+    status = models.CharField(max_length=20, choices=Order.STATUS_CHOICES, default='pending', verbose_name='子单状态')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='总金额')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
+    actual_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='实付金额')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '子单'
+        verbose_name_plural = '子单'
+        indexes = [
+            models.Index(fields=['checkout_order']),
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['store', 'status']),
+            models.Index(fields=['product']),
+        ]
+
+    def __str__(self):
+        return self.suborder_number
+
+
+class SubOrderItem(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    suborder = models.ForeignKey(SubOrder, on_delete=models.CASCADE, related_name='items', verbose_name='子单')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='suborder_items', verbose_name='产品')
+    sku = models.ForeignKey('catalog.ProductSKU', on_delete=models.PROTECT, null=True, blank=True, related_name='suborder_items', verbose_name='SKU')
+    product_name = models.CharField(max_length=200, verbose_name='商品名称')
+    sku_specs = models.JSONField(default=dict, blank=True, verbose_name='规格信息')
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU编码')
+    quantity = models.PositiveIntegerField(default=1, verbose_name='数量')
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='单价')
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='折扣金额')
+    actual_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='实付金额')
+    snapshot_image = models.URLField(max_length=500, blank=True, default='', verbose_name='商品主图')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '子单商品'
+        verbose_name_plural = '子单商品'
+        indexes = [
+            models.Index(fields=['suborder']),
+            models.Index(fields=['product']),
+            models.Index(fields=['sku']),
+        ]
+
+    def __str__(self):
+        return f'子单{self.suborder_id} - {self.product_name} x{self.quantity}'
+
+
 class Cart(models.Model):
     user = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='cart', verbose_name='用户')
 
@@ -316,6 +433,7 @@ class Payment(models.Model):
 
     id = models.BigAutoField(primary_key=True)
     order = models.ForeignKey('orders.Order', on_delete=models.PROTECT, related_name='payments', verbose_name='订单')
+    checkout_order = models.ForeignKey('orders.CheckoutOrder', on_delete=models.PROTECT, null=True, blank=True, related_name='payments', verbose_name='结算单')
     amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='支付金额')
     method = models.CharField(max_length=20, choices=METHOD_CHOICES, default='wechat', verbose_name='支付方式')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='init', verbose_name='支付状态')
@@ -331,6 +449,7 @@ class Payment(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
             models.Index(fields=['order']),
+            models.Index(fields=['checkout_order']),
         ]
 
     def __str__(self):
@@ -344,12 +463,17 @@ class Payment(models.Model):
         amount = order.actual_amount or order.total_amount
         payment = cls.objects.create(
             order=order,
+            checkout_order=getattr(order, 'checkout_order', None),
             amount=amount,
             method=method,
             status='init',
             expires_at=now + timedelta(minutes=ttl),
             logs=[{'t': now.isoformat(), 'event': 'start', 'detail': f'start payment {method}'}]
         )
+        if payment.checkout_order_id:
+            payment.checkout_order.payment_status = 'init'
+            payment.checkout_order.payment_number = str(payment.id)
+            payment.checkout_order.save(update_fields=['payment_status', 'payment_number', 'updated_at'])
         return payment
 
 

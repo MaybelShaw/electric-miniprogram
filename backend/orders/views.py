@@ -169,6 +169,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         if requested_store is not None:
             qs = qs.filter(store=requested_store)
 
+        if getattr(self, 'action', '') in {'list', 'my_orders', 'export'} and self.request.query_params.get('include_checkout_main') not in {'1', 'true', 'True'}:
+            qs = qs.exclude(checkout_order__isnull=False, order_type='main')
+
         # Optimize queries by prefetching related objects
         qs = qs.select_related('user', 'store', 'product', 'return_request').prefetch_related(
             'payments',

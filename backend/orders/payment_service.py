@@ -1023,6 +1023,25 @@ class PaymentService:
             payment.save()
             raise
 
+        if payment.checkout_order_id:
+            checkout = payment.checkout_order
+            checkout.status = 'paid'
+            checkout.payment_status = 'succeeded'
+            if transaction_id:
+                checkout.payment_number = transaction_id
+            checkout.save(update_fields=['status', 'payment_status', 'payment_number', 'updated_at'])
+
+            for child_order in payment.order.child_orders.select_for_update().all():
+                if OrderStateMachine.can_transition(child_order.status, 'paid'):
+                    OrderStateMachine.transition(
+                        child_order,
+                        'paid',
+                        operator=operator,
+                        note=f'Checkout payment succeeded: {transaction_id}' if transaction_id else 'Checkout payment succeeded'
+                    )
+
+            checkout.suborders.update(status='paid', updated_at=timezone.now())
+
         # 创建通知（订阅消息/站内）
         try:
             create_notification(

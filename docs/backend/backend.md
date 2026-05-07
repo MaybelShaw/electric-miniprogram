@@ -185,17 +185,21 @@
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
     - 查询参数：`status`（支持单状态如 `paid` 或多状态逗号分隔如 `returning,refunding,refunded`）。当传入 `returning` 时，除订单本身状态为 `returning` 外，还会包含存在退货申请且状态为 `requested|approved|in_transit|received` 的订单；当传入 `completed` 时，将排除上述处于退货流程中的订单。
+    - 结算单兼容：跨店结算会创建一张支付主单和多张履约子单；列表默认隐藏支付主单，仅展示可履约的子单。需要排查支付主单时可传 `include_checkout_main=1`。
   - `POST /orders/create_order/` 创建订单 `backend/orders/views.py:136`
     - 请求体：`product_id`（与 `items` 互斥）、`items`（批量订单）、`address_id`、`quantity`、`note`、`sku_id`、`payment_method`（`online|credit`）、`method`（`wechat|alipay|bank`）
     - SKU 支持：创建订单时可指定 `sku_id`，后端会根据 SKU 库存和价格计算
   - `POST /orders/create_batch_orders/` 批量创建订单（购物车结算） `backend/orders/views.py:235`
     - 请求体：
-      - `items` 商品列表（`[{ product_id, quantity }]`）
+      - `items` 商品列表（`[{ product_id, sku_id, quantity }]`）
       - `address_id` 收货地址ID
       - `note` 备注（可选）
       - `payment_method` 支付方式：`online | credit`（默认 `online`）。当为 `credit` 时将直接记录采购到信用账户并将订单置为 `paid`，不创建支付记录；当为 `online` 时创建对应支付记录。
       - `method` 在线支付渠道：`wechat | alipay | bank`（仅当 `payment_method=online` 时有效，默认 `wechat`）
+    - 结算拆单：后端创建 `CheckoutOrder` 作为一次结算和支付聚合，并按 `store_id + product_id` 生成子单；同一 SPU 下的多个 SKU 会保留在同一子单的明细中。
+    - 响应兼容：`order` 仍返回支付主单，`payment` 绑定该主单；`order.child_orders` 返回可发货、售后、退款的子单摘要。
   - `PATCH /orders/{id}/cancel|ship|complete|confirm_receipt/` 状态流转 `backend/orders/views.py:313`
+    - 跨店结算后，履约操作应使用列表或 `child_orders` 中返回的子单 `id`，不要对支付主单做发货或售后操作。
     - 发货请求体：`{ "tracking_number": "SF1234567890" }`（也可使用 `logistics_no` 字段）。
     - 发货校验：管理员必填快递单号；接口会写入订单物流信息后再流转到 `shipped`。
     - 确认收货：订单所有者或管理员可调用 `PATCH /api/orders/{id}/confirm_receipt/`，可选请求体 `{ "note": "已收到" }`，成功后状态从 `shipped` 变为 `completed`，并记录状态历史（`backend/orders/views.py:379`）。
