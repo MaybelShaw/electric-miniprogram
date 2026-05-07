@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react'
 import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
-import { specialZoneService } from '../../services/special-zone'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
-import { storeService } from '../../services/store'
-import { Product, Category, Brand, HomeBanner, SpecialZone, SpecialZoneCover, Store } from '../../types'
+import { Product, Category, Brand, HomeBanner, SpecialZoneCover } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
@@ -19,25 +17,22 @@ function Home() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
-  const [dynamicSpecialZones, setDynamicSpecialZones] = useState<SpecialZone[]>([])
-  const [partnerStores, setPartnerStores] = useState<Store[]>([])
   const [giftZoneCover, setGiftZoneCover] = useState<SpecialZoneCover | null>(null)
   const [designerZoneCover, setDesignerZoneCover] = useState<SpecialZoneCover | null>(null)
   const [bestSellerZoneCover, setBestSellerZoneCover] = useState<SpecialZoneCover | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const storeId = router.params?.store_id || router.params?.store
-    loadBanners()
-    loadSpecialZones(storeId)
-    loadCategories()
-    loadBrands()
-    loadPartnerStores()
-    loadProducts(1)
-    
-    // 确保显示分享菜单
+    loadBanners(storeId)
+    loadSpecialZoneCovers(storeId)
+    loadCategories(storeId)
+    loadBrands(storeId)
+    loadProducts(1, storeId)
+
     Taro.showShareMenu({
       withShareTicket: true
     })
@@ -54,49 +49,50 @@ function Home() {
     ...(resolveLocalMediaUrl(banners[0]?.image_url) ? { imageUrl: resolveLocalMediaUrl(banners[0]?.image_url) } : {}),
   }))
 
-  // 加载轮播图
-  const loadBanners = async () => {
+  const loadBanners = async (storeId?: string, showRefreshing = false) => {
+    if (showRefreshing) {
+      setRefreshing(true)
+    }
     try {
-      const data = await productService.getHomeBanners('home')
+      const data = await productService.getHomeBanners(storeId ? { position: 'home', store: storeId } : 'home')
       setBanners(data)
     } catch (error) {
-      // 静默失败
+      // 静默失败，首页入口仍可用
+    } finally {
+      if (showRefreshing) {
+        setRefreshing(false)
+      }
     }
   }
 
-  // 加载专区图片
-  const loadSpecialZones = async (storeId?: string) => {
-    try {
-      const zones = await specialZoneService.getZones(storeId)
-      setDynamicSpecialZones(zones)
-    } catch (error) {
-      setDynamicSpecialZones([])
-    }
-
+  const loadSpecialZoneCovers = async (storeId?: string) => {
     try {
       const [gift, designer, bestSeller] = await Promise.all([
-        specialZoneCoverService.getCovers({ type: 'gift' }),
-        specialZoneCoverService.getCovers({ type: 'designer' }),
-        specialZoneCoverService.getCovers({ type: 'best_seller' }),
+        specialZoneCoverService.getCovers({ type: 'gift', ...(storeId ? { store: storeId } : {}) }),
+        specialZoneCoverService.getCovers({ type: 'designer', ...(storeId ? { store: storeId } : {}) }),
+        specialZoneCoverService.getCovers({ type: 'best_seller', ...(storeId ? { store: storeId } : {}) }),
       ])
       setGiftZoneCover(gift[0] || null)
       setDesignerZoneCover(designer[0] || null)
       setBestSellerZoneCover(bestSeller[0] || null)
     } catch (error) {
-      // 静默失败
+      // 静默失败，保留专区入口兜底文案
     }
   }
 
-  // 加载分类
-  const loadCategories = async () => {
+  const loadCategories = async (storeId?: string) => {
     try {
-      // 加载空间 (Major Categories)
-      const cachedMajor = Storage.get<Category[]>(CACHE_KEYS.MAJOR_CATEGORIES)
-      if (cachedMajor) {
-        setMajorCategories(cachedMajor)
-      } else {
-        const data = await productService.getCategories({ level: 'major' })
-        setMajorCategories(data)
+      if (!storeId) {
+        const cachedMajor = Storage.get<Category[]>(CACHE_KEYS.MAJOR_CATEGORIES)
+        if (cachedMajor) {
+          setMajorCategories(cachedMajor)
+          return
+        }
+      }
+
+      const data = await productService.getCategories({ level: 'major', ...(storeId ? { store: storeId } : {}) })
+      setMajorCategories(data)
+      if (!storeId) {
         Storage.set(CACHE_KEYS.MAJOR_CATEGORIES, data, 24 * 60 * 60 * 1000)
       }
     } catch (error) {
@@ -104,86 +100,65 @@ function Home() {
     }
   }
 
-  // 加载品牌
-  const loadBrands = async () => {
+  const loadBrands = async (storeId?: string) => {
     try {
-      const cached = Storage.get<Brand[]>(CACHE_KEYS.BRANDS)
-      if (cached) {
-        setBrands(cached)
-        return
+      if (!storeId) {
+        const cached = Storage.get<Brand[]>(CACHE_KEYS.BRANDS)
+        if (cached) {
+          setBrands(cached)
+          return
+        }
       }
-      
-      const data = await productService.getBrands()
+
+      const data = await productService.getBrands(storeId ? { store: storeId } : undefined)
       setBrands(data)
-      Storage.set(CACHE_KEYS.BRANDS, data, 24 * 60 * 60 * 1000)
+      if (!storeId) {
+        Storage.set(CACHE_KEYS.BRANDS, data, 24 * 60 * 60 * 1000)
+      }
     } catch (error) {
       // 静默失败
     }
   }
 
-  // 加载商品列表
-  const loadPartnerStores = async () => {
-    try {
-      const res = await storeService.getPartnerStores({ page_size: 6 })
-      setPartnerStores(res.results || [])
-    } catch (error) {
-      setPartnerStores([])
-    }
-  }
-
-  const loadProducts = async (pageNum: number) => {
+  const loadProducts = async (pageNum: number, storeId?: string) => {
     if (loading) return
-    
+
     setLoading(true)
     try {
-      const params = { page: pageNum, page_size: 20 }
-      const res = await productService.getProducts(params)
-      
-      if (pageNum === 1) {
-        setProducts(res.results)
-      } else {
-        setProducts([...products, ...res.results])
-      }
+      const res = await productService.getProducts({
+        page: pageNum,
+        page_size: 20,
+        ...(storeId ? { store: storeId } : {}),
+      })
+
+      setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setHasMore(res.has_next || false)
       setPage(pageNum)
     } catch (error) {
-      Taro.showToast({
-        title: '加载商品失败',
-        icon: 'none'
-      })
+      Taro.showToast({ title: '加载商品失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
   }
 
-  // 下拉刷新
   const onRefresh = () => {
-    loadProducts(1)
+    const storeId = router.params?.store_id || router.params?.store
+    loadBanners(storeId, true)
+    loadSpecialZoneCovers(storeId)
+    loadProducts(1, storeId)
   }
 
-  // 上拉加载更多
   const onLoadMore = () => {
     if (hasMore && !loading) {
-      loadProducts(page + 1)
+      const storeId = router.params?.store_id || router.params?.store
+      loadProducts(page + 1, storeId)
     }
   }
 
-  // 搜索
   const handleSearch = () => {
-    if (!searchValue.trim()) return
-    Taro.navigateTo({ url: `/pages/search/index?keyword=${searchValue}` })
-  }
-
-  // 跳转分类
-  const goToCategory = (category: string) => {
-    Taro.switchTab({ url: '/pages/category/index' })
-    // 通过事件总线传递分类参数
-    Taro.eventCenter.trigger('selectCategory', category)
-  }
-
-  // 跳转品牌
-  const goToBrand = (brand: string) => {
-    Taro.navigateTo({ url: `/pages/brand/index?brand=${brand}` })
+    const keyword = searchValue.trim()
+    if (!keyword) return
+    Taro.navigateTo({ url: `/pages/search/index?keyword=${encodeURIComponent(keyword)}` })
   }
 
   const handleBannerClick = (banner: HomeBanner) => {
@@ -192,56 +167,46 @@ function Home() {
     }
   }
 
-  // 跳转专区
+  const goToBrandZone = () => {
+    Taro.navigateTo({ url: '/pages/store-list/index' })
+  }
+
+  const goToActivityZone = () => {
+    Taro.navigateTo({ url: '/pages/special-zone/index?mode=activity-list' })
+  }
+
+  const goToCategory = (category: string) => {
+    Taro.switchTab({ url: '/pages/category/index' })
+    Taro.eventCenter.trigger('selectCategory', category)
+  }
+
+  const goToBrand = (brand: string) => {
+    Taro.navigateTo({ url: `/pages/brand/index?brand=${encodeURIComponent(brand)}` })
+  }
+
   const goToSpecialZone = (type: 'gift' | 'designer' | 'best_seller', title: string) => {
     Taro.navigateTo({ url: `/pages/special-zone/index?type=${type}&title=${encodeURIComponent(title)}` })
   }
 
-  const goToDynamicSpecialZone = (zone: SpecialZone) => {
-    if (zone.kind === 'brand') {
-      Taro.navigateTo({ url: '/pages/store-list/index' })
-      return
-    }
-    Taro.navigateTo({ url: `/pages/special-zone/index?zone_id=${zone.id}` })
-  }
-
   const handleZoneClick = (type: 'gift' | 'designer' | 'best_seller') => {
-    let title = ''
-    switch (type) {
-      case 'gift':
-        title = '礼品专区'
-        break
-      case 'designer':
-        title = '设计师专区'
-        break
-      case 'best_seller':
-        title = '爆品专区'
-        break
+    const titles = {
+      gift: '礼品专区',
+      designer: '设计师专区',
+      best_seller: '爆品专区',
     }
-    goToSpecialZone(type, title)
+    goToSpecialZone(type, titles[type])
   }
 
-  // 查看全部品类
   const goToAllCategories = () => {
     Taro.switchTab({ url: '/pages/category/index' })
   }
 
-  // 查看全部品牌
   const goToAllBrands = () => {
     Taro.navigateTo({ url: '/pages/brand-list/index' })
   }
 
-  const goToStoreList = () => {
-    Taro.navigateTo({ url: '/pages/store-list/index' })
-  }
-
-  const goToStoreDetail = (store: Store) => {
-    Taro.navigateTo({ url: `/pages/store-detail/index?id=${store.id}` })
-  }
-
   return (
-    <View className="home">
-      {/* Search Bar */}
+    <View className='home'>
       <View className='search-bar'>
         <View className='search-input'>
           <View className='search-icon'>🔍</View>
@@ -259,85 +224,64 @@ function Home() {
         className='content'
         scrollY
         refresherEnabled
-        refresherTriggered={loading && page === 1}
+        refresherTriggered={refreshing || (loading && page === 1)}
         onRefresherRefresh={onRefresh}
         onScrollToLower={onLoadMore}
       >
-        {/* 轮播图 */}
-        <Swiper className='banner' autoplay circular indicatorDots>
-          {banners.map(banner => (
-            <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
-              <Image className='banner-image' src={resolveLocalMediaUrl(banner.image_url)} mode='aspectFill' />
-            </SwiperItem>
-          ))}
-        </Swiper>
-
-        {dynamicSpecialZones.length > 0 ? (
-          <View className='special-zones dynamic-special-zones'>
-            {dynamicSpecialZones.map(zone => (
-              <View key={zone.id} className='zone-item dynamic-zone' onClick={() => goToDynamicSpecialZone(zone)}>
-                {zone.cover_image && (
-                  <Image className='zone-image' src={resolveLocalMediaUrl(zone.cover_image)} mode='aspectFill' />
-                )}
-                <View className='zone-content'>
-                  <View className='zone-title'>{zone.title}</View>
-                  {zone.subtitle && <View className='zone-subtitle'>{zone.subtitle}</View>}
-                </View>
-              </View>
+        {banners.length > 0 && (
+          <Swiper className='banner' autoplay circular indicatorDots>
+            {banners.map(banner => (
+              <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
+                <Image className='banner-image' src={resolveLocalMediaUrl(banner.image_url)} mode='aspectFill' />
+              </SwiperItem>
             ))}
-          </View>
-        ) : (
-          <>
-            {/* 特色专区 */}
-            <View className='special-zones'>
-              <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
-                {giftZoneCover?.image_url && (
-                  <Image className='zone-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
-                )}
-              </View>
-              <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
-                {designerZoneCover?.image_url && (
-                  <Image className='zone-image' src={resolveLocalMediaUrl(designerZoneCover.image_url)} mode='aspectFill' />
-                )}
-              </View>
-            </View>
-
-            {/* 爆品专区 (单独一行) */}
-            <View className='special-zones'>
-              <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
-                {bestSellerZoneCover?.image_url && (
-                  <Image className='zone-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='widthFix' />
-                )}
-              </View>
-            </View>
-          </>
+          </Swiper>
         )}
 
-        {partnerStores.length > 0 && (
-          <View className='partner-store-section'>
-            <View className='section-header-row'>
-              <View className='section-title'>合作方专区</View>
-              <View className='more-btn' onClick={goToStoreList}>更多 {'>'}</View>
-            </View>
-            <View className='partner-store-grid'>
-              {partnerStores.map(store => (
-                <View key={store.id} className='partner-store-card' onClick={() => goToStoreDetail(store)}>
-                  {store.logo ? (
-                    <Image className='partner-store-logo' src={resolveLocalMediaUrl(store.logo)} mode='aspectFill' />
-                  ) : (
-                    <View className='partner-store-logo placeholder'>{store.name.charAt(0)}</View>
-                  )}
-                  <View className='partner-store-info'>
-                    <View className='partner-store-name'>{store.name}</View>
-                    {!!store.description && <View className='partner-store-desc'>{store.description}</View>}
-                  </View>
-                </View>
-              ))}
+        <View className='entry-section'>
+          <View className='entry-card brand-entry' onClick={goToBrandZone}>
+            <View className='entry-label'>品牌专区</View>
+            <View className='entry-desc'>合作品牌商品</View>
+          </View>
+          <View className='entry-card activity-entry' onClick={goToActivityZone}>
+            <View className='entry-label'>活动专区</View>
+            <View className='entry-desc'>平台活动精选</View>
+          </View>
+        </View>
+
+        <View className='special-zones'>
+          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
+            {giftZoneCover?.image_url && (
+              <Image className='zone-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
+            )}
+            <View className='zone-content'>
+              <View className='zone-title'>礼品专区</View>
+              <View className='zone-subtitle'>礼赠精选</View>
             </View>
           </View>
-        )}
+          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
+            {designerZoneCover?.image_url && (
+              <Image className='zone-image' src={resolveLocalMediaUrl(designerZoneCover.image_url)} mode='aspectFill' />
+            )}
+            <View className='zone-content'>
+              <View className='zone-title'>设计师专区</View>
+              <View className='zone-subtitle'>场景灵感</View>
+            </View>
+          </View>
+        </View>
 
-        {/* 品类专区 (原空间专区) */}
+        <View className='special-zones'>
+          <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
+            {bestSellerZoneCover?.image_url && (
+              <Image className='zone-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='aspectFill' />
+            )}
+            <View className='zone-content'>
+              <View className='zone-title'>爆品专区</View>
+              <View className='zone-subtitle'>热销好物</View>
+            </View>
+          </View>
+        </View>
+
         {majorCategories.length > 0 && (
           <View className='category-nav'>
             <View className='section-header-row'>
@@ -359,7 +303,6 @@ function Home() {
           </View>
         )}
 
-        {/* 品牌专区 */}
         {brands.length > 0 && (
           <View className='brand-section'>
             <View className='section-header-row'>
@@ -377,29 +320,23 @@ function Home() {
           </View>
         )}
 
-        {/* 商品列表 */}
         <View className='product-section'>
           <View className='section-header'>
             <View className='section-title'>全部商品</View>
           </View>
           <View className='product-list'>
             {products.map(product => (
-              <ProductCard
-                key={product.id}
-                product={product}
-              />
+              <ProductCard key={product.id} product={product} />
             ))}
           </View>
-          
-          {/* 加载状态 */}
+
           {loading && (
             <View className='loading-wrapper'>
               <View className='loading-spinner'></View>
               <Text className='loading-text'>加载中...</Text>
             </View>
           )}
-          
-          {/* 没有更多 */}
+
           {!hasMore && products.length > 0 && (
             <View className='no-more'>
               <View className='no-more-line'></View>
@@ -407,8 +344,7 @@ function Home() {
               <View className='no-more-line'></View>
             </View>
           )}
-          
-          {/* 空状态 */}
+
           {!loading && products.length === 0 && (
             <View className='empty-state'>
               <Text className='empty-icon'>📦</Text>

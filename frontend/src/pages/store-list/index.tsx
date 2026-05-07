@@ -13,7 +13,7 @@ export default function StoreListPage() {
   const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    Taro.setNavigationBarTitle({ title: '合作方专区' })
+    Taro.setNavigationBarTitle({ title: '品牌专区' })
     loadStores(1)
   }, [])
 
@@ -33,7 +33,9 @@ export default function StoreListPage() {
   }
 
   const goToStore = (store: Store) => {
-    Taro.navigateTo({ url: `/pages/store-detail/index?id=${store.id}` })
+    Taro.navigateTo({
+      url: `/pages/product-list/index?store=${store.id}&title=${encodeURIComponent(store.name)}`,
+    })
   }
 
   return (

@@ -2,20 +2,19 @@
 
 .home {
   width: 100%;
-  height: 100vh; // Fix height to viewport
+  height: 100vh;
   background: $background-color-base;
   display: flex;
   flex-direction: column;
-  overflow: hidden; // Prevent body scroll
+  overflow: hidden;
 
   .search-bar {
-    // 使用 Flex 布局实现固定头部，不再使用 fixed 定位
     position: relative;
     z-index: 100;
     background: $background-color-light;
     padding: $spacing-md $spacing-md;
     box-shadow: $shadow-sm;
-    flex-shrink: 0; // 防止被压缩
+    flex-shrink: 0;
 
     .search-input {
       display: flex;
@@ -45,7 +44,7 @@
 
   .content {
     flex: 1;
-    height: 0; // 关键：在 Flex 容器中强制 ScrollView 计算高度
+    height: 0;
     margin-top: 0;
     padding-bottom: 40px;
   }
@@ -56,7 +55,7 @@
     margin: $spacing-md auto;
     border-radius: $spacing-md;
     overflow: hidden;
-    transform: translateY(0); // For z-index stacking context
+    transform: translateY(0);
     box-shadow: $shadow-md;
 
     .banner-image {
@@ -67,22 +66,71 @@
     }
   }
 
+  .entry-section {
+    display: flex;
+    gap: $spacing-md;
+    padding: 0 $spacing-md $spacing-lg;
+
+    .entry-card {
+      flex: 1;
+      min-width: 0;
+      height: 190px;
+      border-radius: $spacing-md;
+      padding: 28px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      position: relative;
+      overflow: hidden;
+      box-shadow: $shadow-sm;
+      color: $white;
+
+      &:active {
+        opacity: 0.88;
+      }
+
+      &.brand-entry {
+        background: linear-gradient(135deg, #2c7be5 0%, #52a7ff 100%);
+      }
+
+      &.activity-entry {
+        background: linear-gradient(135deg, #ff7a45 0%, #ffb86b 100%);
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 130px;
+        height: 130px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .entry-label {
+        position: relative;
+        z-index: 2;
+        font-size: 34px;
+        font-weight: 700;
+      }
+
+      .entry-desc {
+        position: relative;
+        z-index: 2;
+        margin-top: $spacing-xs;
+        font-size: $font-size-md;
+        opacity: 0.86;
+      }
+    }
+  }
+
   .special-zones {
     display: flex;
     justify-content: space-between;
     padding: 0 $spacing-md;
     margin-bottom: $spacing-md;
-
-    &.dynamic-special-zones {
-      flex-wrap: wrap;
-      gap: $spacing-md;
-
-      .zone-item {
-        flex: 0 0 calc(50% - #{$spacing-md} / 2);
-        margin: 0;
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-      }
-    }
 
     .zone-item {
       flex: 1;
@@ -97,7 +145,7 @@
       box-shadow: $shadow-sm;
 
       &.gift-zone {
-        background: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 100%);
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
         margin-right: $spacing-sm;
       }
 
@@ -125,17 +173,17 @@
         z-index: 2;
         color: $white;
         text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      }
 
-        .zone-title {
-          font-size: 30px;
-          font-weight: 600;
-        }
+      .zone-title {
+        font-size: 30px;
+        font-weight: 600;
+      }
 
-        .zone-subtitle {
-          margin-top: 8px;
-          font-size: 22px;
-          line-height: 1.4;
-        }
+      .zone-subtitle {
+        margin-top: 8px;
+        font-size: 22px;
+        line-height: 1.4;
       }
     }
   }
@@ -169,7 +217,7 @@
         padding: 4px 8px;
         position: absolute;
         right: $spacing-md;
-        
+
         &:active {
           opacity: 0.7;
         }
@@ -200,7 +248,7 @@
           color: $primary-color;
           margin: 0 auto;
           transition: all 0.3s ease;
-          
+
           &:active {
             transform: scale(0.95);
             background: lighten-c($primary-color, 35%);
@@ -255,7 +303,7 @@
         padding: 4px 8px;
         position: absolute;
         right: 0;
-        
+
         &:active {
           opacity: 0.7;
         }
@@ -270,7 +318,11 @@
       .brand-item {
         width: 100%;
         vertical-align: top;
-        
+
+        &:active .brand-logo {
+          transform: scale(0.96);
+        }
+
         .brand-logo {
           width: 100%;
           height: 80px;
@@ -279,10 +331,6 @@
           padding: 12px;
           box-sizing: border-box;
           transition: all 0.3s ease;
-        }
-
-        &:active .brand-logo {
-          transform: scale(0.96);
         }
 
         .brand-name {
@@ -296,106 +344,6 @@
           text-overflow: ellipsis;
         }
       }
-    }
-  }
-
-  .partner-store-section {
-    background: $background-color-light;
-    padding: 30px;
-    margin: 0 $spacing-md $spacing-md;
-    border-radius: $spacing-md;
-    box-shadow: $shadow-sm;
-
-    .section-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: $spacing-md;
-      position: relative;
-
-      .section-title {
-        font-size: $font-size-lg;
-        font-weight: bold;
-        color: $text-color-base;
-        flex: 1;
-        text-align: center;
-      }
-
-      .more-btn {
-        font-size: $font-size-sm;
-        color: $text-color-secondary;
-        padding: 4px 8px;
-        position: absolute;
-        right: 0;
-
-        &:active {
-          opacity: 0.7;
-        }
-      }
-    }
-
-    .partner-store-grid {
-      display: flex;
-      flex-direction: column;
-      gap: $spacing-md;
-    }
-
-    .partner-store-card {
-      display: flex;
-      align-items: center;
-      min-height: 120px;
-      padding: $spacing-md;
-      border: 1px solid $border-color-light;
-      border-radius: $border-radius-lg;
-      background: $white;
-
-      &:active {
-        background: $active-color;
-      }
-    }
-
-    .partner-store-logo {
-      width: 96px;
-      height: 96px;
-      border-radius: $border-radius-md;
-      flex-shrink: 0;
-      margin-right: $spacing-md;
-      background: $background-color-base;
-
-      &.placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: $font-size-xl;
-        font-weight: 600;
-        color: $primary-color;
-        background: $primary-light;
-      }
-    }
-
-    .partner-store-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .partner-store-name {
-      font-size: $font-size-md;
-      font-weight: 600;
-      color: $text-color-base;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .partner-store-desc {
-      margin-top: $spacing-xs;
-      font-size: $font-size-sm;
-      color: $text-color-secondary;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
     }
   }
 
@@ -494,6 +442,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
