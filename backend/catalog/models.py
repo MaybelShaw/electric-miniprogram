@@ -334,7 +334,7 @@ class Product(models.Model):
 class ProductSKU(models.Model):
     """商品SKU，用于管理规格、价格与库存"""
     id = models.BigAutoField(primary_key=True)
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='skus', verbose_name='商品')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='skus', verbose_name='商品')
     name = models.CharField(max_length=200, blank=True, default='', verbose_name='SKU名称')
     sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU编码')
     specs = models.JSONField(default=dict, blank=True, verbose_name='规格参数')
@@ -453,7 +453,7 @@ class SpecialZone(models.Model):
 class SpecialZoneProduct(models.Model):
     id = models.BigAutoField(primary_key=True)
     zone = models.ForeignKey('catalog.SpecialZone', on_delete=models.CASCADE, related_name='zone_products', verbose_name='专区')
-    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='special_zone_links', verbose_name='商品')
+    product = models.ForeignKey('catalog.Product', on_delete=models.CASCADE, related_name='special_zone_links', verbose_name='商品')
     is_active = models.BooleanField(default=True, verbose_name='是否展示')
     order = models.IntegerField(default=0, verbose_name='排序')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')

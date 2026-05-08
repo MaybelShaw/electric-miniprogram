@@ -128,7 +128,8 @@
 
 ## 主要 API 端点
 - 认证与用户（前缀 `/api/`）：
-  - `POST /auth/wechat/` 微信登录（开发支持模拟）`backend/users/views.py:54`
+  - `POST /wechat/explicit-login/` 显式微信快捷登录：请求体包含 `code` 和微信手机号授权 `phone_code`；首次登录缺少手机号授权会返回 `400`，不会创建用户。登录成功返回 `access`、`refresh` 和用户资料，并保存手机号与 `last_login_at`。
+  - `POST /login/` 旧微信 code 登录入口（保留兼容，不用于普通浏览触发账号创建）
   - `POST /auth/password/` 密码登录（管理员）`backend/users/urls.py:27`
   - `POST /auth/refresh/` 刷新 Token `backend/users/urls.py:29`
   - `GET/PATCH /user/profile/` 用户资料 `backend/users/urls.py:30`

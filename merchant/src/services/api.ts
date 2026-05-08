@@ -1,5 +1,6 @@
 import request from '@/utils/request';
 import type { CurrentStoreContext } from './types';
+import { withSelectedStoreId } from '@/utils/storeScope';
 
 // 登录
 export const loginAdmin = (data: { username: string; password: string }) =>
@@ -39,21 +40,21 @@ export const exportCustomersTransactionStats = (params?: any) => request.get(`/u
 
 // 品牌管理
 export const getBrands = (params?: any) => request.get('/catalog/brands/', { params });
-export const createBrand = (data: any) => request.post('/catalog/brands/', data);
+export const createBrand = (data: any) => request.post('/catalog/brands/', withSelectedStoreId(data));
 export const updateBrand = (id: number, data: any) => request.patch(`/catalog/brands/${id}/`, data);
 export const deleteBrand = (id: number, force?: boolean) =>
   request.delete(`/catalog/brands/${id}/`, { params: { force_delete: force } });
 
 // 品类管理
 export const getCategories = (params?: any) => request.get('/catalog/categories/', { params });
-export const createCategory = (data: any) => request.post('/catalog/categories/', data);
+export const createCategory = (data: any) => request.post('/catalog/categories/', withSelectedStoreId(data));
 export const updateCategory = (id: number, data: any) => request.patch(`/catalog/categories/${id}/`, data);
 export const deleteCategory = (id: number) => request.delete(`/catalog/categories/${id}/`);
 
 // 产品管理
 export const getProducts = (params?: any) => request.get('/catalog/products/', { params });
 export const getProduct = (id: number) => request.get(`/catalog/products/${id}/`);
-export const createProduct = (data: any) => request.post('/catalog/products/', data);
+export const createProduct = (data: any) => request.post('/catalog/products/', withSelectedStoreId(data));
 export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
 export const exportProducts = (params?: any) => request.get('/catalog/products/export/', { params, responseType: 'blob' });
@@ -158,7 +159,7 @@ export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cance
 // 轮播图管理
 export const getHomeBanners = (params?: any) => request.get('/catalog/home-banners/', { params });
 export const createHomeBanner = (data: any) =>
-  request.post('/catalog/home-banners/', data, { params: data?.store_id ? { store: data.store_id } : undefined });
+  request.post('/catalog/home-banners/', withSelectedStoreId(data), { params: data?.store_id ? { store: data.store_id } : undefined });
 export const updateHomeBanner = (id: number, data: any) => request.patch(`/catalog/home-banners/${id}/`, data);
 export const deleteHomeBanner = (id: number) => request.delete(`/catalog/home-banners/${id}/`);
 export const uploadHomeBanner = (file: File, data?: any) => {
@@ -174,14 +175,14 @@ export const uploadHomeBanner = (file: File, data?: any) => {
 
 // 首页专区图片管理
 export const getSpecialZoneCovers = (params?: any) => request.get('/catalog/special-zone-covers/', { params });
-export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', data);
+export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', withSelectedStoreId(data));
 export const updateSpecialZoneCover = (id: number, data: any) => request.patch(`/catalog/special-zone-covers/${id}/`, data);
 export const deleteSpecialZoneCover = (id: number) => request.delete(`/catalog/special-zone-covers/${id}/`);
 
 // 动态运营专区管理
 export const getSpecialZones = (params?: any) => request.get('/catalog/special-zones/', { params });
 export const createSpecialZone = (data: any) =>
-  request.post('/catalog/special-zones/', data, { params: data?.store_id ? { store: data.store_id } : undefined });
+  request.post('/catalog/special-zones/', withSelectedStoreId(data), { params: data?.store_id ? { store: data.store_id } : undefined });
 export const updateSpecialZone = (id: number, data: any) => request.patch(`/catalog/special-zones/${id}/`, data);
 export const deleteSpecialZone = (id: number) => request.delete(`/catalog/special-zones/${id}/`);
 export const getSpecialZoneProducts = (zoneId: number, params?: any) =>

@@ -104,6 +104,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return data
 
 
+class WeChatExplicitLoginSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, allow_blank=False)
+    phone_code = serializers.CharField(required=False, allow_blank=True)
+    phoneCode = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    phone_credential = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+    def validate(self, attrs):
+        phone_code = (
+            attrs.get("phone_code")
+            or attrs.get("phoneCode")
+            or attrs.get("phone_credential")
+            or ""
+        )
+        attrs["phone_code"] = phone_code.strip()
+        attrs.pop("phoneCode", None)
+        attrs.pop("phone_credential", None)
+        return attrs
+
+
 class CompanyInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanyInfo

@@ -7,7 +7,7 @@ import { TokenManager } from '../../utils/request'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { Product, ProductSKU } from '../../types'
 import ProductCard from '../../components/ProductCard'
-import { requireLogin } from '../../utils/login-guard'
+import { requireTransactionAuth, TransactionAction } from '../../utils/auth-guard'
 import './index.scss'
 
 export default function ProductDetail() {
@@ -89,12 +89,12 @@ export default function ProductDetail() {
     if (!product || hasAutoResumed) return
     if (!TokenManager.getAccessToken()) return
 
-    const intent = router.params?.intent
+    const intent = router.params?.auth_action || router.params?.intent
     if (intent !== 'buy' && intent !== 'cart') return
 
     setHasAutoResumed(true)
-    handleShowQuantityPopup(intent)
-  }, [router.params?.intent, hasAutoResumed, product])
+    handleShowQuantityPopup(intent as TransactionAction)
+  }, [router.params?.auth_action, router.params?.intent, hasAutoResumed, product])
 
   const loadProduct = async (id: number) => {
     setLoading(true)
@@ -184,8 +184,8 @@ export default function ProductDetail() {
 
 
 
-  const handleShowQuantityPopup = async (type: 'cart' | 'buy') => {
-    const loggedIn = await requireLogin({ intent: type })
+  const handleShowQuantityPopup = async (type: TransactionAction) => {
+    const loggedIn = await requireTransactionAuth(type)
     if (!loggedIn) {
       return
     }

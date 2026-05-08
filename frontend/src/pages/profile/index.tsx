@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { View, Image, Text } from '@tarojs/components'
+import { View, Image, Text, Button } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { authService } from '../../services/auth'
 import { notificationService } from '../../services/notification'
 import { TokenManager } from '../../utils/request'
+import { resumePendingAuthAction } from '../../utils/auth-guard'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { User } from '../../types'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
@@ -62,20 +63,31 @@ function Profile() {
     }
   }
 
-  const handleLogin = async () => {
+  const handleLogin = async (event?: any) => {
     if (loading) return
-    
+
+    const phoneCode = event?.detail?.code
+    if (!phoneCode) {
+      Taro.showToast({ title: '请授权手机号', icon: 'none' })
+      return
+    }
+
     setLoading(true)
     try {
-      const res = await authService.login()
+      const res = await authService.loginWithPhone(phoneCode)
       TokenManager.setTokens(res.access, res.refresh)
       setUser(res.user)
       loadNotificationStats()
       
       // 触发登录成功事件，通知其他页面刷新
       Taro.eventCenter.trigger('userLogin')
-      
+
       Taro.showToast({ title: '登录成功', icon: 'success' })
+      try {
+        await resumePendingAuthAction()
+      } catch {
+        Taro.showToast({ title: '回跳失败，请返回商品页继续操作', icon: 'none' })
+      }
     } catch (error) {
       Taro.showToast({ title: '登录失败', icon: 'none' })
     } finally {
@@ -189,9 +201,15 @@ function Profile() {
         ) : (
           <View className='login-section'>
             <Image className='avatar' src='/assets/default-avatar.png' />
-            <View className='login-text' onTap={handleLogin}>
+            <Button
+              className='login-text'
+              openType='getPhoneNumber'
+              loading={loading}
+              disabled={loading}
+              onGetPhoneNumber={handleLogin}
+            >
               {loading ? '登录中...' : '点击授权'}
-            </View>
+            </Button>
           </View>
         )}
       </View>

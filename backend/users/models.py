@@ -11,7 +11,10 @@ class UserManager(BaseUserManager):
         if not username and not openid:
             raise ValueError("Either username or openid must be set")
         
-        user = self.model(openid=openid, username=username or openid, **extra_fields)
+        user_data = {"openid": openid, **extra_fields}
+        if username:
+            user_data["username"] = username
+        user = self.model(**user_data)
         user.set_password(password)
         user.save(using=self._db)
         return user

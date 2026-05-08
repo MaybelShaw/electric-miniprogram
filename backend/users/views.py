@@ -15,6 +15,7 @@ from django.db.models.functions import TruncMonth, TruncYear
 from .serializers import (
     UserSerializer,
     UserProfileSerializer,
+    WeChatExplicitLoginSerializer,
     AddressSerializer,
     CompanyInfoSerializer,
     CreditAccountSerializer,
@@ -166,6 +167,193 @@ class WeChatLoginView(APIView):
         refresh, access = create_tokens_for_user(user)
 
         logger.info(f'登录成功: user_id={user.id}, username={user.username}')
+
+        return Response(
+            {
+                "access": access,
+                "refresh": refresh,
+                "user": UserSerializer(user).data,
+            }
+        )
+
+
+class WeChatAuthError(Exception):
+    def __init__(self, message, status_code=status.HTTP_400_BAD_REQUEST, details=None):
+        self.message = message
+        self.status_code = status_code
+        self.details = details or {}
+        super().__init__(message)
+
+
+class WeChatMiniProgramAuthService:
+    def __init__(self):
+        self.appid = settings.WECHAT_APPID
+        self.secret = settings.WECHAT_SECRET
+
+    def code_to_session(self, code):
+        if not self.appid or not self.secret:
+            if settings.DEBUG:
+                return {"openid": code, "session_key": None}
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        response = requests.get(
+            "https://api.weixin.qq.com/sns/jscode2session",
+            params={
+                "appid": self.appid,
+                "secret": self.secret,
+                "js_code": code,
+                "grant_type": "authorization_code",
+            },
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat API error")
+        if not data.get("openid"):
+            raise WeChatAuthError(
+                "Invalid WeChat response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return data
+
+    def phone_code_to_number(self, phone_code):
+        if (not self.appid or not self.secret) and settings.DEBUG:
+            return "13800000000"
+
+        access_token = self._get_access_token()
+        response = requests.post(
+            f"https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={access_token}",
+            json={"code": phone_code},
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat phone API error")
+
+        phone_info = data.get("phone_info") or {}
+        phone_number = phone_info.get("phoneNumber") or phone_info.get("purePhoneNumber")
+        if not phone_number:
+            raise WeChatAuthError(
+                "Invalid WeChat phone response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return phone_number
+
+    def _get_access_token(self):
+        if not self.appid or not self.secret:
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        response = requests.get(
+            "https://api.weixin.qq.com/cgi-bin/token",
+            params={
+                "grant_type": "client_credential",
+                "appid": self.appid,
+                "secret": self.secret,
+            },
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat access token API error")
+        access_token = data.get("access_token")
+        if not access_token:
+            raise WeChatAuthError(
+                "Invalid WeChat access token response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return access_token
+
+    def _raise_for_wechat_error(self, data, message):
+        errcode = data.get("errcode")
+        if errcode not in (None, 0, "0"):
+            raise WeChatAuthError(
+                message,
+                status.HTTP_400_BAD_REQUEST,
+                {
+                    "errcode": errcode,
+                    "errmsg": data.get("errmsg", "Unknown error"),
+                },
+            )
+
+
+@extend_schema(tags=['Authentication'])
+class WeChatExplicitLoginView(APIView):
+    """显式微信快捷登录：首次登录必须携带手机号授权凭证。"""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
+    throttle_classes = [LoginRateThrottle]
+
+    @extend_schema(
+        operation_id='wechat_explicit_login',
+        description='Explicit WeChat mini program login with phone authorization.',
+        request=WeChatExplicitLoginSerializer,
+    )
+    def post(self, request):
+        serializer = WeChatExplicitLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data["code"]
+        phone_code = serializer.validated_data.get("phone_code")
+
+        service = WeChatMiniProgramAuthService()
+        try:
+            session_data = service.code_to_session(code)
+        except requests.RequestException:
+            return Response(
+                {"error": "Failed to connect to WeChat API"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except WeChatAuthError as exc:
+            return Response(
+                {"error": exc.message, **exc.details},
+                status=exc.status_code,
+            )
+
+        openid = session_data["openid"]
+        user = User.objects.filter(openid=openid).first()
+        requires_phone = user is None or not user.phone
+
+        if requires_phone and not phone_code:
+            return Response(
+                {"error": "Phone authorization is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        phone_number = None
+        if phone_code:
+            try:
+                phone_number = service.phone_code_to_number(phone_code)
+            except requests.RequestException:
+                return Response(
+                    {"error": "Failed to connect to WeChat phone API"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            except WeChatAuthError as exc:
+                return Response(
+                    {"error": exc.message, **exc.details},
+                    status=exc.status_code,
+                )
+
+        from .services import create_tokens_for_user, update_last_login
+
+        if user is None:
+            user = User.objects.create_user(
+                openid=openid,
+                phone=phone_number,
+                role='individual',
+            )
+        elif phone_number and user.phone != phone_number:
+            user.phone = phone_number
+            user.save(update_fields=["phone"])
+
+        update_last_login(user)
+        refresh, access = create_tokens_for_user(user)
 
         return Response(
             {
