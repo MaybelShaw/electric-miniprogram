@@ -64,12 +64,12 @@ export async function resumePendingAuthAction(): Promise<boolean> {
   return true
 }
 
-export async function requireTransactionAuth(action: TransactionAction): Promise<boolean> {
+export async function requireTransactionAuth(action: TransactionAction, redirect?: string): Promise<boolean> {
   if (TokenManager.getAccessToken()) {
     return true
   }
 
-  savePendingAuthAction(action)
+  savePendingAuthAction(action, redirect)
   await Taro.switchTab({ url: PROFILE_PAGE_URL })
   return false
 }

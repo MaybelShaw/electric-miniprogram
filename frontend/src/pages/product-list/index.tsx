@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { productService } from '../../services/product'
+import { cartService } from '../../services/cart'
 import { Category, Product } from '../../types'
 import { formatPrice, formatSalesCount } from '../../utils/format'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import { requireTransactionAuth } from '../../utils/auth-guard'
 import './index.scss'
 
 export default function ProductListPage() {
@@ -171,10 +173,25 @@ export default function ProductListPage() {
     }
   }
   
-  const handleAddToCart = (e, product: Product) => {
+  const handleAddToCart = async (e, product: Product) => {
       e.stopPropagation()
-      Taro.showToast({ title: '已加入购物车', icon: 'success' })
-      // TODO: Implement actual cart logic
+      if (product.skus && product.skus.length > 0) {
+        Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}&intent=cart` })
+        return
+      }
+
+      const loggedIn = await requireTransactionAuth(
+        'cart',
+        `/pages/product-detail/index?id=${product.id}`
+      )
+      if (!loggedIn) return
+
+      try {
+        await cartService.addItem(product.id, 1)
+        Taro.showToast({ title: '已加入购物车', icon: 'success' })
+      } catch (error) {
+        Taro.showToast({ title: '添加失败', icon: 'none' })
+      }
   }
   
   const handleProductClick = (id: number) => {

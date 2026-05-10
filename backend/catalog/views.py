@@ -82,7 +82,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
     def get_queryset(self):
         """Get base queryset with is_active filter support and optimized queries."""
         qs = super().get_queryset()
-        qs = filter_queryset_by_store(qs, self.request)
+        qs = filter_queryset_by_store(qs, self.request, allow_public_all=True)
         
         # Optimize queries by prefetching related objects
         qs = qs.select_related('category', 'brand')
@@ -222,7 +222,11 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         if special_zone_id is not None:
             store_ids = None
         else:
-            store_scoped_products = filter_queryset_by_store(Product.objects.all(), request)
+            store_scoped_products = filter_queryset_by_store(
+                Product.objects.all(),
+                request,
+                allow_public_all=True,
+            )
             store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
         
         # Parse pagination parameters

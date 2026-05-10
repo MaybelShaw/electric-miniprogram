@@ -114,11 +114,13 @@ def get_requested_store(request, *, required=False, allow_public=False):
     return None
 
 
-def filter_queryset_by_store(queryset, request, field="store"):
+def filter_queryset_by_store(queryset, request, field="store", allow_public_all=False):
     user = getattr(request, "user", None)
+    method = getattr(request, "method", "GET")
+    safe_method = method in ("GET", "HEAD", "OPTIONS")
     requested_store = get_requested_store(
         request,
-        allow_public=getattr(request, "method", "GET") in ("GET", "HEAD", "OPTIONS"),
+        allow_public=safe_method,
     )
     filter_key = f"{field}_id"
 
@@ -129,9 +131,19 @@ def filter_queryset_by_store(queryset, request, field="store"):
         if is_platform_admin(user):
             return queryset
         store_ids = list(get_accessible_stores(user).values_list("id", flat=True))
-        if not store_ids:
-            return queryset.none()
-        return queryset.filter(**{f"{field}_id__in": store_ids})
+        if store_ids:
+            return queryset.filter(**{f"{field}_id__in": store_ids})
+        if safe_method and allow_public_all and not getattr(user, "is_staff", False):
+            return queryset
+        if safe_method and not getattr(user, "is_staff", False):
+            main_store = Store.objects.filter(is_main=True).first()
+            if main_store:
+                return queryset.filter(**{filter_key: main_store.id})
+            return queryset
+        return queryset.none()
+
+    if safe_method and allow_public_all:
+        return queryset
 
     main_store = Store.objects.filter(is_main=True).first()
     if main_store:
