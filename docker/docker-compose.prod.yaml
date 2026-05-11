@@ -1,4 +1,4 @@
-name: electric-miniprogram
+﻿name: electric-miniprogram
 
 services:
   db:
@@ -34,10 +34,9 @@ services:
     command: >
       bash -lc "pip install uv &&
                 uv sync &&
-                uv run python manage.py migrate &&
-                uv run python manage.py collectstatic --noinput &&
-                # uv run python manage.py recalc_sales_count &&
-                uv run python manage.py runserver 0.0.0.0:8000"
+                .venv/bin/python manage.py migrate &&
+                .venv/bin/python manage.py collectstatic --noinput &&
+                .venv/bin/python manage.py runserver 0.0.0.0:8000"
     healthcheck:
       test:
         - CMD-SHELL

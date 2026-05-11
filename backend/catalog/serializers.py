@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, HomeBanner, SpecialZone, SpecialZoneProduct, SpecialZoneCover, Case, CaseDetailBlock
+from .models import Category, Brand, Product, ProductSKU, MediaImage, SearchLog, InventoryLog, HomeBanner, SpecialZone, SpecialZoneProduct, SpecialZoneCover, HomeStoreCard, HomeStoreCardProduct, HomeStoreCardCategory, Case, CaseDetailBlock
 from orders.services import get_best_active_discount, resolve_base_price
 from django.conf import settings
 from urllib.parse import urlparse
@@ -11,6 +11,7 @@ from common.serializers import (
     StockField,
 )
 from stores.models import Store
+from django.db.models import Q
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -218,6 +219,13 @@ class BrandSerializer(serializers.ModelSerializer):
 
 
 class ProductSKUSerializer(serializers.ModelSerializer):
+    product = serializers.PrimaryKeyRelatedField(read_only=True)
+    product_id = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source='product',
+        write_only=True,
+    )
+    product_name = serializers.CharField(source='product.name', read_only=True)
     display_price = serializers.SerializerMethodField()
     discounted_price = serializers.SerializerMethodField()
 
@@ -225,6 +233,9 @@ class ProductSKUSerializer(serializers.ModelSerializer):
         model = ProductSKU
         fields = [
             'id',
+            'product',
+            'product_id',
+            'product_name',
             'name',
             'sku_code',
             'specs',
@@ -237,7 +248,14 @@ class ProductSKUSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at', 'display_price', 'discounted_price']
+        read_only_fields = ['id', 'product', 'product_name', 'created_at', 'updated_at', 'display_price', 'discounted_price']
+
+    def validate_specs(self, value):
+        if value in (None, ''):
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('规格参数必须是键值对象')
+        return value
 
     def get_display_price(self, obj: ProductSKU):
         request = self.context.get('request')
@@ -322,6 +340,13 @@ class ProductSerializer(serializers.ModelSerializer):
         if len(normalized) > 50:
             raise serializers.ValidationError("详情图最多上传50张")
         return normalized
+
+    def validate_specifications(self, value):
+        if value in (None, ''):
+            return {}
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("商品参数必须是键值对象")
+        return value
     
     def _normalize_images(self, images):
         if not images:
@@ -691,6 +716,8 @@ class SpecialZoneSerializer(serializers.ModelSerializer):
             'home_order',
             'start_at',
             'end_at',
+            'description',
+            'rules',
             'created_at',
             'updated_at',
         ]
@@ -734,9 +761,153 @@ class SpecialZoneProductSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         zone = self.context.get('zone') or attrs.get('zone') or getattr(self.instance, 'zone', None)
         product = attrs.get('product') or getattr(self.instance, 'product', None)
-        if zone and product and zone.store_id != product.store_id:
+        if (
+            zone
+            and product
+            and zone.kind != SpecialZone.KIND_PLATFORM_ACTIVITY
+            and zone.store_id != product.store_id
+        ):
             raise serializers.ValidationError({'product_id': '专区商品必须属于同一店铺'})
         return attrs
+
+
+class ActivitySummarySerializer(serializers.ModelSerializer):
+    store_name = serializers.CharField(source='store.name', read_only=True)
+
+    class Meta:
+        model = SpecialZone
+        fields = ['id', 'store', 'store_name', 'title', 'kind', 'is_active']
+
+
+class ProductActivitiesSerializer(serializers.Serializer):
+    available = ActivitySummarySerializer(many=True, read_only=True)
+    selected = ActivitySummarySerializer(many=True, read_only=True)
+    can_edit = serializers.BooleanField(read_only=True)
+
+
+class HomeStoreCardSerializer(serializers.ModelSerializer):
+    store_id = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), source='store')
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    main_product_id = serializers.IntegerField(write_only=True)
+    secondary_product_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
+    category_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
+    main_product = serializers.SerializerMethodField()
+    secondary_products = serializers.SerializerMethodField()
+    categories = serializers.SerializerMethodField()
+    has_inactive_products = serializers.SerializerMethodField()
+    inactive_product_names = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomeStoreCard
+        fields = [
+            'id', 'store', 'store_id', 'store_name', 'title', 'subtitle', 'order', 'is_active',
+            'main_product_id', 'secondary_product_ids', 'category_ids',
+            'main_product', 'secondary_products', 'categories',
+            'has_inactive_products', 'inactive_product_names', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'store', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        store = attrs.get('store') or getattr(self.instance, 'store', None)
+        main_product_id = attrs.get('main_product_id')
+        secondary_product_ids = attrs.get('secondary_product_ids')
+        category_ids = attrs.get('category_ids')
+        if self.instance:
+            if main_product_id is None:
+                main = self.instance.card_products.filter(role=HomeStoreCardProduct.ROLE_MAIN).first()
+                main_product_id = main.product_id if main else None
+            if secondary_product_ids is None:
+                secondary_product_ids = list(self.instance.card_products.filter(role=HomeStoreCardProduct.ROLE_SECONDARY).values_list('product_id', flat=True))
+            if category_ids is None:
+                category_ids = list(self.instance.card_categories.values_list('category_id', flat=True))
+        if not store:
+            raise serializers.ValidationError({'store_id': '请选择店铺'})
+        if not main_product_id:
+            raise serializers.ValidationError({'main_product_id': '请选择 1 个主推商品'})
+        if len(secondary_product_ids or []) != 4:
+            raise serializers.ValidationError({'secondary_product_ids': '必须选择 4 个副推商品'})
+        if len(category_ids or []) < 3:
+            raise serializers.ValidationError({'category_ids': '至少选择 3 个一级分类'})
+        product_ids = [main_product_id, *(secondary_product_ids or [])]
+        if len(set(product_ids)) != 5:
+            raise serializers.ValidationError({'secondary_product_ids': '主推和副推商品不能重复'})
+        products = Product.objects.filter(id__in=product_ids)
+        if products.count() != 5:
+            raise serializers.ValidationError({'secondary_product_ids': '商品不存在或不完整'})
+        if products.exclude(store=store).exists():
+            raise serializers.ValidationError({'secondary_product_ids': '卡片商品必须属于绑定店铺'})
+        categories = Category.objects.filter(id__in=category_ids or [])
+        if categories.count() != len(set(category_ids or [])):
+            raise serializers.ValidationError({'category_ids': '分类不存在或不完整'})
+        if categories.exclude(store=store).exists():
+            raise serializers.ValidationError({'category_ids': '卡片分类必须属于绑定店铺'})
+        if categories.exclude(level=Category.LEVEL_MAJOR).exists():
+            raise serializers.ValidationError({'category_ids': '卡片分类必须是一级分类'})
+        invalid_category_ids = [
+            category.id
+            for category in categories
+            if not Product.objects.filter(store=store, is_active=True).filter(
+                Q(category=category) | Q(category__parent=category) | Q(category__parent__parent=category)
+            ).exists()
+        ]
+        if invalid_category_ids:
+            raise serializers.ValidationError({'category_ids': '所选一级分类下必须存在上架商品'})
+        return attrs
+
+    def create(self, validated_data):
+        main_product_id = validated_data.pop('main_product_id')
+        secondary_product_ids = validated_data.pop('secondary_product_ids')
+        category_ids = validated_data.pop('category_ids')
+        card = HomeStoreCard.objects.create(**validated_data)
+        self._replace_children(card, main_product_id, secondary_product_ids, category_ids)
+        return card
+
+    def update(self, instance, validated_data):
+        main_product_id = validated_data.pop('main_product_id', None)
+        secondary_product_ids = validated_data.pop('secondary_product_ids', None)
+        category_ids = validated_data.pop('category_ids', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if main_product_id is not None or secondary_product_ids is not None or category_ids is not None:
+            main_product_id = main_product_id or instance.card_products.get(role=HomeStoreCardProduct.ROLE_MAIN).product_id
+            if secondary_product_ids is None:
+                secondary_product_ids = list(instance.card_products.filter(role=HomeStoreCardProduct.ROLE_SECONDARY).values_list('product_id', flat=True))
+            if category_ids is None:
+                category_ids = list(instance.card_categories.values_list('category_id', flat=True))
+            self._replace_children(instance, main_product_id, secondary_product_ids, category_ids)
+        return instance
+
+    def _replace_children(self, card, main_product_id, secondary_product_ids, category_ids):
+        card.card_products.all().delete()
+        card.card_categories.all().delete()
+        HomeStoreCardProduct.objects.create(card=card, product_id=main_product_id, role=HomeStoreCardProduct.ROLE_MAIN, order=0)
+        for index, product_id in enumerate(secondary_product_ids, start=1):
+            HomeStoreCardProduct.objects.create(card=card, product_id=product_id, role=HomeStoreCardProduct.ROLE_SECONDARY, order=index)
+        for index, category_id in enumerate(category_ids):
+            HomeStoreCardCategory.objects.create(card=card, category_id=category_id, order=index)
+
+    def get_main_product(self, obj):
+        link = obj.card_products.filter(role=HomeStoreCardProduct.ROLE_MAIN).select_related('product').first()
+        return ProductSerializer(link.product, context=self.context).data if link else None
+
+    def get_secondary_products(self, obj):
+        products = [link.product for link in obj.card_products.filter(role=HomeStoreCardProduct.ROLE_SECONDARY).select_related('product').order_by('order', 'id')]
+        return ProductSerializer(products, many=True, context=self.context).data
+
+    def get_categories(self, obj):
+        categories = [link.category for link in obj.card_categories.select_related('category').order_by('order', 'id')]
+        return CategorySerializer(categories, many=True, context=self.context).data
+
+    def _card_products(self, obj):
+        return [link.product for link in obj.card_products.select_related('product')]
+
+    def get_has_inactive_products(self, obj):
+        return any(not product.is_active for product in self._card_products(obj))
+
+    def get_inactive_product_names(self, obj):
+        return [product.name for product in self._card_products(obj) if not product.is_active]
 
 
 class HomeBannerSerializer(serializers.ModelSerializer):
@@ -902,3 +1073,28 @@ class CaseSerializer(serializers.ModelSerializer):
                 CaseDetailBlock.objects.create(case=instance, **block_data)
                 
         return instance
+
+
+class InventoryLogSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    sku_name = serializers.CharField(source='sku.name', read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    change_type_display = serializers.CharField(source='get_change_type_display', read_only=True)
+
+    class Meta:
+        model = InventoryLog
+        fields = [
+            'id',
+            'product',
+            'product_name',
+            'sku',
+            'sku_name',
+            'change_type',
+            'change_type_display',
+            'quantity',
+            'reason',
+            'created_by',
+            'created_by_username',
+            'created_at',
+        ]
+        read_only_fields = fields

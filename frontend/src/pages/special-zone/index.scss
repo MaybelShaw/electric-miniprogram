@@ -228,3 +228,54 @@
     }
   }
 }
+
+.special-zone {
+  background: linear-gradient(180deg, #edf3f7 0%, #f8fafc 45%, #f3f5f8 100%);
+
+  .activity-list-header {
+    padding: 42px 30px 24px;
+  }
+
+  .activity-list-title,
+  .zone-hero-title,
+  .section-title {
+    color: #203040;
+  }
+
+  .activity-card,
+  .zone-hero,
+  .scene-display,
+  .case-display {
+    border: 1px solid #e4edf6;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 14px 32px rgba(31, 65, 104, 0.08);
+    overflow: hidden;
+  }
+
+  .activity-card {
+    margin-bottom: 22px;
+  }
+
+  .activity-image.placeholder {
+    background: linear-gradient(135deg, #203040 0%, #4a7088 100%);
+    color: #ffffff;
+  }
+
+  .zone-hero {
+    margin: 20px;
+  }
+
+  .zone-hero-copy {
+    padding: 28px;
+  }
+
+  .scene-display,
+  .case-display {
+    margin: 0 20px 20px;
+  }
+
+  .product-display {
+    padding: 0 20px;
+  }
+}

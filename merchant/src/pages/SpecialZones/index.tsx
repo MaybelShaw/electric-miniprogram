@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ModalForm,
   ProFormDateTimePicker,
@@ -6,6 +6,7 @@ import {
   ProFormSelect,
   ProFormSwitch,
   ProFormText,
+  ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
@@ -29,6 +30,8 @@ import type { CurrentStoreContext, Product, SpecialZone, SpecialZoneProduct } fr
 import { getSelectedStoreId } from '@/utils/store';
 
 const kindOptions = {
+  platform_activity: { text: '平台活动', status: 'Processing' },
+  store_activity: { text: '店铺活动', status: 'Success' },
   activity: { text: '活动专区', status: 'Processing' },
   promotion: { text: '优惠专区', status: 'Success' },
   category: { text: '品类专区', status: 'Default' },
@@ -103,7 +106,7 @@ export default function SpecialZones() {
     form.resetFields();
     form.setFieldsValue({
       store_id: getDefaultStoreId(),
-      kind: 'activity',
+      kind: 'platform_activity',
       is_active: true,
       show_on_home: true,
       home_order: 0,
@@ -128,6 +131,8 @@ export default function SpecialZones() {
       is_active: record.is_active,
       start_at: record.start_at,
       end_at: record.end_at,
+      description: record.description,
+      rules: record.rules,
     });
     setModalVisible(true);
   };
@@ -164,7 +169,7 @@ export default function SpecialZones() {
         page: 1,
         page_size: 20,
         is_active: true,
-        store: targetZone.store,
+        ...(targetZone.kind === 'store_activity' ? { store: targetZone.store } : {}),
       });
       const products = getList<Product>(res);
       setProductOptions(products.map(product => ({ label: product.name, value: product.id })));
@@ -363,11 +368,11 @@ export default function SpecialZones() {
         }}
         search={{ labelWidth: 'auto', defaultCollapsed: false, collapseRender: false }}
         pagination={{ defaultPageSize: 10 }}
-        toolBarRender={() => [
+        toolBarRender={() => isPlatformAdmin ? [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新建专区
           </Button>,
-        ]}
+        ] : []}
       />
 
       <ModalForm
@@ -434,17 +439,13 @@ export default function SpecialZones() {
         <ProFormSelect
           name="kind"
           label="专区类型"
-          valueEnum={{
-            activity: '活动专区',
-            promotion: '优惠专区',
-            category: '品类专区',
-            brand: '品牌专区',
-            custom: '自定义专区',
-          }}
+          valueEnum={{ platform_activity: '平台活动', store_activity: '店铺活动', activity: '历史活动', promotion: '历史优惠专区', category: '历史品类专区', brand: '历史品牌专区', custom: '历史自定义专区' }}
           rules={[{ required: true, message: '请选择专区类型' }]}
           colProps={{ span: 12 }}
         />
         <ProFormText name="subtitle" label="副标题" colProps={{ span: 24 }} />
+        <ProFormTextArea name="description" label="活动说明" colProps={{ span: 24 }} />
+        <ProFormTextArea name="rules" label="活动规则" colProps={{ span: 24 }} />
         <ProFormDigit name="home_order" label="首页排序" min={0} fieldProps={{ precision: 0 }} colProps={{ span: 8 }} />
         <ProFormSwitch name="show_on_home" label="首页显示" colProps={{ span: 8 }} />
         <ProFormSwitch name="is_active" label="是否启用" colProps={{ span: 8 }} />

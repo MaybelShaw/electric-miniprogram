@@ -9,6 +9,8 @@ export const STORE_OPERATION_ROUTE_KEYS = new Set([
   '/admin/brands',
   '/admin/categories',
   '/admin/products',
+  '/admin/product-skus',
+  '/admin/inventory-logs',
   '/admin/orders',
   '/admin/invoices',
   '/admin/discounts',

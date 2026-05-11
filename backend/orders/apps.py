@@ -10,6 +10,7 @@ from django.utils import timezone
 class OrdersConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'orders'
+    verbose_name = '订单管理'
 
     def ready(self):
         if getattr(self, '_auto_cancel_started', False):

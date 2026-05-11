@@ -1,4 +1,4 @@
-import { Layout as AntLayout, Menu, Button, Badge, Select, notification } from 'antd';
+﻿import { Layout as AntLayout, Menu, Button, Badge, Select, notification } from 'antd';
 import {
   UserOutlined,
   TagOutlined,
@@ -18,6 +18,11 @@ import {
   CustomerServiceOutlined,
   BookOutlined,
   PartitionOutlined,
+  ShopOutlined,
+  TeamOutlined,
+  DatabaseOutlined,
+  FileSearchOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
@@ -31,23 +36,57 @@ import './index.css';
 const { Header, Sider, Content, Footer } = AntLayout;
 
 export const adminMenuItems = [
-  { key: '/admin/users', icon: <UserOutlined />, label: '用户管理' },
-  { key: '/admin/user-stats', icon: <BarChartOutlined />, label: '用户统计' },
-  { key: '/admin/sales-stats', icon: <RiseOutlined />, label: '销售统计' },
-  { key: '/admin/company-certification', icon: <SafetyCertificateOutlined />, label: '认证审核' },
-  { key: '/admin/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
-  { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
-  { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
-  { key: '/admin/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
-  { key: '/admin/special-zones', icon: <PartitionOutlined />, label: '动态专区' },
-  { key: '/admin/special-zone-covers', icon: <AppstoreAddOutlined />, label: '首页专区图片' },
-  { key: '/admin/cases', icon: <BookOutlined />, label: '案例管理' },
-  { key: '/admin/brands', icon: <TagOutlined />, label: '品牌管理' },
-  { key: '/admin/categories', icon: <AppstoreOutlined />, label: '分类管理' },
-  { key: '/admin/products', icon: <ShoppingOutlined />, label: '产品管理' },
-  { key: '/admin/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
-  { key: '/admin/invoices', icon: <FileTextOutlined />, label: '发票管理' },
-  { key: '/admin/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
+  {
+    key: '/admin/platform-group',
+    icon: <UserOutlined />,
+    label: '平台管理',
+    children: [
+      { key: '/admin/users', icon: <UserOutlined />, label: '用户管理' },
+      { key: '/admin/stores', icon: <ShopOutlined />, label: '店铺管理' },
+      { key: '/admin/store-members', icon: <TeamOutlined />, label: '店铺成员' },
+      { key: '/admin/user-stats', icon: <BarChartOutlined />, label: '用户统计' },
+      { key: '/admin/company-certification', icon: <SafetyCertificateOutlined />, label: '认证审核' },
+    ],
+  },
+  {
+    key: '/admin/operation-group',
+    icon: <AppstoreOutlined />,
+    label: '运营管理',
+    children: [
+      { key: '/admin/sales-stats', icon: <RiseOutlined />, label: '销售统计' },
+      { key: '/admin/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
+      { key: '/admin/special-zones', icon: <PartitionOutlined />, label: '活动管理' },
+      { key: '/admin/home-store-cards', icon: <AppstoreAddOutlined />, label: '首页卡片管理' },
+      { key: '/admin/cases', icon: <BookOutlined />, label: '案例管理' },
+      { key: '/admin/brands', icon: <TagOutlined />, label: '品牌管理' },
+      { key: '/admin/categories', icon: <AppstoreOutlined />, label: '分类管理' },
+      { key: '/admin/products', icon: <ShoppingOutlined />, label: '产品管理' },
+      { key: '/admin/product-skus', icon: <DatabaseOutlined />, label: 'SKU管理' },
+      { key: '/admin/media-images', icon: <PictureOutlined />, label: '媒体库' },
+      { key: '/admin/search-logs', icon: <FileSearchOutlined />, label: '搜索日志' },
+      { key: '/admin/inventory-logs', icon: <HistoryOutlined />, label: '库存日志' },
+    ],
+  },
+  {
+    key: '/admin/finance-group',
+    icon: <AccountBookOutlined />,
+    label: '账务管理',
+    children: [
+      { key: '/admin/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
+      { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
+      { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
+    ],
+  },
+  {
+    key: '/admin/order-group',
+    icon: <ShoppingCartOutlined />,
+    label: '订单辅助',
+    children: [
+      { key: '/admin/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
+      { key: '/admin/invoices', icon: <FileTextOutlined />, label: '发票管理' },
+      { key: '/admin/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
+    ],
+  },
 ];
 
 export const supportMenuItems = [
@@ -137,7 +176,13 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   };
 
   const visibleMenuItems = storeContext && !storeContext.is_platform_admin
-    ? menuItems.filter(item => STORE_OPERATION_ROUTE_KEYS.has(item.key))
+    ? menuItems
+      .map(item => {
+        if (!item.children) return STORE_OPERATION_ROUTE_KEYS.has(item.key) ? item : null;
+        const children = item.children.filter((child: any) => STORE_OPERATION_ROUTE_KEYS.has(child.key));
+        return children.length > 0 ? { ...item, children } : null;
+      })
+      .filter(Boolean)
     : menuItems;
   const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
 

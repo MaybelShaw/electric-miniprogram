@@ -1,4 +1,4 @@
-version: "3.9"
+﻿version: "3.9"
 
 services:
   db:
@@ -45,13 +45,12 @@ services:
     command: >
       bash -lc "pip install uv &&
                 uv sync &&
-                uv run python manage.py migrate &&
-                uv run python manage.py seed_test_data &&
-                uv run python manage.py seed_test_products --products 10 --skus 3 &&
-                uv run python manage.py recalc_sales_count &&
-                # uv run python manage.py reconcile_ylh_cancel_status &&
-                uv run python manage.py createsuperuser --noinput || true &&
-                uv run python manage.py runserver 0.0.0.0:8000"
+                .venv/bin/python manage.py migrate &&
+                .venv/bin/python manage.py seed_test_data &&
+                .venv/bin/python manage.py seed_test_products --products 10 --skus 3 &&
+                .venv/bin/python manage.py recalc_sales_count &&
+                (timeout 30s .venv/bin/python manage.py createsuperuser --noinput || true) &&
+                .venv/bin/python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     restart: unless-stopped

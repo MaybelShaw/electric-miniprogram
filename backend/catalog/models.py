@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from stores.models import get_main_store_pk
@@ -171,6 +172,7 @@ class Product(models.Model):
     # 图片字段 - 存储图片URL列表
     main_images = models.JSONField(default=list, blank=True, verbose_name='主图列表')
     detail_images = models.JSONField(default=list, blank=True, verbose_name='详情图列表')
+    specifications = models.JSONField(default=dict, blank=True, verbose_name='商品参数')
     product_image_url = models.URLField(max_length=500, blank=True, default='', verbose_name='海尔主图URL')
     product_page_urls = models.JSONField(default=list, blank=True, verbose_name='海尔拉页URL列表')
     
@@ -390,12 +392,16 @@ class MediaImage(models.Model):
 
 
 class SpecialZone(models.Model):
+    KIND_PLATFORM_ACTIVITY = 'platform_activity'
+    KIND_STORE_ACTIVITY = 'store_activity'
     KIND_ACTIVITY = 'activity'
     KIND_PROMOTION = 'promotion'
     KIND_CATEGORY = 'category'
     KIND_BRAND = 'brand'
     KIND_CUSTOM = 'custom'
     KIND_CHOICES = [
+        (KIND_PLATFORM_ACTIVITY, '平台活动'),
+        (KIND_STORE_ACTIVITY, '店铺活动'),
         (KIND_ACTIVITY, '活动专区'),
         (KIND_PROMOTION, '优惠专区'),
         (KIND_CATEGORY, '品类专区'),
@@ -417,6 +423,9 @@ class SpecialZone(models.Model):
     end_at = models.DateTimeField(null=True, blank=True, verbose_name='结束时间')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    description = models.TextField(blank=True, default='', verbose_name='活动说明')
+    rules = models.TextField(blank=True, default='', verbose_name='活动规则')
 
     class Meta:
         verbose_name = '动态运营专区'
@@ -474,8 +483,99 @@ class SpecialZoneProduct(models.Model):
         return f'{self.zone_id}:{self.product_id}'
 
     def clean(self):
-        if self.zone_id and self.product_id and self.zone.store_id != self.product.store_id:
+        if (
+            self.zone_id
+            and self.product_id
+            and self.zone.kind != SpecialZone.KIND_PLATFORM_ACTIVITY
+            and self.zone.store_id != self.product.store_id
+        ):
             raise ValidationError({'product': '专区商品必须属于同一店铺'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class HomeStoreCard(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey('stores.Store', on_delete=models.PROTECT, related_name='home_store_cards', verbose_name='店铺')
+    title = models.CharField(max_length=100, verbose_name='卡片标题')
+    subtitle = models.CharField(max_length=200, blank=True, default='', verbose_name='卡片副标题')
+    order = models.IntegerField(default=0, verbose_name='首页排序')
+    is_active = models.BooleanField(default=True, verbose_name='是否启用')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '首页店铺卡片'
+        verbose_name_plural = '首页店铺卡片'
+        ordering = ['order', 'id']
+        indexes = [
+            models.Index(fields=['is_active', 'order']),
+            models.Index(fields=['store', 'is_active']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+
+class HomeStoreCardProduct(models.Model):
+    ROLE_MAIN = 'main'
+    ROLE_SECONDARY = 'secondary'
+    ROLE_CHOICES = [
+        (ROLE_MAIN, '主推商品'),
+        (ROLE_SECONDARY, '副推商品'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    card = models.ForeignKey(HomeStoreCard, on_delete=models.CASCADE, related_name='card_products', verbose_name='首页店铺卡片')
+    product = models.ForeignKey('catalog.Product', on_delete=models.PROTECT, related_name='home_store_card_links', verbose_name='商品')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, verbose_name='商品角色')
+    order = models.IntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        verbose_name = '首页店铺卡片商品'
+        verbose_name_plural = '首页店铺卡片商品'
+        ordering = ['role', 'order', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['card', 'product'], name='unique_home_store_card_product'),
+        ]
+
+    def clean(self):
+        if self.card_id and self.product_id and self.card.store_id != self.product.store_id:
+            raise ValidationError({'product': '卡片商品必须属于绑定店铺'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class HomeStoreCardCategory(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    card = models.ForeignKey(HomeStoreCard, on_delete=models.CASCADE, related_name='card_categories', verbose_name='首页店铺卡片')
+    category = models.ForeignKey('catalog.Category', on_delete=models.PROTECT, related_name='home_store_card_links', verbose_name='一级分类')
+    order = models.IntegerField(default=0, verbose_name='排序')
+
+    class Meta:
+        verbose_name = '首页店铺卡片分类'
+        verbose_name_plural = '首页店铺卡片分类'
+        ordering = ['order', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['card', 'category'], name='unique_home_store_card_category'),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.card_id and self.category_id and self.card.store_id != self.category.store_id:
+            errors['category'] = '卡片分类必须属于绑定店铺'
+        if self.category_id and self.category.level != Category.LEVEL_MAJOR:
+            errors['category'] = '卡片分类必须是一级分类'
+        if self.category_id and not Product.objects.filter(store_id=self.category.store_id, is_active=True).filter(
+            Q(category=self.category) | Q(category__parent=self.category) | Q(category__parent__parent=self.category)
+        ).exists():
+            errors['category'] = '卡片分类下必须存在上架商品'
+        if errors:
+            raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
         self.full_clean()

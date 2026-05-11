@@ -4,6 +4,7 @@ from django.apps import AppConfig
 class CatalogConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'catalog'
+    verbose_name = '商品运营'
 
     def ready(self):
         from . import signals  # noqa: F401

@@ -11,6 +11,7 @@ import './index.scss'
 export default function StoreDetailPage() {
   const router = useRouter()
   const storeId = Number(router.params.id || router.params.store_id || 0)
+  const initialCategoryId = Number(router.params.category_id || 0) || undefined
   const [store, setStore] = useState<Store | null>(null)
   const [banners, setBanners] = useState<HomeBanner[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -19,6 +20,7 @@ export default function StoreDetailPage() {
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(initialCategoryId)
 
   useEffect(() => {
     if (!storeId) {
@@ -44,7 +46,7 @@ export default function StoreDetailPage() {
   const loadStoreDetail = async () => {
     setLoading(true)
     try {
-      const detail = await storeService.getStoreDetail(storeId)
+      const detail = await storeService.getStoreDetail(storeId, selectedCategoryId ? { category_id: selectedCategoryId } : undefined)
       setStore(detail.store)
       setBanners(detail.banners || [])
       setCategories(detail.categories || [])
@@ -80,10 +82,18 @@ export default function StoreDetailPage() {
     Taro.navigateTo({ url: `/pages/special-zone/index?zone_id=${zone.id}&store_id=${storeId}` })
   }
 
-  const goToCategory = (category: Category) => {
-    Taro.navigateTo({
-      url: `/pages/product-list/index?majorId=${category.id}&title=${encodeURIComponent(category.name)}&store=${storeId}`,
-    })
+  const goToCategory = async (category: Category) => {
+    const nextCategoryId = selectedCategoryId === category.id ? undefined : category.id
+    setSelectedCategoryId(nextCategoryId)
+    setLoading(true)
+    try {
+      const detail = await storeService.getStoreDetail(storeId, nextCategoryId ? { category_id: nextCategoryId } : undefined)
+      setProducts(detail.products || [])
+      setPage(1)
+      setHasMore((detail.products || []).length >= 20)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleBannerClick = (banner: HomeBanner) => {
@@ -142,7 +152,7 @@ export default function StoreDetailPage() {
             <View className='section-title'>店铺分类</View>
             <View className='category-row'>
               {categories.map(category => (
-                <View key={category.id} className='category-pill' onClick={() => goToCategory(category)}>
+                <View key={category.id} className={`category-pill ${selectedCategoryId === category.id ? 'active' : ''}`} onClick={() => goToCategory(category)}>
                   {category.name}
                 </View>
               ))}

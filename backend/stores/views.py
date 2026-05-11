@@ -2,6 +2,7 @@ from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+from django.db.models import Q
 
 from .models import Store, StoreMember, StorePaymentConfig, StoreSettlementRule
 from .permissions import get_accessible_stores, get_default_store, is_platform_admin
@@ -57,6 +58,15 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
         from catalog.serializers import CategorySerializer, HomeBannerSerializer, ProductSerializer, SpecialZoneSerializer
 
         context = self.get_serializer_context()
+        category_id = request.query_params.get("category_id")
+        products = Product.objects.filter(store=store, is_active=True).select_related("category", "brand").order_by("id")
+        if category_id:
+            products = products.filter(
+                Q(category_id=category_id)
+                | Q(category__parent_id=category_id)
+                | Q(category__parent__parent_id=category_id)
+            )
+
         return Response(
             {
                 "store": PublicStoreSerializer(store, context=context).data,
@@ -71,15 +81,15 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
                     context=context,
                 ).data,
                 "special_zones": SpecialZoneSerializer(
-                    SpecialZone.objects.filter(store=store, is_active=True, show_on_home=True).order_by("home_order", "id"),
+                    SpecialZone.objects.filter(
+                        store=store,
+                        kind__in=[SpecialZone.KIND_STORE_ACTIVITY, SpecialZone.KIND_ACTIVITY],
+                        is_active=True,
+                    ).order_by("home_order", "id"),
                     many=True,
                     context=context,
                 ).data,
-                "products": ProductSerializer(
-                    Product.objects.filter(store=store, is_active=True).select_related("category", "brand").order_by("id")[:20],
-                    many=True,
-                    context=context,
-                ).data,
+                "products": ProductSerializer(products[:20], many=True, context=context).data,
             }
         )
 

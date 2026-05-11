@@ -6,16 +6,18 @@ from catalog.models import Product
 
 class SupportConversation(models.Model):
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_conversations')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    first_contacted_at = models.DateTimeField(null=True, blank=True)
-    last_user_message_at = models.DateTimeField(null=True, blank=True)
-    last_user_entered_at = models.DateTimeField(null=True, blank=True)
-    last_support_message_at = models.DateTimeField(null=True, blank=True)
-    last_auto_reply_at = models.DateTimeField(null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_conversations', verbose_name='用户')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    first_contacted_at = models.DateTimeField(null=True, blank=True, verbose_name='首次联系时间')
+    last_user_message_at = models.DateTimeField(null=True, blank=True, verbose_name='用户最后消息时间')
+    last_user_entered_at = models.DateTimeField(null=True, blank=True, verbose_name='用户最后进入时间')
+    last_support_message_at = models.DateTimeField(null=True, blank=True, verbose_name='客服最后消息时间')
+    last_auto_reply_at = models.DateTimeField(null=True, blank=True, verbose_name='最后自动回复时间')
 
     class Meta:
+        verbose_name = '客服会话'
+        verbose_name_plural = '客服会话'
         ordering = ['-updated_at', '-id']
         indexes = [
             models.Index(fields=['user'], name='support_conv_user_idx'),
@@ -50,27 +52,29 @@ class SupportReplyTemplate(models.Model):
     ]
 
     id = models.BigAutoField(primary_key=True)
-    template_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_QUICK)
-    title = models.CharField(max_length=120)
-    content = models.TextField()
-    content_type = models.CharField(max_length=20, choices=CONTENT_CHOICES, default=CONTENT_TEXT)
-    content_payload = models.JSONField(default=dict, blank=True)
-    group_name = models.CharField(max_length=120, blank=True, default='')
-    is_pinned = models.BooleanField(default=False)
-    enabled = models.BooleanField(default=True)
-    trigger_event = models.CharField(max_length=20, choices=TRIGGER_CHOICES, null=True, blank=True)
-    idle_minutes = models.PositiveIntegerField(null=True, blank=True)
-    daily_limit = models.PositiveIntegerField(default=1)
-    user_cooldown_days = models.PositiveIntegerField(default=1)
-    apply_channels = models.JSONField(default=list, blank=True)
-    apply_user_tags = models.JSONField(default=list, blank=True)
-    usage_count = models.PositiveIntegerField(default=0)
-    last_used_at = models.DateTimeField(null=True, blank=True)
-    sort_order = models.PositiveIntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    template_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_QUICK, verbose_name='模板类型')
+    title = models.CharField(max_length=120, verbose_name='模板标题')
+    content = models.TextField(verbose_name='回复内容')
+    content_type = models.CharField(max_length=20, choices=CONTENT_CHOICES, default=CONTENT_TEXT, verbose_name='内容类型')
+    content_payload = models.JSONField(default=dict, blank=True, verbose_name='内容配置')
+    group_name = models.CharField(max_length=120, blank=True, default='', verbose_name='分组名称')
+    is_pinned = models.BooleanField(default=False, verbose_name='是否置顶')
+    enabled = models.BooleanField(default=True, verbose_name='是否启用')
+    trigger_event = models.CharField(max_length=20, choices=TRIGGER_CHOICES, null=True, blank=True, verbose_name='触发事件')
+    idle_minutes = models.PositiveIntegerField(null=True, blank=True, verbose_name='闲置分钟数')
+    daily_limit = models.PositiveIntegerField(default=1, verbose_name='每日发送上限')
+    user_cooldown_days = models.PositiveIntegerField(default=1, verbose_name='用户冷却天数')
+    apply_channels = models.JSONField(default=list, blank=True, verbose_name='适用渠道')
+    apply_user_tags = models.JSONField(default=list, blank=True, verbose_name='适用用户标签')
+    usage_count = models.PositiveIntegerField(default=0, verbose_name='使用次数')
+    last_used_at = models.DateTimeField(null=True, blank=True, verbose_name='最后使用时间')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='排序')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
 
     class Meta:
+        verbose_name = '客服回复模板'
+        verbose_name_plural = '客服回复模板'
         ordering = ['sort_order', 'id']
         indexes = [
             models.Index(fields=['template_type', 'enabled'], name='support_tpl_type_idx'),
@@ -80,20 +84,22 @@ class SupportReplyTemplate(models.Model):
 
 class SupportMessage(models.Model):
     id = models.BigAutoField(primary_key=True)
-    conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name='messages')
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_messages')
-    role = models.CharField(max_length=20, default='', db_index=True)
-    content = models.TextField(blank=True)
-    content_type = models.CharField(max_length=20, default=SupportReplyTemplate.CONTENT_TEXT)
-    content_payload = models.JSONField(default=dict, blank=True)
-    attachment = models.FileField(upload_to='support/attachments/%Y/%m/%d/', null=True, blank=True)
-    attachment_type = models.CharField(max_length=10, choices=[('image', 'image'), ('video', 'video')], null=True, blank=True, db_index=True)
-    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_messages')
-    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_messages')
-    template = models.ForeignKey(SupportReplyTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='messages')
-    created_at = models.DateTimeField(auto_now_add=True)
+    conversation = models.ForeignKey(SupportConversation, on_delete=models.CASCADE, related_name='messages', verbose_name='会话')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_messages', verbose_name='发送人')
+    role = models.CharField(max_length=20, default='', db_index=True, verbose_name='发送角色')
+    content = models.TextField(blank=True, verbose_name='消息内容')
+    content_type = models.CharField(max_length=20, default=SupportReplyTemplate.CONTENT_TEXT, verbose_name='内容类型')
+    content_payload = models.JSONField(default=dict, blank=True, verbose_name='内容配置')
+    attachment = models.FileField(upload_to='support/attachments/%Y/%m/%d/', null=True, blank=True, verbose_name='附件')
+    attachment_type = models.CharField(max_length=10, choices=[('image', '图片'), ('video', '视频')], null=True, blank=True, db_index=True, verbose_name='附件类型')
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_messages', verbose_name='关联订单')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_messages', verbose_name='关联商品')
+    template = models.ForeignKey(SupportReplyTemplate, on_delete=models.SET_NULL, null=True, blank=True, related_name='messages', verbose_name='关联模板')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
 
     class Meta:
+        verbose_name = '客服消息'
+        verbose_name_plural = '客服消息'
         ordering = ['created_at']
         indexes = [
             models.Index(fields=['conversation', 'created_at'], name='support_msg_conv_created_idx'),

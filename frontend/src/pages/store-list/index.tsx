@@ -34,7 +34,7 @@ export default function StoreListPage() {
 
   const goToStore = (store: Store) => {
     Taro.navigateTo({
-      url: `/pages/product-list/index?store=${store.id}&title=${encodeURIComponent(store.name)}`,
+      url: `/pages/store-detail/index?id=${store.id}`,
     })
   }
 

@@ -177,8 +177,11 @@ class ProductSearchService:
                 queryset = queryset.filter(
                     special_zone_links__zone_id=special_zone_id,
                     special_zone_links__is_active=True,
-                    special_zone_links__zone__store_id=F('store_id'),
                 ).distinct()
+                from .models import SpecialZone
+                zone = SpecialZone.objects.filter(id=special_zone_id).first()
+                if zone and zone.kind == SpecialZone.KIND_STORE_ACTIVITY:
+                    queryset = queryset.filter(store_id=zone.store_id)
             except (ValueError, TypeError):
                 queryset = queryset.none()
         

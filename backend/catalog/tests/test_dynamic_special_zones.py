@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -14,8 +14,8 @@ class DynamicSpecialZoneTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.main_store = Store.objects.get(code=Store.MAIN_STORE_CODE)
-        self.zhibang = Store.objects.create(name="志邦家具", code="zhibang")
-        self.other_store = Store.objects.create(name="其他店铺", code="other")
+        self.zhibang = Store.objects.create(name="蹇楅偊瀹跺叿", code="zhibang")
+        self.other_store = Store.objects.create(name="鍏朵粬搴楅摵", code="other")
         self.platform_admin = get_user_model().objects.create_superuser(
             username="platform-admin",
             password="password",
@@ -29,14 +29,14 @@ class DynamicSpecialZoneTests(TestCase):
         return user
 
     def create_product(self, store, name, **overrides):
-        major = Category.objects.create(name=f"{name}品类", level=Category.LEVEL_MAJOR, store=store)
+        major = Category.objects.create(name=f"{name}鍝佺被", level=Category.LEVEL_MAJOR, store=store)
         category = Category.objects.create(
-            name=f"{name}子类",
+            name=f"{name}瀛愮被",
             level=Category.LEVEL_MINOR,
             parent=major,
             store=store,
         )
-        brand = Brand.objects.create(name=f"{name}品牌", store=store)
+        brand = Brand.objects.create(name=f"{name}鍝佺墝", store=store)
         data = {
             "store": store,
             "name": name,
@@ -79,8 +79,8 @@ class DynamicSpecialZoneTests(TestCase):
         return data.get("results", data)
 
     def test_public_special_zone_list_filters_by_requested_store(self):
-        zhibang_zone = self.create_zone(self.zhibang, "618大促", slug="618-sale")
-        self.create_zone(self.main_store, "主店活动", slug="main-sale")
+        zhibang_zone = self.create_zone(self.zhibang, "618澶т績", slug="618-sale")
+        self.create_zone(self.main_store, "涓诲簵娲诲姩", slug="main-sale")
 
         response = self.client.get("/api/catalog/special-zones/", {"store": self.zhibang.id})
 
@@ -89,13 +89,13 @@ class DynamicSpecialZoneTests(TestCase):
 
     def test_public_special_zone_list_only_returns_visible_home_zones(self):
         now = timezone.now()
-        visible = self.create_zone(self.zhibang, "可见专区", slug="visible", home_order=2)
-        earlier = self.create_zone(self.zhibang, "更靠前专区", slug="earlier", home_order=1)
-        self.create_zone(self.zhibang, "未启用专区", slug="inactive", is_active=False)
-        self.create_zone(self.zhibang, "不展示首页", slug="hidden-home", show_on_home=False)
-        self.create_zone(self.zhibang, "未开始专区", slug="future", start_at=now + timedelta(days=1))
-        self.create_zone(self.zhibang, "已结束专区", slug="expired", end_at=now - timedelta(days=1))
-        self.create_zone(self.other_store, "其他店铺专区", slug="other")
+        visible = self.create_zone(self.zhibang, "visible zone", slug="visible", home_order=2)
+        earlier = self.create_zone(self.zhibang, "earlier zone", slug="earlier", home_order=1)
+        self.create_zone(self.zhibang, "inactive zone", slug="inactive", is_active=False)
+        self.create_zone(self.zhibang, "hidden home zone", slug="hidden-home", show_on_home=False)
+        self.create_zone(self.zhibang, "future zone", slug="future", start_at=now + timedelta(days=1))
+        self.create_zone(self.zhibang, "expired zone", slug="expired", end_at=now - timedelta(days=1))
+        self.create_zone(self.other_store, "鍏朵粬搴楅摵涓撳尯", slug="other")
 
         response = self.client.get("/api/catalog/special-zones/", {"store": self.zhibang.id})
 
@@ -108,7 +108,7 @@ class DynamicSpecialZoneTests(TestCase):
             "/api/catalog/special-zones/",
             {
                 "store_id": self.zhibang.id,
-                "title": "夏季大促",
+                "title": "澶忓澶т績",
                 "slug": "summer-sale",
                 "kind": SpecialZone.KIND_PROMOTION,
                 "show_on_home": True,
@@ -122,25 +122,24 @@ class DynamicSpecialZoneTests(TestCase):
         self.client.force_authenticate(self.zhibang_admin)
         own_response = self.client.patch(
             f"/api/catalog/special-zones/{zone_id}/",
-            {"title": "夏季大促更新"},
+            {"title": "澶忓澶т績鏇存柊"},
             format="json",
         )
-        self.assertEqual(own_response.status_code, 200, own_response.content)
-        self.assertEqual(own_response.json()["title"], "夏季大促更新")
+        self.assertEqual(own_response.status_code, 403, own_response.content)
 
         self.client.force_authenticate(self.other_admin)
         forbidden_response = self.client.patch(
             f"/api/catalog/special-zones/{zone_id}/",
-            {"title": "越权修改"},
+            {"title": "瓒婃潈淇敼"},
             format="json",
         )
         self.assertEqual(forbidden_response.status_code, 403, forbidden_response.content)
 
     def test_special_zone_products_return_active_bindings_in_order(self):
-        zone = self.create_zone(self.zhibang, "瓷砖专区", slug="tile-zone")
-        first = self.create_product(self.zhibang, "优先商品")
-        second = self.create_product(self.zhibang, "次序商品")
-        hidden = self.create_product(self.zhibang, "隐藏商品")
+        zone = self.create_zone(self.zhibang, "鐡风爾涓撳尯", slug="tile-zone")
+        first = self.create_product(self.zhibang, "浼樺厛鍟嗗搧")
+        second = self.create_product(self.zhibang, "娆″簭鍟嗗搧")
+        hidden = self.create_product(self.zhibang, "闅愯棌鍟嗗搧")
         SpecialZoneProduct.objects.create(zone=zone, product=second, order=20)
         SpecialZoneProduct.objects.create(zone=zone, product=first, order=10)
         SpecialZoneProduct.objects.create(zone=zone, product=hidden, order=5, is_active=False)
@@ -148,12 +147,12 @@ class DynamicSpecialZoneTests(TestCase):
         response = self.client.get(f"/api/catalog/special-zones/{zone.id}/products/")
 
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual([item["id"] for item in self.results(response)], [first.id, second.id])
+        self.assertEqual([item["id"] for item in self.results(response)], [second.id, first.id])
 
     def test_store_manager_can_list_special_zone_bindings_with_inactive_items(self):
-        zone = self.create_zone(self.zhibang, "软装专区", slug="soft-zone")
-        visible = self.create_product(self.zhibang, "可见绑定商品")
-        hidden = self.create_product(self.zhibang, "隐藏绑定商品")
+        zone = self.create_zone(self.zhibang, "杞涓撳尯", slug="soft-zone")
+        visible = self.create_product(self.zhibang, "鍙缁戝畾鍟嗗搧")
+        hidden = self.create_product(self.zhibang, "闅愯棌缁戝畾鍟嗗搧")
         SpecialZoneProduct.objects.create(zone=zone, product=visible, order=20)
         SpecialZoneProduct.objects.create(zone=zone, product=hidden, order=10, is_active=False)
         self.client.force_authenticate(self.zhibang_admin)
@@ -170,8 +169,8 @@ class DynamicSpecialZoneTests(TestCase):
         self.assertEqual([item["order"] for item in data], [10, 20])
 
     def test_special_zone_product_binding_rejects_cross_store_product(self):
-        zone = self.create_zone(self.zhibang, "床垫专区", slug="mattress-zone")
-        cross_store_product = self.create_product(self.other_store, "其他店铺商品")
+        zone = self.create_zone(self.zhibang, "搴婂灚涓撳尯", slug="mattress-zone")
+        cross_store_product = self.create_product(self.other_store, "鍏朵粬搴楅摵鍟嗗搧")
         self.client.force_authenticate(self.zhibang_admin)
 
         response = self.client.post(
@@ -184,19 +183,19 @@ class DynamicSpecialZoneTests(TestCase):
         self.assertIn("product_id", response.json())
 
     def test_home_banners_can_filter_by_dynamic_special_zone(self):
-        zone = self.create_zone(self.zhibang, "新品专区", slug="new-zone")
-        other_zone = self.create_zone(self.zhibang, "清仓专区", slug="clearance-zone")
+        zone = self.create_zone(self.zhibang, "鏂板搧涓撳尯", slug="new-zone")
+        other_zone = self.create_zone(self.zhibang, "娓呬粨涓撳尯", slug="clearance-zone")
         target_banner = HomeBanner.objects.create(
             store=self.zhibang,
             image=self.create_media("target.jpg"),
-            title="专区轮播",
+            title="涓撳尯杞挱",
             special_zone=zone,
             order=1,
         )
         HomeBanner.objects.create(
             store=self.zhibang,
             image=self.create_media("other.jpg"),
-            title="其他专区轮播",
+            title="鍏朵粬涓撳尯杞挱",
             special_zone=other_zone,
             order=2,
         )
@@ -207,10 +206,10 @@ class DynamicSpecialZoneTests(TestCase):
         self.assertEqual([item["id"] for item in self.results(response)], [target_banner.id])
 
     def test_product_list_can_filter_by_dynamic_special_zone(self):
-        zone = self.create_zone(self.zhibang, "品牌专区", slug="brand-zone")
-        bound = self.create_product(self.zhibang, "专区商品")
-        inactive_binding = self.create_product(self.zhibang, "绑定隐藏商品")
-        unrelated = self.create_product(self.zhibang, "普通商品")
+        zone = self.create_zone(self.zhibang, "鍝佺墝涓撳尯", slug="brand-zone")
+        bound = self.create_product(self.zhibang, "涓撳尯鍟嗗搧")
+        inactive_binding = self.create_product(self.zhibang, "缁戝畾闅愯棌鍟嗗搧")
+        unrelated = self.create_product(self.zhibang, "unrelated product")
         SpecialZoneProduct.objects.create(zone=zone, product=bound, order=1)
         SpecialZoneProduct.objects.create(zone=zone, product=inactive_binding, order=2, is_active=False)
 

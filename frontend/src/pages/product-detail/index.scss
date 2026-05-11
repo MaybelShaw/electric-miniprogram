@@ -150,6 +150,18 @@
       .price-wrapper {
         display: flex;
         align-items: baseline;
+        flex-wrap: wrap;
+
+        .price-badge {
+          align-self: center;
+          margin-right: 12px;
+          padding: 6px 12px;
+          border-radius: 8px;
+          background: #eef5ff;
+          color: #176b9f;
+          font-size: 22px;
+          font-weight: 600;
+        }
 
         .price-label {
           font-size: $font-size-lg;
@@ -211,6 +223,44 @@
           font-weight: 500;
         }
       }
+    }
+  }
+
+  .service-strip {
+    display: flex;
+    margin: 0 24px 24px;
+    padding: 24px 28px;
+    border: 1px solid #e4edf6;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ffffff 0%, #f3f8fc 100%);
+    box-shadow: 0 10px 28px rgba(28, 72, 113, 0.06);
+
+    .service-item {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .service-mark {
+      width: 36px;
+      height: 36px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: #203040;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 36px;
+      text-align: center;
+    }
+
+    .service-text {
+      font-size: 24px;
+      color: #314253;
+      font-weight: 600;
+      white-space: nowrap;
     }
   }
 
@@ -747,6 +797,42 @@
     }
     to {
       transform: translateY(0);
+    }
+  }
+}
+
+.product-detail {
+  background: linear-gradient(180deg, #edf3f7 0%, #f8fafc 42%, #f3f5f8 100%);
+
+  .product-info,
+  .specs-section,
+  .detail-section,
+  .recommend-section {
+    border: 1px solid #e4edf6;
+    border-radius: 16px;
+    box-shadow: 0 14px 32px rgba(31, 65, 104, 0.08);
+  }
+
+  .product-info .product-name,
+  .specs-section .section-title,
+  .detail-section .section-title .title-text,
+  .recommend-section .recommend-header .recommend-title .title-text {
+    color: #203040;
+  }
+
+  .footer-bar {
+    border-top: 1px solid #e4edf6;
+
+    .footer-right .action-btn {
+      border-radius: 12px;
+
+      &.cart-btn {
+        background: linear-gradient(135deg, #203040 0%, #4a7088 100%);
+      }
+
+      &.buy-btn {
+        background: linear-gradient(135deg, #b6452c 0%, #d8b66a 100%);
+      }
     }
   }
 }

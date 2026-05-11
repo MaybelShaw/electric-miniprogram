@@ -158,7 +158,7 @@ class MarketplaceStorePublicAPITest(TestCase):
             store=partner,
             title="Zhibang zone",
             slug="zhibang-zone",
-            kind=SpecialZone.KIND_BRAND,
+            kind=SpecialZone.KIND_STORE_ACTIVITY,
             show_on_home=True,
             is_active=True,
         )
@@ -167,7 +167,7 @@ class MarketplaceStorePublicAPITest(TestCase):
             store=other,
             title="Other zone",
             slug="other-zone",
-            kind=SpecialZone.KIND_BRAND,
+            kind=SpecialZone.KIND_STORE_ACTIVITY,
             show_on_home=True,
             is_active=True,
         )

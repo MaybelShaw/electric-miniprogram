@@ -103,8 +103,11 @@ export default function SpecialZone() {
   const loadActivityZones = async () => {
     setLoading(true)
     try {
-      const zones = await specialZoneService.getZones(routeStoreId)
-      setActivityZones(zones.filter(item => item.kind === 'activity' || item.kind === 'promotion'))
+      const [platformZones, storeZones] = await Promise.all([
+        specialZoneService.getZones(undefined, 'platform_activity'),
+        specialZoneService.getZones(undefined, 'store_activity'),
+      ])
+      setActivityZones([...platformZones, ...storeZones])
     } catch (error) {
       Taro.showToast({ title: '加载活动失败', icon: 'none' })
     } finally {

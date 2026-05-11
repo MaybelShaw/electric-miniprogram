@@ -94,3 +94,41 @@
     color: $text-color-secondary;
   }
 }
+
+.store-list-page {
+  background: linear-gradient(180deg, #edf3f7 0%, #f7f9fb 44%, #f3f5f8 100%);
+
+  .store-list {
+    padding: 24px 20px 40px;
+  }
+
+  .store-card {
+    border: 1px solid #e4edf6;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 16px 36px rgba(31, 65, 104, 0.1);
+  }
+
+  .store-cover {
+    height: 300px;
+    background: linear-gradient(135deg, #eff5fa 0%, #dbeaf3 100%);
+  }
+
+  .store-content {
+    padding: 26px 28px 30px;
+  }
+
+  .store-logo {
+    border: 1px solid #e4edf6;
+    border-radius: 12px;
+  }
+
+  .store-name {
+    color: #203040;
+    font-size: 34px;
+  }
+
+  .store-desc {
+    color: #667789;
+  }
+}

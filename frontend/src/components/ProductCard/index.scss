@@ -109,3 +109,32 @@
     }
   }
 }
+
+.product-card {
+  border: 1px solid #e4edf6;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(31, 65, 104, 0.08);
+
+  .product-image-wrapper {
+    background: linear-gradient(135deg, #f5f8fb 0%, #edf3f7 100%);
+  }
+
+  .product-info {
+    padding: 18px 18px 22px;
+
+    .product-name {
+      color: #203040;
+      font-weight: 600;
+
+      .product-tag {
+        background: #203040;
+        color: #d8b66a;
+      }
+    }
+
+    .product-bottom .price-wrapper {
+      color: #b6452c;
+    }
+  }
+}

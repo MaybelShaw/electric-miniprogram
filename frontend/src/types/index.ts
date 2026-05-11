@@ -132,7 +132,7 @@ export interface HomeBanner {
   product_name?: string
 }
 
-export type SpecialZoneKind = 'activity' | 'promotion' | 'category' | 'brand' | 'custom'
+export type SpecialZoneKind = 'platform_activity' | 'store_activity' | 'activity' | 'promotion' | 'category' | 'brand' | 'custom'
 
 export interface SpecialZone {
   id: number
@@ -146,10 +146,28 @@ export interface SpecialZone {
   is_active: boolean
   show_on_home: boolean
   home_order: number
+  description?: string
+  rules?: string
   start_at?: string | null
   end_at?: string | null
   created_at: string
   updated_at: string
+}
+
+export interface HomeStoreCard {
+  id: number
+  store: number
+  store_id?: number
+  store_name?: string
+  title: string
+  subtitle: string
+  order: number
+  is_active: boolean
+  main_product?: Product | null
+  secondary_products: Product[]
+  categories: Category[]
+  has_inactive_products: boolean
+  inactive_product_names: string[]
 }
 
 // 首页专区图片

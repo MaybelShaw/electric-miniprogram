@@ -3,7 +3,9 @@ import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@taroj
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
-import { Product, Category, Brand, HomeBanner, SpecialZoneCover } from '../../types'
+import { specialZoneService } from '../../services/special-zone'
+import { storeService } from '../../services/store'
+import { Product, Category, HomeBanner, HomeStoreCard, SpecialZoneCover, Store } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
 import ProductCard from '../../components/ProductCard'
@@ -14,8 +16,9 @@ function Home() {
   const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [majorCategories, setMajorCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
+  const [partnerStores, setPartnerStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
+  const [homeStoreCards, setHomeStoreCards] = useState<HomeStoreCard[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
   const [giftZoneCover, setGiftZoneCover] = useState<SpecialZoneCover | null>(null)
   const [designerZoneCover, setDesignerZoneCover] = useState<SpecialZoneCover | null>(null)
@@ -30,7 +33,8 @@ function Home() {
     loadBanners(storeId)
     loadSpecialZoneCovers(storeId)
     loadCategories(storeId)
-    loadBrands(storeId)
+    loadPartnerStores()
+    loadHomeStoreCards(storeId)
     loadProducts(1, storeId)
 
     Taro.showShareMenu({
@@ -100,23 +104,21 @@ function Home() {
     }
   }
 
-  const loadBrands = async (storeId?: string) => {
+  const loadPartnerStores = async () => {
     try {
-      if (!storeId) {
-        const cached = Storage.get<Brand[]>(CACHE_KEYS.BRANDS)
-        if (cached) {
-          setBrands(cached)
-          return
-        }
-      }
-
-      const data = await productService.getBrands(storeId ? { store: storeId } : undefined)
-      setBrands(data)
-      if (!storeId) {
-        Storage.set(CACHE_KEYS.BRANDS, data, 24 * 60 * 60 * 1000)
-      }
+      const data = await storeService.getPartnerStores({ page: 1, page_size: 8 })
+      setPartnerStores(data.results || [])
     } catch (error) {
       // 静默失败
+    }
+  }
+
+  const loadHomeStoreCards = async (storeId?: string) => {
+    try {
+      const data = await specialZoneService.getHomeStoreCards(storeId ? { store: storeId } : undefined)
+      setHomeStoreCards(data)
+    } catch (error) {
+      setHomeStoreCards([])
     }
   }
 
@@ -145,6 +147,7 @@ function Home() {
     const storeId = router.params?.store_id || router.params?.store
     loadBanners(storeId, true)
     loadSpecialZoneCovers(storeId)
+    loadHomeStoreCards(storeId)
     loadProducts(1, storeId)
   }
 
@@ -180,8 +183,22 @@ function Home() {
     Taro.eventCenter.trigger('selectCategory', category)
   }
 
-  const goToBrand = (brand: string) => {
-    Taro.navigateTo({ url: `/pages/brand/index?brand=${encodeURIComponent(brand)}` })
+  const goToStore = (store: Store) => {
+    Taro.navigateTo({ url: `/pages/store-detail/index?id=${store.id}` })
+  }
+
+  const goToCardStore = (card: HomeStoreCard, categoryId?: number) => {
+    Taro.navigateTo({
+      url: `/pages/store-detail/index?id=${card.store}${categoryId ? `&category_id=${categoryId}` : ''}`,
+    })
+  }
+
+  const goToCardProduct = (product: Product) => {
+    if (!product.is_active) {
+      Taro.showModal({ title: '商品已下架', content: '该商品已下架，请联系管理员更新', showCancel: false })
+      return
+    }
+    Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}` })
   }
 
   const goToSpecialZone = (type: 'gift' | 'designer' | 'best_seller', title: string) => {
@@ -202,7 +219,7 @@ function Home() {
   }
 
   const goToAllBrands = () => {
-    Taro.navigateTo({ url: '/pages/brand-list/index' })
+    Taro.navigateTo({ url: '/pages/store-list/index' })
   }
 
   return (
@@ -249,7 +266,37 @@ function Home() {
           </View>
         </View>
 
-        <View className='special-zones'>
+        {homeStoreCards.map(card => (
+          <View key={card.id} className='home-store-card'>
+            <View className='home-store-card-header' onClick={() => goToCardStore(card)}>
+              <View className='home-store-card-title'>{card.title}</View>
+              {!!card.subtitle && <View className='home-store-card-subtitle'>{card.subtitle}</View>}
+            </View>
+            {card.main_product && (
+              <View className='home-store-main-product' onClick={() => goToCardProduct(card.main_product as Product)}>
+                <Image className='home-store-main-image' src={resolveLocalMediaUrl(card.main_product.main_images?.[0])} mode='aspectFill' />
+                <View className='home-store-main-name'>{card.main_product.name}</View>
+              </View>
+            )}
+            <View className='home-store-secondary-grid'>
+              {(card.secondary_products || []).map(product => (
+                <View key={product.id} className='home-store-secondary-product' onClick={() => goToCardProduct(product)}>
+                  <Image className='home-store-secondary-image' src={resolveLocalMediaUrl(product.main_images?.[0])} mode='aspectFill' />
+                  <View className='home-store-secondary-name'>{product.name}</View>
+                </View>
+              ))}
+            </View>
+            <View className='home-store-category-row'>
+              {(card.categories || []).map(category => (
+                <View key={category.id} className='home-store-category-pill' onClick={() => goToCardStore(card, category.id)}>
+                  {category.name}
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {false && <View className='special-zones'>
           <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
             {giftZoneCover?.image_url && (
               <Image className='zone-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
@@ -268,9 +315,9 @@ function Home() {
               <View className='zone-subtitle'>场景灵感</View>
             </View>
           </View>
-        </View>
+        </View>}
 
-        <View className='special-zones'>
+        {false && <View className='special-zones'>
           <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
             {bestSellerZoneCover?.image_url && (
               <Image className='zone-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='aspectFill' />
@@ -280,7 +327,7 @@ function Home() {
               <View className='zone-subtitle'>热销好物</View>
             </View>
           </View>
-        </View>
+        </View>}
 
         {majorCategories.length > 0 && (
           <View className='category-nav'>
@@ -303,17 +350,21 @@ function Home() {
           </View>
         )}
 
-        {brands.length > 0 && (
+        {partnerStores.length > 0 && (
           <View className='brand-section'>
             <View className='section-header-row'>
               <View className='section-title'>品牌专区</View>
               <View className='more-btn' onClick={goToAllBrands}>更多 {'>'}</View>
             </View>
             <View className='brand-grid'>
-              {brands.slice(0, 4).map(brand => (
-                <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
-                  <Image className='brand-logo' src={resolveLocalMediaUrl(brand.logo)} mode='aspectFit' />
-                  <View className='brand-name'>{brand.name}</View>
+              {partnerStores.slice(0, 4).map(store => (
+                <View key={store.id} className='brand-item' onClick={() => goToStore(store)}>
+                  {store.logo ? (
+                    <Image className='brand-logo' src={resolveLocalMediaUrl(store.logo)} mode='aspectFit' />
+                  ) : (
+                    <View className='brand-logo brand-logo-placeholder'>{store.name.charAt(0)}</View>
+                  )}
+                  <View className='brand-name'>{store.name}</View>
                 </View>
               ))}
             </View>

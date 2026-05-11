@@ -22,6 +22,7 @@ export const updateStore = (id: number, data: any) => request.patch(`/stores/${i
 export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
 export const createStoreMember = (data: any) => request.post('/stores/members/', data);
 export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
+export const deleteStoreMember = (id: number) => request.delete(`/stores/members/${id}/`);
 
 // 用户管理
 export const getUsers = (params?: any) => request.get('/users/', { params });
@@ -58,6 +59,15 @@ export const createProduct = (data: any) => request.post('/catalog/products/', w
 export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
 export const exportProducts = (params?: any) => request.get('/catalog/products/export/', { params, responseType: 'blob' });
+export const getProductActivities = (id: number) => request.get(`/catalog/products/${id}/activities/`);
+export const updateProductActivities = (id: number, activityIds: number[]) =>
+  request.put(`/catalog/products/${id}/activities/`, { activity_ids: activityIds });
+export const getProductSkus = (params?: any) => request.get('/catalog/product-skus/', { params });
+export const createProductSku = (data: any) => request.post('/catalog/product-skus/', data);
+export const updateProductSku = (id: number, data: any) => request.patch(`/catalog/product-skus/${id}/`, data);
+export const deleteProductSku = (id: number) => request.delete(`/catalog/product-skus/${id}/`);
+export const getInventoryLogs = (params?: any) => request.get('/catalog/inventory-logs/', { params });
+export const getSearchLogs = (params?: any) => request.get('/catalog/search-logs/', { params });
 export const getHaierProducts = (productCodes: string) => request.get('/haier/api/products/', { params: { product_codes: productCodes } });
 export const getHaierStock = (productCode: string, countyCode: string = '110101') => request.get('/haier/api/stock/', { params: { product_code: productCode, county_code: countyCode } });
 export const getHaierPrices = (productCodes: string) => request.get('/haier/api/prices/', { params: { product_codes: productCodes } });
@@ -77,6 +87,8 @@ export const uploadImage = (file: File, productId?: number, fieldName?: string) 
   
   return request.post('/catalog/media-images/', formData);
 };
+export const getMediaImages = (params?: any) => request.get('/catalog/media-images/', { params });
+export const deleteMediaImage = (id: number) => request.delete(`/catalog/media-images/${id}/`);
 
 // 订单管理
 export const getOrders = (params?: any) => request.get('/orders/', { params });
@@ -193,6 +205,11 @@ export const updateSpecialZoneProduct = (zoneId: number, productId: number, data
   request.post(`/catalog/special-zones/${zoneId}/products/`, { product_id: productId, ...data });
 export const removeSpecialZoneProduct = (zoneId: number, productId: number) =>
   request.delete(`/catalog/special-zones/${zoneId}/products/`, { data: { product_id: productId } });
+
+export const getHomeStoreCards = (params?: any) => request.get('/catalog/home-store-cards/', { params });
+export const createHomeStoreCard = (data: any) => request.post('/catalog/home-store-cards/', data);
+export const updateHomeStoreCard = (id: number, data: any) => request.patch(`/catalog/home-store-cards/${id}/`, data);
+export const deleteHomeStoreCard = (id: number) => request.delete(`/catalog/home-store-cards/${id}/`);
 
 // 案例管理
 export const getCases = (params?: any) => request.get('/catalog/cases/', { params });

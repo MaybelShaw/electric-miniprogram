@@ -318,6 +318,7 @@ export default function ProductDetail() {
   const displayPrice = currentSku ? skuFinalPrice : productFinalPrice
   // 只有当最终展示价格小于原价时，才显示划线价
   const hasDiscount = displayPrice < currentBasePrice
+  const priceTier = product.dealer_price ? '经销价' : hasDiscount ? '活动价' : '零售价'
 
   const selectedSpecText = currentSku?.specs ? Object.values(currentSku.specs).join(' / ') : ''
 
@@ -384,6 +385,7 @@ export default function ProductDetail() {
           )}
           <View className='product-price-row'>
             <View className='price-wrapper'>
+              <Text className='price-badge'>{priceTier}</Text>
               <Text className='price-label'>¥</Text>
               <Text className='price'>
                  {Number(displayPrice || 0).toFixed(2)}
@@ -407,6 +409,21 @@ export default function ProductDetail() {
               <Text className='meta-label'>分类</Text>
               <Text className='meta-value'>{product.category}</Text>
             </View>
+          </View>
+        </View>
+
+        <View className='service-strip'>
+          <View className='service-item'>
+            <Text className='service-mark'>正</Text>
+            <Text className='service-text'>正品保障</Text>
+          </View>
+          <View className='service-item'>
+            <Text className='service-mark'>装</Text>
+            <Text className='service-text'>配送安装</Text>
+          </View>
+          <View className='service-item'>
+            <Text className='service-mark'>售</Text>
+            <Text className='service-text'>售后无忧</Text>
           </View>
         </View>
 

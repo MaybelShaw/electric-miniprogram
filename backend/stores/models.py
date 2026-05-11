@@ -36,43 +36,46 @@ class Store(models.Model):
     TYPE_PARTNER = "partner"
     TYPE_SUPPLIER = "supplier"
     TYPE_CHOICES = [
-        (TYPE_SELF_OPERATED, "Self operated"),
-        (TYPE_PARTNER, "Partner"),
-        (TYPE_SUPPLIER, "Supplier"),
+        (TYPE_SELF_OPERATED, "自营店铺"),
+        (TYPE_PARTNER, "合作方店铺"),
+        (TYPE_SUPPLIER, "供应商"),
     ]
 
     STATUS_ACTIVE = "active"
     STATUS_DISABLED = "disabled"
     STATUS_CHOICES = [
-        (STATUS_ACTIVE, "Active"),
-        (STATUS_DISABLED, "Disabled"),
+        (STATUS_ACTIVE, "启用"),
+        (STATUS_DISABLED, "停用"),
     ]
 
     id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=100, verbose_name="Store name")
-    code = models.SlugField(max_length=64, unique=True, verbose_name="Store code")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-    is_main = models.BooleanField(default=False)
-    store_type = models.CharField(max_length=32, choices=TYPE_CHOICES, default=TYPE_SELF_OPERATED)
+    name = models.CharField(max_length=100, verbose_name="店铺名称")
+    code = models.SlugField(max_length=64, unique=True, verbose_name="店铺编码")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name="状态")
+    is_main = models.BooleanField(default=False, verbose_name="是否主店")
+    store_type = models.CharField(max_length=32, choices=TYPE_CHOICES, default=TYPE_SELF_OPERATED, verbose_name="店铺类型")
     platform_store = models.ForeignKey(
         "self",
         null=True,
         blank=True,
         on_delete=models.PROTECT,
         related_name="partner_stores",
+        verbose_name="所属平台店铺",
     )
-    logo = models.CharField(max_length=512, blank=True, default="")
-    cover_image = models.CharField(max_length=512, blank=True, default="")
-    description = models.TextField(blank=True, default="")
-    show_on_home = models.BooleanField(default=False)
-    home_order = models.IntegerField(default=0)
-    contact_phone = models.CharField(max_length=32, blank=True, default="")
-    address = models.CharField(max_length=255, blank=True, default="")
-    allow_haier = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    logo = models.CharField(max_length=512, blank=True, default="", verbose_name="店铺Logo")
+    cover_image = models.CharField(max_length=512, blank=True, default="", verbose_name="封面图")
+    description = models.TextField(blank=True, default="", verbose_name="店铺简介")
+    show_on_home = models.BooleanField(default=False, verbose_name="首页展示")
+    home_order = models.IntegerField(default=0, verbose_name="首页排序")
+    contact_phone = models.CharField(max_length=32, blank=True, default="", verbose_name="联系电话")
+    address = models.CharField(max_length=255, blank=True, default="", verbose_name="地址")
+    allow_haier = models.BooleanField(default=False, verbose_name="启用海尔能力")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
+        verbose_name = "店铺"
+        verbose_name_plural = "店铺"
         ordering = ["-is_main", "id"]
         constraints = [
             models.UniqueConstraint(
@@ -91,13 +94,13 @@ class Store(models.Model):
     def clean(self):
         errors = {}
         if self.is_main and self.store_type != self.TYPE_SELF_OPERATED:
-            errors["store_type"] = "The main platform store must be self operated."
+            errors["store_type"] = "主店必须是自营店铺。"
         if self.platform_store_id and self.platform_store_id == self.id:
-            errors["platform_store"] = "A store cannot belong to itself."
+            errors["platform_store"] = "店铺不能归属于自身。"
         if self.store_type == self.TYPE_PARTNER and not self.platform_store_id:
-            errors["platform_store"] = "Partner stores must belong to a platform store."
+            errors["platform_store"] = "合作方店铺必须归属于一个平台店铺。"
         if self.allow_haier and not self.is_main:
-            errors["allow_haier"] = "Only the main store can enable Haier capability."
+            errors["allow_haier"] = "只有主店可以启用海尔能力。"
         if errors:
             raise ValidationError(errors)
 
@@ -114,27 +117,29 @@ class StoreMember(models.Model):
     ROLE_STORE_ADMIN = "store_admin"
     ROLE_STORE_STAFF = "store_staff"
     ROLE_CHOICES = [
-        (ROLE_PLATFORM_ADMIN, "Platform admin"),
-        (ROLE_STORE_ADMIN, "Store admin"),
-        (ROLE_STORE_STAFF, "Store staff"),
+        (ROLE_PLATFORM_ADMIN, "平台管理员"),
+        (ROLE_STORE_ADMIN, "店铺管理员"),
+        (ROLE_STORE_STAFF, "店铺运营"),
     ]
 
     STATUS_ACTIVE = "active"
     STATUS_DISABLED = "disabled"
     STATUS_CHOICES = [
-        (STATUS_ACTIVE, "Active"),
-        (STATUS_DISABLED, "Disabled"),
+        (STATUS_ACTIVE, "启用"),
+        (STATUS_DISABLED, "停用"),
     ]
 
     id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="store_memberships")
-    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name="members")
-    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_STORE_STAFF)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="store_memberships", verbose_name="用户")
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name="members", verbose_name="店铺")
+    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_STORE_STAFF, verbose_name="成员角色")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name="状态")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
     class Meta:
+        verbose_name = "店铺成员"
+        verbose_name_plural = "店铺成员"
         unique_together = [("user", "store")]
         indexes = [
             models.Index(fields=["user", "status"]),
@@ -151,12 +156,16 @@ class StoreMember(models.Model):
 
 class StorePaymentConfig(models.Model):
     id = models.BigAutoField(primary_key=True)
-    store = models.OneToOneField(Store, on_delete=models.PROTECT, related_name="payment_config")
-    wechat_mch_id = models.CharField(max_length=64, blank=True, default="")
-    wechat_sub_mch_id = models.CharField(max_length=64, blank=True, default="")
-    is_active = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    store = models.OneToOneField(Store, on_delete=models.PROTECT, related_name="payment_config", verbose_name="店铺")
+    wechat_mch_id = models.CharField(max_length=64, blank=True, default="", verbose_name="微信商户号")
+    wechat_sub_mch_id = models.CharField(max_length=64, blank=True, default="", verbose_name="微信子商户号")
+    is_active = models.BooleanField(default=False, verbose_name="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "店铺支付配置"
+        verbose_name_plural = "店铺支付配置"
 
     def __str__(self):
         return f"PaymentConfig#{self.store_id}"
@@ -164,12 +173,16 @@ class StorePaymentConfig(models.Model):
 
 class StoreSettlementRule(models.Model):
     id = models.BigAutoField(primary_key=True)
-    store = models.OneToOneField(Store, on_delete=models.PROTECT, related_name="settlement_rule")
-    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"))
-    settlement_cycle_days = models.PositiveIntegerField(default=7)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    store = models.OneToOneField(Store, on_delete=models.PROTECT, related_name="settlement_rule", verbose_name="店铺")
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0.00"), verbose_name="佣金比例")
+    settlement_cycle_days = models.PositiveIntegerField(default=7, verbose_name="结算周期天数")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "店铺结算规则"
+        verbose_name_plural = "店铺结算规则"
 
     def __str__(self):
         return f"SettlementRule#{self.store_id}"

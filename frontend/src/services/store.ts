@@ -6,7 +6,7 @@ export const storeService = {
     return http.get<PaginatedResponse<Store>>('/stores/public/partners/', params, false)
   },
 
-  async getStoreDetail(id: number | string): Promise<PublicStoreDetail> {
-    return http.get<PublicStoreDetail>(`/stores/public/${id}/detail/`, undefined, false)
+  async getStoreDetail(id: number | string, params?: { category_id?: number }): Promise<PublicStoreDetail> {
+    return http.get<PublicStoreDetail>(`/stores/public/${id}/detail/`, params, false)
   },
 }

@@ -79,6 +79,7 @@ export interface Product {
   stock: number;
   main_images?: string[];
   detail_images?: string[];
+  specifications?: Record<string, string | number | boolean>;
   is_active: boolean;
   sales_count?: number;
   view_count?: number;
@@ -105,18 +106,71 @@ export interface Product {
   store?: number;
 }
 
+export interface ProductSKU {
+  id: number;
+  product: number;
+  product_id?: number;
+  product_name: string;
+  name: string;
+  sku_code: string;
+  specs: Record<string, string | number | boolean>;
+  price: string | number;
+  display_price?: string | number;
+  discounted_price?: string | number;
+  stock: number;
+  image: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MediaImage {
+  id: number;
+  file?: string;
+  url: string;
+  original_name: string;
+  content_type: string;
+  size: number;
+  created_at: string;
+}
+
+export interface SearchLog {
+  id: number;
+  keyword: string;
+  user_id?: number | null;
+  username?: string | null;
+  created_at: string;
+}
+
+export interface InventoryLog {
+  id: number;
+  product: number;
+  product_name: string;
+  sku?: number | null;
+  sku_name?: string | null;
+  change_type: 'lock' | 'release' | 'adjust';
+  change_type_display: string;
+  quantity: number;
+  reason: string;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
 export interface SpecialZone {
   id: number;
   store: number;
   store_id?: number;
   title: string;
   slug: string;
-  kind: 'activity' | 'promotion' | 'category' | 'brand' | 'custom';
+  kind: 'platform_activity' | 'store_activity' | 'activity' | 'promotion' | 'category' | 'brand' | 'custom';
   subtitle: string;
   cover_image: string;
   is_active: boolean;
   show_on_home: boolean;
   home_order: number;
+  description?: string;
+  rules?: string;
   start_at: string | null;
   end_at: string | null;
   created_at: string;
@@ -131,6 +185,30 @@ export interface SpecialZoneProduct {
   is_active: boolean;
   order: number;
   created_at: string;
+}
+
+export interface ProductActivities {
+  available: SpecialZone[];
+  selected: SpecialZone[];
+  can_edit: boolean;
+}
+
+export interface HomeStoreCard {
+  id: number;
+  store: number;
+  store_id?: number;
+  store_name?: string;
+  title: string;
+  subtitle: string;
+  order: number;
+  is_active: boolean;
+  main_product?: Product | null;
+  secondary_products: Product[];
+  categories: Category[];
+  has_inactive_products: boolean;
+  inactive_product_names: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface HaierOrderInfo {

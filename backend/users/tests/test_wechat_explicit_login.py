@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -20,6 +21,7 @@ class WeChatExplicitLoginTests(TestCase):
     url = "/api/wechat/explicit-login/"
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
 
     @patch("users.views.requests.get")
@@ -100,6 +102,7 @@ class WeChatExplicitLoginDevelopmentTests(TestCase):
     url = "/api/wechat/explicit-login/"
 
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
 
     def test_debug_mode_without_wechat_credentials_simulates_phone_login(self):
