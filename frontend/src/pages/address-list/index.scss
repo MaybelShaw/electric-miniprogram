@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .address-list {
   min-height: 100vh;
@@ -13,7 +13,8 @@
   }
 
   .address-item {
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     padding: $spacing-lg;
     margin-bottom: $spacing-md;
@@ -24,7 +25,7 @@
 
     &:active {
       transform: scale(0.99);
-      box-shadow: $shadow-sm;
+      box-shadow: $shadow-md;
     }
 
     .address-info {
@@ -52,12 +53,13 @@
 
         .default-tag {
           padding: 4px $spacing-sm;
-          background: linear-gradient(135deg, $warning-color 0%, $danger-color 100%);
-          color: $white;
+          background: rgba($danger-color, 0.1);
+          color: $danger-color;
           font-size: $font-size-xs;
-          border-radius: $border-radius-max;
+          border-radius: $border-radius-sm;
           font-weight: 500;
-          box-shadow: 0 2px 8px rgba($danger-color, 0.2);
+          border: 1px solid rgba($danger-color, 0.22);
+          box-shadow: none;
           flex-shrink: 0;
         }
       }
@@ -84,7 +86,7 @@
 
       .action-btn {
         padding: 12px $spacing-lg;
-        background: $white;
+        background: $brand-paper;
         border: 1px solid $border-color;
         border-radius: $border-radius-lg;
         font-size: $font-size-sm;
@@ -119,29 +121,30 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: $white;
+    background: rgba($brand-paper, 0.97);
+    border-top: 1px solid $border-color;
     padding: $spacing-sm $spacing-lg;
     padding-bottom: calc($spacing-sm + env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+    box-shadow: $shadow-top;
     z-index: 100;
 
     .add-btn {
       width: 100%;
       height: 88px;
-      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      background: $brand-ink;
       color: $white;
       font-size: $font-size-lg;
       font-weight: 600;
-      border-radius: 44px;
+      border-radius: $border-radius-md;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 8px 20px rgba($primary-color, 0.3);
+      box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
       transition: all 0.3s;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 4px 10px rgba($primary-color, 0.3);
+        background: darken-c($brand-ink, 3%);
       }
 
       .icon-add {

@@ -1,11 +1,11 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: $background-color-base;
+  background: $background-color-base;
 
   .message-list {
     flex: 1;
@@ -19,7 +19,7 @@
       .time-text {
         font-size: $font-size-sm;
         color: $text-color-secondary;
-        background-color: rgba(0,0,0,0.05);
+        background-color: rgba($secondary-color, 0.14);
         padding: 4px $spacing-sm;
         border-radius: $border-radius-sm;
       }
@@ -77,11 +77,12 @@
           }
 
           .reply-card {
-            background: $white;
+            background: $showroom-surface;
             border-radius: $border-radius-md;
             overflow: hidden;
             width: 440px;
-            box-shadow: $shadow-sm;
+            box-shadow: none;
+            border: 1px solid $border-color;
             display: flex;
             flex-direction: column;
 
@@ -118,11 +119,12 @@
           }
 
           .message-card {
-            background: $white;
+            background: $showroom-surface;
             border-radius: $border-radius-md;
             padding: $spacing-md;
             width: 440px;
-            box-shadow: $shadow-sm;
+            box-shadow: none;
+            border: 1px solid $border-color;
             transition: all 0.3s ease;
             
             &:active {
@@ -254,7 +256,7 @@
         
         .avatar {
           margin-left: $spacing-md;
-          background-color: $primary-color;
+          background: $brand-ink;
           color: $white;
         }
         
@@ -262,7 +264,7 @@
           align-items: flex-end;
           
           .bubble {
-            background-color: $primary-color;
+            background: $brand-ink;
             color: $white;
             border-top-right-radius: $border-radius-sm;
           }
@@ -280,7 +282,7 @@
           align-items: flex-start;
           
           .bubble {
-            background-color: $white;
+            background: $showroom-surface;
             color: $text-color-base;
             border-top-left-radius: $border-radius-sm;
           }
@@ -295,7 +297,7 @@
     left: 0;
     right: 0;
     z-index: 999;
-    background-color: $background-color-base;
+    background-color: rgba($brand-paper, 0.97);
     border-top: 1px solid $border-color-light;
     padding-bottom: env(safe-area-inset-bottom);
 
@@ -304,15 +306,23 @@
     }
   }
 
+  .bottom-anchor {
+    height: calc(120rpx + env(safe-area-inset-bottom));
+
+    &.with-panel {
+      height: calc(320px + 120rpx + env(safe-area-inset-bottom));
+    }
+  }
+
   .input-area {
-    background-color: $background-color-base;
+    background-color: $showroom-surface-warm;
     padding: $spacing-xs $spacing-sm;
     display: flex;
     align-items: center;
     
     .chat-input {
       flex: 1;
-      background-color: $white;
+      background-color: $brand-paper;
       border-radius: $border-radius-sm;
       padding: $spacing-xs $spacing-sm;
       min-height: 72px;
@@ -347,10 +357,10 @@
       height: 60px;
       padding: 0 24px;
       margin-left: $spacing-sm;
-      background: $primary-color;
+      background: $brand-ink;
       color: $white;
       font-size: $font-size-md;
-      border-radius: 30px;
+      border-radius: $border-radius-md;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -359,14 +369,14 @@
       transition: all 0.2s;
 
       &:active {
-        background: darken-c($primary-color, 10%);
+        background: darken-c($brand-ink, 3%);
       }
     }
   }
 
   .action-panel {
     height: 320px;
-    background-color: $background-color-base;
+    background-color: $showroom-surface;
     padding: $spacing-md $spacing-sm;
     display: flex;
     flex-wrap: wrap;
@@ -384,13 +394,14 @@
       .icon-wrapper {
         width: 110px;
         height: 110px;
-        background-color: $white;
+        background-color: $showroom-surface-warm;
         border-radius: $border-radius-lg;
+        border: 1px solid $border-color;
         display: flex;
         align-items: center;
         justify-content: center;
         margin-bottom: $spacing-xs;
-        box-shadow: $shadow-sm;
+        box-shadow: none;
         
         .action-icon {
           width: 32px;

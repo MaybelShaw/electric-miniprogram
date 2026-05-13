@@ -1,0 +1,59 @@
+@use '../../styles/variables.scss' as *;
+
+.app-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: $showroom-surface;
+  border: 1px solid $border-color;
+}
+
+.app-icon-image {
+  width: 62%;
+  height: 62%;
+  display: block;
+}
+
+.app-icon--default {
+  background: $showroom-surface;
+  border-color: $border-color;
+}
+
+.app-icon--primary {
+  background: $brand-ink;
+  border-color: rgba($brand-ink, 0.9);
+}
+
+.app-icon--gold {
+  background: rgba($secondary-color, 0.12);
+  border-color: rgba($secondary-color, 0.32);
+}
+
+.app-icon--danger {
+  background: rgba($danger-color, 0.1);
+  border-color: rgba($danger-color, 0.24);
+}
+
+.app-icon--muted {
+  background: $brand-sage-light;
+  border-color: rgba($brand-sage, 0.18);
+}
+
+.app-icon--search {
+  background: transparent;
+  border-color: transparent;
+}
+
+.app-icon--add,
+.app-icon--minus,
+.app-icon--close {
+  .app-icon-image {
+    width: 54%;
+    height: 54%;
+  }
+}

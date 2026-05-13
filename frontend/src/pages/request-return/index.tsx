@@ -71,7 +71,7 @@ export default function RequestReturn() {
     <View className='request-return'>
       <View className='form-group'>
         <View className='label'>
-          退货原因 <Text style={{ color: '#ff4d4f' }}>*</Text>
+          退货原因 <Text className='required-mark'>*</Text>
         </View>
         <Textarea
           className='textarea'

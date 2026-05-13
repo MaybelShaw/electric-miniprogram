@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '品牌专区',
-  navigationBarBackgroundColor: '#fff',
+  navigationBarBackgroundColor: '#fffdf8',
   navigationBarTextStyle: 'black',
-  backgroundColor: '#F7F8FA'
+  backgroundColor: '#f7f3ec'
 })

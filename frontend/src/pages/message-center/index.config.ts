@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '消息中心',
-  navigationBarBackgroundColor: '#ffffff',
+  navigationBarBackgroundColor: '#fffdf8',
   navigationBarTextStyle: 'black',
-  backgroundColor: '#f6f8fb'
+  backgroundColor: '#f7f3ec'
 })

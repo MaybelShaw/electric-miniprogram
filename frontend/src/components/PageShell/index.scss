@@ -1,0 +1,7 @@
+@use '../../styles/variables.scss' as *;
+
+.page-shell {
+  min-height: 100vh;
+  background: $background-color-base;
+  color: $text-color-base;
+}

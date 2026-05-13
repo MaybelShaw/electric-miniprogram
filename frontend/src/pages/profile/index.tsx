@@ -8,6 +8,7 @@ import { resumePendingAuthAction } from '../../utils/auth-guard'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { User } from '../../types'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 function Profile() {
@@ -45,7 +46,7 @@ function Profile() {
     }
   }, [])
 
-  const loadUserInfo = async () => {
+  async function loadUserInfo() {
     try {
       const data = await authService.getUserProfile()
       setUser(data)
@@ -54,7 +55,7 @@ function Profile() {
     }
   }
 
-  const loadNotificationStats = async () => {
+  async function loadNotificationStats() {
     try {
       const data = await notificationService.getStats()
       setUnreadCount(data.unread_count || 0)
@@ -180,6 +181,7 @@ function Profile() {
   }
 
   const certificationBadge = getCertificationBadge()
+  const userAvatarUrl = user ? resolveLocalMediaUrl(user.avatar_url) : ''
 
   return (
     <View className='profile'>
@@ -187,12 +189,16 @@ function Profile() {
       <View className='user-section'>
         {user ? (
           <View className='user-info' onTap={goToProfileEdit}>
-                <Image className='avatar' src={resolveLocalMediaUrl(user.avatar_url) || '/assets/default-avatar.png'} />
+            {userAvatarUrl ? (
+              <Image className='avatar' src={userAvatarUrl} />
+            ) : (
+              <View className='avatar avatar-placeholder'><AppIcon name='profile' tone='muted' /></View>
+            )}
             <View className='user-details'>
               <View className='username'>{user.username || '未设置昵称'}</View>
               {user.company_name && user.role === 'dealer' && (
                 <View className='company-name'>
-                  <Text className='company-icon'>🏢</Text>
+                  <AppIcon name='company' tone='gold' className='company-icon' />
                   <Text className='company-text'>{user.company_name}</Text>
                 </View>
               )}
@@ -200,7 +206,7 @@ function Profile() {
           </View>
         ) : (
           <View className='login-section'>
-            <Image className='avatar' src='/assets/default-avatar.png' />
+            <View className='avatar avatar-placeholder'><AppIcon name='profile' tone='muted' /></View>
             <Button
               className='login-text'
               openType='getPhoneNumber'
@@ -220,37 +226,37 @@ function Profile() {
           <Text className='section-title'>商城订单</Text>
           <View className='view-all' onTap={() => goToOrders()}>
             <Text className='view-all-text'>全部订单</Text>
-            <Text className='arrow'>›</Text>
+            <Text className='arrow' />
           </View>
         </View>
         <View className='order-menu'>
           <View className='order-item' onTap={() => goToOrders('pending')}>
             <View className='order-icon-wrapper'>
-              <Text className='order-icon'>💰</Text>
+              <AppIcon name='pay' tone='gold' />
             </View>
             <Text className='order-text'>待支付</Text>
           </View>
           <View className='order-item' onTap={() => goToOrders('paid')}>
             <View className='order-icon-wrapper'>
-              <Text className='order-icon'>📦</Text>
+              <AppIcon name='package' tone='primary' />
             </View>
             <Text className='order-text'>待发货</Text>
           </View>
           <View className='order-item' onTap={() => goToOrders('shipped')}>
             <View className='order-icon-wrapper'>
-              <Text className='order-icon'>🚚</Text>
+              <AppIcon name='ship' tone='primary' />
             </View>
             <Text className='order-text'>待收货</Text>
           </View>
           <View className='order-item' onTap={() => goToOrders('completed')}>
             <View className='order-icon-wrapper'>
-              <Text className='order-icon'>✅</Text>
+              <AppIcon name='done' tone='default' />
             </View>
             <Text className='order-text'>已完成</Text>
           </View>
           <View className='order-item' onTap={() => goToOrders('returning,refunding,refunded')}>
             <View className='order-icon-wrapper'>
-              <Text className='order-icon'>↩️</Text>
+              <AppIcon name='refund' tone='danger' />
             </View>
             <Text className='order-text'>退货/售后</Text>
           </View>
@@ -261,27 +267,27 @@ function Profile() {
       <View className='menu-section'>
         <View className='menu-item' onTap={goToMessages}>
           <View className='menu-left'>
-            <Text className='menu-icon'>🔔</Text>
+            <AppIcon name='message' tone='muted' className='menu-icon' />
             <Text className='menu-text'>消息中心</Text>
             {unreadCount > 0 && (
               <View className='badge danger'>{unreadCount > 99 ? '99+' : unreadCount}</View>
             )}
           </View>
-          <Text className='arrow'>›</Text>
+          <Text className='arrow' />
         </View>
 
         <View className='menu-item' onTap={goToAddresses}>
           <View className='menu-left'>
-            <Text className='menu-icon'>📍</Text>
+            <AppIcon name='location' tone='muted' className='menu-icon' />
             <Text className='menu-text'>收货地址</Text>
           </View>
-          <Text className='arrow'>›</Text>
+          <Text className='arrow' />
         </View>
         
 
         <View className='menu-item' onTap={goToCertification}>
           <View className='menu-left'>
-            <Text className='menu-icon'>🏢</Text>
+            <AppIcon name='company' tone='muted' className='menu-icon' />
             <Text className='menu-text'>经销商认证</Text>
             {certificationBadge && (
               <View className={`badge ${certificationBadge.className}`}>
@@ -289,7 +295,7 @@ function Profile() {
               </View>
             )}
           </View>
-          <Text className='arrow'>›</Text>
+          <Text className='arrow' />
         </View>
 
         {user?.role === 'dealer' && (
@@ -302,20 +308,20 @@ function Profile() {
               Taro.navigateTo({ url: '/pages/credit-account/index' })
             }}>
               <View className='menu-left'>
-                <Text className='menu-icon'>💳</Text>
+                <AppIcon name='credit' tone='muted' className='menu-icon' />
                 <Text className='menu-text'>信用账户</Text>
               </View>
-              <Text className='arrow'>›</Text>
+              <Text className='arrow' />
             </View>
           </>
         )}
 
         <View className='menu-item' onTap={goToSupport}>
           <View className='menu-left'>
-            <Text className='menu-icon'>🎧</Text>
+            <AppIcon name='service' tone='muted' className='menu-icon' />
             <Text className='menu-text'>客服支持</Text>
           </View>
-          <Text className='arrow'>›</Text>
+          <Text className='arrow' />
         </View>
       </View>
 

@@ -1,3 +1,5 @@
+@use '../../styles/variables.scss' as *;
+
 .privacy-popup-overlay {
   position: fixed;
   top: 0;
@@ -16,9 +18,10 @@
 
 .privacy-popup-content {
   width: 600px;
-  background: #ffffff;
-  border-radius: 24px;
+  background: $showroom-surface;
+  border-radius: $border-radius-lg;
   padding: 48px 40px;
+  border: 1px solid $border-color;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -27,13 +30,13 @@
   .privacy-title {
     font-size: 36px;
     font-weight: bold;
-    color: #333;
+    color: $text-color-base;
     margin-bottom: 32px;
   }
 
   .privacy-body {
     font-size: 28px;
-    color: #666;
+    color: $text-color-regular;
     line-height: 1.6;
     margin-bottom: 48px;
     text-align: justify;
@@ -43,7 +46,7 @@
     }
 
     .privacy-link {
-      color: #1989fa;
+      color: $primary-color;
       display: inline;
     }
   }
@@ -58,7 +61,7 @@
       flex: 1;
       height: 88px;
       line-height: 88px;
-      border-radius: 44px;
+      border-radius: $border-radius-md;
       font-size: 32px;
       margin: 0;
       
@@ -68,13 +71,13 @@
     }
 
     .btn-disagree {
-      background-color: #f2f3f5;
-      color: #323233;
+      background-color: $active-color;
+      color: $text-color-base;
     }
 
     .btn-agree {
-      background-color: #1989fa;
-      color: #ffffff;
+      background: $brand-ink;
+      color: $white;
     }
   }
 }

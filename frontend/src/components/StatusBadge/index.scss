@@ -1,0 +1,49 @@
+@use '../../styles/variables.scss' as *;
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: $border-radius-sm;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 700;
+  white-space: nowrap;
+  background: $showroom-surface-warm;
+  color: $text-color-secondary;
+  border: 1px solid rgba($border-color, 0.8);
+}
+
+.status-badge--primary {
+  background: rgba($secondary-color, 0.14);
+  color: $text-color-base;
+  border-color: rgba($secondary-color, 0.34);
+}
+
+.status-badge--success {
+  background: rgba($success-color, 0.12);
+  color: $success-color;
+}
+
+.status-badge--warning {
+  background: rgba($warning-color, 0.14);
+  color: darken-c($warning-color, 8%);
+}
+
+.status-badge--danger {
+  background: rgba($danger-color, 0.12);
+  color: $danger-color;
+}
+
+.status-badge--info {
+  background: rgba($info-color, 0.12);
+  color: $info-color;
+}
+
+.status-badge--muted {
+  background: $background-color-base;
+  color: $text-color-secondary;
+  border-color: $border-color-light;
+}

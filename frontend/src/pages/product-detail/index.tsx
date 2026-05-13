@@ -6,7 +6,11 @@ import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { Product, ProductSKU } from '../../types'
+import AppIcon from '../../components/AppIcon'
+import BottomActionBar from '../../components/BottomActionBar'
+import EmptyState from '../../components/EmptyState'
 import ProductCard from '../../components/ProductCard'
+import QuantityStepper from '../../components/QuantityStepper'
 import { requireTransactionAuth, TransactionAction } from '../../utils/auth-guard'
 import './index.scss'
 
@@ -223,17 +227,6 @@ export default function ProductDetail() {
 
 
 
-  const handleQuantityChange = (delta: number) => {
-    const newQuantity = quantity + delta
-    if (newQuantity < 1) return
-    const stock = getAvailableStock()
-    if (product && stock > 0 && newQuantity > stock) {
-      Taro.showToast({ title: '库存不足', icon: 'none' })
-      return
-    }
-    setQuantity(newQuantity)
-  }
-
   const handleImagePreview = (index: number, isDetailImage = false) => {
     if (!product) return
     
@@ -324,20 +317,12 @@ export default function ProductDetail() {
 
   return (
     <View className='product-detail'>
-      <View 
-        className='nav-bar' 
-        style={{ 
-          backgroundColor: `rgba(255, 255, 255, ${navOpacity})`,
-          boxShadow: navOpacity > 0.8 ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
-          borderBottom: navOpacity > 0.8 ? '1px solid #EBEDF0' : 'none'
-        }}
-      >
+      <View className={`nav-bar ${navOpacity > 0.8 ? 'visible' : ''}`}>
         {['product', 'detail', 'recommend'].map((tab) => (
           <View
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`}
             onClick={() => handleTabClick(tab)}
-            style={{ opacity: navOpacity }}
           >
             {tab === 'product' ? '商品' : tab === 'detail' ? '详情' : '推荐'}
           </View>
@@ -414,15 +399,15 @@ export default function ProductDetail() {
 
         <View className='service-strip'>
           <View className='service-item'>
-            <Text className='service-mark'>正</Text>
+            <AppIcon name='done' tone='muted' className='service-icon' />
             <Text className='service-text'>正品保障</Text>
           </View>
           <View className='service-item'>
-            <Text className='service-mark'>装</Text>
+            <AppIcon name='ship' tone='muted' className='service-icon' />
             <Text className='service-text'>配送安装</Text>
           </View>
           <View className='service-item'>
-            <Text className='service-mark'>售</Text>
+            <AppIcon name='service' tone='muted' className='service-icon' />
             <Text className='service-text'>售后无忧</Text>
           </View>
         </View>
@@ -500,11 +485,7 @@ export default function ProductDetail() {
               </View>
             </View>
           ) : (
-            <View className='no-detail'>
-              <View className='no-detail-icon'>📦</View>
-              <View className='no-detail-text'>暂无详细信息</View>
-              <View className='no-detail-tip'>商品详情图片正在准备中</View>
-            </View>
+            <EmptyState title='暂无详细信息' description='商品详情图片正在准备中' icon='package' />
           )}
         </View>
 
@@ -534,25 +515,25 @@ export default function ProductDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      <View className='footer-bar'>
+      <BottomActionBar className='footer-bar'>
         <View className='footer-left'>
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/home/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🏠</Text>
+              <AppIcon name='home' tone='muted' />
             </View>
             <Text className='icon-text'>首页</Text>
           </View>
 
           <View className='icon-btn contact-btn' onClick={() => Taro.navigateTo({ url: '/pages/support-chat/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🎧</Text>
+              <AppIcon name='service' tone='muted' />
             </View>
             <Text className='icon-text'>客服</Text>
           </View>
 
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🛒</Text>
+              <AppIcon name='cart' tone='muted' />
             </View>
             <Text className='icon-text'>购物车</Text>
           </View>
@@ -571,7 +552,7 @@ export default function ProductDetail() {
             {availableStock === 0 ? '已售罄' : '立即购买'}
           </View>
         </View>
-      </View>
+      </BottomActionBar>
 
       {/* 数量选择弹窗 */}
       {showQuantityPopup && (
@@ -592,26 +573,14 @@ export default function ProductDetail() {
                   <View className='popup-stock-text'>库存 {availableStock} 件</View>
                 </View>
               </View>
-              <View className='popup-close' onClick={() => setShowQuantityPopup(false)}>✕</View>
+              <View className='popup-close' onClick={() => setShowQuantityPopup(false)}>
+                <AppIcon name='close' tone='muted' />
+              </View>
             </View>
 
             <View className='popup-quantity-section'>
               <Text className='popup-section-title'>购买数量</Text>
-              <View className='popup-quantity-control'>
-                <View 
-                  className={`popup-btn minus ${quantity <= 1 ? 'disabled' : ''}`}
-                  onClick={() => handleQuantityChange(-1)}
-                >
-                  -
-                </View>
-                <View className='popup-quantity'>{quantity}</View>
-                <View 
-                  className={`popup-btn plus ${quantity >= availableStock ? 'disabled' : ''}`}
-                  onClick={() => handleQuantityChange(1)}
-                >
-                  +
-                </View>
-              </View>
+              <QuantityStepper value={quantity} max={availableStock || undefined} onChange={setQuantity} />
             </View>
 
             <View className='popup-footer'>

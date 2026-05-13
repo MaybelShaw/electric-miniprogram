@@ -1,24 +1,26 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .product-card {
   width: $product-card-width;
-  background: $background-color-light;
+  background: $showroom-surface;
   border-radius: $border-radius-lg;
   overflow: hidden;
   margin-bottom: $spacing-md;
   position: relative;
   display: flex;
   flex-direction: column;
-  box-shadow: $shadow-sm;
+  box-shadow: none;
+  border: 1px solid $border-color;
 
   &:active {
-    opacity: 0.9;
+    opacity: 0.94;
+    box-shadow: $shadow-sm;
   }
 
   .product-image-wrapper {
     width: 100%;
     height: $product-image-height;
-    background: $background-color-light;
+    background: $showroom-surface-warm;
     position: relative;
     padding: 0;
     box-sizing: border-box;
@@ -37,104 +39,113 @@
       justify-content: center;
       color: $text-color-secondary;
       font-size: $font-size-sm;
-      background: $background-color-base;
+      background: $showroom-surface-warm;
     }
   }
 
   .product-info {
-    padding: $spacing-sm $spacing-sm $spacing-md;
+    padding: 20px 20px 22px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     flex: 1;
 
+    .product-brand {
+      margin-bottom: 8px;
+      font-size: 20px;
+      color: $brand-sage;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .product-name {
       font-size: $font-size-md;
       font-weight: 500;
       color: $text-color-base;
-      line-height: 1.5;
-      height: 84px;
+      line-height: 1.45;
+      min-height: 80px;
+      max-height: 80px;
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
-      margin-bottom: $spacing-sm;
-
-      .product-tag {
-        display: inline-block;
-        background-color: #333333;
-        color: #FFD700;
-        font-size: 20px; /* 10px in design, typically needs scaling or use rpx if needed, but here use px for now, considering standard text size */
-        /* Taro typically converts px to rpx by default, 20px might be 20rpx which is small. Let's use 20rpx which is ~10px */
-        font-size: 20rpx; 
-        padding: 0 8rpx;
-        border-radius: 4rpx;
-        margin-right: 8rpx;
-        vertical-align: middle;
-        line-height: 1.4;
-      }
+      margin-bottom: 20px;
     }
 
     .product-bottom {
       display: flex;
+      justify-content: space-between;
       align-items: flex-end;
       margin-top: auto;
-
-      .price-wrapper {
-        display: flex;
-        align-items: baseline;
-        color: $danger-color;
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei', sans-serif;
-
-        .currency {
-          font-size: $font-size-sm;
-          margin-right: 4px;
-          font-weight: bold;
-        }
-
-        .current-price {
-          font-size: $font-size-xl;
-          font-weight: bold;
-          line-height: 1;
-        }
-
-        .price-unit {
-          font-size: $font-size-sm;
-          color: $text-color-base;
-          margin-left: 4px;
-          font-weight: normal;
-        }
-      }
     }
   }
 }
 
-.product-card {
-  border: 1px solid #e4edf6;
-  border-radius: 14px;
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgba(31, 65, 104, 0.08);
+.product-add-btn {
+  margin-left: 12px;
+
+  .app-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+  }
+}
+
+.product-card--list {
+  width: 100%;
+  flex-direction: row;
+  padding: 18px;
+  border-radius: $border-radius-lg;
+  background: $showroom-surface;
 
   .product-image-wrapper {
-    background: linear-gradient(135deg, #f5f8fb 0%, #edf3f7 100%);
+    width: 190px;
+    height: 190px;
+    border-radius: $border-radius-md;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid $border-color-light;
   }
 
   .product-info {
-    padding: 18px 18px 22px;
+    padding: 0 0 0 20px;
+    min-width: 0;
+  }
 
-    .product-name {
-      color: #203040;
-      font-weight: 600;
-
-      .product-tag {
-        background: #203040;
-        color: #d8b66a;
-      }
-    }
-
-    .product-bottom .price-wrapper {
-      color: #b6452c;
-    }
+  .product-info .product-name {
+    min-height: 80px;
+    max-height: 120px;
+    -webkit-line-clamp: 3;
   }
 }
+
+.product-card--compact {
+  width: 240px;
+
+  .product-image-wrapper {
+    height: 220px;
+  }
+
+  .product-info .product-name {
+    font-size: $font-size-sm;
+    min-height: 68px;
+  }
+}
+    .product-tag {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      height: 36px;
+      padding: 0 12px;
+      background: rgba($brand-ink, 0.86);
+      color: $brand-paper;
+      font-size: 20px;
+      border-radius: $border-radius-max;
+      letter-spacing: 0;
+    }

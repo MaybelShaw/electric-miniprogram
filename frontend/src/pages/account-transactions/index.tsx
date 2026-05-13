@@ -2,6 +2,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { creditService, AccountTransaction } from '../../services/credit'
+import AppIcon, { AppIconName } from '../../components/AppIcon'
 import './index.scss'
 
 export default function AccountTransactionsPage() {
@@ -70,14 +71,14 @@ export default function AccountTransactionsPage() {
     return map[status] || 'unpaid'
   }
 
-  const getTransactionIcon = (type: string) => {
-    const map = {
-      purchase: '🛒',
-      payment: '💰',
-      refund: '↩️',
-      adjustment: '⚙️'
+  const getTransactionIcon = (type: string): AppIconName => {
+    const map: Record<string, AppIconName> = {
+      purchase: 'cart',
+      payment: 'pay',
+      refund: 'refund',
+      adjustment: 'credit'
     }
-    return map[type] || '📝'
+    return map[type] || 'order'
   }
 
   if (loading && page === 1) {
@@ -110,7 +111,7 @@ export default function AccountTransactionsPage() {
             <View className='transaction-main'>
               <View className='transaction-left'>
                 <View className='transaction-icon'>
-                  {getTransactionIcon(transaction.transaction_type)}
+                  <AppIcon name={getTransactionIcon(transaction.transaction_type)} tone='muted' />
                 </View>
                 <View className='transaction-info'>
                   <Text className='transaction-type'>{transaction.transaction_type_display}</Text>

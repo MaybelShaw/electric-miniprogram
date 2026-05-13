@@ -6,6 +6,8 @@ import { TokenManager } from '../../utils/request'
 import { CartItem } from '../../types'
 import { formatPrice } from '../../utils/format'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import EmptyState from '../../components/EmptyState'
+import QuantityStepper from '../../components/QuantityStepper'
 import './index.scss'
 
 export default function Cart() {
@@ -208,11 +210,7 @@ export default function Cart() {
   if (!TokenManager.getAccessToken()) {
     return (
       <View className='cart empty'>
-        <View className='empty-content'>
-          <Image className='empty-icon' src='/assets/empty-cart.png' />
-          <Text className='empty-text'>请先登录</Text>
-          <View className='login-btn' onClick={goToLogin}>立即登录</View>
-        </View>
+        <EmptyState title='请先登录' description='登录后可查看购物车和继续结算' icon='profile' actionText='立即登录' onAction={goToLogin} />
       </View>
     )
   }
@@ -221,13 +219,13 @@ export default function Cart() {
   if (cartItems.length === 0) {
     return (
       <View className='cart empty'>
-        <View className='empty-content'>
-          <Image className='empty-icon' src='/assets/empty-cart.png' />
-          <Text className='empty-text'>购物车是空的</Text>
-          <View className='go-shopping-btn' onClick={() => Taro.switchTab({ url: '/pages/home/index' })}>
-            去逛逛
-          </View>
-        </View>
+        <EmptyState
+          title='购物车是空的'
+          description='先挑几件适合家的好物'
+          icon='cart'
+          actionText='去逛逛'
+          onAction={() => Taro.switchTab({ url: '/pages/home/index' })}
+        />
       </View>
     )
   }
@@ -258,21 +256,10 @@ export default function Cart() {
                 <View className='product-price'>
                   {formatPrice(getItemPrice(item))}
                 </View>
-                <View className='quantity-control'>
-                  <View
-                    className='btn minus'
-                    onClick={() => handleUpdateQuantity(item.id, item.product_id, item.quantity - 1, item.sku_id)}
-                  >
-                    -
-                  </View>
-                  <View className='quantity'>{item.quantity}</View>
-                  <View
-                    className='btn plus'
-                    onClick={() => handleUpdateQuantity(item.id, item.product_id, item.quantity + 1, item.sku_id)}
-                  >
-                    +
-                  </View>
-                </View>
+                <QuantityStepper
+                  value={item.quantity}
+                  onChange={(value) => handleUpdateQuantity(item.id, item.product_id, value, item.sku_id)}
+                />
               </View>
             </View>
             <View className='delete-btn' onClick={() => handleRemoveItem(item.id, item.product_id, item.sku_id)}>

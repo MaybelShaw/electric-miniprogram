@@ -1,0 +1,37 @@
+@use '../../styles/variables.scss' as *;
+
+.quantity-stepper {
+  display: inline-flex;
+  align-items: center;
+  height: 58px;
+  padding: 4px;
+  border-radius: $border-radius-max;
+  background: $showroom-surface-warm;
+  border: 1px solid $border-color-light;
+}
+
+.quantity-btn {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $brand-paper;
+  color: $text-color-base;
+  font-size: $font-size-lg;
+  font-weight: 700;
+}
+
+.quantity-btn.disabled {
+  color: $text-color-placeholder;
+  background: transparent;
+}
+
+.quantity-value {
+  min-width: 64px;
+  text-align: center;
+  font-size: $font-size-md;
+  color: $text-color-base;
+  font-weight: 700;
+}

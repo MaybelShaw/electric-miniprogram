@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '编辑地址',
-  navigationBarBackgroundColor: '#fff',
+  navigationBarBackgroundColor: '#fffdf8',
   navigationBarTextStyle: 'black',
-  backgroundColor: '#F7F8FA'
+  backgroundColor: '#f7f3ec'
 })

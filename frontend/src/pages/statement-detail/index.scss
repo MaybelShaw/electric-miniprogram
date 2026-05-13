@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .page-container {
   display: flex;
@@ -11,7 +11,7 @@
 .statement-detail-page {
   flex: 1;
   height: 0;
-  background-color: $background-color-base;
+  background: $background-color-base;
   padding: $spacing-md;
   box-sizing: border-box;
   padding-bottom: calc(60px + env(safe-area-inset-bottom));
@@ -28,11 +28,12 @@
   }
 
   .detail-section {
-    background-color: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     padding: $spacing-sm $spacing-md;
     margin-bottom: $spacing-md;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
   }
 
   .section-header {
@@ -59,7 +60,7 @@
       transform: translateY(-50%);
       width: 4px;
       height: 28px;
-      background: linear-gradient(180deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      background: $secondary-color;
       border-radius: 2px;
     }
   }
@@ -160,11 +161,11 @@
   }
 
   .summary-highlight {
-    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    background: $brand-ink;
     border-radius: $border-radius-lg;
     padding: $spacing-lg;
     margin-bottom: $spacing-md;
-    box-shadow: 0 8px 20px rgba(25, 137, 250, 0.2);
+    box-shadow: none;
   }
 
   .highlight-item {
@@ -249,23 +250,24 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: $white;
+  background: rgba($brand-paper, 0.97);
+  border-top: 1px solid $border-color;
   padding: $spacing-sm $spacing-md;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  box-shadow: $shadow-top;
+  box-shadow: none;
   z-index: 100;
 
   .confirm-btn {
     width: 100%;
     height: $button-height;
     line-height: $button-height;
-    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    background: $brand-ink;
     color: $white;
     font-size: $font-size-lg;
     font-weight: 600;
-    border-radius: 44px;
+    border-radius: $border-radius-md;
     border: none;
-    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
+    box-shadow: none;
     transition: all 0.3s;
 
     &:active {

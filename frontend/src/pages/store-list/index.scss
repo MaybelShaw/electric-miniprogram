@@ -1,4 +1,4 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .store-list-page {
   height: 100vh;
@@ -15,7 +15,8 @@
 
   .store-card {
     margin-bottom: $spacing-md;
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid $border-color;
     border-radius: $border-radius-lg;
     overflow: hidden;
     box-shadow: $shadow-sm;
@@ -96,22 +97,22 @@
 }
 
 .store-list-page {
-  background: linear-gradient(180deg, #edf3f7 0%, #f7f9fb 44%, #f3f5f8 100%);
+  background: $background-color-base;
 
   .store-list {
     padding: 24px 20px 40px;
   }
 
   .store-card {
-    border: 1px solid #e4edf6;
-    border-radius: 16px;
-    background: #ffffff;
-    box-shadow: 0 16px 36px rgba(31, 65, 104, 0.1);
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $showroom-surface;
+    box-shadow: $shadow-sm;
   }
 
   .store-cover {
     height: 300px;
-    background: linear-gradient(135deg, #eff5fa 0%, #dbeaf3 100%);
+    background: $showroom-surface-warm;
   }
 
   .store-content {
@@ -119,16 +120,16 @@
   }
 
   .store-logo {
-    border: 1px solid #e4edf6;
-    border-radius: 12px;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-md;
   }
 
   .store-name {
-    color: #203040;
+    color: $text-color-base;
     font-size: 34px;
   }
 
   .store-desc {
-    color: #667789;
+    color: $text-color-secondary;
   }
 }

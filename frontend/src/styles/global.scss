@@ -1,8 +1,8 @@
-@import './variables.scss';
-@import './mixins.scss';
+@use './variables.scss' as *;
+@use './mixins.scss' as *;
 
 page {
-  background-color: $background-color-base;
+  background: $background-color-base;
   color: $text-color-base;
   font-size: $font-size-md;
   line-height: 1.5;
@@ -11,13 +11,43 @@ page {
     sans-serif;
 }
 
+view,
+text,
+input,
+button,
+scroll-view,
+swiper {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+button::after {
+  border: none;
+}
+
 // Utility Classes
 .card {
-  background: $background-color-light;
+  background: $showroom-surface;
   border-radius: $border-radius-lg;
-  padding: $spacing-md;
+  padding: $spacing-lg;
   margin: $spacing-md;
-  box-shadow: $shadow-sm;
+  box-shadow: none;
+  border: 1px solid $border-color;
+}
+
+.surface {
+  background: $showroom-surface;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-lg;
+  box-shadow: none;
+}
+
+.page-gradient {
+  background: $background-color-base;
 }
 
 .text-primary {
@@ -58,4 +88,21 @@ page {
 
 .mb-md {
   margin-bottom: $spacing-md;
+}
+
+.app-section-title {
+  font-size: $font-size-lg;
+  font-weight: 600;
+  color: $text-color-base;
+  letter-spacing: 0;
+}
+
+.app-muted-text {
+  color: $text-color-secondary;
+  font-size: $font-size-sm;
+}
+
+.privacy-check-wrapper {
+  flex: 1;
+  height: 100%;
 }

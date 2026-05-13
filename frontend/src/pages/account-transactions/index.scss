@@ -1,10 +1,10 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .transactions-page {
   width: 100%;
   min-height: 100vh;
-  background-color: $background-color-base;
+  background: $background-color-base;
   overflow: hidden;
   box-sizing: border-box;
   padding-bottom: env(safe-area-inset-bottom);
@@ -39,6 +39,7 @@
     padding: $spacing-lg $spacing-md;
     margin-bottom: $spacing-md;
     box-shadow: $shadow-sm;
+    border: 1px solid rgba($border-color, 0.88);
     box-sizing: border-box;
     transition: all 0.3s;
 
@@ -66,13 +67,19 @@
   .transaction-icon {
     width: 40px;
     height: 40px;
-    background: $background-color-base;
-    border-radius: 50%;
+    background: transparent;
+    border-radius: $border-radius-md;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: $font-size-lg;
     flex-shrink: 0;
+
+    .app-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      font-size: 20px;
+    }
   }
 
   .transaction-info {

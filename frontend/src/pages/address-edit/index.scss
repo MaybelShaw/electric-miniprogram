@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .address-edit {
   min-height: 100vh;
@@ -9,7 +9,8 @@
   box-sizing: border-box;
 
   .smart-parse-section {
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     padding: $spacing-lg;
     margin-bottom: $spacing-md;
@@ -32,7 +33,7 @@
         content: '';
         width: 8px;
         height: 32px;
-        background: linear-gradient(180deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+        background: $secondary-color;
         border-radius: 4px;
         margin-right: $spacing-sm;
       }
@@ -57,21 +58,21 @@
     .parse-btn {
       width: 100%;
       height: $button-height;
-      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      background: $brand-ink;
       color: $white;
       font-size: $font-size-lg;
       font-weight: 600;
-      border-radius: $button-height;
+      border-radius: $border-radius-md;
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: $spacing-md;
       transition: all 0.3s;
-      box-shadow: 0 8px 20px rgba($primary-color, 0.2);
+      box-shadow: none;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 4px 10px rgba($primary-color, 0.2);
+        background: darken-c($brand-ink, 3%);
       }
     }
 
@@ -84,7 +85,8 @@
   }
 
   .form {
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     overflow: hidden;
     box-shadow: $shadow-sm;
@@ -128,21 +130,21 @@
     left: $spacing-lg;
     right: $spacing-lg;
     height: $button-height;
-    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    background: $brand-ink;
     color: $white;
     font-size: $font-size-lg;
     font-weight: 600;
-    border-radius: 44px;
+    border-radius: $border-radius-md;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 24px rgba($primary-color, 0.3);
+    box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
     transition: all 0.3s;
     z-index: 100;
     
     &:active {
       transform: scale(0.98);
-      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+      background: darken-c($brand-ink, 3%);
     }
   }
 }

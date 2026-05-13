@@ -72,7 +72,7 @@ export default function ReturnTracking() {
       <View className='form-group'>
         <View className='form-item'>
           <View className='label'>
-            快递单号 <Text style={{ color: '#ff4d4f' }}>*</Text>
+            快递单号 <Text className='required-mark'>*</Text>
           </View>
           <Input
             className='input'

@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import { View, ScrollView, Image, Input } from '@tarojs/components'
+import { View, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Category } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
+import SearchBar from '../../components/SearchBar'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 export default function CategoryPage() {
@@ -209,16 +213,7 @@ export default function CategoryPage() {
     <View className='category-page'>
       {/* 搜索栏 */}
       <View className='search-bar'>
-        <View className='search-input'>
-          <View className='search-icon'>🔍</View>
-          <Input
-            className='input'
-            placeholder='搜索商品'
-            value={searchValue}
-            onInput={(e) => setSearchValue(e.detail.value)}
-            onConfirm={handleSearch}
-          />
-        </View>
+        <SearchBar value={searchValue} onInput={setSearchValue} onConfirm={handleSearch} />
       </View>
 
       <View className='category-content'>
@@ -259,7 +254,9 @@ export default function CategoryPage() {
                         mode='aspectFit'
                       />
                     ) : (
-                      <View className='banner-icon banner-icon-placeholder'>全</View>
+                      <View className='banner-icon banner-icon-placeholder'>
+                        <AppIcon name='package' tone='primary' />
+                      </View>
                     )}
                   </View>
                 )
@@ -283,13 +280,15 @@ export default function CategoryPage() {
                               mode='aspectFit'
                             />
                           ) : (
-                            <View className='item-image item-image-placeholder'>{item.name.charAt(0)}</View>
+                            <View className='item-image item-image-placeholder'>
+                              <AppIcon name='package' tone='muted' />
+                            </View>
                           )}
                           <View className='item-name'>{item.name}</View>
                         </View>
                       ))
                     ) : (
-                      <View className='empty-items' style={{gridColumn: '1 / -1', textAlign: 'center', color: '#999', fontSize: '24px', padding: '20px 0'}}>
+                      <View className='empty-items'>
                         暂无品项
                       </View>
                     )}
@@ -300,11 +299,11 @@ export default function CategoryPage() {
           ) : (
             !loading && (
               <View className='empty-state'>
-                该分类下暂无子分类
+                <EmptyState title='该分类下暂无子分类' icon='package' />
               </View>
             )
           )}
-          {loading && <View style={{textAlign: 'center', padding: '20px', color: '#999'}}>加载中...</View>}
+          {loading && <LoadingState text='加载中...' />}
         </ScrollView>
       </View>
     </View>

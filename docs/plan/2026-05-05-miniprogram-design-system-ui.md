@@ -1,50 +1,67 @@
-# 小程序设计系统与核心页 UI 实施计划
+# 小程序全量 UI 重设计实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**Goal:** 将“庆勋愉悦家”小程序统一改造为克制的质感生活电商风格，覆盖 `frontend/src/app.config.ts` 已注册页面，并保留现有路由、接口、登录、下单、支付、售后业务逻辑。
 
-**Goal:** 建立现代生活方式风格的小程序设计系统，并逐步改造核心页面。
+**Architecture:** 以 Sass token 和通用 UI 组件作为底座，核心交易与账户页面优先接入组件，其余页面通过 token、导航配置、状态色和页面样式同步收敛。
 
-**Architecture:** 先沉淀 token 和通用组件，再分批替换页面。动态专区作为首页运营板块的一部分，由 UI 执行方设计具体视觉，但必须消费动态专区数据契约。
+**Tech Stack:** Taro 4、React 18、TypeScript、Sass、微信小程序构建。
 
-**Tech Stack:** Taro 4、React 18、TypeScript、Sass、微信开发者工具。
-
-**执行边界:** 本计划用于交给 Claude 或前端 UI 执行方单独处理；本轮不修改 `frontend` UI 代码。后端与接口计划只提供数据契约，不决定具体视觉实现。
+**执行边界:** 不改后端接口、不改服务层请求参数、不改页面 path 和 query 契约。
 
 ---
 
 ## 影响范围
 
-- 修改：`frontend/src/app.scss`
-- 新增或修改：`frontend/src/styles/tokens.scss`
-- 新增或修改：`frontend/src/components/`
-- 修改：`frontend/src/pages/home/`
-- 修改：`frontend/src/pages/special-zone/`
-- 修改：`frontend/src/pages/product-detail/`
-- 修改：`frontend/src/pages/cart/`
-- 修改：`frontend/src/pages/order-list/`
-- 修改：`frontend/src/pages/order-detail/`
-- 修改：`frontend/src/pages/profile/`
+- 设计底座：`frontend/src/styles/variables.scss`、`frontend/src/styles/global.scss`
+- 新增组件：`AppIcon`、`SearchBar`、`SectionHeader`、`ProductCard` 扩展、`OrderCard` 刷新、`StatusBadge`、`PriceText`、`EmptyState`、`LoadingState`、`BottomActionBar`、`QuantityStepper`、`PageShell`
+- 核心页面：首页、分类、搜索、商品列表、商品详情、购物车、下单、订单列表、订单详情、我的、资料、专区、消息、认证、信用流水、退货、客服
+- 导航配置：全局与页面级 navigation/tabBar 颜色统一为新品牌色
 
 ## 执行步骤
 
-- [ ] 盘点当前页面样式和组件复用情况，列出第一批需要抽出的基础组件。
-- [ ] 定义颜色、字号、间距、圆角、阴影和按钮状态 token。
-- [ ] 建立基础组件：按钮、标签、价格、商品卡、专区入口、空态、加载态。
-- [ ] 改造首页，接入动态专区入口并保留分类、品牌、轮播和商品列表。
-- [ ] 改造专区页，支持动态专区标题、轮播、商品列表和空态。
-- [ ] 改造商品详情页，强化内容、价格、SKU、购买动作和登录守卫。
-- [ ] 改造购物车、下单、支付结果、订单列表、订单详情、我的页。
-- [ ] 在微信开发者工具中检查主要机型，不允许文字重叠和按钮溢出。
+- [x] 盘点当前页面样式和组件复用情况，确认旧蓝色、emoji、缺失占位图和 inline style 风险。
+- [x] 定义颜色、字号、间距、圆角、阴影和状态色 token，并保留旧变量名兼容现有页面。
+- [x] 建立基础组件：图标、搜索、区块标题、价格、状态徽标、空态、加载态、底部操作栏、数量步进器。
+- [x] 扩展商品卡和订单卡，保留现有调用方式。
+- [x] 改造首页、分类、搜索、商品列表、专区和店铺相关页面的视觉方向。
+- [x] 改造商品详情、购物车、下单、订单列表、订单详情等交易链路页面。
+- [x] 改造我的、资料、消息、认证、信用流水、退货、客服等账户与服务型页面的视觉一致性。
+- [x] 清理明显 emoji 图标、缺失 `/assets/empty-*`/`default-avatar` 引用、旧蓝色硬编码和可替换 inline style。
 
 ## 验证命令
 
-- [ ] `cd frontend && npm run build:weapp`
-- [ ] 微信开发者工具手测：首页、动态专区页、商品详情、购物车、订单、我的页。
-- [ ] 搜索 `frontend/dist`，确认没有运行时 `process.env`。
+- [x] `frontend` 下使用 bundled Node 执行 `node .\node_modules\@tarojs\cli\bin\taro build --type weapp`
+- [x] 搜索 `frontend/dist`，确认没有运行时 `process.env`
+- [x] 静态搜索确认没有残留明显 emoji、`style={{...}}`、缺失本地空态资源引用
 
 ## 完成标准
 
-- 核心页面风格统一。
-- 动态专区入口在首页可用。
-- 主要流程没有布局错位、文字溢出和交互阻断。
-- 构建通过后，本计划可单独提交并归档。
+- [x] 全量页面共享新的质感生活色彩、表面、状态和底部操作风格。
+- [x] 动态专区、首页入口、分类/商品/交易链路保持可构建。
+- [x] 构建通过；Sass `@import` 已迁移，剩余 legacy JS API 输出为既有依赖层技术债警告，不阻断发布。
+
+## 2026-05-12 高价感二次升级
+
+- [x] 将视觉方向从清爽生活感继续收敛到精品家电 showroom：象牙纸底、深墨主按钮、香槟金细节、陶土红价格与交易强调。
+- [x] 移除首页、商品、店铺、交易、账户、客服页面残留的冷蓝绿背景、亮蓝选中色和粉紫/橙色模板渐变。
+- [x] 重绘 TabBar 本地图标，替换原亮蓝选中态为深墨/香槟金图标。
+- [x] 构建通过：`node .\node_modules\@tarojs\cli\bin\taro build --type weapp`。
+- [x] 静态检查通过：未发现旧蓝绿硬编码、emoji、明显 inline style、缺失占位图引用或 `frontend/dist` 中的 `process.env`。
+
+## 2026-05-13 精品展厅收口
+
+- [x] 按方案 A 将全局视觉进一步压成精品家电 showroom：减少渐变、厚阴影、圆胖按钮和模板化彩色块。
+- [x] 统一 `我的`、订单详情、地址、信用账户、对账、发票、退货、支付结果、门店、专区、消息、客服等页面为暖象牙底、白色细边卡片、深墨按钮、香槟金细节。
+- [x] 同步 `app.config.ts` 和页面级 config 的导航/背景色为 `#fffdf8`、`#f7f3ec`，保留所有页面 path 和业务跳转契约。
+- [x] 静态检查通过：未发现旧蓝绿硬编码、明显 emoji、`style={{...}}`、缺失空态资源引用或 `frontend/dist` 中的 `process.env`。
+- [x] 构建通过：`node .\node_modules\@tarojs\cli\bin\taro build --type weapp`；Sass `@import` 已迁移，剩余 Sass legacy JS API、Browserslist/baseline-browser-mapping 输出为既有依赖警告。
+
+## 2026-05-13 清爽轻奢修正
+
+- [x] 按用户确认的方案 B 调整为高级家居馆方向：瓷白底、近黑主文字、香槟金细节、鼠尾草绿辅助，减少暖旧和泥土感。
+- [x] 将 `AppIcon` 从中文/符号字标和纯 CSS 线性图标改为 PNG 图标资源，小程序端不使用 SVG。
+- [x] 重排首页视觉权重：首屏 Banner、三入口、灵感专区、店铺卡、品类、品牌、商品列表依次呈现，减少信息同屏争抢。
+- [x] 优化核心页面：首页、分类、购物车、我的、商品列表、商品详情、订单确认，并同步搜索、商品卡、区块标题、空态、价格、数量器、底部操作条等公共组件质感。
+- [x] 静态检查通过：核心页面未发现 `GLYPHS`、emoji 搜索/空态、中文服务承诺字标、`+` 字符加购、旧亮蓝色硬编码。
+- [x] 全项目 Sass `@import` 已迁移为 `@use ... as *`，用户反馈的 `PrivacyPopup/index.scss` 警告已处理。
+- [x] 构建通过：`npm run build:weapp`；剩余 Sass `legacy-js-api`、Browserslist/baseline-browser-mapping 输出为 Taro/Vite 依赖层警告，不是业务样式报错。

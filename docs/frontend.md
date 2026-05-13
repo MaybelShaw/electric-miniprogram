@@ -170,7 +170,7 @@
   - 401 自动刷新：`frontend/src/utils/request.ts:93`
 - 错误与限流提示：`frontend/src/utils/request.ts:108`
 - 本地/Docker 开发默认请求 `http://127.0.0.1:8000/api`，不回退到线上域名；需要连接其他环境时显式设置 `TARO_APP_API_BASE_URL`。
-- 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 过滤；本地/Docker 默认只允许本地后端、私有网段、临时文件和本地 `/assets/` 资源，若正式环境确需 CDN 图片，必须显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=true`。
+- 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 处理；默认允许远程媒体以展示 CDN/OSS 商品图，若环境需要收紧，可显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=false`。
 
 ## 数据与缓存
 - 分类与品牌本地缓存，减少重复请求：`frontend/src/pages/home/index.tsx:33`

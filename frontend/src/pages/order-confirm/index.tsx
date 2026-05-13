@@ -8,6 +8,8 @@ import { userService } from '../../services/user'
 import { creditService } from '../../services/credit'
 import { Address, Product, ProductSKU, User } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import AppIcon from '../../components/AppIcon'
+import BottomActionBar from '../../components/BottomActionBar'
 import './index.scss'
 
 interface OrderItem {
@@ -233,7 +235,7 @@ export default function OrderConfirm() {
       <ScrollView className='content' scrollY>
         {/* 收货地址 */}
         <View className='address-card' onClick={handleSelectAddress}>
-          <View className='address-icon'>📍</View>
+          <View className='address-icon'><AppIcon name='location' tone='primary' /></View>
           {address ? (
             <View className='address-content'>
               <View className='address-header'>
@@ -249,7 +251,7 @@ export default function OrderConfirm() {
               <View className='no-address-text'>请选择收货地址</View>
             </View>
           )}
-          <View className='arrow-right'>›</View>
+          <View className='arrow-right' />
         </View>
 
         {/* 商品信息卡片 */}
@@ -317,7 +319,7 @@ export default function OrderConfirm() {
             value={note}
             onInput={(e) => setNote(e.detail.value)}
           />
-          <View className='arrow-right'>›</View>
+          <View className='arrow-right' />
         </View>
 
         {/* 底部占位 */}
@@ -325,7 +327,7 @@ export default function OrderConfirm() {
       </ScrollView>
 
       {/* 底部提交栏 */}
-      <View className='footer-bar'>
+      <BottomActionBar className='footer-bar'>
         <View className='footer-left'>
           <View className='total-info'>
             <Text className='total-label'>合计：</Text>
@@ -335,7 +337,7 @@ export default function OrderConfirm() {
         <View className='submit-btn' onClick={handleSubmit}>
           {submitting ? '提交中...' : '提交订单'}
         </View>
-      </View>
+      </BottomActionBar>
     </View>
   )
 }

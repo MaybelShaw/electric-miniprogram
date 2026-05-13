@@ -7,6 +7,7 @@ import { Category, Product } from '../../types'
 import { formatPrice, formatSalesCount } from '../../utils/format'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { requireTransactionAuth } from '../../utils/auth-guard'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 export default function ProductListPage() {
@@ -266,8 +267,8 @@ export default function ProductListPage() {
                 onClick={() => handleSortClick('price')}
               >
                 价格
-                {sortBy === 'price_asc' && <Text className='sort-arrow'>↑</Text>}
-                {sortBy === 'price_desc' && <Text className='sort-arrow'>↓</Text>}
+                {sortBy === 'price_asc' && <Text className='sort-arrow sort-arrow--up' />}
+                {sortBy === 'price_desc' && <Text className='sort-arrow sort-arrow--down' />}
               </View>
           </View>
 
@@ -289,7 +290,9 @@ export default function ProductListPage() {
                         </View>
                         <Text className='sales'>已售{formatSalesCount(product.sales_count)}</Text>
                       </View>
-                      <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>+</View>
+                      <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>
+                        <AppIcon name='add' tone='primary' />
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -303,7 +306,7 @@ export default function ProductListPage() {
       
       {/* Floating Cart Button */}
       <View className='cart-float-btn' onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
-          <View className='cart-icon'>🛒</View>
+          <AppIcon name='cart' tone='primary' className='cart-icon' />
       </View>
     </View>
   )

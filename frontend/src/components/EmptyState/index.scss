@@ -1,0 +1,48 @@
+@use '../../styles/variables.scss' as *;
+
+.empty-state-view {
+  min-height: 320px;
+  padding: 84px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.empty-state-icon {
+  width: 96px;
+  height: 96px;
+  border-radius: 28px;
+  margin-bottom: 24px;
+  background: $showroom-surface-warm;
+  border: 1px solid rgba($secondary-color, 0.28);
+}
+
+.empty-state-title {
+  font-size: $font-size-lg;
+  color: $text-color-base;
+  font-weight: 600;
+}
+
+.empty-state-description {
+  margin-top: 10px;
+  font-size: $font-size-sm;
+  color: $text-color-secondary;
+  line-height: 1.5;
+}
+
+.empty-state-action {
+  margin-top: 28px;
+  min-width: 180px;
+  height: 72px;
+  padding: 0 32px;
+  border-radius: $border-radius-max;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $brand-ink;
+  color: $white;
+  font-size: $font-size-md;
+  font-weight: 600;
+}

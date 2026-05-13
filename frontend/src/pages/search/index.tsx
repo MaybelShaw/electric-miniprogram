@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
-import { View, Input, ScrollView, Image, Text } from '@tarojs/components'
+import { View, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Product } from '../../types'
-import { resolveLocalMediaUrl } from '../../utils/media'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
+import ProductCard from '../../components/ProductCard'
+import SearchBar from '../../components/SearchBar'
 import './index.scss'
 
 export default function Search() {
@@ -57,61 +60,32 @@ export default function Search() {
     }
   }
 
-  const goToDetail = (id: number) => {
-    Taro.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
-  }
-
-  const getSellingPrice = (product: Product) => {
-    const basePrice = Number(product.display_price ?? product.price ?? 0)
-    return product.discounted_price && Number(product.discounted_price) < basePrice
-      ? Number(product.discounted_price)
-      : basePrice
-  }
-
   return (
     <View className='search-page'>
       {/* 搜索栏 */}
       <View className='search-bar'>
-        <View className='search-input'>
-          <Image className='search-icon' src='/assets/search.png' />
-          <Input
-            className='input'
-            placeholder='搜索商品'
-            value={keyword}
-            onInput={(e) => setKeyword(e.detail.value)}
-            onConfirm={() => handleSearch()}
-            focus
-          />
-        </View>
-        <View className='search-btn' onClick={() => handleSearch()}>搜索</View>
+        <SearchBar
+          value={keyword}
+          onInput={setKeyword}
+          onConfirm={() => handleSearch()}
+          buttonText='搜索'
+          focus
+        />
       </View>
 
       {/* 搜索结果 */}
       {keyword && (
         <ScrollView className='result-list' scrollY onScrollToLower={onLoadMore}>
           {products.length === 0 && !searching ? (
-            <View className='empty'>
-              <Image className='empty-icon' src='/assets/empty-search.png' />
-              <Text className='empty-text'>未找到相关商品</Text>
-            </View>
+            <EmptyState title='未找到相关商品' description='换个关键词试试' icon='search' />
           ) : (
             <View className='product-list'>
               {products.map(product => (
-                <View key={product.id} className='product-item' onClick={() => goToDetail(product.id)}>
-              <Image className='product-image' src={resolveLocalMediaUrl(product.main_images[0])} mode='aspectFill' />
-                  <View className='product-info'>
-                    <View className='product-name'>{product.name}</View>
-                    <View className='product-brand'>{product.brand}</View>
-                    <View className='product-bottom'>
-                      <View className='product-price'>{Number(getSellingPrice(product)).toFixed(2)}</View>
-                      <View className='product-sales'>销量 {product.sales_count}</View>
-                    </View>
-                  </View>
-                </View>
+                <ProductCard key={product.id} product={product} variant='list' />
               ))}
             </View>
           )}
-          {searching && <View className='loading-text'>搜索中...</View>}
+          {searching && <LoadingState text='搜索中...' />}
           {!hasMore && products.length > 0 && <View className='loading-text'>没有更多了</View>}
         </ScrollView>
       )}

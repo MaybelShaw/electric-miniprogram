@@ -640,7 +640,7 @@ export default function SupportChat() {
             </View>
           )
         })}
-        <View id="bottom-anchor" style={{ height: showPanel ? 'calc(320px + 120rpx + env(safe-area-inset-bottom))' : 'calc(120rpx + env(safe-area-inset-bottom))' }}></View>
+        <View id='bottom-anchor' className={`bottom-anchor ${showPanel ? 'with-panel' : ''}`}></View>
       </ScrollView>
       
       <View className={`chat-footer ${showPanel ? 'has-panel' : ''}`}>

@@ -224,7 +224,7 @@ export default function AddressEdit() {
 
         <View className='form-item switch-item'>
           <View className='label'>设为默认地址</View>
-          <Switch checked={formData.is_default} onChange={handleSwitchChange} color='#1989FA' />
+          <Switch checked={formData.is_default} onChange={handleSwitchChange} color='#211C16' />
         </View>
       </View>
 

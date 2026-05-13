@@ -1,18 +1,19 @@
-@import '../../styles/variables.scss';
-@import '../../styles/mixins.scss';
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .payment-result-page {
   min-height: 100vh;
   padding: $spacing-xxl $spacing-lg calc(80px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, $background-color-base 0%, $white 60%);
+  background: $background-color-base;
   box-sizing: border-box;
 }
 
 .result-card {
-  background: $white;
+  background: $showroom-surface;
+  border: 1px solid rgba($border-color, 0.9);
   border-radius: $border-radius-lg;
   padding: $spacing-lg $spacing-md;
-  box-shadow: $shadow-md;
+  box-shadow: $shadow-sm;
   text-align: center;
 }
 
@@ -98,12 +99,12 @@
 }
 
 .primary-btn {
-  background: $primary-color;
+  background: $brand-ink;
   color: $white;
-  box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+  box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
 
   &:active {
-    opacity: 0.9;
+    background: darken-c($brand-ink, 3%);
   }
 }
 
@@ -114,7 +115,7 @@
 }
 
 .secondary-btn {
-  background: $white;
+  background: $brand-paper;
   color: $primary-color;
   border: 1px solid $primary-color;
 

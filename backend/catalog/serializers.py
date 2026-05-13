@@ -18,9 +18,36 @@ def _is_absolute_url(url: str) -> bool:
     return url.startswith('http://') or url.startswith('https://')
 
 
+LEGACY_MEDIA_BASE_URL = 'https://img.qxelectric.cn/media/'
+LEGACY_MEDIA_PATH_PREFIXES = ('images/images/',)
+
+
+def _legacy_media_url(url: str) -> str:
+    if not url:
+        return ''
+    parsed = urlparse(str(url).strip())
+    media_path = (parsed.path or '').lstrip('/')
+    media_prefix = (urlparse(settings.MEDIA_URL or '/media/').path or '/media/').strip('/')
+    if media_prefix and media_path.startswith(f'{media_prefix}/'):
+        media_path = media_path[len(media_prefix) + 1:]
+    if not any(media_path.startswith(prefix) for prefix in LEGACY_MEDIA_PATH_PREFIXES):
+        return ''
+    suffix = ''
+    if parsed.query:
+        suffix = f'{suffix}?{parsed.query}'
+    if parsed.fragment:
+        suffix = f'{suffix}#{parsed.fragment}' if suffix else f'#{parsed.fragment}'
+    return f'{LEGACY_MEDIA_BASE_URL}{media_path}{suffix}'
+
+
 def _resolve_media_url(url: str) -> str:
     """Build an absolute media URL when MEDIA_URL is absolute."""
-    if not url or _is_absolute_url(url):
+    if not url:
+        return url
+    legacy_url = _legacy_media_url(url)
+    if legacy_url:
+        return legacy_url
+    if _is_absolute_url(url):
         return url
     media_base = settings.MEDIA_URL or '/media/'
     if not _is_absolute_url(media_base):
@@ -32,6 +59,31 @@ def _resolve_media_url(url: str) -> str:
         trimmed = trimmed[len(base_path):]
     trimmed = trimmed.lstrip('/')
     return f"{base}{trimmed}"
+
+
+def _build_media_url(url: str, request=None) -> str:
+    if not url:
+        return ''
+    resolved_url = _resolve_media_url(url)
+    if _is_absolute_url(resolved_url):
+        return _ensure_https(resolved_url, request)
+    if request:
+        return _ensure_https(request.build_absolute_uri(resolved_url), request)
+    return _ensure_https(resolved_url, request)
+
+
+def _build_media_file_url(file_field, request=None) -> str:
+    if not file_field:
+        return ''
+    file_name = getattr(file_field, 'name', '') or ''
+    if file_name:
+        resolved_name = _resolve_media_url(file_name)
+        if _is_absolute_url(resolved_name):
+            return _ensure_https(resolved_name, request)
+    try:
+        return _build_media_url(file_field.url, request)
+    except (AttributeError, ValueError):
+        return ''
 
 
 def _ensure_https(url: str, request=None) -> str:
@@ -99,6 +151,16 @@ class CategorySerializer(serializers.ModelSerializer):
             }
             for c in qs
         ]
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        request = self.context.get('request')
+        rep['logo'] = _build_media_url(rep.get('logo'), request)
+        rep['children'] = [
+            {**child, 'logo': _build_media_url(child.get('logo'), request)}
+            for child in rep.get('children', [])
+        ]
+        return rep
 
     def validate(self, attrs):
         name = attrs.get('name')
@@ -630,10 +692,14 @@ class MediaImageSerializer(serializers.ModelSerializer):
         Returns:
             str: Absolute URL to the image file
         """
-        request = self.context.get('request')
-        if request:
-            return _ensure_https(request.build_absolute_uri(obj.file.url), request)
-        return _ensure_https(obj.file.url, request)
+        return _build_media_file_url(obj.file, self.context.get('request'))
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        url = self.get_url(instance)
+        rep['file'] = url
+        rep['url'] = url
+        return rep
     
     def create(self, validated_data):
         """
@@ -944,11 +1010,7 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'store', 'special_zone', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
 
     def get_image_url(self, obj: HomeBanner):
-        request = self.context.get('request')
-        url = obj.image.file.url if obj.image and obj.image.file else ''
-        if not url:
-            return ''
-        return _ensure_https(request.build_absolute_uri(url) if request else url, request)
+        return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -977,11 +1039,7 @@ class SpecialZoneCoverSerializer(serializers.ModelSerializer):
         validators = []
 
     def get_image_url(self, obj: SpecialZoneCover):
-        request = self.context.get('request')
-        url = obj.image.file.url if obj.image and obj.image.file else ''
-        if not url:
-            return ''
-        return _ensure_https(request.build_absolute_uri(url) if request else url, request)
+        return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
 
 class CaseDetailBlockSerializer(serializers.ModelSerializer):
@@ -1007,11 +1065,7 @@ class CaseDetailBlockSerializer(serializers.ModelSerializer):
         read_only_fields = ['image_url']
 
     def get_image_url(self, obj: CaseDetailBlock):
-        request = self.context.get('request')
-        url = obj.image.file.url if obj.image and obj.image.file else ''
-        if not url:
-            return ''
-        return _ensure_https(request.build_absolute_uri(url) if request else url, request)
+        return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
 
 class CaseSerializer(serializers.ModelSerializer):
@@ -1038,11 +1092,7 @@ class CaseSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at', 'cover_image_url']
 
     def get_cover_image_url(self, obj: Case):
-        request = self.context.get('request')
-        url = obj.cover_image.file.url if obj.cover_image and obj.cover_image.file else ''
-        if not url:
-            return ''
-        return _ensure_https(request.build_absolute_uri(url) if request else url, request)
+        return _build_media_file_url(obj.cover_image.file if obj.cover_image else None, self.context.get('request'))
 
     def create(self, validated_data):
         blocks_data = validated_data.pop('detail_blocks', [])

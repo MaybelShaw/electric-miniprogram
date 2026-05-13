@@ -1,4 +1,4 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .cart {
   height: 100vh;
@@ -30,12 +30,12 @@
       .go-shopping-btn {
         margin-top: $spacing-xl;
         padding: 20px 60px;
-        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        background: $brand-ink;
         color: $white;
         font-size: $font-size-md;
-        border-radius: 40px;
+        border-radius: $border-radius-md;
         display: inline-block;
-        box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+        box-shadow: 0 8px 18px rgba($brand-ink, 0.12);
         
         &:active {
           transform: scale(0.96);
@@ -46,16 +46,17 @@
 
   .cart-list {
     flex: 1;
-    padding-bottom: 140px;
+    padding: 12px 0 150px;
 
     .cart-item {
       display: flex;
       align-items: center;
-      padding: $spacing-lg;
-      background: $background-color-light;
-      margin: $spacing-md $spacing-md 0;
-      border-radius: $spacing-md;
-      box-shadow: $shadow-sm;
+      padding: 24px;
+      background: $showroom-surface;
+      margin: 0 24px 18px;
+      border-radius: $border-radius-lg;
+      box-shadow: none;
+      border: 1px solid $border-color;
       position: relative;
       transition: all 0.3s;
 
@@ -64,8 +65,8 @@
       }
 
       .checkbox {
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border: 2px solid $text-color-placeholder;
         border-radius: 50%;
         margin-right: $spacing-md;
@@ -83,9 +84,9 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -60%) rotate(45deg);
-            width: 10px;
-            height: 20px;
-            border: 4px solid $white;
+            width: 9px;
+            height: 18px;
+            border: 3px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -93,10 +94,10 @@
       }
 
       .product-image {
-        width: 180px;
-        height: 180px;
-        border-radius: $border-radius-lg;
-        background: $background-color-base;
+        width: 172px;
+        height: 172px;
+        border-radius: $border-radius-md;
+        background: $showroom-surface-warm;
         flex-shrink: 0;
         object-fit: cover;
       }
@@ -125,6 +126,7 @@
           font-size: $font-size-sm;
           color: $text-color-secondary;
           margin-top: 6px;
+          padding: 4px 0;
         }
 
         .product-bottom {
@@ -134,7 +136,7 @@
 
           .product-price {
             font-size: $font-size-xl;
-            font-weight: bold;
+            font-weight: 700;
             color: $danger-color;
             font-family: DIN;
           }
@@ -142,7 +144,7 @@
           .quantity-control {
             display: flex;
             align-items: center;
-            background: $background-color-base;
+            background: $showroom-surface-warm;
             border-radius: $border-radius-sm;
             padding: 4px;
 
@@ -154,9 +156,9 @@
               justify-content: center;
               font-size: $font-size-lg;
               color: $text-color-base;
-              background: $background-color-light;
+              background: $showroom-surface;
               border-radius: 6px;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+              box-shadow: none;
               transition: all 0.2s;
 
               &:active {
@@ -186,8 +188,8 @@
         font-size: $font-size-sm;
         color: $text-color-secondary;
         padding: 8px 16px;
-        background: $background-color-base;
-        border-radius: 24px;
+        background: $showroom-surface-warm;
+        border-radius: $border-radius-max;
       }
     }
   }
@@ -197,14 +199,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 110px;
-    background: rgba(255, 255, 255, 0.95);
+    min-height: 116px;
+    background: rgba($showroom-surface, 0.96);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 30px;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    padding: 14px 30px calc(14px + env(safe-area-inset-bottom));
+    box-shadow: $shadow-top;
+    border-top: 1px solid $border-color;
     z-index: 100;
 
     .footer-left {
@@ -212,8 +215,8 @@
       align-items: center;
 
       .checkbox {
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border: 2px solid $text-color-placeholder;
         border-radius: 50%;
         margin-right: $spacing-sm;
@@ -232,7 +235,7 @@
             transform: translate(-50%, -60%) rotate(45deg);
             width: 10px;
             height: 20px;
-            border: 4px solid $white;
+            border: 3px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -271,16 +274,17 @@
         height: 80px;
         display: flex;
         align-items: center;
-        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        background: $brand-ink;
         color: $white;
         font-size: 28px;
         font-weight: 600;
-        border-radius: 40px;
-        box-shadow: 0 4px 12px rgba($primary-color, 0.2);
+        border-radius: $border-radius-max;
+        box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
         transition: all 0.2s;
         
         &:active {
           transform: scale(0.96);
+          background: darken-c($brand-ink, 3%);
         }
       }
     }

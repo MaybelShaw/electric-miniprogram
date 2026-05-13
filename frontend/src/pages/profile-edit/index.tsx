@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 export default function ProfileEdit() {
@@ -100,6 +101,8 @@ export default function ProfileEdit() {
     )
   }
 
+  const resolvedAvatarUrl = resolveLocalMediaUrl(avatarUrl)
+
   return (
     <View className='profile-edit'>
       {/* 头像 */}
@@ -107,10 +110,11 @@ export default function ProfileEdit() {
         <View className='form-item avatar-item'>
           <View className='item-label'>头像</View>
           <View className='item-content' onClick={handleChooseAvatar}>
-            <Image 
-              className='avatar' 
-              src={resolveLocalMediaUrl(avatarUrl) || '/assets/default-avatar.png'}
-            />
+            {resolvedAvatarUrl ? (
+              <Image className='avatar' src={resolvedAvatarUrl} />
+            ) : (
+              <View className='avatar avatar-placeholder'><AppIcon name='profile' tone='muted' /></View>
+            )}
             <View className='arrow-icon'>›</View>
           </View>
         </View>

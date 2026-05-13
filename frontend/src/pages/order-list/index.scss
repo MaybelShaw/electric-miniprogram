@@ -1,5 +1,5 @@
-@import '../../styles/variables.scss';
-@import '../../styles/mixins.scss';
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .order-list {
   height: 100vh;
@@ -9,10 +9,10 @@
 
   .tabs {
     display: flex;
-    background: $white;
+    background: rgba($showroom-surface, 0.98);
     padding: 0 $spacing-sm;
     border-bottom: 1px solid $border-color;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
     z-index: 10;
 
     .tab-item {
@@ -37,9 +37,9 @@
           left: 50%;
           transform: translateX(-50%);
           width: 40px;
-          height: 6px;
-          background: linear-gradient(90deg, lighten-c($primary-color, 10%), $primary-color);
-          border-radius: 3px;
+          height: 2px;
+          background: $secondary-color;
+          border-radius: 0;
         }
       }
     }
@@ -80,14 +80,14 @@
     .retry-btn {
       display: inline-block;
       padding: $spacing-sm $spacing-xl;
-      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      background: $brand-ink;
       color: $white;
       font-size: $font-size-md;
-      border-radius: 40px;
-      box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+      border-radius: $border-radius-md;
+      box-shadow: none;
       
       &:active {
-        opacity: 0.9;
+        background: darken-c($brand-ink, 3%);
       }
     }
   }

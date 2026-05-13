@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { View, Swiper, SwiperItem, Image, ScrollView, Input, Text } from '@tarojs/components'
+import { View, Swiper, SwiperItem, Image, ScrollView, Text } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
@@ -8,7 +8,12 @@ import { storeService } from '../../services/store'
 import { Product, Category, HomeBanner, HomeStoreCard, SpecialZoneCover, Store } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import { Storage, CACHE_KEYS } from '../../utils/storage'
+import AppIcon from '../../components/AppIcon'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
 import ProductCard from '../../components/ProductCard'
+import SearchBar from '../../components/SearchBar'
+import SectionHeader from '../../components/SectionHeader'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
 
@@ -224,17 +229,12 @@ function Home() {
 
   return (
     <View className='home'>
-      <View className='search-bar'>
-        <View className='search-input'>
-          <View className='search-icon'>🔍</View>
-          <Input
-            className='input'
-            placeholder='搜索商品'
-            value={searchValue}
-            onInput={(e) => setSearchValue(e.detail.value)}
-            onConfirm={handleSearch}
-          />
-        </View>
+      <View className='home-topbar'>
+        <SearchBar
+          value={searchValue}
+          onInput={setSearchValue}
+          onConfirm={handleSearch}
+        />
       </View>
 
       <ScrollView
@@ -245,24 +245,78 @@ function Home() {
         onRefresherRefresh={onRefresh}
         onScrollToLower={onLoadMore}
       >
-        {banners.length > 0 && (
-          <Swiper className='banner' autoplay circular indicatorDots>
-            {banners.map(banner => (
-              <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
-                <Image className='banner-image' src={resolveLocalMediaUrl(banner.image_url)} mode='aspectFill' />
-              </SwiperItem>
-            ))}
-          </Swiper>
-        )}
-
-        <View className='entry-section'>
-          <View className='entry-card brand-entry' onClick={goToBrandZone}>
-            <View className='entry-label'>品牌专区</View>
-            <View className='entry-desc'>合作品牌商品</View>
+        <View className='home-hero'>
+          {banners.length > 0 ? (
+            <Swiper className='hero-swiper' autoplay circular indicatorDots>
+              {banners.map(banner => (
+                <SwiperItem key={banner.id} onClick={() => handleBannerClick(banner)}>
+                  <Image className='hero-image' src={resolveLocalMediaUrl(banner.image_url)} mode='aspectFill' />
+                </SwiperItem>
+              ))}
+            </Swiper>
+          ) : (
+            <View className='hero-fallback'>
+              <View className='hero-fallback-line' />
+            </View>
+          )}
+          <View className='hero-copy'>
+            <Text className='hero-kicker'>QINGXUN HOME</Text>
+            <View className='hero-title'>庆勋愉悦家</View>
+            <View className='hero-subtitle'>精选品牌家电与生活方式方案</View>
           </View>
-          <View className='entry-card activity-entry' onClick={goToActivityZone}>
-            <View className='entry-label'>活动专区</View>
-            <View className='entry-desc'>平台活动精选</View>
+        </View>
+
+        <View className='home-actions'>
+          <View className='home-action' onClick={goToBrandZone}>
+            <AppIcon name='store' tone='gold' className='action-icon' />
+            <View className='action-title'>品牌馆</View>
+            <View className='action-desc'>合作品牌精选</View>
+          </View>
+          <View className='home-action' onClick={goToActivityZone}>
+            <AppIcon name='package' tone='primary' className='action-icon' />
+            <View className='action-title'>活动展区</View>
+            <View className='action-desc'>限时方案与组合</View>
+          </View>
+          <View className='home-action' onClick={goToAllCategories}>
+            <AppIcon name='search' tone='muted' className='action-icon' />
+            <View className='action-title'>全品类</View>
+            <View className='action-desc'>按空间和功能选购</View>
+          </View>
+        </View>
+
+        <View className='curation-section'>
+          <SectionHeader title='灵感专区' subtitle='按礼赠、设计与热销场景快速进入' />
+          <View className='curation-grid'>
+            <View className='curation-card large' onClick={() => handleZoneClick('designer')}>
+              {designerZoneCover?.image_url && (
+                <Image className='curation-image' src={resolveLocalMediaUrl(designerZoneCover.image_url)} mode='aspectFill' />
+              )}
+              <View className='curation-copy'>
+                <Text className='curation-label'>DESIGN</Text>
+                <View className='curation-title'>设计师专区</View>
+                <View className='curation-desc'>场景灵感与搭配方案</View>
+              </View>
+            </View>
+            <View className='curation-stack'>
+              <View className='curation-card' onClick={() => handleZoneClick('gift')}>
+                {giftZoneCover?.image_url && (
+                  <Image className='curation-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
+                )}
+                <View className='curation-copy'>
+                  <Text className='curation-label'>GIFT</Text>
+                  <View className='curation-title'>礼品专区</View>
+                </View>
+              </View>
+              <View className='curation-card' onClick={() => handleZoneClick('best_seller')}>
+                {bestSellerZoneCover?.image_url && (
+                  <Image className='curation-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='aspectFill' />
+                )}
+                <View className='curation-copy'>
+                  <Text className='curation-label'>BEST</Text>
+                  <View className='curation-title'>爆品专区</View>
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
@@ -287,53 +341,32 @@ function Home() {
               ))}
             </View>
             <View className='home-store-category-row'>
-              {(card.categories || []).map(category => (
-                <View key={category.id} className='home-store-category-pill' onClick={() => goToCardStore(card, category.id)}>
-                  {category.name}
-                </View>
-              ))}
+              {(card.categories || []).slice(0, 3).map((category, index) => {
+                const categoryImage = category.logo
+                  || card.secondary_products?.[index]?.main_images?.[0]
+                  || card.main_product?.main_images?.[0]
+
+                return (
+                  <View key={category.id} className='home-store-category-card' onClick={() => goToCardStore(card, category.id)}>
+                    {categoryImage ? (
+                      <Image className='home-store-category-image' src={resolveLocalMediaUrl(categoryImage)} mode='aspectFill' />
+                    ) : (
+                      <View className='home-store-category-placeholder'>
+                        <AppIcon name='package' tone='muted' />
+                      </View>
+                    )}
+                    <View className='home-store-category-name'>{category.name}</View>
+                  </View>
+                )
+              })}
             </View>
           </View>
         ))}
 
-        {false && <View className='special-zones'>
-          <View className='zone-item gift-zone' onClick={() => handleZoneClick('gift')}>
-            {giftZoneCover?.image_url && (
-              <Image className='zone-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
-            )}
-            <View className='zone-content'>
-              <View className='zone-title'>礼品专区</View>
-              <View className='zone-subtitle'>礼赠精选</View>
-            </View>
-          </View>
-          <View className='zone-item designer-zone' onClick={() => handleZoneClick('designer')}>
-            {designerZoneCover?.image_url && (
-              <Image className='zone-image' src={resolveLocalMediaUrl(designerZoneCover.image_url)} mode='aspectFill' />
-            )}
-            <View className='zone-content'>
-              <View className='zone-title'>设计师专区</View>
-              <View className='zone-subtitle'>场景灵感</View>
-            </View>
-          </View>
-        </View>}
-
-        {false && <View className='special-zones'>
-          <View className='zone-item best-seller-zone' onClick={() => handleZoneClick('best_seller')}>
-            {bestSellerZoneCover?.image_url && (
-              <Image className='zone-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='aspectFill' />
-            )}
-            <View className='zone-content'>
-              <View className='zone-title'>爆品专区</View>
-              <View className='zone-subtitle'>热销好物</View>
-            </View>
-          </View>
-        </View>}
-
         {majorCategories.length > 0 && (
           <View className='category-nav'>
             <View className='section-header-row'>
-              <View className='section-title'>品类专区</View>
-              <View className='more-btn' onClick={goToAllCategories}>更多 {'>'}</View>
+              <SectionHeader title='品类专区' actionText='更多' onAction={goToAllCategories} />
             </View>
             <View className='category-grid'>
               {majorCategories.map(cat => (
@@ -341,7 +374,7 @@ function Home() {
                   {cat.logo ? (
                     <Image className='category-icon-img' src={resolveLocalMediaUrl(cat.logo)} mode='aspectFill' />
                   ) : (
-                    <View className='category-icon'>{cat.name.charAt(0)}</View>
+                    <AppIcon name='package' tone='muted' className='category-icon' />
                   )}
                   <View className='category-name'>{cat.name}</View>
                 </View>
@@ -353,8 +386,7 @@ function Home() {
         {partnerStores.length > 0 && (
           <View className='brand-section'>
             <View className='section-header-row'>
-              <View className='section-title'>品牌专区</View>
-              <View className='more-btn' onClick={goToAllBrands}>更多 {'>'}</View>
+              <SectionHeader title='品牌专区' actionText='更多' onAction={goToAllBrands} />
             </View>
             <View className='brand-grid'>
               {partnerStores.slice(0, 4).map(store => (
@@ -362,7 +394,9 @@ function Home() {
                   {store.logo ? (
                     <Image className='brand-logo' src={resolveLocalMediaUrl(store.logo)} mode='aspectFit' />
                   ) : (
-                    <View className='brand-logo brand-logo-placeholder'>{store.name.charAt(0)}</View>
+                    <View className='brand-logo brand-logo-placeholder'>
+                      <AppIcon name='store' tone='muted' />
+                    </View>
                   )}
                   <View className='brand-name'>{store.name}</View>
                 </View>
@@ -373,7 +407,7 @@ function Home() {
 
         <View className='product-section'>
           <View className='section-header'>
-            <View className='section-title'>全部商品</View>
+            <SectionHeader title='全部商品' subtitle='精选家电与生活方式好物' centered />
           </View>
           <View className='product-list'>
             {products.map(product => (
@@ -382,10 +416,7 @@ function Home() {
           </View>
 
           {loading && (
-            <View className='loading-wrapper'>
-              <View className='loading-spinner'></View>
-              <Text className='loading-text'>加载中...</Text>
-            </View>
+            <LoadingState text='加载中...' />
           )}
 
           {!hasMore && products.length > 0 && (
@@ -397,10 +428,7 @@ function Home() {
           )}
 
           {!loading && products.length === 0 && (
-            <View className='empty-state'>
-              <Text className='empty-icon'>📦</Text>
-              <Text className='empty-text'>暂无商品</Text>
-            </View>
+            <EmptyState title='暂无商品' icon='package' />
           )}
         </View>
       </ScrollView>

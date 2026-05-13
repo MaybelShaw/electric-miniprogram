@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { Order } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
 import { resolveLocalMediaUrl } from '../../utils/media'
+import PriceText from '../PriceText'
+import StatusBadge from '../StatusBadge'
 import './index.scss'
 
 interface OrderCardProps {
@@ -123,6 +125,16 @@ export default function OrderCard({
     return order.status;
   }
 
+  const getStatusVariant = () => {
+    const statusClass = getStatusClass()
+    if (statusClass === 'pending') return 'warning'
+    if (statusClass === 'paid' || statusClass === 'shipped') return 'primary'
+    if (statusClass === 'completed' || statusClass === 'refunded') return 'success'
+    if (statusClass === 'returning' || statusClass === 'refunding') return 'info'
+    if (statusClass === 'cancelled') return 'muted'
+    return 'default'
+  }
+
   return (
     <View className='order-card' onClick={handleCardClick}>
       <View className='order-header'>
@@ -131,7 +143,9 @@ export default function OrderCard({
         ) : (
           <Text className='order-time'>{formatTime(order.created_at)}</Text>
         )}
-        <Text className={`order-status ${getStatusClass()}`}>{getDisplayStatus()}</Text>
+        <StatusBadge variant={getStatusVariant()} className={`order-status ${getStatusClass()}`}>
+          {getDisplayStatus()}
+        </StatusBadge>
       </View>
       
       <View className='order-content'>
@@ -149,13 +163,15 @@ export default function OrderCard({
           </View>
           {specsText ? <View className='product-spec'>{specsText}</View> : null}
           <View className='product-bottom'>
-            <View className='product-price'>
-              {formatPrice(
+            <PriceText
+              className='product-price'
+              size='sm'
+              value={
                 primaryItem
                   ? primaryItem.unit_price
                   : (order.product?.price || 0)
-              )}
-            </View>
+              }
+            />
             <View className='product-quantity'>x{order.quantity || 0}</View>
           </View>
         </View>
@@ -163,12 +179,12 @@ export default function OrderCard({
 
       <View className='order-total'>
         <Text className='label'>实付款</Text>
-        <Text className='amount'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
+        <PriceText className='amount' size='md' value={order.actual_amount || order.total_amount} />
       </View>
       {refundedAmount > 0 && (
         <View className='order-total refund'>
           <Text className='label'>已退款</Text>
-          <Text className='amount'>{formatPrice(refundedAmount)}</Text>
+        <PriceText className='amount' size='sm' value={refundedAmount} />
         </View>
       )}
       

@@ -13,6 +13,8 @@ import { BASE_URL, TokenManager } from '../../utils/request'
 import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
 import { openWechatLogistics } from '../../utils/wechat-logistics'
 import { requireLogin } from '../../utils/login-guard'
+import AppIcon, { AppIconName } from '../../components/AppIcon'
+import BottomActionBar from '../../components/BottomActionBar'
 import './index.scss'
 
 export default function OrderDetail() {
@@ -607,26 +609,26 @@ export default function OrderDetail() {
     return getOrderStatusText(targetOrder.status);
   }
 
-  const getStatusIcon = (targetOrder: Order) => {
+  const getStatusIcon = (targetOrder: Order): AppIconName => {
     if (targetOrder.return_info) {
       const returnStatus = targetOrder.return_info.status;
-      if (returnStatus === 'requested') return '⏳';
-      if (returnStatus === 'approved') return '📦';
-      if (returnStatus === 'in_transit') return '🚚';
-      if (returnStatus === 'received') return '✅';
-      if (returnStatus === 'rejected') return '❌';
+      if (returnStatus === 'requested') return 'order';
+      if (returnStatus === 'approved') return 'package';
+      if (returnStatus === 'in_transit') return 'ship';
+      if (returnStatus === 'received') return 'done';
+      if (returnStatus === 'rejected') return 'close';
     }
     
     switch (targetOrder.status) {
-      case 'pending': return '⏰';
-      case 'paid': return '✅';
-      case 'shipped': return '🚚';
-      case 'completed': return '✨';
-      case 'cancelled': return '❌';
-      case 'returning': return '🚚';
-      case 'refunding': return '💸';
-      case 'refunded': return '💰';
-      default: return '✨';
+      case 'pending': return 'pay';
+      case 'paid': return 'done';
+      case 'shipped': return 'ship';
+      case 'completed': return 'done';
+      case 'cancelled': return 'close';
+      case 'returning': return 'ship';
+      case 'refunding': return 'refund';
+      case 'refunded': return 'pay';
+      default: return 'order';
     }
   }
 
@@ -642,6 +644,12 @@ export default function OrderDetail() {
       return 'refunded'
     }
     return targetOrder.status;
+  }
+
+  const getInvoiceStatusClass = (status: string) => {
+    if (status === 'issued') return 'success'
+    if (status === 'cancelled') return 'danger'
+    return 'warning'
   }
 
   if (loading) {
@@ -673,9 +681,9 @@ export default function OrderDetail() {
     <View className='order-detail'>
       <ScrollView className='content' scrollY>
         {/* 订单状态 */}
-        <View className={`status-card ${getStatusClass(order)}`}>
-          <View className='status-icon'>
-            {getStatusIcon(order)}
+          <View className={`status-card ${getStatusClass(order)}`}>
+            <View className='status-icon'>
+            <AppIcon name={getStatusIcon(order)} tone='primary' />
           </View>
           <View className='status-text-container'>
             <View className='status-text'>{getDisplayStatus(order)}</View>
@@ -743,7 +751,7 @@ export default function OrderDetail() {
         {/* 收货地址 */}
         {order.snapshot_address && (
           <View className='address-card'>
-            <View className='address-icon'>📍</View>
+            <View className='address-icon'><AppIcon name='location' tone='primary' /></View>
             <View className='address-content'>
               <View className='address-header'>
                 <Text className='contact-name'>{order.snapshot_contact_name}</Text>
@@ -820,9 +828,9 @@ export default function OrderDetail() {
         {/* 退货信息 */}
         {order.return_info && (
           <View className='info-card'>
-            <View className='info-row' style={{ borderBottom: '1rpx solid #f5f6f7', paddingBottom: '16rpx', marginBottom: '16rpx' }}>
-              <Text className='info-label' style={{ fontWeight: 'bold', color: '#323233' }}>退货申请</Text>
-              <Text className='info-value' style={{ color: '#1989fa', fontWeight: 'bold' }}>{returnStatusMap[order.return_info.status] || order.return_info.status_display}</Text>
+            <View className='info-row info-row-title'>
+              <Text className='info-label'>退货申请</Text>
+              <Text className='info-value info-value-primary'>{returnStatusMap[order.return_info.status] || order.return_info.status_display}</Text>
             </View>
             <View className='info-row'>
               <Text className='info-label'>退货原因</Text>
@@ -850,17 +858,11 @@ export default function OrderDetail() {
               <Text className='info-label'>发票</Text>
               <View className='info-value'>
                 {order.invoice_info ? (
-                   <Text
-                     style={{
-                       color: order.invoice_info.status === 'issued' ? '#07c160' :
-                              order.invoice_info.status === 'cancelled' ? '#ff4d4f' : '#faad14',
-                       fontWeight: 'bold'
-                     }}
-                   >
+                   <Text className={`invoice-status ${getInvoiceStatusClass(order.invoice_info.status)}`}>
                      {order.invoice_info.status_display}
                    </Text>
                 ) : (
-                   <View className='action-btn' onClick={handleRequestInvoice} style={{color: '#1989FA'}}>
+                   <View className='action-btn primary' onClick={handleRequestInvoice}>
                      申请发票
                    </View>
                 )}
@@ -869,7 +871,7 @@ export default function OrderDetail() {
             {order.invoice_info && order.invoice_info.status === 'issued' && (
                <View className='info-row'>
                   <Text className='info-label'>发票文件</Text>
-                  <Text className='info-value' onClick={handleDownloadInvoice} style={{color: '#1989FA'}}>
+                  <Text className='info-value link' onClick={handleDownloadInvoice}>
                     下载/查看
                   </Text>
                </View>
@@ -912,7 +914,7 @@ export default function OrderDetail() {
 
       {/* 底部操作栏 */}
       {(['pending', 'paid', 'shipped', 'completed'].includes(order.status) || (order.return_info && order.return_info.status === 'requested')) && (
-        <View className='footer-bar'>
+        <BottomActionBar className='footer-bar'>
           {(['pending', 'paid'].includes(order.status)) && !order.return_info && (
             <View className='cancel-btn' onClick={handleCancelOrder}>
               {order.status === 'paid' ? '取消并退款' : '取消订单'}
@@ -921,18 +923,18 @@ export default function OrderDetail() {
           
           {/* 申请退货: 仅已发货/已完成 且无退货申请 */}
           {['shipped', 'completed'].includes(order.status) && !order.return_info && (
-            <View className='cancel-btn ghost' onClick={handleRequestReturn} style={{ marginLeft: '20rpx' }}>
+            <View className='cancel-btn ghost with-gap' onClick={handleRequestReturn}>
               申请退货
             </View>
           )}
 
           {canRequestRefund && (
-            <View className='cancel-btn ghost' onClick={handleRequestRefund} style={{ marginLeft: '20rpx' }}>
+            <View className='cancel-btn ghost with-gap' onClick={handleRequestRefund}>
               申请退款
             </View>
           )}
           {order.refund_pending && (
-            <View className='cancel-btn ghost disabled' style={{ marginLeft: '20rpx' }}>
+            <View className='cancel-btn ghost disabled with-gap'>
               {order.status === 'refunding' ? '退款处理中' : '退款审核中'}
             </View>
           )}
@@ -955,7 +957,7 @@ export default function OrderDetail() {
               填写退货物流
             </View>
           )}
-        </View>
+        </BottomActionBar>
       )}
       {refundModalOpen && (
         <View className='refund-modal'>

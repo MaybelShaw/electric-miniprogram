@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
-import { View, Text, Image, Swiper, SwiperItem, ScrollView } from '@tarojs/components'
+import { View, Image, Swiper, SwiperItem, ScrollView } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { specialZoneService } from '../../services/special-zone'
 import { caseService } from '../../services/case'
 import { Product, Case, HomeBanner, LegacySpecialZoneType, SpecialZone as DynamicSpecialZone } from '../../types'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
 import ProductCard from '../../components/ProductCard'
+import SectionHeader from '../../components/SectionHeader'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
@@ -227,8 +230,8 @@ export default function SpecialZone() {
               </View>
             ))}
           </View>
-          {loading && <View className='loading-wrapper'>加载中...</View>}
-          {!loading && activityZones.length === 0 && <View className='empty-state'>暂无活动</View>}
+          {loading && <LoadingState text='加载中...' />}
+          {!loading && activityZones.length === 0 && <EmptyState title='暂无活动' icon='store' />}
         </ScrollView>
       </View>
     )
@@ -258,7 +261,7 @@ export default function SpecialZone() {
 
         {banners.length > 0 && (
           <View className='scene-display'>
-            <View className='section-title'>场景展示</View>
+            <SectionHeader title='场景展示' />
             <Swiper
               className='scene-swiper'
               circular
@@ -280,7 +283,7 @@ export default function SpecialZone() {
 
         {!zoneId && legacyType === 'designer' && cases.length > 0 && (
           <View className='case-display'>
-            <View className='section-title'>精选案例</View>
+            <SectionHeader title='精选案例' />
             <ScrollView scrollX className='case-scroll'>
               {cases.map(item => (
                 <View key={item.id} className='case-card' onClick={() => goToCaseDetail(item.id)}>
@@ -293,8 +296,8 @@ export default function SpecialZone() {
         )}
 
         <View className='product-display'>
-          {zoneId && <View className='section-title'>活动商品</View>}
-          {!zoneId && legacyType === 'designer' && <View className='section-title'>产品展示</View>}
+          {zoneId && <SectionHeader title='活动商品' />}
+          {!zoneId && legacyType === 'designer' && <SectionHeader title='产品展示' />}
           <View className='product-list'>
             {products.map(product => (
               <ProductCard
@@ -305,15 +308,11 @@ export default function SpecialZone() {
           </View>
           
           {loading && (
-            <View className='loading-wrapper'>
-              <Text>加载中...</Text>
-            </View>
+            <LoadingState text='加载中...' />
           )}
           
           {!loading && products.length === 0 && (
-            <View className='empty-state'>
-              <Text>暂无相关商品</Text>
-            </View>
+            <EmptyState title='暂无相关商品' icon='package' />
           )}
         </View>
       </ScrollView>

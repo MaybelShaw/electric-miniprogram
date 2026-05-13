@@ -1,0 +1,41 @@
+@use '../../styles/variables.scss' as *;
+
+.price-text {
+  display: inline-flex;
+  align-items: baseline;
+  color: $danger-color;
+  font-family: DIN, 'DIN Alternate', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.price-symbol {
+  font-size: 0.62em;
+  margin-right: 3px;
+}
+
+.price-integer {
+  font-size: 1em;
+}
+
+.price-decimal {
+  font-size: 0.62em;
+}
+
+.price-text--sm {
+  font-size: 28px;
+}
+
+.price-text--md {
+  font-size: 34px;
+}
+
+.price-text--lg {
+  font-size: 54px;
+}
+
+.price-text--muted {
+  color: $text-color-secondary;
+  text-decoration: line-through;
+}

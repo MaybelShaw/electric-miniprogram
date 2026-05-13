@@ -1,9 +1,9 @@
-@import "../../../styles/variables.scss";
-@import "../../../styles/mixins.scss";
+@use '../../../styles/variables.scss' as *;
+@use '../../../styles/mixins.scss' as *;
 
 .select-order-page {
   height: 100vh;
-  background-color: $background-color-base;
+  background: $background-color-base;
   
   .order-list {
     height: 100%;
@@ -19,11 +19,12 @@
   }
 
   .order-item {
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     padding: $spacing-md;
     margin-bottom: $spacing-md;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
     
     .header {
       display: flex;
