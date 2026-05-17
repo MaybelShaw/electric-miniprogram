@@ -10,126 +10,17 @@
   }
 
   .store-list {
-    padding: $spacing-md;
+    padding: 24px 24px 48px;
   }
 
-  .store-card {
-    margin-bottom: $spacing-md;
-    background: $showroom-surface;
-    border: 1px solid $border-color;
-    border-radius: $border-radius-lg;
-    overflow: hidden;
-    box-shadow: $shadow-sm;
-
-    &:active {
-      opacity: 0.9;
-    }
-  }
-
-  .store-cover {
-    width: 100%;
-    height: 260px;
-    display: block;
-    background: $primary-light;
-
-    &.placeholder {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: $primary-color;
-      font-size: 72px;
-      font-weight: 700;
-    }
-  }
-
-  .store-logo-only {
-    width: 120px;
-    height: 120px;
-    border-radius: $border-radius-lg;
-  }
-
-  .store-content {
-    padding: $spacing-md;
-  }
-
-  .store-title-row {
-    display: flex;
-    align-items: center;
-  }
-
-  .store-logo {
-    width: 56px;
-    height: 56px;
-    border-radius: $border-radius-md;
-    margin-right: $spacing-sm;
-    flex-shrink: 0;
-    background: $background-color-base;
-  }
-
-  .store-name {
-    flex: 1;
-    min-width: 0;
-    font-size: $font-size-lg;
-    font-weight: 600;
-    color: $text-color-base;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .store-desc {
-    display: -webkit-box;
-    margin-top: $spacing-sm;
-    font-size: $font-size-sm;
-    line-height: 1.5;
-    color: $text-color-secondary;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .store-list-card {
+    margin-bottom: 24px;
   }
 
   .status-text {
     padding: 40px 0;
     text-align: center;
     font-size: $font-size-sm;
-    color: $text-color-secondary;
-  }
-}
-
-.store-list-page {
-  background: $background-color-base;
-
-  .store-list {
-    padding: 24px 20px 40px;
-  }
-
-  .store-card {
-    border: 1px solid $border-color;
-    border-radius: $border-radius-lg;
-    background: $showroom-surface;
-    box-shadow: $shadow-sm;
-  }
-
-  .store-cover {
-    height: 300px;
-    background: $showroom-surface-warm;
-  }
-
-  .store-content {
-    padding: 26px 28px 30px;
-  }
-
-  .store-logo {
-    border: 1px solid $border-color;
-    border-radius: $border-radius-md;
-  }
-
-  .store-name {
-    color: $text-color-base;
-    font-size: 34px;
-  }
-
-  .store-desc {
     color: $text-color-secondary;
   }
 }

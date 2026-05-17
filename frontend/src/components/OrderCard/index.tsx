@@ -114,7 +114,7 @@ export default function OrderCard({
   const getStatusClass = () => {
     if (order.return_info) {
       if (order.return_info.status === 'rejected') return 'cancelled';
-      return 'returning'; // You might need to add this class to OrderCard.scss too
+      return 'returning';
     }
     if (order.refund_pending) {
       return 'refunding'

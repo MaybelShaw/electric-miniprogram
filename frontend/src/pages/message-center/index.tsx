@@ -5,6 +5,7 @@ import { notificationService, SubscribeTemplate, NotificationStats } from '../..
 import { Notification } from '../../types'
 import { TokenManager } from '../../utils/request'
 import { requireLogin } from '../../utils/login-guard'
+import EmptyState from '../../components/EmptyState'
 import './index.scss'
 
 const TYPE_META: Record<
@@ -224,10 +225,12 @@ export default function MessageCenter() {
         onScrollToLower={() => hasMore && !loading && loadNotifications(page + 1)}
       >
         {notifications.length === 0 && !loading && (
-          <View className='empty'>
-            <Text className='empty-icon'>📭</Text>
-            <Text className='empty-text'>暂时没有消息</Text>
-          </View>
+          <EmptyState
+            className='message-empty'
+            title='暂时没有消息'
+            description='订单、售后与对账提醒会在这里出现'
+            icon='message'
+          />
         )}
 
         {notifications.map(renderCard)}

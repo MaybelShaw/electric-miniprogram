@@ -10,6 +10,7 @@ import cameraIcon from '../../assets/icons/camera.png'
 import pictureIcon from '../../assets/icons/picture.png'
 import orderIcon from '../../assets/icons/order.png'
 import productIcon from '../../assets/icons/product.png'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 interface ExtendedSupportMessage extends SupportMessage {
@@ -660,7 +661,7 @@ export default function SupportChat() {
             </View>
           ) : (
             <View className='media-btn' onClick={handleTogglePanel}>
-              <Text className='plus-icon'>+</Text>
+              <AppIcon name='add' tone='muted' className='plus-icon' />
             </View>
           )}
         </View>

@@ -21,11 +21,21 @@
   color: $text-color-base;
   font-size: $font-size-lg;
   font-weight: 700;
+
+  &:active {
+    transform: scale(0.94);
+    background: $showroom-surface-warm;
+  }
 }
 
 .quantity-btn.disabled {
   color: $text-color-placeholder;
   background: transparent;
+
+  &:active {
+    transform: none;
+    background: transparent;
+  }
 }
 
 .quantity-value {

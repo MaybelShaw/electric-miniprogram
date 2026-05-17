@@ -8,15 +8,15 @@
   align-items: center;
   justify-content: center;
   text-align: center;
+  color: $text-color-base;
 }
 
 .empty-state-icon {
-  width: 96px;
-  height: 96px;
-  border-radius: 28px;
+  width: 104px;
+  height: 104px;
   margin-bottom: 24px;
-  background: $showroom-surface-warm;
-  border: 1px solid rgba($secondary-color, 0.28);
+  background: transparent;
+  border: 0;
 }
 
 .empty-state-title {
@@ -45,4 +45,9 @@
   color: $white;
   font-size: $font-size-md;
   font-weight: 600;
+
+  &:active {
+    transform: translateY(1px);
+    background: darken-c($brand-ink, 3%);
+  }
 }

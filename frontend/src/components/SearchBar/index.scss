@@ -18,6 +18,11 @@
   border-radius: $border-radius-max;
   background: $showroom-surface;
   box-shadow: 0 8px 22px rgba($brand-ink, 0.035);
+
+  &:active {
+    border-color: rgba($brand-brass, 0.5);
+    background: $brand-paper;
+  }
 }
 
 .app-search-icon {
@@ -33,6 +38,10 @@
   color: $text-color-base;
 }
 
+.app-search-placeholder {
+  color: $text-color-placeholder;
+}
+
 .app-search-button {
   height: 72px;
   min-width: 112px;
@@ -46,4 +55,9 @@
   font-size: $font-size-md;
   font-weight: 600;
   box-shadow: 0 12px 24px rgba($brand-ink, 0.12);
+
+  &:active {
+    transform: translateY(1px);
+    background: darken-c($brand-ink, 3%);
+  }
 }

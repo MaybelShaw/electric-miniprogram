@@ -7,6 +7,7 @@ import { refundService } from '../../services/refund'
 import { Order, Payment, WechatPayParams } from '../../types'
 import { formatPrice, formatTime } from '../../utils/format'
 import { resolvePaymentErrorMessage } from '../../utils/payment'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 type StatusType = 'success' | 'fail'
@@ -269,7 +270,7 @@ export default function PaymentResult() {
     <View className='payment-result-page'>
       <View className='result-card'>
         <View className={`result-icon ${status === 'success' ? 'success' : 'fail'}`}>
-          {status === 'success' ? '✓' : '!'}
+          <AppIcon name={status === 'success' ? 'done' : 'close'} tone={status === 'success' ? 'primary' : 'danger'} />
         </View>
         <Text className='result-title'>
           {status === 'success' ? '支付成功' : '支付未完成'}

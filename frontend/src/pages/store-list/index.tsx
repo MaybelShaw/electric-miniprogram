@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { View, ScrollView, Image, Text } from '@tarojs/components'
+import { View, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { storeService } from '../../services/store'
 import { Store } from '../../types'
-import { resolveLocalMediaUrl } from '../../utils/media'
+import StoreShowcaseCard from '../../components/StoreShowcaseCard'
 import './index.scss'
 
 export default function StoreListPage() {
@@ -50,22 +50,7 @@ export default function StoreListPage() {
       >
         <View className='store-list'>
           {stores.map(store => (
-            <View key={store.id} className='store-card' onClick={() => goToStore(store)}>
-              {store.cover_image ? (
-                <Image className='store-cover' src={resolveLocalMediaUrl(store.cover_image)} mode='aspectFill' />
-              ) : (
-                <View className='store-cover placeholder'>
-                  {store.logo ? <Image className='store-logo-only' src={resolveLocalMediaUrl(store.logo)} mode='aspectFill' /> : store.name.charAt(0)}
-                </View>
-              )}
-              <View className='store-content'>
-                <View className='store-title-row'>
-                  {store.logo && <Image className='store-logo' src={resolveLocalMediaUrl(store.logo)} mode='aspectFill' />}
-                  <Text className='store-name'>{store.name}</Text>
-                </View>
-                {!!store.description && <Text className='store-desc'>{store.description}</Text>}
-              </View>
-            </View>
+            <StoreShowcaseCard key={store.id} store={store} className='store-list-card' onClick={() => goToStore(store)} />
           ))}
 
           {loading && <View className='status-text'>加载中...</View>}

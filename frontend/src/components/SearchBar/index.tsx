@@ -30,6 +30,7 @@ export default function SearchBar({
           placeholder={placeholder}
           value={value}
           focus={focus}
+          placeholderClass='app-search-placeholder'
           onInput={(event) => onInput(event.detail.value)}
           onConfirm={onConfirm}
         />

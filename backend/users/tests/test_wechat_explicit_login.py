@@ -75,6 +75,41 @@ class WeChatExplicitLoginTests(TestCase):
 
     @patch("users.views.requests.post")
     @patch("users.views.requests.get")
+    def test_phone_authorization_reuses_existing_phone_when_openid_changes(
+        self, mock_get, mock_post
+    ):
+        mock_get.side_effect = [
+            MockWechatResponse({"openid": "openid-old", "session_key": "session-key"}),
+            MockWechatResponse({"access_token": "access-token", "expires_in": 7200}),
+            MockWechatResponse({"openid": "openid-new", "session_key": "session-key"}),
+            MockWechatResponse({"access_token": "access-token", "expires_in": 7200}),
+        ]
+        mock_post.return_value = MockWechatResponse(
+            {"errcode": 0, "phone_info": {"phoneNumber": "13800138000"}}
+        )
+
+        first = self.client.post(
+            self.url,
+            {"code": "js-code", "phone_code": "phone-code"},
+            format="json",
+        )
+        second = self.client.post(
+            self.url,
+            {"code": "js-code-2", "phone_code": "phone-code-2"},
+            format="json",
+        )
+
+        self.assertEqual(first.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(User.objects.count(), 1)
+
+        user = User.objects.get()
+        self.assertEqual(second.data["user"]["id"], first.data["user"]["id"])
+        self.assertEqual(user.openid, "openid-new")
+        self.assertEqual(user.phone, "13800138000")
+
+    @patch("users.views.requests.post")
+    @patch("users.views.requests.get")
     def test_default_username_is_generated_without_profile_authorization(
         self, mock_get, mock_post
     ):

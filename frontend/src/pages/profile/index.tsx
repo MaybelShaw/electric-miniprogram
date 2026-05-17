@@ -238,13 +238,13 @@ function Profile() {
           </View>
           <View className='order-item' onTap={() => goToOrders('paid')}>
             <View className='order-icon-wrapper'>
-              <AppIcon name='package' tone='primary' />
+              <AppIcon name='package' tone='muted' />
             </View>
             <Text className='order-text'>待发货</Text>
           </View>
           <View className='order-item' onTap={() => goToOrders('shipped')}>
             <View className='order-icon-wrapper'>
-              <AppIcon name='ship' tone='primary' />
+              <AppIcon name='ship' tone='muted' />
             </View>
             <Text className='order-text'>待收货</Text>
           </View>

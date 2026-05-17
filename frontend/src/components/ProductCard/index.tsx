@@ -37,7 +37,6 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
   return (
     <View className={`product-card product-card--${variant}`} onClick={goToDetail}>
       <View className='product-image-wrapper'>
-        {tagText && <Text className='product-tag'>{tagText}</Text>}
         {productImage ? (
           <Image
             className='product-image'
@@ -45,12 +44,20 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
             mode='aspectFill'
           />
         ) : (
-          <View className='product-image-placeholder'>暂无图片</View>
+          <View className='product-image-placeholder'>
+            <AppIcon name='package' tone='muted' />
+            <Text>暂无图片</Text>
+          </View>
         )}
       </View>
 
       <View className='product-info'>
-        {product.brand ? <Text className='product-brand'>{product.brand}</Text> : null}
+        {(product.brand || tagText) ? (
+          <View className='product-meta-row'>
+            {product.brand ? <Text className='product-brand'>{product.brand}</Text> : null}
+            {tagText ? <Text className='product-tag'>{tagText}</Text> : null}
+          </View>
+        ) : null}
         <View className='product-name'>
           <Text>{product.name}</Text>
         </View>

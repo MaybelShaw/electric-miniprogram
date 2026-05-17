@@ -39,15 +39,15 @@ export default defineAppConfig({
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fffefa',
+    navigationBarBackgroundColor: '#ffffff',
     navigationBarTitleText: '庆勋愉悦家',
     navigationBarTextStyle: 'black',
-    backgroundColor: '#f7f8f4'
+    backgroundColor: '#f6f9fb'
   },
   tabBar: {
-    color: '#878B82',
-    selectedColor: '#151713',
-    backgroundColor: '#fffefa',
+    color: '#818B92',
+    selectedColor: '#14191F',
+    backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [
       {

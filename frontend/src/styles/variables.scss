@@ -1,48 +1,48 @@
 @use "sass:color";
 
-// Design tokens: clean luxury home showroom palette
-$brand-ink: #151713;
-$brand-forest: #1f241d;
-$brand-teal: #7b8776;
-$brand-brass: #c7a56a;
-$brand-brass-deep: #8f6d38;
+// Design tokens: clean cool-white home showroom palette
+$brand-ink: #14191f;
+$brand-forest: #1f272a;
+$brand-teal: #72828a;
+$brand-brass: #9fb2bd;
+$brand-brass-deep: #5f7581;
 $brand-clay: #9f4c3f;
-$brand-mist: #f3f5f0;
-$brand-paper: #fffefa;
-$brand-linen: #e5e2d7;
-$brand-warm-grey: #777d72;
-$brand-sage: #81907a;
-$brand-sage-light: #eef2ec;
-$showroom-bg: #f7f8f4;
-$showroom-surface: #fffefa;
-$showroom-surface-warm: #f1f3ed;
-$showroom-line: #deded4;
+$brand-mist: #f4f8fa;
+$brand-paper: #ffffff;
+$brand-linen: #e7edf0;
+$brand-warm-grey: #727c83;
+$brand-sage: #788b92;
+$brand-sage-light: #eef4f6;
+$showroom-bg: #f6f9fb;
+$showroom-surface: #ffffff;
+$showroom-surface-warm: #f2f6f8;
+$showroom-line: #dfe7ec;
 
 // Colors
 $primary-color: $brand-forest;
-$primary-light: #eef2ec;
+$primary-light: #eef4f6;
 $secondary-color: $brand-brass;
-$warning-color: #9b7742;
+$warning-color: #6e7f89;
 $danger-color: $brand-clay;
 $success-color: #58705e;
 $info-color: $brand-sage;
-$white: #fffefa;
+$white: #ffffff;
 $black: #000000;
 
 // Text Colors
 $text-color-base: $brand-ink;
-$text-color-regular: #575b52;
-$text-color-secondary: #878b82;
-$text-color-placeholder: #b9bbae;
+$text-color-regular: #535d64;
+$text-color-secondary: #818b92;
+$text-color-placeholder: #b5c0c7;
 
 // Background Colors
 $background-color-base: $showroom-bg;
 $background-color-light: $showroom-surface;
-$active-color: #edf1e9;
+$active-color: #eef4f7;
 
 // Border Colors
 $border-color: $showroom-line;
-$border-color-light: #ecece4;
+$border-color-light: #edf2f4;
 
 // Font Sizes
 $font-size-xs: 20px; // 10px * 2 (Taro px transform)
@@ -68,10 +68,10 @@ $border-radius-xl: 22px;
 $border-radius-max: 999px;
 
 // Shadows
-$shadow-sm: 0 10px 28px rgba(21, 23, 19, 0.045);
-$shadow-md: 0 18px 42px rgba(21, 23, 19, 0.075);
-$shadow-lg: 0 26px 58px rgba(21, 23, 19, 0.1);
-$shadow-top: 0 -12px 32px rgba(21, 23, 19, 0.07);
+$shadow-sm: 0 10px 28px rgba(20, 25, 31, 0.045);
+$shadow-md: 0 18px 42px rgba(20, 25, 31, 0.075);
+$shadow-lg: 0 26px 58px rgba(20, 25, 31, 0.1);
+$shadow-top: 0 -12px 32px rgba(20, 25, 31, 0.07);
 $hairline: 1px solid $border-color;
 
 // Compatibility aliases kept for older page styles.

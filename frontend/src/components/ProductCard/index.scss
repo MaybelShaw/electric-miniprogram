@@ -15,6 +15,7 @@
   &:active {
     opacity: 0.94;
     box-shadow: $shadow-sm;
+    transform: translateY(1px);
   }
 
   .product-image-wrapper {
@@ -35,11 +36,18 @@
       width: 100%;
       height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 12px;
       color: $text-color-secondary;
       font-size: $font-size-sm;
       background: $showroom-surface-warm;
+
+      .app-icon {
+        width: 76px;
+        height: 76px;
+      }
     }
   }
 
@@ -50,8 +58,16 @@
     justify-content: space-between;
     flex: 1;
 
+    .product-meta-row {
+      min-height: 34px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
     .product-brand {
-      margin-bottom: 8px;
       font-size: 20px;
       color: $brand-sage;
       line-height: 1.2;
@@ -88,9 +104,8 @@
   margin-left: 12px;
 
   .app-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
+    width: 52px;
+    height: 52px;
   }
 }
 
@@ -134,18 +149,17 @@
     min-height: 68px;
   }
 }
-    .product-tag {
-      position: absolute;
-      left: 14px;
-      top: 14px;
-      z-index: 2;
-      display: inline-flex;
-      align-items: center;
-      height: 36px;
-      padding: 0 12px;
-      background: rgba($brand-ink, 0.86);
-      color: $brand-paper;
-      font-size: 20px;
-      border-radius: $border-radius-max;
-      letter-spacing: 0;
-    }
+
+.product-tag {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 10px;
+  background: rgba($secondary-color, 0.14);
+  color: $brand-brass-deep;
+  font-size: 20px;
+  border-radius: $border-radius-max;
+  border: 1px solid rgba($secondary-color, 0.28);
+  letter-spacing: 0;
+}

@@ -301,24 +301,9 @@
   }
 }
 
-.empty {
-  padding-top: 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: $text-color-secondary;
-
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: $spacing-md;
-    opacity: 0.5;
-  }
-
-  .empty-text {
-    font-size: $font-size-md;
-    color: $text-color-secondary;
-  }
+.message-empty {
+  min-height: 480px;
+  padding-top: 96px;
 }
 
 .loading {

@@ -54,6 +54,11 @@
   display: flex;
   align-items: center;
   background: rgba($showroom-surface, 0.82);
+
+  &:active {
+    background: $showroom-surface-warm;
+    border-color: rgba($brand-brass, 0.38);
+  }
 }
 
 .section-header--centered {

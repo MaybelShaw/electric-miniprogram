@@ -5,22 +5,21 @@ import { productService } from '../../services/product'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
 import { specialZoneService } from '../../services/special-zone'
 import { storeService } from '../../services/store'
-import { Product, Category, HomeBanner, HomeStoreCard, SpecialZoneCover, Store } from '../../types'
+import { Product, HomeBanner, HomeStoreCard, SpecialZoneCover, Store } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
-import { Storage, CACHE_KEYS } from '../../utils/storage'
 import AppIcon from '../../components/AppIcon'
 import EmptyState from '../../components/EmptyState'
 import LoadingState from '../../components/LoadingState'
 import ProductCard from '../../components/ProductCard'
 import SearchBar from '../../components/SearchBar'
 import SectionHeader from '../../components/SectionHeader'
+import StoreShowcaseCard from '../../components/StoreShowcaseCard'
 import { withPrivacyCheck } from '../../components/withPrivacyCheck'
 import './index.scss'
 
 function Home() {
   const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
-  const [majorCategories, setMajorCategories] = useState<Category[]>([])
   const [partnerStores, setPartnerStores] = useState<Store[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [homeStoreCards, setHomeStoreCards] = useState<HomeStoreCard[]>([])
@@ -37,7 +36,6 @@ function Home() {
     const storeId = router.params?.store_id || router.params?.store
     loadBanners(storeId)
     loadSpecialZoneCovers(storeId)
-    loadCategories(storeId)
     loadPartnerStores()
     loadHomeStoreCards(storeId)
     loadProducts(1, storeId)
@@ -86,26 +84,6 @@ function Home() {
       setBestSellerZoneCover(bestSeller[0] || null)
     } catch (error) {
       // 静默失败，保留专区入口兜底文案
-    }
-  }
-
-  const loadCategories = async (storeId?: string) => {
-    try {
-      if (!storeId) {
-        const cachedMajor = Storage.get<Category[]>(CACHE_KEYS.MAJOR_CATEGORIES)
-        if (cachedMajor) {
-          setMajorCategories(cachedMajor)
-          return
-        }
-      }
-
-      const data = await productService.getCategories({ level: 'major', ...(storeId ? { store: storeId } : {}) })
-      setMajorCategories(data)
-      if (!storeId) {
-        Storage.set(CACHE_KEYS.MAJOR_CATEGORIES, data, 24 * 60 * 60 * 1000)
-      }
-    } catch (error) {
-      // 静默失败
     }
   }
 
@@ -181,11 +159,6 @@ function Home() {
 
   const goToActivityZone = () => {
     Taro.navigateTo({ url: '/pages/special-zone/index?mode=activity-list' })
-  }
-
-  const goToCategory = (category: string) => {
-    Taro.switchTab({ url: '/pages/category/index' })
-    Taro.eventCenter.trigger('selectCategory', category)
   }
 
   const goToStore = (store: Store) => {
@@ -267,55 +240,58 @@ function Home() {
         </View>
 
         <View className='home-actions'>
+          <View className='home-action' onClick={goToActivityZone}>
+            <AppIcon name='package' tone='muted' className='action-icon' />
+            <View className='action-title'>活动展区</View>
+            <View className='action-desc'>限时组合</View>
+          </View>
           <View className='home-action' onClick={goToBrandZone}>
             <AppIcon name='store' tone='gold' className='action-icon' />
             <View className='action-title'>品牌馆</View>
             <View className='action-desc'>合作品牌精选</View>
           </View>
-          <View className='home-action' onClick={goToActivityZone}>
-            <AppIcon name='package' tone='primary' className='action-icon' />
-            <View className='action-title'>活动展区</View>
-            <View className='action-desc'>限时方案与组合</View>
-          </View>
           <View className='home-action' onClick={goToAllCategories}>
             <AppIcon name='search' tone='muted' className='action-icon' />
             <View className='action-title'>全品类</View>
-            <View className='action-desc'>按空间和功能选购</View>
+            <View className='action-desc'>按功能选购</View>
           </View>
         </View>
 
         <View className='curation-section'>
           <SectionHeader title='灵感专区' subtitle='按礼赠、设计与热销场景快速进入' />
-          <View className='curation-grid'>
-            <View className='curation-card large' onClick={() => handleZoneClick('designer')}>
-              {designerZoneCover?.image_url && (
-                <Image className='curation-image' src={resolveLocalMediaUrl(designerZoneCover.image_url)} mode='aspectFill' />
-              )}
+          <View className='curation-list'>
+            <View className='curation-item curation-item--primary' onClick={() => handleZoneClick('designer')}>
+              <View className='curation-visual'>
+                <AppIcon name='search' tone='muted' className='curation-icon' />
+              </View>
               <View className='curation-copy'>
                 <Text className='curation-label'>DESIGN</Text>
                 <View className='curation-title'>设计师专区</View>
                 <View className='curation-desc'>场景灵感与搭配方案</View>
               </View>
+              <Text className='curation-arrow'>›</Text>
             </View>
-            <View className='curation-stack'>
-              <View className='curation-card' onClick={() => handleZoneClick('gift')}>
-                {giftZoneCover?.image_url && (
-                  <Image className='curation-image' src={resolveLocalMediaUrl(giftZoneCover.image_url)} mode='aspectFill' />
-                )}
-                <View className='curation-copy'>
-                  <Text className='curation-label'>GIFT</Text>
-                  <View className='curation-title'>礼品专区</View>
-                </View>
+            <View className='curation-item' onClick={() => handleZoneClick('gift')}>
+              <View className='curation-visual'>
+                <AppIcon name='package' tone='gold' className='curation-icon' />
               </View>
-              <View className='curation-card' onClick={() => handleZoneClick('best_seller')}>
-                {bestSellerZoneCover?.image_url && (
-                  <Image className='curation-image' src={resolveLocalMediaUrl(bestSellerZoneCover.image_url)} mode='aspectFill' />
-                )}
-                <View className='curation-copy'>
-                  <Text className='curation-label'>BEST</Text>
-                  <View className='curation-title'>爆品专区</View>
-                </View>
+              <View className='curation-copy'>
+                <Text className='curation-label'>GIFT</Text>
+                <View className='curation-title'>礼品专区</View>
+                <View className='curation-desc'>签单礼品与客户伴手礼</View>
               </View>
+              <Text className='curation-arrow'>›</Text>
+            </View>
+            <View className='curation-item' onClick={() => handleZoneClick('best_seller')}>
+              <View className='curation-visual'>
+                <AppIcon name='store' tone='muted' className='curation-icon' />
+              </View>
+              <View className='curation-copy'>
+                <Text className='curation-label'>BEST</Text>
+                <View className='curation-title'>爆品专区</View>
+                <View className='curation-desc'>近期热销与高频采购</View>
+              </View>
+              <Text className='curation-arrow'>›</Text>
             </View>
           </View>
         </View>
@@ -340,68 +316,48 @@ function Home() {
                 </View>
               ))}
             </View>
-            <View className='home-store-category-row'>
-              {(card.categories || []).slice(0, 3).map((category, index) => {
-                const categoryImage = category.logo
-                  || card.secondary_products?.[index]?.main_images?.[0]
-                  || card.main_product?.main_images?.[0]
+            <ScrollView className='home-store-category-scroll' scrollX>
+              <View className='home-store-category-row'>
+                {(card.categories || []).map((category, index) => {
+                  const categoryImage = category.logo
+                    || card.secondary_products?.[index]?.main_images?.[0]
+                    || card.main_product?.main_images?.[0]
 
-                return (
-                  <View key={category.id} className='home-store-category-card' onClick={() => goToCardStore(card, category.id)}>
-                    {categoryImage ? (
-                      <Image className='home-store-category-image' src={resolveLocalMediaUrl(categoryImage)} mode='aspectFill' />
-                    ) : (
-                      <View className='home-store-category-placeholder'>
-                        <AppIcon name='package' tone='muted' />
-                      </View>
-                    )}
-                    <View className='home-store-category-name'>{category.name}</View>
-                  </View>
-                )
-              })}
-            </View>
+                  return (
+                    <View key={category.id} className='home-store-category-card' onClick={() => goToCardStore(card, category.id)}>
+                      {categoryImage ? (
+                        <Image className='home-store-category-image' src={resolveLocalMediaUrl(categoryImage)} mode='aspectFill' />
+                      ) : (
+                        <View className='home-store-category-placeholder'>
+                          <AppIcon name='package' tone='muted' />
+                        </View>
+                      )}
+                      <View className='home-store-category-name'>{category.name}</View>
+                    </View>
+                  )
+                })}
+              </View>
+            </ScrollView>
           </View>
         ))}
-
-        {majorCategories.length > 0 && (
-          <View className='category-nav'>
-            <View className='section-header-row'>
-              <SectionHeader title='品类专区' actionText='更多' onAction={goToAllCategories} />
-            </View>
-            <View className='category-grid'>
-              {majorCategories.map(cat => (
-                <View key={cat.id} className='category-item' onClick={() => goToCategory(cat.name)}>
-                  {cat.logo ? (
-                    <Image className='category-icon-img' src={resolveLocalMediaUrl(cat.logo)} mode='aspectFill' />
-                  ) : (
-                    <AppIcon name='package' tone='muted' className='category-icon' />
-                  )}
-                  <View className='category-name'>{cat.name}</View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
 
         {partnerStores.length > 0 && (
           <View className='brand-section'>
             <View className='section-header-row'>
               <SectionHeader title='品牌专区' actionText='更多' onAction={goToAllBrands} />
             </View>
-            <View className='brand-grid'>
-              {partnerStores.slice(0, 4).map(store => (
-                <View key={store.id} className='brand-item' onClick={() => goToStore(store)}>
-                  {store.logo ? (
-                    <Image className='brand-logo' src={resolveLocalMediaUrl(store.logo)} mode='aspectFit' />
-                  ) : (
-                    <View className='brand-logo brand-logo-placeholder'>
-                      <AppIcon name='store' tone='muted' />
-                    </View>
-                  )}
-                  <View className='brand-name'>{store.name}</View>
-                </View>
-              ))}
-            </View>
+            <ScrollView className='brand-showcase-scroll' scrollX>
+              <View className='brand-showcase-row'>
+                {partnerStores.slice(0, 8).map(store => (
+                  <StoreShowcaseCard
+                    key={store.id}
+                    store={store}
+                    className='brand-showcase-card-home'
+                    onClick={() => goToStore(store)}
+                  />
+                ))}
+              </View>
+            </ScrollView>
           </View>
         )}
 

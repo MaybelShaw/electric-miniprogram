@@ -102,6 +102,70 @@ button::after {
   font-size: $font-size-sm;
 }
 
+.home,
+.category-page,
+.product-list-page,
+.cart,
+.profile,
+.message-center,
+.login-page,
+.product-detail,
+.order-list,
+.order-confirm,
+.order-detail,
+.address-list,
+.address-edit,
+.profile-edit,
+.search-page,
+.store-list-page,
+.store-detail-page,
+.special-zone,
+.case-detail,
+.brand-page,
+.brand-list-page,
+.company-certification,
+.credit-account-page,
+.statements-page,
+.statement-detail-page,
+.page-container,
+.transactions-page,
+.debt-reconciliation,
+.invoice-request,
+.request-return,
+.return-tracking,
+.payment-result-page,
+.chat-page,
+.select-order-page,
+.select-product-page {
+  min-height: 100vh;
+  background: $background-color-base;
+  color: $text-color-base;
+}
+
+.loading,
+.loading-text,
+.loading-more,
+.status-text,
+.no-more {
+  color: $text-color-secondary;
+  letter-spacing: 0;
+}
+
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+.submit-btn,
+.add-btn,
+.checkout-btn,
+.pay-btn,
+.confirm-btn,
+.export-btn,
+.send-btn,
+.retry-btn,
+.action-btn {
+  letter-spacing: 0;
+}
+
 .privacy-check-wrapper {
   flex: 1;
   height: 100%;

@@ -65,3 +65,11 @@
 - [x] 静态检查通过：核心页面未发现 `GLYPHS`、emoji 搜索/空态、中文服务承诺字标、`+` 字符加购、旧亮蓝色硬编码。
 - [x] 全项目 Sass `@import` 已迁移为 `@use ... as *`，用户反馈的 `PrivacyPopup/index.scss` 警告已处理。
 - [x] 构建通过：`npm run build:weapp`；剩余 Sass `legacy-js-api`、Browserslist/baseline-browser-mapping 输出为 Taro/Vite 依赖层警告，不是业务样式报错。
+
+## 2026-05-14 全页面细节精修
+
+- [x] 统一所有页面级 navigation/background 配置，避免详情、财务、客服、表单页面进入时顶部和页面底色跳变。
+- [x] 补强公共页面容器、卡片、按钮、列表、表单、空态、吸底栏的统一视觉规则，让 34 个注册页面共享同一套细节质感。
+- [x] 按页面类型做局部精修：首页/分类/商品/交易/账户/财务/售后/客服/选择器页面各自优化可读性、层级、留白和状态反馈。
+- [x] 静态检查旧亮蓝硬编码、明显 emoji、内联 style、缺失本地资源引用、`frontend/dist` 运行时 `process.env`。
+- [x] 执行 `npm run build:weapp`，确认小程序构建通过。

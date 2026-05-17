@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationBarTitleText: '我的订单',
-  navigationBarBackgroundColor: '#fffdf8',
+  navigationBarBackgroundColor: '#ffffff',
   navigationBarTextStyle: 'black',
-  backgroundColor: '#f7f3ec'
+  backgroundColor: '#f6f9fb'
 })

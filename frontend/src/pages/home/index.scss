@@ -91,16 +91,24 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
-    padding: 0 24px 38px;
+    padding: 0 24px 34px;
   }
 
   .home-action {
-    min-height: 168px;
-    padding: 22px 18px 20px;
-    background: $showroom-surface;
+    min-height: 142px;
+    padding: 18px 8px 16px;
+    background: linear-gradient(180deg, #ffffff 0%, $brand-mist 100%);
     border: 1px solid $border-color;
     border-radius: $border-radius-lg;
     box-shadow: none;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
 
     &:active {
       background: $showroom-surface-warm;
@@ -109,113 +117,159 @@
   }
 
   .action-icon {
-    width: 52px;
-    height: 52px;
-    margin-bottom: 24px;
+    width: 54px;
+    height: 54px;
+    margin-bottom: 0;
     border-radius: 16px;
+    align-self: center;
   }
 
   .action-title {
+    min-width: 0;
     color: $text-color-base;
-    font-size: 28px;
+    font-size: 27px;
     font-weight: 600;
     line-height: 1.2;
+    white-space: nowrap;
   }
 
   .action-desc {
-    margin-top: 8px;
+    min-width: 0;
+    margin-top: 5px;
     color: $text-color-secondary;
-    font-size: 22px;
+    font-size: 21px;
     line-height: 1.35;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .curation-section,
-  .category-nav,
   .brand-section,
   .home-store-card {
-    margin: 0 24px 38px;
+    margin: 0 24px 46px;
   }
 
-  .curation-grid {
-    display: grid;
-    grid-template-columns: 1.08fr 0.92fr;
-    gap: 16px;
-    height: 410px;
+  .curation-list {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
   }
 
-  .curation-stack {
+  .curation-item {
+    position: relative;
+    flex: 0 0 calc((100% - 28px) / 3);
+    width: calc((100% - 28px) / 3);
+    min-width: 0;
+    min-height: 166px;
+    padding: 18px 8px 16px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
-  }
-
-  .curation-card {
-    position: relative;
-    flex: 1;
-    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
     overflow: hidden;
     border-radius: $border-radius-lg;
-    background: $brand-ink;
+    background: linear-gradient(180deg, #ffffff 0%, $brand-mist 100%);
+    border: 1px solid $border-color;
     box-shadow: none;
 
-    &.large {
-      height: 100%;
+    &:active {
+      background: $showroom-surface-warm;
+      transform: translateY(1px);
     }
   }
 
-  .curation-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+  .curation-item--primary {
+    background:
+      linear-gradient(135deg, #ffffff 0%, $brand-mist 58%, $showroom-surface-warm 100%);
+
+    .curation-visual {
+      width: 72px;
+      height: 72px;
+    }
+
+    .curation-title {
+      font-size: 24px;
+    }
   }
 
-  .curation-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(21, 23, 19, 0.04), rgba(21, 23, 19, 0.68));
+  .curation-visual {
+    order: 1;
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    overflow: visible;
+    background: transparent;
+    border: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .curation-image {
+    display: none;
+  }
+
+  .curation-icon {
+    width: 56px;
+    height: 56px;
   }
 
   .curation-copy {
-    position: absolute;
+    order: 2;
+    position: relative;
     z-index: 2;
-    left: 22px;
-    right: 22px;
-    bottom: 22px;
-    color: $brand-paper;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    background: transparent;
+    color: $text-color-base;
+    box-shadow: none;
+    text-align: center;
   }
 
   .curation-label {
     display: block;
-    margin-bottom: 8px;
-    color: rgba($brand-paper, 0.68);
-    font-size: 18px;
-    letter-spacing: 2px;
+    margin-bottom: 6px;
+    color: $brand-brass-deep;
+    font-size: 15px;
+    letter-spacing: 1px;
   }
 
   .curation-title {
-    font-size: 30px;
+    font-size: 24px;
     font-weight: 600;
     line-height: 1.2;
+    color: $text-color-base;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .curation-desc {
-    margin-top: 8px;
-    font-size: 22px;
-    color: rgba($brand-paper, 0.8);
-    line-height: 1.35;
+    display: block;
+    margin-top: 7px;
+    color: $text-color-secondary;
+    font-size: 18px;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .curation-arrow {
+    display: none;
   }
 
   .home-store-card {
-    padding: 28px;
+    padding: 32px 28px 34px;
     background: $showroom-surface;
     border: 1px solid $border-color;
     border-radius: $border-radius-lg;
     box-shadow: none;
   }
 
-  .category-nav,
   .brand-section {
     padding: 0;
     background: transparent;
@@ -225,7 +279,7 @@
   }
 
   .home-store-card-header {
-    margin-bottom: 22px;
+    margin-bottom: 28px;
   }
 
   .home-store-card-title {
@@ -244,7 +298,7 @@
 
   .home-store-main-product {
     position: relative;
-    height: 350px;
+    height: 376px;
     overflow: hidden;
     border-radius: $border-radius-md;
     background: $showroom-surface-warm;
@@ -270,8 +324,8 @@
   .home-store-secondary-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-top: 16px;
+    gap: 16px;
+    margin-top: 24px;
   }
 
   .home-store-secondary-product {
@@ -280,13 +334,13 @@
 
   .home-store-secondary-image {
     width: 100%;
-    height: 118px;
+    height: 136px;
     border-radius: $border-radius-md;
     background: $showroom-surface-warm;
   }
 
   .home-store-secondary-name {
-    margin-top: 8px;
+    margin-top: 12px;
     font-size: 22px;
     color: $text-color-base;
     line-height: 1.3;
@@ -295,22 +349,27 @@
     white-space: nowrap;
   }
 
+  .home-store-category-scroll {
+    width: 100%;
+    margin-top: 30px;
+    white-space: nowrap;
+  }
+
   .home-store-category-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin-top: 20px;
+    display: inline-flex;
+    gap: 18px;
+    min-width: 100%;
   }
 
   .home-store-category-card {
-    position: relative;
-    min-width: 0;
-    height: 132px;
-    overflow: hidden;
-    border: 1px solid $border-color-light;
-    border-radius: $border-radius-md;
-    background: $showroom-surface-warm;
+    width: 224px;
+    min-width: 224px;
+    overflow: visible;
+    border: none;
+    border-radius: 0;
+    background: transparent;
     box-shadow: none;
+    text-align: center;
 
     &:active {
       transform: scale(0.98);
@@ -320,7 +379,9 @@
   .home-store-category-image,
   .home-store-category-placeholder {
     width: 100%;
-    height: 100%;
+    height: 140px;
+    border-radius: $border-radius-md;
+    border: 1px solid $border-color;
   }
 
   .home-store-category-placeholder {
@@ -330,22 +391,24 @@
     color: $brand-brass-deep;
     font-size: 34px;
     font-weight: 700;
-    background: $brand-sage-light;
+    background: $showroom-surface-warm;
+
+    .app-icon {
+      width: 78px;
+      height: 78px;
+    }
   }
 
   .home-store-category-name {
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    min-height: 36px;
-    padding: 6px 10px;
-    border-radius: $border-radius-sm;
-    background: rgba($brand-paper, 0.92);
+    margin-top: 14px;
+    min-height: 32px;
+    padding: 0 4px;
+    background: transparent;
     color: $text-color-base;
-    font-size: 22px;
+    font-size: 23px;
     font-weight: 600;
-    line-height: 1.15;
+    line-height: 1.3;
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -355,90 +418,20 @@
     margin-bottom: 26px;
   }
 
-  .category-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 22px 18px;
-  }
-
-  .category-item {
-    min-width: 0;
-    text-align: center;
-    padding: 18px 8px 16px;
-    border-radius: $border-radius-lg;
-    background: $showroom-surface;
-    border: 1px solid $border-color;
-  }
-
-  .category-icon,
-  .category-icon-img {
-    width: 88px;
-    height: 88px;
-    margin: 0 auto;
-    border-radius: 50%;
-    background: $showroom-surface-warm;
-    border: 1px solid $border-color-light;
-  }
-
-  .category-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $text-color-base;
-    font-size: $font-size-lg;
-    font-weight: 600;
-  }
-
-  .category-name {
-    margin-top: 12px;
-    font-size: 22px;
-    color: $text-color-regular;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .brand-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .brand-item {
-    min-width: 0;
-    text-align: center;
-    padding: 16px 10px;
-    border-radius: $border-radius-lg;
-    background: $showroom-surface;
-    border: 1px solid $border-color;
-  }
-
-  .brand-logo {
+  .brand-showcase-scroll {
     width: 100%;
-    height: 76px;
-    padding: 12px;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-  }
-
-  .brand-logo-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $text-color-base;
-    font-size: 34px;
-    font-weight: 600;
-  }
-
-  .brand-name {
-    margin-top: 10px;
-    font-size: 22px;
-    color: $text-color-regular;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .brand-showcase-row {
+    display: inline-flex;
+    gap: 18px;
+    min-width: 100%;
+  }
+
+  .brand-showcase-card-home {
+    width: 660px;
+    min-width: 660px;
   }
 
   .product-section {

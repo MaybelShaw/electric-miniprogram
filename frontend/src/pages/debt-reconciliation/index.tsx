@@ -2,6 +2,8 @@ import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { creditService } from '../../services/credit'
+import AppIcon from '../../components/AppIcon'
+import EmptyState from '../../components/EmptyState'
 import './index.scss'
 
 export default function DebtReconciliation() {
@@ -383,10 +385,12 @@ export default function DebtReconciliation() {
 
         {/* 空状态 */}
         {!hasData && (
-          <View className='empty-state'>
-            <View className='empty-icon'>📊</View>
-            <Text className='empty-text'>暂无账务数据</Text>
-          </View>
+          <EmptyState
+            className='debt-empty'
+            title='暂无账务数据'
+            description='切换账期后可查看采购、付款和退款统计'
+            icon='credit'
+          />
         )}
 
         {/* 底部占位 */}
@@ -396,7 +400,7 @@ export default function DebtReconciliation() {
       {/* 底部导出按钮 */}
       <View className='footer-bar'>
         <View className='export-btn' onTap={exportToExcel}>
-          <Text className='export-icon'>📄</Text>
+          <AppIcon name='order' tone='primary' className='export-icon' />
           <Text className='export-text'>导出Excel</Text>
         </View>
       </View>

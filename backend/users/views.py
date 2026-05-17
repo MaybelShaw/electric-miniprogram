@@ -342,6 +342,12 @@ class WeChatExplicitLoginView(APIView):
 
         from .services import create_tokens_for_user, update_last_login
 
+        if user is None and phone_number:
+            user = User.objects.filter(phone=phone_number).order_by("id").first()
+            if user and user.openid != openid:
+                user.openid = openid
+                user.save(update_fields=["openid"])
+
         if user is None:
             user = User.objects.create_user(
                 openid=openid,

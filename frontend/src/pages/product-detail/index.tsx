@@ -502,11 +502,13 @@ export default function ProductDetail() {
             <View className='recommend-placeholder'>推荐加载中...</View>
           ) : relatedProducts.length > 0 ? (
             <ScrollView className='recommend-scroll' scrollX>
-              {relatedProducts.map((item) => (
-                <View key={item.id} className='recommend-card'>
-                  <ProductCard product={item} />
-                </View>
-              ))}
+              <View className='recommend-row'>
+                {relatedProducts.map((item) => (
+                  <View key={item.id} className='recommend-card'>
+                    <ProductCard product={item} variant='compact' />
+                  </View>
+                ))}
+              </View>
             </ScrollView>
           ) : (
             <View className='recommend-placeholder'>暂无同类推荐</View>
@@ -515,7 +517,7 @@ export default function ProductDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      <BottomActionBar className='footer-bar'>
+      <BottomActionBar className='detail-action-bar'>
         <View className='footer-left'>
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/home/index' })}>
             <View className='icon-wrapper'>
