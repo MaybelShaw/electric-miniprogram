@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Store, StoreMember, StorePaymentConfig, StoreSettlementRule
+from .permissions import get_membership_permissions
 
 
 class StoreSerializer(serializers.ModelSerializer):
@@ -49,6 +50,7 @@ class PublicStoreSerializer(serializers.ModelSerializer):
 class StoreMemberSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     store_name = serializers.CharField(source="store.name", read_only=True)
+    permissions = serializers.SerializerMethodField()
 
     class Meta:
         model = StoreMember
@@ -59,11 +61,15 @@ class StoreMemberSerializer(serializers.ModelSerializer):
             "store",
             "store_name",
             "role",
+            "permissions",
             "status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "username", "store_name", "created_at", "updated_at"]
+        read_only_fields = ["id", "username", "store_name", "permissions", "created_at", "updated_at"]
+
+    def get_permissions(self, obj):
+        return get_membership_permissions(obj)
 
 
 class StorePaymentConfigSerializer(serializers.ModelSerializer):

@@ -186,3 +186,73 @@ class CheckoutSubOrderTests(TestCase):
             response.json()["order"]["id"] if isinstance(response.json(), dict) and "order" in response.json() else None,
             {row["id"] for row in rows},
         )
+
+    def test_checkout_rejects_inactive_product(self):
+        self.store_b_product.is_active = False
+        self.store_b_product.save(update_fields=["is_active"])
+        client = APIClient()
+        client.force_authenticate(self.user)
+
+        response = client.post(
+            reverse("order-create-batch-orders"),
+            {
+                "address_id": self.address.id,
+                "items": [{"product_id": self.store_b_product.id, "quantity": 1}],
+                "payment_method": "online",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("已下架", response.json()["detail"])
+
+    def test_checkout_rejects_inactive_sku(self):
+        self.store_a_sku_red.is_active = False
+        self.store_a_sku_red.save(update_fields=["is_active"])
+        client = APIClient()
+        client.force_authenticate(self.user)
+
+        response = client.post(
+            reverse("order-create-batch-orders"),
+            {
+                "address_id": self.address.id,
+                "items": [
+                    {
+                        "product_id": self.store_a_product.id,
+                        "sku_id": self.store_a_sku_red.id,
+                        "quantity": 1,
+                    }
+                ],
+                "payment_method": "online",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("已下架", response.json()["detail"])
+
+    def test_buyer_store_param_and_other_order_id_do_not_expand_scope(self):
+        other_user = get_user_model().objects.create_user(username="other-buyer", password="pwd")
+        other_address = Address.objects.create(
+            user=other_user,
+            contact_name="Other",
+            phone="13800000001",
+            province="Beijing",
+            city="Beijing",
+            district="Haidian",
+            detail="No.2 Road",
+        )
+        other_order = create_order_with_split(
+            user=other_user,
+            items=[{"product_id": self.store_b_product.id, "sku_id": self.store_b_sku.id, "quantity": 1}],
+            address_id=other_address.id,
+            payment_method="online",
+        )
+        client = APIClient()
+        client.force_authenticate(self.user)
+
+        store_filtered_response = client.get(reverse("order-my-orders"), {"store": self.partner_store.id})
+        other_detail_response = client.get(reverse("order-detail", args=[other_order.id]))
+
+        self.assertEqual(store_filtered_response.status_code, 403)
+        self.assertEqual(other_detail_response.status_code, 404)

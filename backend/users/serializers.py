@@ -54,11 +54,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_store_roles(self, obj):
         try:
+            from stores.permissions import get_membership_permissions
             return [
                 {
                     'store': membership.store_id,
                     'store_name': membership.store.name,
                     'role': membership.role,
+                    'permissions': get_membership_permissions(membership),
                     'status': membership.status,
                 }
                 for membership in obj.store_memberships.select_related('store').filter(status='active')

@@ -40,7 +40,8 @@ export interface StoreMember {
   username: string;
   store: number;
   store_name: string;
-  role: 'platform_admin' | 'store_admin' | 'store_staff';
+  role: 'platform_admin' | 'store_admin' | 'store_sub_admin' | 'store_staff';
+  permissions?: string[];
   status: 'active' | 'disabled';
 }
 

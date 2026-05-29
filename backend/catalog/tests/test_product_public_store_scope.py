@@ -4,7 +4,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from catalog.models import Brand, Category, Product
-from stores.models import Store
+from stores.models import Store, StoreMember
 from users.models import User
 
 
@@ -30,8 +30,25 @@ class ProductPublicStoreScopeTests(TestCase):
             brand=self.brand,
             store=self.store,
             price=Decimal("9999.00"),
+            supply_price=Decimal("6000.00"),
+            invoice_price=Decimal("6500.00"),
+            stock_rebate=Decimal("100.00"),
+            rebate_money=Decimal("50.00"),
+            product_code="HAIER-TEST-001",
+            source=Product.SOURCE_HAIER,
+            warehouse_code="WH001",
+            warehouse_grade="0",
             stock=112,
             is_active=True,
+        )
+        self.inactive_product = Product.objects.create(
+            name="Inactive product",
+            category=self.category,
+            brand=self.brand,
+            store=self.store,
+            price=Decimal("8888.00"),
+            stock=5,
+            is_active=False,
         )
         self.partner_store = Store.objects.create(
             name="Partner store",
@@ -83,3 +100,39 @@ class ProductPublicStoreScopeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.partner_product.id)
+
+    def test_public_product_detail_hides_internal_procurement_fields(self):
+        response = self.client.get(f"/api/catalog/products/{self.product.id}/")
+
+        self.assertEqual(response.status_code, 200)
+        for field in [
+            "product_code",
+            "supply_price",
+            "invoice_price",
+            "stock_rebate",
+            "rebate_money",
+            "warehouse_code",
+            "warehouse_grade",
+        ]:
+            self.assertNotIn(field, response.data)
+        self.assertIsNone(response.data["haier_info"])
+
+    def test_customer_cannot_open_inactive_product_detail(self):
+        self.client.force_authenticate(self.customer)
+
+        response = self.client.get(f"/api/catalog/products/{self.inactive_product.id}/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_store_member_can_open_inactive_own_store_product_detail(self):
+        admin = User.objects.create_user(username="store-admin")
+        StoreMember.objects.create(user=admin, store=self.store, role=StoreMember.ROLE_STORE_ADMIN)
+        self.client.force_authenticate(admin)
+
+        inactive_response = self.client.get(f"/api/catalog/products/{self.inactive_product.id}/")
+        active_response = self.client.get(f"/api/catalog/products/{self.product.id}/")
+
+        self.assertEqual(inactive_response.status_code, 200)
+        self.assertEqual(active_response.status_code, 200)
+        self.assertEqual(active_response.data["product_code"], "HAIER-TEST-001")
+        self.assertEqual(active_response.data["haier_info"]["product_code"], "HAIER-TEST-001")

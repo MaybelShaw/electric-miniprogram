@@ -1,20 +1,24 @@
 import type { CurrentStoreContext } from '@/services/types';
 
-export const STORE_OPERATION_ROUTE_KEYS = new Set([
-  '/admin/sales-stats',
-  '/admin/account-statements',
-  '/admin/account-transactions',
-  '/admin/home-banners',
-  '/admin/special-zones',
-  '/admin/brands',
-  '/admin/categories',
-  '/admin/products',
-  '/admin/product-skus',
-  '/admin/inventory-logs',
-  '/admin/orders',
-  '/admin/invoices',
-  '/admin/discounts',
-]);
+export const ROUTE_PERMISSION_MAP: Record<string, string> = {
+  '/admin/sales-stats': 'dashboard.view',
+  '/admin/account-statements': 'finance.view',
+  '/admin/account-transactions': 'finance.view',
+  '/admin/home-banners': 'store_content.manage',
+  '/admin/special-zones': 'store_content.manage',
+  '/admin/home-store-cards': 'store_content.manage',
+  '/admin/brands': 'catalog.manage',
+  '/admin/categories': 'catalog.manage',
+  '/admin/products': 'catalog.manage',
+  '/admin/product-skus': 'catalog.manage',
+  '/admin/search-logs': 'catalog.manage',
+  '/admin/inventory-logs': 'catalog.manage',
+  '/admin/orders': 'orders.view',
+  '/admin/invoices': 'invoices.manage',
+  '/admin/store-members': 'store_members.manage',
+};
+
+export const STORE_OPERATION_ROUTE_KEYS = new Set(Object.keys(ROUTE_PERMISSION_MAP));
 
 export const STORE_DEFAULT_ROUTE = '/admin/sales-stats';
 export const PLATFORM_DEFAULT_ROUTE = '/admin/users';
@@ -27,8 +31,13 @@ export const canAccessAdminRoute = (
   pathname: string,
   context: CurrentStoreContext | null | undefined,
 ): boolean => {
-  if (!context || context.is_platform_admin) return true;
-  return STORE_OPERATION_ROUTE_KEYS.has(pathname);
+  if (!context) return false;
+  if (context.is_platform_admin) return true;
+  const requiredPermission = ROUTE_PERMISSION_MAP[pathname];
+  if (!requiredPermission) return false;
+  return context.memberships.some((membership) =>
+    membership.status === 'active' && Array.isArray(membership.permissions) && membership.permissions.includes(requiredPermission),
+  );
 };
 
 export const isPlatformUserFromStoredUser = (user: any): boolean => {
@@ -39,4 +48,11 @@ export const isPlatformUserFromStoredUser = (user: any): boolean => {
 
 export const isStoreBackendUser = (user: any): boolean => {
   return Array.isArray(user?.store_roles) && user.store_roles.some((role: any) => role?.status === 'active');
+};
+
+export const hasStoredPermission = (user: any, permission: string): boolean => {
+  if (isPlatformUserFromStoredUser(user)) return true;
+  return Array.isArray(user?.store_roles) && user.store_roles.some((role: any) =>
+    role?.status === 'active' && Array.isArray(role?.permissions) && role.permissions.includes(permission),
+  );
 };

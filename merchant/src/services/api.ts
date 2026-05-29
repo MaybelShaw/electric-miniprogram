@@ -20,6 +20,7 @@ export const getStores = (params?: any) => request.get('/stores/', { params });
 export const createStore = (data: any) => request.post('/stores/', data);
 export const updateStore = (id: number, data: any) => request.patch(`/stores/${id}/`, data);
 export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
+export const getStoreMemberCandidates = (params?: any) => request.get('/stores/members/available_users/', { params });
 export const createStoreMember = (data: any) => request.post('/stores/members/', data);
 export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
 export const deleteStoreMember = (id: number) => request.delete(`/stores/members/${id}/`);

@@ -115,10 +115,12 @@ class Store(models.Model):
 class StoreMember(models.Model):
     ROLE_PLATFORM_ADMIN = "platform_admin"
     ROLE_STORE_ADMIN = "store_admin"
+    ROLE_STORE_SUB_ADMIN = "store_sub_admin"
     ROLE_STORE_STAFF = "store_staff"
     ROLE_CHOICES = [
         (ROLE_PLATFORM_ADMIN, "平台管理员"),
         (ROLE_STORE_ADMIN, "店铺管理员"),
+        (ROLE_STORE_SUB_ADMIN, "店铺子管理员"),
         (ROLE_STORE_STAFF, "店铺运营"),
     ]
 

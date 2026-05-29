@@ -106,7 +106,7 @@ export default function SpecialZones() {
     form.resetFields();
     form.setFieldsValue({
       store_id: getDefaultStoreId(),
-      kind: 'platform_activity',
+      kind: isPlatformAdmin ? 'platform_activity' : 'store_activity',
       is_active: true,
       show_on_home: true,
       home_order: 0,
@@ -286,11 +286,11 @@ export default function SpecialZones() {
       fixed: 'right',
       render: (_, record) => [
         <a key="products" onClick={() => openBindings(record)}>商品</a>,
-        <a key="edit" onClick={() => handleEdit(record)}>编辑</a>,
-        <Popconfirm key="delete" title="确定删除该专区?" onConfirm={() => handleDelete(record.id)}>
+        (isPlatformAdmin || record.kind === 'store_activity') && <a key="edit" onClick={() => handleEdit(record)}>编辑</a>,
+        (isPlatformAdmin || record.kind === 'store_activity') && <Popconfirm key="delete" title="确定删除该专区?" onConfirm={() => handleDelete(record.id)}>
           <a style={{ color: 'red' }}>删除</a>
         </Popconfirm>,
-      ],
+      ].filter(Boolean),
     },
   ];
 
@@ -368,11 +368,11 @@ export default function SpecialZones() {
         }}
         search={{ labelWidth: 'auto', defaultCollapsed: false, collapseRender: false }}
         pagination={{ defaultPageSize: 10 }}
-        toolBarRender={() => isPlatformAdmin ? [
+        toolBarRender={() => [
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新建专区
           </Button>,
-        ] : []}
+        ]}
       />
 
       <ModalForm
@@ -399,6 +399,7 @@ export default function SpecialZones() {
             };
             if (!isPlatformAdmin) {
               delete payload.store_id;
+              payload.kind = 'store_activity';
             }
             if (editingRecord) {
               await updateSpecialZone(editingRecord.id, payload);
@@ -439,7 +440,10 @@ export default function SpecialZones() {
         <ProFormSelect
           name="kind"
           label="专区类型"
-          valueEnum={{ platform_activity: '平台活动', store_activity: '店铺活动', activity: '历史活动', promotion: '历史优惠专区', category: '历史品类专区', brand: '历史品牌专区', custom: '历史自定义专区' }}
+          valueEnum={isPlatformAdmin
+            ? { platform_activity: '平台活动', store_activity: '店铺活动', activity: '历史活动', promotion: '历史优惠专区', category: '历史品类专区', brand: '历史品牌专区', custom: '历史自定义专区' }
+            : { store_activity: '店铺活动' }}
+          disabled={!isPlatformAdmin}
           rules={[{ required: true, message: '请选择专区类型' }]}
           colProps={{ span: 12 }}
         />

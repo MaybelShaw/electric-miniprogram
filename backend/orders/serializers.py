@@ -6,6 +6,7 @@ from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTa
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
+from stores.permissions import is_platform_admin, is_support_user
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -533,7 +534,7 @@ class RefundCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('仅支持已收货订单申请退款')
 
         # 普通用户只能操作自己的订单
-        if request and not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+        if request and not (is_platform_admin(request.user) or is_support_user(request.user)):
             if order.user_id != request.user.id:
                 raise serializers.ValidationError('没有权限为该订单退款')
 

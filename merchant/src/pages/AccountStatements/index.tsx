@@ -2,11 +2,12 @@ import { PlusOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormDateRangePicker, ProFormSelect, ProDescriptions } from '@ant-design/pro-components';
 import { Button, message, Tag, Drawer, Table } from 'antd';
-import { useRef, useState } from 'react';
-import { getAccountStatements, getAccountStatement, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, exportAccountStatements, getCreditAccounts } from '@/services/api';
+import { useEffect, useRef, useState } from 'react';
+import { getAccountStatements, getAccountStatement, createAccountStatement, confirmAccountStatement, settleAccountStatement, exportAccountStatement, exportAccountStatements, getCreditAccounts, getCurrentStoreContext } from '@/services/api';
 import { fetchAllPaginated } from '@/utils/request';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
+import type { CurrentStoreContext } from '@/services/types';
 
 export default function AccountStatements() {
   const actionRef = useRef<ActionType>();
@@ -15,7 +16,23 @@ export default function AccountStatements() {
   const [currentStatement, setCurrentStatement] = useState<any>(null);
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
+  const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
   const exportLockRef = useRef(false);
+  const isPlatformAdmin = Boolean(storeContext?.is_platform_admin);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentStoreContext()
+      .then((context) => {
+        if (!cancelled) setStoreContext(context);
+      })
+      .catch(() => {
+        if (!cancelled) setStoreContext(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleExport = async () => {
     if (exportLockRef.current) return;
@@ -132,7 +149,7 @@ export default function AccountStatements() {
         >
           查看详情
         </a>,
-        record.status === 'draft' && (
+        isPlatformAdmin && record.status === 'draft' && (
           <a
             key="confirm"
             onClick={async () => {
@@ -148,7 +165,7 @@ export default function AccountStatements() {
             确认
           </a>
         ),
-        record.status !== 'settled' && (
+        isPlatformAdmin && record.status !== 'settled' && (
           <a
             key="settle"
             onClick={async () => {
@@ -317,18 +334,20 @@ export default function AccountStatements() {
         dateFormatter="string"
         headerTitle="对账单管理"
         toolBarRender={() => [
-          <Button
-            key="create"
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateModalVisible(true)}
-          >
-            生成对账单
-          </Button>,
+          isPlatformAdmin && (
+            <Button
+              key="create"
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateModalVisible(true)}
+            >
+              ?????
+            </Button>
+          ),
           <Button key="export" icon={<DownloadOutlined />} onClick={handleExport} loading={exporting} disabled={exporting}>
             导出
           </Button>,
-        ]}
+        ].filter(Boolean)}
         scroll={{ x: 1400 }}
       />
 

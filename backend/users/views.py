@@ -33,6 +33,7 @@ from common.excel import build_excel_response
 from common.pagination import SmallResultsSetPagination
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
+from stores.permissions import is_platform_admin
 
 
 # Create your views here.
@@ -434,7 +435,9 @@ class PasswordLoginView(APIView):
                 has_store_membership = get_active_memberships(user).exists()
             except Exception:
                 has_store_membership = False
-            if not admin_exists:
+            if has_store_membership or getattr(user, 'role', '') == 'support':
+                pass
+            elif not admin_exists:
                 user.is_staff = True
                 user.is_superuser = True
                 user.role = 'admin'
@@ -443,7 +446,7 @@ class PasswordLoginView(APIView):
                 return Response({"error": "无管理员权限"}, status=status.HTTP_403_FORBIDDEN)
         
         # 确保管理员用户的 role 字段正确
-        if user.is_staff and user.role != 'admin':
+        if user.is_staff and user.role not in {'admin', 'support'}:
             user.role = 'admin'
             user.save(update_fields=['role'])
 
@@ -987,7 +990,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def customers_transaction_stats(self, request):
-        if not request.user.is_staff:
+        if not is_platform_admin(request.user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         period = request.query_params.get('period', 'month')
@@ -1153,7 +1156,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         import openpyxl
         from openpyxl.styles import Font, Alignment, PatternFill
         from openpyxl.utils import get_column_letter
-        if not request.user.is_staff:
+        if not is_platform_admin(request.user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         period = request.query_params.get('period', 'month')
         include_paid = request.query_params.get('include_paid', 'false')
@@ -1336,7 +1339,6 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return CompanyInfo.objects.none()
         
-        from stores.permissions import is_platform_admin
         if is_platform_admin(user):
             # Admin can see all
             qs = super().get_queryset()
@@ -1351,7 +1353,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         """List company info - admin sees all, users see their own"""
-        from stores.permissions import get_active_memberships, is_platform_admin
+        from stores.permissions import get_active_memberships
         if not is_platform_admin(request.user):
             if get_active_memberships(request.user).exists():
                 return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
@@ -1413,7 +1415,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         
         # Only owner or admin can update
-        if instance.user != request.user and not request.user.is_staff:
+        if instance.user != request.user and not is_platform_admin(request.user):
             logger.warning(f'无权限修改公司信息: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "无权限修改"},
@@ -1421,13 +1423,13 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             )
         
         # Users can only update if rejected or withdrawn
-        if not request.user.is_staff and instance.status == 'approved':
+        if not is_platform_admin(request.user) and instance.status == 'approved':
             logger.warning(f'已审核通过的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "已审核通过的信息不可修改"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if not request.user.is_staff and instance.status == 'pending':
+        if not is_platform_admin(request.user) and instance.status == 'pending':
             logger.warning(f'审核中的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "审核中不可修改，请先撤回"},
@@ -1435,7 +1437,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             )
         
         # If user is updating rejected/withdrawn info, reset status to pending
-        if not request.user.is_staff and instance.status in ['rejected', 'withdrawn']:
+        if not is_platform_admin(request.user) and instance.status in ['rejected', 'withdrawn']:
             logger.info(f'用户重新提交公司信息: user_id={request.user.id}, company_info_id={instance.id}')
             instance.status = 'pending'
             instance.approved_at = None
@@ -1444,7 +1446,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         response = super().update(request, *args, **kwargs)
         
         # Save status change if it was modified
-        if not request.user.is_staff and instance.status == 'pending':
+        if not is_platform_admin(request.user) and instance.status == 'pending':
             instance.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
         
         return response
@@ -1521,7 +1523,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         """Withdraw pending company info submission"""
         company_info = self.get_object()
 
-        if company_info.user != request.user and not request.user.is_staff:
+        if company_info.user != request.user and not is_platform_admin(request.user):
             return Response(
                 {"error": "无权限撤回"},
                 status=status.HTTP_403_FORBIDDEN
@@ -1590,7 +1592,9 @@ class CreditAccountViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return CreditAccount.objects.none()
         
-        if user.is_staff:
+        from stores.permissions import is_platform_admin
+
+        if is_platform_admin(user):
             # Admin can see all
             qs = super().get_queryset()
             # Filter by active status
@@ -1693,11 +1697,22 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return AccountStatement.objects.none()
         
-        from stores.permissions import get_accessible_stores, get_active_memberships, is_platform_admin, is_support_user
+        from stores.permissions import (
+            PERMISSION_FINANCE_VIEW,
+            get_accessible_stores,
+            get_active_memberships,
+            has_store_permission,
+            is_platform_admin,
+            is_support_user,
+        )
         if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
         elif get_active_memberships(user).exists():
-            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            store_ids = [
+                store.id
+                for store in get_accessible_stores(user)
+                if has_store_permission(user, store, PERMISSION_FINANCE_VIEW)
+            ]
             order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
             qs = super().get_queryset().filter(transactions__order_id__in=order_ids).distinct()
         else:
@@ -1861,6 +1876,11 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         
         statement = self.get_object()
+        if not (
+            is_platform_admin(request.user)
+            or statement.credit_account.user_id == request.user.id
+        ):
+            return Response({"detail": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
         
         if statement.status != 'draft':
             return Response(
@@ -2114,11 +2134,22 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         if not user or not user.is_authenticated:
             return AccountTransaction.objects.none()
         
-        from stores.permissions import get_accessible_stores, get_active_memberships, is_platform_admin, is_support_user
+        from stores.permissions import (
+            PERMISSION_FINANCE_VIEW,
+            get_accessible_stores,
+            get_active_memberships,
+            has_store_permission,
+            is_platform_admin,
+            is_support_user,
+        )
         if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
         elif get_active_memberships(user).exists():
-            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            store_ids = [
+                store.id
+                for store in get_accessible_stores(user)
+                if has_store_permission(user, store, PERMISSION_FINANCE_VIEW)
+            ]
             order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
             qs = super().get_queryset().filter(order_id__in=order_ids)
         else:

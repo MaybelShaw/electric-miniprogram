@@ -4,6 +4,54 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import Store, StoreMember
 
 
+PERMISSION_DASHBOARD_VIEW = "dashboard.view"
+PERMISSION_CATALOG_MANAGE = "catalog.manage"
+PERMISSION_STORE_CONTENT_MANAGE = "store_content.manage"
+PERMISSION_ORDERS_VIEW = "orders.view"
+PERMISSION_ORDERS_ADJUST_AMOUNT = "orders.adjust_amount"
+PERMISSION_ORDERS_CANCEL = "orders.cancel"
+PERMISSION_ORDERS_SHIP = "orders.ship"
+PERMISSION_ORDERS_COMPLETE = "orders.complete"
+PERMISSION_RETURNS_MANAGE = "returns.manage"
+PERMISSION_REFUNDS_MANAGE = "refunds.manage"
+PERMISSION_INVOICES_MANAGE = "invoices.manage"
+PERMISSION_DISCOUNTS_MANAGE = "discounts.manage"
+PERMISSION_FINANCE_VIEW = "finance.view"
+PERMISSION_STORE_MEMBERS_MANAGE = "store_members.manage"
+
+STORE_OPERATION_PERMISSIONS = {
+    PERMISSION_DASHBOARD_VIEW,
+    PERMISSION_CATALOG_MANAGE,
+    PERMISSION_STORE_CONTENT_MANAGE,
+    PERMISSION_ORDERS_VIEW,
+    PERMISSION_ORDERS_ADJUST_AMOUNT,
+    PERMISSION_ORDERS_CANCEL,
+    PERMISSION_ORDERS_SHIP,
+    PERMISSION_ORDERS_COMPLETE,
+    PERMISSION_RETURNS_MANAGE,
+    PERMISSION_REFUNDS_MANAGE,
+    PERMISSION_INVOICES_MANAGE,
+    PERMISSION_FINANCE_VIEW,
+}
+
+ROLE_PERMISSION_PRESETS = {
+    StoreMember.ROLE_PLATFORM_ADMIN: STORE_OPERATION_PERMISSIONS | {PERMISSION_STORE_MEMBERS_MANAGE},
+    StoreMember.ROLE_STORE_ADMIN: STORE_OPERATION_PERMISSIONS | {PERMISSION_STORE_MEMBERS_MANAGE},
+    StoreMember.ROLE_STORE_SUB_ADMIN: STORE_OPERATION_PERMISSIONS - {
+        PERMISSION_FINANCE_VIEW,
+        PERMISSION_ORDERS_ADJUST_AMOUNT,
+    },
+    StoreMember.ROLE_STORE_STAFF: {
+        PERMISSION_DASHBOARD_VIEW,
+        PERMISSION_CATALOG_MANAGE,
+        PERMISSION_STORE_CONTENT_MANAGE,
+        PERMISSION_ORDERS_VIEW,
+        PERMISSION_ORDERS_SHIP,
+        PERMISSION_INVOICES_MANAGE,
+    },
+}
+
+
 def is_platform_admin(user) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
         return False
@@ -58,7 +106,11 @@ def can_manage_store(user, store) -> bool:
         return True
     return get_active_memberships(user).filter(
         store=store,
-        role__in=[StoreMember.ROLE_STORE_ADMIN, StoreMember.ROLE_STORE_STAFF],
+        role__in=[
+            StoreMember.ROLE_STORE_ADMIN,
+            StoreMember.ROLE_STORE_SUB_ADMIN,
+            StoreMember.ROLE_STORE_STAFF,
+        ],
     ).exists()
 
 
@@ -70,24 +122,40 @@ def has_store_role(user, store, roles) -> bool:
     return get_active_memberships(user).filter(store=store, role__in=roles).exists()
 
 
+def get_role_permissions(role: str) -> set[str]:
+    return set(ROLE_PERMISSION_PRESETS.get(role, set()))
+
+
+def get_membership_permissions(membership) -> list[str]:
+    return sorted(get_role_permissions(getattr(membership, "role", "")))
+
+
+def get_store_permissions(user, store) -> set[str]:
+    if store is None:
+        return set()
+    if is_platform_admin(user) or is_support_user(user):
+        return set(STORE_OPERATION_PERMISSIONS) | {PERMISSION_STORE_MEMBERS_MANAGE}
+    permissions = set()
+    memberships = get_active_memberships(user).filter(store=store)
+    for membership in memberships:
+        permissions.update(get_role_permissions(membership.role))
+    return permissions
+
+
+def has_store_permission(user, store, permission_code: str) -> bool:
+    return permission_code in get_store_permissions(user, store)
+
+
 def can_view_store_dashboard(user, store) -> bool:
-    return can_access_store(user, store)
+    return has_store_permission(user, store, PERMISSION_DASHBOARD_VIEW)
 
 
 def can_manage_store_catalog(user, store) -> bool:
-    return is_platform_admin(user) or has_store_role(
-        user,
-        store,
-        [StoreMember.ROLE_STORE_ADMIN, StoreMember.ROLE_STORE_STAFF],
-    )
+    return has_store_permission(user, store, PERMISSION_CATALOG_MANAGE)
 
 
 def can_manage_store_operations(user, store) -> bool:
-    return is_platform_admin(user) or has_store_role(
-        user,
-        store,
-        [StoreMember.ROLE_STORE_ADMIN, StoreMember.ROLE_STORE_STAFF],
-    )
+    return has_store_permission(user, store, PERMISSION_STORE_CONTENT_MANAGE)
 
 
 def get_requested_store(request, *, required=False, allow_public=False):

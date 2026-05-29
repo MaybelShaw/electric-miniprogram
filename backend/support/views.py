@@ -17,13 +17,24 @@ from common.serializers import AttachmentFileValidator
 from orders.models import Order
 from .models import SupportConversation, SupportMessage, SupportReplyTemplate
 from .serializers import SupportConversationSerializer, SupportMessageSerializer, SupportReplyTemplateSerializer
+from stores.permissions import is_platform_admin, is_support_user
 from users.models import User
 
 logger = logging.getLogger(__name__)
 
 
+def _is_support_backend_user(user):
+    return is_platform_admin(user) or is_support_user(user)
+
+
 def _get_support_sender():
-    return User.objects.filter(Q(is_staff=True) | Q(role='support')).order_by('id').first()
+    sender = User.objects.filter(role='support').order_by('id').first()
+    if sender:
+        return sender
+    for user in User.objects.order_by('id'):
+        if is_platform_admin(user):
+            return user
+    return None
 
 
 def _resolve_template_content(template, content_override=None):
@@ -255,7 +266,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
     def _resolve_conversation(self, request):
         conversation_id = request.query_params.get('conversation_id') or request.query_params.get('ticket_id')
         user_id_raw = request.query_params.get('user_id')
-        is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+        is_support = _is_support_backend_user(request.user)
 
         if conversation_id:
             try:
@@ -288,7 +299,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def conversations(self, request):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+        if not _is_support_backend_user(request.user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         last_message_prefetch = Prefetch(
@@ -402,7 +413,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if order_id and product_id:
             return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+        is_support = _is_support_backend_user(request.user)
         sender = request.user
         role = 'support' if is_support else 'user'
 
@@ -494,7 +505,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         return Response(SupportMessageSerializer(msg, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     def _resolve_conversation_from_body(self, request, explicit_conversation_id=None):
-        is_support = request.user.is_staff or getattr(request.user, 'role', '') == 'support'
+        is_support = _is_support_backend_user(request.user)
         user_id_raw = request.data.get('user_id')
 
         if explicit_conversation_id:
@@ -530,7 +541,7 @@ class SupportConversationAutoReplyView(APIView):
 
     def post(self, request, conversation_id):
         user = request.user
-        if not (user and (user.is_staff or getattr(user, 'role', '') == 'support')):
+        if not _is_support_backend_user(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         try:
             conversation = SupportConversation.objects.select_related('user').get(id=conversation_id)
@@ -570,7 +581,7 @@ class SupportReplyTemplateViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_support = user and (user.is_staff or getattr(user, 'role', '') == 'support')
+        is_support = _is_support_backend_user(user)
         if not is_support:
             return SupportReplyTemplate.objects.none()
 
@@ -601,24 +612,24 @@ class SupportReplyTemplateViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        if not (user and (user.is_staff or getattr(user, 'role', '') == 'support')):
+        if not _is_support_backend_user(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         user = request.user
-        if not (user and (user.is_staff or getattr(user, 'role', '') == 'support')):
+        if not _is_support_backend_user(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         user = request.user
-        if not (user and (user.is_staff or getattr(user, 'role', '') == 'support')):
+        if not _is_support_backend_user(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         user = request.user
-        if not (user and (user.is_staff or getattr(user, 'role', '') == 'support')):
+        if not _is_support_backend_user(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)

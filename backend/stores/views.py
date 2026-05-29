@@ -5,7 +5,13 @@ from rest_framework.response import Response
 from django.db.models import Q
 
 from .models import Store, StoreMember, StorePaymentConfig, StoreSettlementRule
-from .permissions import get_accessible_stores, get_default_store, is_platform_admin
+from .permissions import (
+    PERMISSION_STORE_MEMBERS_MANAGE,
+    get_accessible_stores,
+    get_default_store,
+    has_store_permission,
+    is_platform_admin,
+)
 from .serializers import (
     PublicStoreSerializer,
     StoreMemberSerializer,
@@ -133,20 +139,65 @@ class StoreViewSet(viewsets.ModelViewSet):
 
 class StoreMemberViewSet(viewsets.ModelViewSet):
     serializer_class = StoreMemberSerializer
-    permission_classes = [permissions.IsAuthenticated, IsPlatformAdmin]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return StoreMember.objects.select_related("user", "store").all()
+        qs = StoreMember.objects.select_related("user", "store").order_by("id")
+        if is_platform_admin(self.request.user):
+            return qs
+        stores = [
+            store
+            for store in get_accessible_stores(self.request.user)
+            if has_store_permission(self.request.user, store, PERMISSION_STORE_MEMBERS_MANAGE)
+        ]
+        if not stores:
+            return qs.none()
+        return qs.filter(store__in=stores).exclude(role=StoreMember.ROLE_PLATFORM_ADMIN)
+
+    def _ensure_can_manage_member(self, store, role):
+        if is_platform_admin(self.request.user):
+            return
+        if not has_store_permission(self.request.user, store, PERMISSION_STORE_MEMBERS_MANAGE):
+            raise PermissionDenied("You cannot manage members of this store.")
+        if role in {StoreMember.ROLE_PLATFORM_ADMIN, StoreMember.ROLE_STORE_ADMIN}:
+            raise PermissionDenied("Store admins can only assign sub-admin or staff roles.")
 
     def perform_create(self, serializer):
-        if not is_platform_admin(self.request.user):
-            raise PermissionDenied("Only platform admins can create store members.")
+        store = serializer.validated_data.get("store")
+        role = serializer.validated_data.get("role")
+        self._ensure_can_manage_member(store, role)
         serializer.save()
 
     def perform_update(self, serializer):
-        if not is_platform_admin(self.request.user):
-            raise PermissionDenied("Only platform admins can update store members.")
+        instance = serializer.instance
+        store = serializer.validated_data.get("store", instance.store)
+        role = serializer.validated_data.get("role", instance.role)
+        if not is_platform_admin(self.request.user) and instance.role == StoreMember.ROLE_PLATFORM_ADMIN:
+            raise PermissionDenied("Store admins cannot update platform admins.")
+        self._ensure_can_manage_member(store, role)
         serializer.save()
+
+    def perform_destroy(self, instance):
+        self._ensure_can_manage_member(instance.store, instance.role)
+        instance.delete()
+
+    @action(detail=False, methods=["get"])
+    def available_users(self, request):
+        if not is_platform_admin(request.user):
+            manageable = any(
+                has_store_permission(request.user, store, PERMISSION_STORE_MEMBERS_MANAGE)
+                for store in get_accessible_stores(request.user)
+            )
+            if not manageable:
+                raise PermissionDenied("You cannot manage store members.")
+        from users.models import User
+        from users.serializers import UserSerializer
+
+        qs = User.objects.all().order_by("-date_joined")
+        search = request.query_params.get("search")
+        if search:
+            qs = qs.filter(Q(username__icontains=search) | Q(phone__icontains=search) | Q(openid__icontains=search))
+        return Response(UserSerializer(qs[:100], many=True).data)
 
 
 class StorePaymentConfigViewSet(viewsets.ModelViewSet):

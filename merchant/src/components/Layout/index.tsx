@@ -29,7 +29,7 @@ import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
 import { getCurrentStoreContext, getSupportTickets } from '@/services/api';
 import type { CurrentStoreContext } from '@/services/types';
-import { canAccessAdminRoute, STORE_DEFAULT_ROUTE, STORE_OPERATION_ROUTE_KEYS } from '@/utils/permissions';
+import { canAccessAdminRoute, STORE_DEFAULT_ROUTE } from '@/utils/permissions';
 import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
 import './index.css';
 
@@ -175,15 +175,17 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     navigate('/login');
   };
 
-  const visibleMenuItems = storeContext && !storeContext.is_platform_admin
-    ? menuItems
-      .map(item => {
-        if (!item.children) return STORE_OPERATION_ROUTE_KEYS.has(item.key) ? item : null;
-        const children = item.children.filter((child: any) => STORE_OPERATION_ROUTE_KEYS.has(child.key));
-        return children.length > 0 ? { ...item, children } : null;
-      })
-      .filter(Boolean)
-    : menuItems;
+  const visibleMenuItems = !isSupportLayout && !storeContext
+    ? []
+    : storeContext && !storeContext.is_platform_admin
+      ? menuItems
+        .map(item => {
+          if (!item.children) return canAccessAdminRoute(item.key, storeContext) ? item : null;
+          const children = item.children.filter((child: any) => canAccessAdminRoute(child.key, storeContext));
+          return children.length > 0 ? { ...item, children } : null;
+        })
+        .filter(Boolean)
+      : menuItems;
   const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
 
   const itemsWithBadge = visibleMenuItems.map(item => {

@@ -84,6 +84,13 @@ def get_best_active_discount(user, product, base_price=None):
     return amount
 
 
+def validate_orderable_product(product, sku=None):
+    if not getattr(product, 'is_active', False):
+        raise ValueError('商品已下架')
+    if sku is not None and not getattr(sku, 'is_active', False):
+        raise ValueError('商品规格已下架')
+
+
 def get_county_code(province, city, district):
     """获取区域编码（6位国标码）
     
@@ -288,6 +295,7 @@ def create_order(
             sku_id = int(sku_id)
             from catalog.models import ProductSKU
             sku = ProductSKU.objects.get(id=sku_id, product_id=product_id)
+        validate_orderable_product(product, sku)
 
         # 价格与折扣
         base_price = resolve_base_price(user, product, sku=sku)
@@ -414,6 +422,7 @@ def add_to_cart(user, product_id, quantity=1, sku_id=None):
     if sku_id:
         from catalog.models import ProductSKU
         sku = ProductSKU.objects.get(id=sku_id, product=product)
+    validate_orderable_product(product, sku)
 
     cart_item, created = CartItem.objects.get_or_create(
         cart=cart, product=product, sku=sku, defaults={"quantity": quantity}
@@ -673,6 +682,7 @@ def create_order_with_split(user, items, address_id, note='', payment_method='on
         if sku_id not in (None, '', False):
             from catalog.models import ProductSKU
             sku = ProductSKU.objects.get(id=int(sku_id), product_id=product_id)
+        validate_orderable_product(product, sku)
 
         unit_price = Decimal(resolve_base_price(user, product, sku=sku))
         unit_discount = get_best_active_discount(user, product, base_price=unit_price)

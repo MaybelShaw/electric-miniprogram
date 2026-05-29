@@ -14,6 +14,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 from .models import Product, SearchLog
+from stores.permissions import get_active_memberships, is_platform_admin
 
 
 class ProductSearchService:
@@ -108,10 +109,14 @@ class ProductSearchService:
         except (ValueError, TypeError):
             page_size = cls.DEFAULT_PAGE_SIZE
         
-        is_staff = bool(user and getattr(user, 'is_staff', False))
+        can_view_inactive = bool(
+            user
+            and getattr(user, 'is_authenticated', False)
+            and (is_platform_admin(user) or get_active_memberships(user).exists())
+        )
 
         # Admin can see all products; regular users see only active ones
-        if is_staff:
+        if can_view_inactive:
             queryset = Product.objects.all()
         else:
             queryset = Product.objects.filter(is_active=True)
@@ -154,7 +159,7 @@ class ProductSearchService:
                 pass
 
         if is_active is not None:
-            if is_staff:
+            if can_view_inactive:
                 queryset = queryset.filter(is_active=bool(is_active))
             elif bool(is_active) is True:
                 queryset = queryset.filter(is_active=True)

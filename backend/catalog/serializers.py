@@ -11,6 +11,7 @@ from common.serializers import (
     StockField,
 )
 from stores.models import Store
+from stores.permissions import get_active_memberships, is_platform_admin, is_support_user
 from django.db.models import Q
 
 
@@ -444,15 +445,47 @@ class ProductSerializer(serializers.ModelSerializer):
         media_prefix = settings.MEDIA_URL.rstrip('/')
         return f"{media_prefix}/{url.lstrip('/')}"
 
+    def _viewer_flags(self):
+        cached = self.context.get('_product_viewer_flags')
+        if cached is not None:
+            return cached
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        is_authenticated = bool(user and user.is_authenticated)
+        is_backend_user = bool(
+            is_authenticated and (
+                is_platform_admin(user)
+                or is_support_user(user)
+                or get_active_memberships(user).exists()
+            )
+        )
+        flags = {
+            'dealer_price': bool(is_authenticated and (getattr(user, 'role', '') == 'dealer' or is_backend_user)),
+            'internal_fields': is_backend_user,
+        }
+        self.context['_product_viewer_flags'] = flags
+        return flags
+
     def to_representation(self, instance):
         """自定义序列化输出，将图片URL转换为完整URL"""
         rep = super().to_representation(instance)
-        request = self.context.get('request')
-        user = getattr(request, 'user', None)
-        if not user or not user.is_authenticated or (
-            not user.is_staff and getattr(user, 'role', '') not in {'dealer', 'support', 'admin'}
-        ):
+        viewer_flags = self._viewer_flags()
+        if not viewer_flags['dealer_price']:
             rep.pop('dealer_price', None)
+        if not viewer_flags['internal_fields']:
+            for field in (
+                'product_code',
+                'supply_price',
+                'invoice_price',
+                'stock_rebate',
+                'rebate_money',
+                'is_sales',
+                'no_sales_reason',
+                'warehouse_code',
+                'warehouse_grade',
+                'last_sync_at',
+            ):
+                rep.pop(field, None)
         # 合并额外字段
         rep['discounted_price'] = self.get_discounted_price(instance)
         rep['display_price'] = self.get_display_price(instance)
@@ -589,6 +622,8 @@ class ProductSerializer(serializers.ModelSerializer):
     
     def get_haier_info(self, obj: Product):
         """获取海尔产品信息"""
+        if not self._viewer_flags()['internal_fields']:
+            return None
         # 只有标记为海尔商品并且有 product_code 才返回详细信息
         if not self.get_is_haier_product(obj) or not obj.product_code:
             return None
