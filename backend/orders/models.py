@@ -503,6 +503,63 @@ class OrderStatusHistory(models.Model):
         return f'订单#{self.order_id} {self.from_status} -> {self.to_status}'
 
 
+class OrderShippingAction(models.Model):
+    """管理员发货操作审计记录。"""
+
+    ACTION_CHOICES = [
+        ('ship', '发货'),
+        ('cancel_shipping', '取消发货'),
+        ('reship', '重新发货'),
+    ]
+    STATUS_CHOICES = [
+        ('succeeded', '成功'),
+        ('failed', '失败'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        related_name='shipping_actions',
+        verbose_name='订单',
+    )
+    action = models.CharField(max_length=30, choices=ACTION_CHOICES, verbose_name='操作')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, verbose_name='结果')
+    shipping_snapshot = models.JSONField(default=dict, blank=True, verbose_name='物流快照')
+    operator = models.ForeignKey(
+        'users.User',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='shipping_actions',
+        verbose_name='操作人',
+    )
+    reason = models.CharField(max_length=200, blank=True, default='', verbose_name='原因')
+    wechat_sync_required = models.BooleanField(default=False, verbose_name='需要同步微信')
+    wechat_synced = models.BooleanField(default=False, verbose_name='微信同步成功')
+    wechat_response = models.JSONField(default=dict, blank=True, verbose_name='微信响应摘要')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '发货操作记录'
+        verbose_name_plural = '发货操作记录'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['order', 'created_at'], name='orders_ship_action_order_idx'),
+            models.Index(fields=['action', 'status'], name='orders_ship_action_type_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['order'],
+                condition=models.Q(action='cancel_shipping', status='succeeded'),
+                name='uniq_success_cancel_shipping',
+            ),
+        ]
+
+    def __str__(self):
+        return f'发货操作#{self.id} 订单:{self.order_id} {self.action}/{self.status}'
+
+
 class OrderShippingSync(models.Model):
     """微信订单管理发货同步记录"""
     STATUS_CHOICES = [

@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormList, ProFormGroup } from '@ant-design/pro-components';
-import { Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip, Card } from 'antd';
+import { Alert, Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip, Card } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
+import { getOrders, getOrder, shipOrder, cancelShipping, getShippingActions, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { Order } from '@/services/types';
+import type { Order, OrderShippingAction } from '@/services/types';
 import { Upload } from 'antd';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
 
 const statusMap: Record<string, { text: string; color: string }> = {
   pending: { text: '待支付', color: 'orange' },
-  paid: { text: '已支付', color: 'blue' },
+  paid: { text: '待发货', color: 'blue' },
   shipped: { text: '已发货', color: 'cyan' },
   completed: { text: '已完成', color: 'green' },
   cancelled: { text: '已取消', color: 'red' },
@@ -66,6 +66,10 @@ export default function Orders() {
   const [refundReviewOrder, setRefundReviewOrder] = useState<Order | null>(null);
   const [refundProcessing, setRefundProcessing] = useState(false);
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
+  const [cancelShippingModalVisible, setCancelShippingModalVisible] = useState(false);
+  const [cancelShippingOrder, setCancelShippingOrder] = useState<Order | null>(null);
+  const [shippingActions, setShippingActions] = useState<OrderShippingAction[]>([]);
+  const [shippingActionsLoading, setShippingActionsLoading] = useState(false);
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [receiveReturnModalVisible, setReceiveReturnModalVisible] = useState(false);
@@ -155,12 +159,34 @@ export default function Orders() {
         delete payload.express_company;
       }
       await shipOrder(shippingOrder.id, payload);
-      message.success('发货成功');
+      message.success(shippingOrder.is_reshipment_pending ? '重新发货成功' : '发货成功');
       setShipModalVisible(false);
       actionRef.current?.reload();
       return true;
     } catch (error: any) {
       message.error(error?.response?.data?.detail || error?.message || '操作失败');
+      return false;
+    }
+  };
+
+  const handleCancelShipping = (record: Order) => {
+    setCancelShippingOrder(record);
+    setCancelShippingModalVisible(true);
+  };
+
+  const handleCancelShippingSubmit = async (values: { reason: string }) => {
+    if (!cancelShippingOrder) return false;
+    try {
+      await cancelShipping(cancelShippingOrder.id, {
+        reason: values.reason.trim(),
+      });
+      message.success('取消发货成功');
+      setCancelShippingModalVisible(false);
+      setCancelShippingOrder(null);
+      actionRef.current?.reload();
+      return true;
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '取消发货失败');
       return false;
     }
   };
@@ -404,11 +430,18 @@ export default function Orders() {
 
   const handleViewDetail = async (record: Order) => {
     try {
-      const res: any = await getOrder(record.id);
-      setCurrentOrder(res);
+      setShippingActionsLoading(true);
+      const [orderResult, actionResult]: any[] = await Promise.all([
+        getOrder(record.id),
+        getShippingActions(record.id),
+      ]);
+      setCurrentOrder(orderResult);
+      setShippingActions(actionResult || []);
       setDetailVisible(true);
-    } catch (error) {
-      message.error('获取订单详情失败');
+    } catch (error: any) {
+      message.error(error?.response?.data?.detail || '获取订单详情失败');
+    } finally {
+      setShippingActionsLoading(false);
     }
   };
 
@@ -710,6 +743,20 @@ export default function Orders() {
         }
         
         if (record.status === 'shipped') {
+          if (record.can_cancel_shipping) {
+            actions.push(
+              <Button
+                key="cancel-shipping"
+                type="link"
+                size="small"
+                danger
+                icon={<RollbackOutlined />}
+                onClick={() => handleCancelShipping(record)}
+              >
+                取消发货
+              </Button>
+            );
+          }
           actions.push(
             <Popconfirm
               key="complete"
@@ -978,12 +1025,22 @@ export default function Orders() {
       
       {/* 发货弹窗 */}
       <ModalForm
-        title="订单发货"
+        title={shippingOrder?.is_reshipment_pending ? '重新发货' : '订单发货'}
         visible={shipModalVisible}
         onVisibleChange={setShipModalVisible}
         onFinish={handleShipSubmit}
         initialValues={{ delivery_mode: 1, is_all_delivered: true }}
       >
+        {shippingOrder?.is_reshipment_pending &&
+          shippingOrder.reship_requires_wechat_sync && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message="微信重新发货机会仅有一次"
+              description="本次将更新微信发货信息，并使用该支付单唯一一次重新发货机会，提交后不可再次修改。"
+            />
+          )}
         <ProFormRadio.Group
           name="delivery_mode"
           label="发货模式"
@@ -1114,6 +1171,65 @@ export default function Orders() {
             )
           }
         </ProFormDependency>
+      </ModalForm>
+
+      {/* 取消发货弹窗 */}
+      <ModalForm
+        title="取消发货"
+        visible={cancelShippingModalVisible}
+        onVisibleChange={(visible) => {
+          setCancelShippingModalVisible(visible);
+          if (!visible) setCancelShippingOrder(null);
+        }}
+        onFinish={handleCancelShippingSubmit}
+        modalProps={{ destroyOnClose: true }}
+        submitter={{
+          searchConfig: {
+            submitText: '确认取消发货',
+            resetText: '取消',
+          },
+        }}
+      >
+        <ProDescriptions
+          column={1}
+          dataSource={cancelShippingOrder || {}}
+          style={{ marginBottom: 16 }}
+        >
+          <ProDescriptions.Item
+            label="物流公司"
+            render={() =>
+              cancelShippingOrder?.logistics_info?.shipping_info?.shipping_list?.[0]
+                ?.express_company || '-'
+            }
+          />
+          <ProDescriptions.Item
+            label="物流单号"
+            render={() => cancelShippingOrder?.logistics_info?.logistics_no || '-'}
+          />
+        </ProDescriptions>
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="取消发货风险提示"
+          description={
+            <>
+              <div>取消后订单将恢复为“待发货”，当前物流信息会被清空。</div>
+              <div>微信侧原发货记录无法撤销，再次发货将使用唯一一次重新发货机会。</div>
+              <div>每个订单只能取消发货一次。</div>
+            </>
+          }
+        />
+        <ProFormTextArea
+          name="reason"
+          label="取消原因"
+          placeholder="请输入取消原因"
+          fieldProps={{ maxLength: 200, showCount: true }}
+          rules={[
+            { required: true, whitespace: true, message: '请输入取消原因' },
+            { max: 200, message: '取消原因不能超过200个字符' },
+          ]}
+        />
       </ModalForm>
 
       {/* 取消订单弹窗 */}
@@ -1283,7 +1399,11 @@ export default function Orders() {
         title="订单详情"
         width={600}
         visible={detailVisible}
-        onClose={() => setDetailVisible(false)}
+        onClose={() => {
+          setDetailVisible(false);
+          setCurrentOrder(null);
+          setShippingActions([]);
+        }}
       >
         {currentOrder && (
           <ProDescriptions
@@ -1312,6 +1432,61 @@ export default function Orders() {
             <ProDescriptions.Item label="备注" dataIndex="note" />
           </ProDescriptions>
         )}
+
+        <div style={{ marginTop: 24 }}>
+          <div style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>
+            发货操作记录
+          </div>
+          <List
+            loading={shippingActionsLoading}
+            dataSource={shippingActions}
+            locale={{ emptyText: '暂无发货操作记录' }}
+            renderItem={(item) => {
+              const snapshot = item.shipping_snapshot || {};
+              const packages = snapshot.shipping_info?.shipping_list || [];
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <Space>
+                        <span>{item.action_label}</span>
+                        <Tag color={item.status === 'succeeded' ? 'green' : 'red'}>
+                          {item.status_label}
+                        </Tag>
+                        {item.wechat_sync_required && (
+                          <Tag color={item.wechat_synced ? 'blue' : 'orange'}>
+                            {item.wechat_synced ? '微信已同步' : '微信未同步'}
+                          </Tag>
+                        )}
+                      </Space>
+                    }
+                    description={
+                      <Space direction="vertical" size={4}>
+                        <span>
+                          操作人：{item.operator_username || '系统'} ·{' '}
+                          {new Date(item.created_at).toLocaleString()}
+                        </span>
+                        {item.reason && <span>原因：{item.reason}</span>}
+                        <span>物流单号：{snapshot.logistics_no || '-'}</span>
+                        {packages.map((pkg, index) => (
+                          <span key={`${pkg.tracking_no || 'package'}-${index}`}>
+                            包裹 {index + 1}：{pkg.express_company || '-'} /{' '}
+                            {pkg.tracking_no || '-'}
+                          </span>
+                        ))}
+                        {Object.keys(item.wechat_response || {}).length > 0 && (
+                          <span>
+                            微信响应：{JSON.stringify(item.wechat_response)}
+                          </span>
+                        )}
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
+          />
+        </div>
 
         {currentOrder?.is_haier_order && currentOrder.haier_order_info && (
           <ProDescriptions

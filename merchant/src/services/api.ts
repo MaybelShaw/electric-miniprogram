@@ -71,6 +71,10 @@ export const getOrders = (params?: any) => request.get('/orders/', { params });
 export const exportOrders = (params?: any) => request.get('/orders/export/', { params, responseType: 'blob' });
 export const getOrder = (id: number) => request.get(`/orders/${id}/`);
 export const shipOrder = (id: number, data?: any) => request.patch(`/orders/${id}/ship/`, data || {});
+export const cancelShipping = (id: number, data: { reason: string }) =>
+  request.patch(`/orders/${id}/cancel_shipping/`, data);
+export const getShippingActions = (id: number) =>
+  request.get(`/orders/${id}/shipping_actions/`);
 export const completeOrder = (id: number) => request.patch(`/orders/${id}/complete/`, {});
 export const cancelOrder = (id: number, data?: any) => request.patch(`/orders/${id}/cancel/`, data || {});
 export const adjustOrderAmount = (id: number, data: { actual_amount: number }) =>

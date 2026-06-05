@@ -264,6 +264,11 @@ Authorization: Bearer <access_token>
   - 用途：获取订单详情
   - 权限：IsOwnerOrAdmin
   - 响应：`{ "id": number, "user": number, "product": Product, "quantity": number, "total_amount": decimal, "status": string, "note": string, "created_at": string(ISO), "updated_at": string(ISO), "status_history": StatusHistory[] }`
+  - 发货能力字段：
+    - `can_cancel_shipping`: 当前订单是否允许取消发货
+    - `is_reshipment_pending`: 是否已取消发货并等待重新发货
+    - `reship_requires_wechat_sync`: 本次重新发货是否必须同步微信
+    - `shipping_cancel_count`: 已成功取消发货次数，当前只可能为 `0` 或 `1`
 
 - `PATCH /orders/{id}/cancel/`
   - 用途：取消订单
@@ -277,7 +282,23 @@ Authorization: Bearer <access_token>
   - 用途：发货（管理员）
   - 权限：IsAdminOrReadOnly
   - 响应：更新后的订单对象
-  - 说明：订单状态变更为 `shipped`
+  - 说明：
+    - 订单状态变更为 `shipped`
+    - 已成功取消过发货且尚未重新发货时，本接口执行重新发货
+    - 微信重新发货必须同步成功后才提交本地状态
+
+- `PATCH /orders/{id}/cancel_shipping/`
+  - 用途：取消发货（管理员或客服）
+  - 请求体：`{ "reason": "物流单号填写错误" }`
+  - 说明：
+    - 仅支持状态为 `shipped` 的非海尔订单
+    - 每个订单只能成功取消发货一次
+    - 成功后订单恢复为 `paid`，当前物流字段被清空
+    - 微信侧原发货信息不会撤销
+
+- `GET /orders/{id}/shipping_actions/`
+  - 用途：查询发货操作记录（管理员或客服）
+  - 说明：按时间倒序返回 `ship`、`cancel_shipping`、`reship` 操作、物流快照和脱敏微信响应
 
 - `PATCH /orders/{id}/complete/`
   - 用途：完成订单（管理员）
@@ -285,7 +306,7 @@ Authorization: Bearer <access_token>
   - 响应：更新后的订单对象
   - 说明：订单状态变更为 `completed`
 
-- 订单状态：`pending` (待支付) | `paid` (已支付) | `shipped` (已发货) | `completed` (已完成) | `cancelled` (已取消) | `refunding` (退款中) | `refunded` (已退款)
+- 订单状态：`pending` (待支付) | `paid` (待发货) | `shipped` (已发货) | `completed` (已完成) | `cancelled` (已取消) | `refunding` (退款中) | `refunded` (已退款)
 
 ## 支付管理
 

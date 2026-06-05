@@ -169,6 +169,36 @@ class OrderStateMachine:
             pass
         
         return order
+
+    @classmethod
+    @transaction.atomic
+    def reverse_shipping(cls, order, operator=None, note: str = ''):
+        """仅供取消发货服务使用的 shipped -> paid 回退。"""
+        if order.status != OrderStatus.SHIPPED.value:
+            raise ValueError('仅已发货订单可以取消发货')
+
+        old_status = order.status
+        new_status = OrderStatus.PAID.value
+        order.status = new_status
+        order.updated_at = timezone.now()
+        order.save(update_fields=['status', 'updated_at'])
+
+        from .models import OrderStatusHistory
+        OrderStatusHistory.objects.create(
+            order=order,
+            from_status=old_status,
+            to_status=new_status,
+            operator=operator,
+            note=note,
+        )
+
+        cls._handle_sales_count_change(order, old_status, new_status)
+        try:
+            from .analytics import OrderAnalytics
+            OrderAnalytics.on_order_status_changed(order.id)
+        except Exception:
+            pass
+        return order
     
     @classmethod
     def _handle_pre_transition(

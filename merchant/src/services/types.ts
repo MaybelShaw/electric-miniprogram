@@ -74,8 +74,54 @@ export interface HaierOrderInfo {
   product_code?: string;
 }
 
+export interface ShippingItem {
+  tracking_no?: string;
+  express_company?: string;
+  item_desc?: string;
+  contact?: Record<string, string>;
+}
+
+export interface ShippingInfo {
+  logistics_type?: number;
+  delivery_mode?: number;
+  is_all_delivered?: boolean | null;
+  shipping_list?: ShippingItem[];
+}
+
 export interface LogisticsInfo {
   logistics_no?: string;
+  delivery_record_code?: string;
+  sn_code?: string;
+  delivery_images?: string[];
+  shipping_info?: ShippingInfo | null;
+}
+
+export interface ShippingSnapshot {
+  logistics_no: string;
+  shipping_info: ShippingInfo;
+  delivery_record_code: string;
+  sn_code: string;
+  delivery_images: string[];
+}
+
+export interface OrderShippingAction {
+  id: number;
+  action: 'ship' | 'cancel_shipping' | 'reship';
+  action_label: string;
+  status: 'succeeded' | 'failed';
+  status_label: string;
+  shipping_snapshot: ShippingSnapshot;
+  operator: number | null;
+  operator_username: string | null;
+  reason: string;
+  wechat_sync_required: boolean;
+  wechat_synced: boolean;
+  wechat_response: {
+    errcode?: number;
+    errmsg?: string;
+    error?: string;
+  };
+  created_at: string;
 }
 
 export interface ReturnInfo {
@@ -111,6 +157,10 @@ export interface Order {
   snapshot_phone: string;
   snapshot_address: string;
   logistics_info?: LogisticsInfo;
+  can_cancel_shipping: boolean;
+  is_reshipment_pending: boolean;
+  reship_requires_wechat_sync: boolean;
+  shipping_cancel_count: number;
   return_info?: ReturnInfo;
   invoice_info?: {
     id: number;

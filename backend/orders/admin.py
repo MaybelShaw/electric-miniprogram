@@ -9,6 +9,7 @@ from .models import (
     ReturnRequest,
     Payment,
     Refund,
+    OrderShippingAction,
     OrderStatusHistory,
 )
 
@@ -81,6 +82,44 @@ class OrderStatusHistoryAdmin(admin.ModelAdmin):
     list_filter = ("from_status", "to_status", "created_at")
     search_fields = ("order__order_number", "operator__username", "note")
     list_select_related = ("order", "operator", "order__user")
+
+
+@admin.register(OrderShippingAction)
+class OrderShippingActionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "order",
+        "action",
+        "status",
+        "operator",
+        "wechat_sync_required",
+        "wechat_synced",
+        "created_at",
+    )
+    list_filter = ("action", "status", "wechat_sync_required", "wechat_synced", "created_at")
+    search_fields = ("order__order_number", "operator__username", "reason")
+    list_select_related = ("order", "operator")
+    readonly_fields = (
+        "order",
+        "action",
+        "status",
+        "shipping_snapshot",
+        "operator",
+        "reason",
+        "wechat_sync_required",
+        "wechat_synced",
+        "wechat_response",
+        "created_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(ReturnRequest)
