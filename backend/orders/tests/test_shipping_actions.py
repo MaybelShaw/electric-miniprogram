@@ -6,6 +6,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, close_old_connections, connection, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.reverse import reverse
 from rest_framework.test import APIClient
@@ -174,6 +175,23 @@ class CancelShippingServiceTests(ShippingFixtureMixin, TestCase):
             note='取消发货：物流单号填写错误',
         ).exists())
         notify.assert_not_called()
+
+    def test_cancel_shipping_locks_order_without_joining_nullable_relations(self):
+        with CaptureQueriesContext(connection) as queries:
+            cancel_shipping(
+                order_id=self.order.id,
+                operator=self.operator,
+                reason='物流单号填写错误',
+            )
+
+        order_queries = [
+            query['sql']
+            for query in queries.captured_queries
+            if 'FROM "orders_order"' in query['sql']
+            and '"orders_order"."id"' in query['sql']
+        ]
+        self.assertTrue(order_queries)
+        self.assertNotIn(' JOIN ', order_queries[0].upper())
 
     def test_cancel_shipping_validates_reason_status_haier_and_usage(self):
         with self.assertRaisesMessage(ShippingActionError, '取消原因不能为空'):

@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 from django.db import IntegrityError, transaction
+from django.db.models import prefetch_related_objects
 
 from catalog.models import Product
 
@@ -157,11 +158,15 @@ def cancel_shipping(order_id: int, operator, reason: str) -> OrderShippingAction
     if len(normalized_reason) > 200:
         raise ShippingActionError('取消原因不能超过200个字符')
 
-    order = (
-        Order.objects.select_for_update()
-        .select_related('product', 'user')
-        .prefetch_related('items__product', 'shipping_actions', 'shipping_syncs')
-        .get(pk=order_id)
+    # Lock only the order row. PostgreSQL rejects FOR UPDATE when nullable
+    # select_related() joins add the nullable side of an outer join.
+    order = Order.objects.select_for_update().get(pk=order_id)
+    prefetch_related_objects(
+        [order],
+        'product',
+        'items__product',
+        'shipping_actions',
+        'shipping_syncs',
     )
     if any(
         action.action == 'cancel_shipping' and action.status == 'succeeded'
