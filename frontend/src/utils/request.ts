@@ -20,6 +20,28 @@ interface ApiResponse<T = any> {
   details?: any
 }
 
+function stringifyApiError(value: any): string {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    return value.map(stringifyApiError).filter(Boolean).join('；')
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).map(stringifyApiError).filter(Boolean).join('；')
+  }
+  return String(value)
+}
+
+function getApiErrorMessage(errorData: ApiResponse): string {
+  return (
+    stringifyApiError(errorData.message) ||
+    stringifyApiError(errorData.error) ||
+    stringifyApiError(errorData.detail) ||
+    stringifyApiError(errorData.details) ||
+    '请求失败'
+  )
+}
+
 // Token 管理
 export const TokenManager = {
   getAccessToken(): string | null {
@@ -116,7 +138,7 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
     // 处理其他错误
     if (res.statusCode >= 400) {
       const errorData = res.data as ApiResponse
-      const errorMsg = errorData.message || errorData.error || errorData.detail || '请求失败'
+      const errorMsg = getApiErrorMessage(errorData)
       
       if (showError) {
         // 429 限流错误

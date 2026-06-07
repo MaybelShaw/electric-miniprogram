@@ -133,7 +133,7 @@ Authorization: Bearer <access_token>
 - `GET /products/by_brand/?brand=名称`
   - 用途：按品牌获取商品
   - 权限：AllowAny
-  - 查询参数：`brand` (品牌名称)
+  - 查询参数：`brand` (品牌名称)、`store`/`store_id` (店铺ID，可选)、`category_id` (分类树ID，可选，用于店铺首页“类别 -> 品牌 -> 商品”筛选)
   - 响应：商品列表
 
 - `GET /products/recommendations/`
@@ -519,7 +519,7 @@ Content-Type: application/json
   - `200 OK`
   - `{ "access": "...", "refresh": "...", "user": { "id": 1, "username": "用户_xxx", "avatar_url": "..." } }`
 - 购物车 `my_cart`：
-  - `{ "id": 10, "user": 1, "items": [ { "id": 99, "product": { "id": 1, "name": "海尔冰箱", "price": "2999.00" }, "product_id": 1, "quantity": 2 } ] }`
+  - `{ "id": 10, "user": 1, "items": [ { "id": 99, "product": { "id": 1, "name": "海尔冰箱", "price": "2999.00" }, "product_id": 1, "quantity": 2, "store_id": 2, "store_name": "庆勋愉悦家", "is_available": true, "unavailable_reason": "" } ], "store_groups": [ { "store_id": 2, "store_name": "庆勋愉悦家", "store_logo": "", "store_type": "self_operated", "item_count": 1, "total_quantity": 2, "items": [/* 同 items 项结构 */] } ] }`
 
 ## 请求限流
 
@@ -977,7 +977,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET /api/stores/current/` - 当前账号可访问店铺、默认店铺和成员权限
 - ✅ `GET/POST/PATCH/DELETE /api/stores/` - 店铺管理
 - ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表
-- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、轮播、分类、专区和商品摘要
+- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区、商品摘要和新品商品
 - ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
 - ✅ `GET /api/stores/members/available_users/` - 可绑定后台账号候选
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-groups/` - 店铺客户分组
@@ -1000,7 +1000,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET /api/catalog/products/{id}/` - 获取商品详情
 - ✅ `GET/POST/PATCH/DELETE /api/catalog/product-skus/` - 商品 SKU 管理
 - ✅ `GET /api/catalog/products/by_category/?category=名称` - 按分类获取商品
-- ✅ `GET /api/catalog/products/by_brand/?brand=名称` - 按品牌获取商品
+- ✅ `GET /api/catalog/products/by_brand/?brand=名称` - 按品牌获取商品，支持 `category_id` 限定分类树
 - ✅ `GET /api/catalog/products/recommendations/` - 获取推荐商品
 - ✅ `GET /api/catalog/products/{id}/related/` - 获取相关商品
 - ✅ `GET /api/catalog/products/search_suggestions/` - 搜索建议
@@ -1035,6 +1035,8 @@ fetch('/api/token/refresh/', {
 
 #### 购物车管理
 - ✅ `GET /api/cart/my_cart/` - 获取购物车
+  - 响应保留平铺 `items`，并新增 `store_groups`。`store_groups` 按购物车项加入顺序确定店铺顺序：某店铺最早加入的商品越早，该店铺越靠前。
+  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组和失效/缺货提示。
 - ✅ `POST /api/cart/add_item/` - 添加商品
 - ✅ `POST /api/cart/update_item/` - 更新数量
 - ✅ `POST /api/cart/remove_item/` - 移除商品

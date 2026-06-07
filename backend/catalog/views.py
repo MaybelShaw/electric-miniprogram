@@ -692,6 +692,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         - page_size: Results per page (default: 20)
         """
         brand_name = request.query_params.get('brand', None)
+        category_id = parse_int(request.query_params.get('category_id'))
         sort_by = request.query_params.get('sort_by', 'relevance').strip()
         
         # Parse pagination parameters
@@ -709,6 +710,12 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
             products = self.get_queryset().filter(brand__name=brand_name)
         else:
             products = self.get_queryset()
+        if category_id is not None:
+            products = products.filter(
+                Q(category_id=category_id)
+                | Q(category__parent_id=category_id)
+                | Q(category__parent__parent_id=category_id)
+            )
         is_store_member = request.user.is_authenticated and get_active_memberships(request.user).exists()
         if not is_platform_admin(request.user) and not is_store_member:
             products = products.filter(is_active=True)

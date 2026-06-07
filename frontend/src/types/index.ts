@@ -193,13 +193,30 @@ export interface CartItem {
   sku_id?: number | null
   sku_specs?: Record<string, string>
   quantity: number
+  store_id?: number
+  store_name?: string
+  store_logo?: string
+  store_type?: StoreType
+  is_available?: boolean
+  unavailable_reason?: string
   selected?: boolean // 前端状态
+}
+
+export interface CartStoreGroup {
+  store_id: number
+  store_name: string
+  store_logo?: string
+  store_type?: StoreType
+  item_count: number
+  total_quantity: number
+  items: CartItem[]
 }
 
 export interface Cart {
   id: number
   user: number
   items: CartItem[]
+  store_groups?: CartStoreGroup[]
 }
 
 // 地址相关
@@ -409,6 +426,8 @@ export interface PublicStoreDetail {
   store: Store
   banners: HomeBanner[]
   categories: Category[]
+  brands: Brand[]
   special_zones: SpecialZone[]
   products: Product[]
+  new_arrivals: Product[]
 }

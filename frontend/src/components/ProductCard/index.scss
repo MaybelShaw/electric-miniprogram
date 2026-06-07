@@ -95,9 +95,22 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      gap: 10px;
       margin-top: auto;
     }
   }
+}
+
+.product-stock {
+  flex-shrink: 0;
+  color: $text-color-secondary;
+  font-size: 20px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.product-stock--empty {
+  color: $danger-color;
 }
 
 .product-add-btn {
@@ -162,21 +175,4 @@
   border-radius: $border-radius-max;
   border: 1px solid rgba($secondary-color, 0.28);
   letter-spacing: 0;
-}
-
-.product-group-tag {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 150px;
-  height: 32px;
-  padding: 0 10px;
-  background: rgba($brand-ink, 0.08);
-  color: $text-color-regular;
-  font-size: 20px;
-  border-radius: $border-radius-sm;
-  border: 1px solid rgba($brand-ink, 0.18);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }

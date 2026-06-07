@@ -282,9 +282,6 @@ export default function ProductListPage() {
                     <View className='name'>{product.name}</View>
                     <View className='meta-info'>
                       <Text className='brand'>品牌: {product.brand}</Text>
-                      {product.show_customer_group_name && product.customer_group_name ? (
-                        <Text className='customer-group'>当前价格身份：{product.customer_group_name}</Text>
-                      ) : null}
                     </View>
                     <View className='price-row'>
                       <View className='price-wrapper'>

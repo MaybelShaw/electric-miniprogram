@@ -60,6 +60,20 @@
       position: relative;
       transition: all 0.3s;
 
+      &.unavailable {
+        opacity: 0.62;
+
+        .checkbox {
+          background: $showroom-surface-warm;
+          border-color: $border-color;
+        }
+
+        .product-name,
+        .product-price {
+          color: $text-color-secondary;
+        }
+      }
+
       &:last-child {
         margin-bottom: $spacing-md;
       }
@@ -129,6 +143,12 @@
           padding: 4px 0;
         }
 
+        .unavailable-reason {
+          margin-top: 6px;
+          font-size: $font-size-sm;
+          color: $danger-color;
+        }
+
         .product-bottom {
           display: flex;
           justify-content: space-between;
@@ -192,6 +212,137 @@
         border-radius: $border-radius-max;
       }
     }
+
+    .cart-store-group {
+      margin: 0 24px 18px;
+      background: $showroom-surface;
+      border: 1px solid $border-color;
+      border-radius: $border-radius-lg;
+      overflow: hidden;
+
+      .store-header {
+        min-height: 82px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid $border-color;
+        background: rgba($showroom-surface-warm, 0.72);
+
+        .checkbox {
+          width: 38px;
+          height: 38px;
+          border: 2px solid $text-color-placeholder;
+          border-radius: 50%;
+          margin-right: $spacing-md;
+          flex-shrink: 0;
+          transition: all 0.2s;
+
+          &.checked,
+          &.indeterminate {
+            background: $primary-color;
+            border-color: $primary-color;
+            position: relative;
+          }
+
+          &.checked::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -60%) rotate(45deg);
+            width: 9px;
+            height: 18px;
+            border: 3px solid $white;
+            border-top: none;
+            border-left: none;
+          }
+
+          &.indeterminate::after {
+            content: '';
+            position: absolute;
+            left: 9px;
+            right: 9px;
+            top: 17px;
+            height: 4px;
+            background: $white;
+            border-radius: 4px;
+          }
+        }
+
+        .store-info {
+          min-width: 0;
+          flex: 1;
+          display: flex;
+          align-items: center;
+        }
+
+        .store-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          margin-right: $spacing-sm;
+          background: $showroom-surface;
+          flex-shrink: 0;
+
+          &.fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $white;
+            background: $brand-ink;
+            font-size: $font-size-sm;
+            font-weight: 600;
+          }
+        }
+
+        .store-name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: $font-size-md;
+          font-weight: 600;
+          color: $text-color-base;
+        }
+
+        .store-count {
+          margin-left: $spacing-md;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          flex-shrink: 0;
+        }
+      }
+
+      .cart-item {
+        margin: 0;
+        border: none;
+        border-bottom: 1px solid $border-color;
+        border-radius: 0;
+
+        &:last-of-type {
+          margin-bottom: 0;
+          border-bottom: none;
+        }
+      }
+
+      .store-summary {
+        min-height: 66px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
+
+        .store-subtotal {
+          font-size: $font-size-md;
+          font-weight: 700;
+          color: $danger-color;
+          font-family: DIN;
+        }
+      }
+    }
   }
 
   .cart-footer {
@@ -245,6 +396,12 @@
       .select-all-text {
         font-size: 28px;
         color: $text-color-base;
+      }
+
+      .clear-text {
+        margin-left: $spacing-md;
+        font-size: 26px;
+        color: $text-color-secondary;
       }
     }
 

@@ -72,8 +72,8 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         store = self.get_object()
-        from catalog.models import Category, HomeBanner, Product, SpecialZone
-        from catalog.serializers import CategorySerializer, HomeBannerSerializer, ProductSerializer, SpecialZoneSerializer
+        from catalog.models import Brand, Category, HomeBanner, Product, SpecialZone
+        from catalog.serializers import BrandSerializer, CategorySerializer, HomeBannerSerializer, ProductSerializer, SpecialZoneSerializer
 
         context = self.get_serializer_context()
         category_id = request.query_params.get("category_id")
@@ -84,6 +84,9 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
                 | Q(category__parent_id=category_id)
                 | Q(category__parent__parent_id=category_id)
             )
+        brand_ids = products.values_list("brand_id", flat=True).distinct()
+        brands = Brand.objects.filter(store=store, is_active=True, id__in=brand_ids).order_by("order", "id")
+        new_arrivals = Product.objects.filter(store=store, is_active=True).select_related("category", "brand").order_by("-created_at", "-id")[:8]
 
         return Response(
             {
@@ -98,6 +101,7 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
                     many=True,
                     context=context,
                 ).data,
+                "brands": BrandSerializer(brands, many=True, context=context).data,
                 "special_zones": SpecialZoneSerializer(
                     SpecialZone.objects.filter(
                         store=store,
@@ -108,6 +112,7 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
                     context=context,
                 ).data,
                 "products": ProductSerializer(products[:20], many=True, context=context).data,
+                "new_arrivals": ProductSerializer(new_arrivals, many=True, context=context).data,
             }
         )
 

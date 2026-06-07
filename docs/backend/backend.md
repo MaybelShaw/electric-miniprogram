@@ -107,9 +107,9 @@
 - 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。
 - 店铺成员接口允许平台管理员管理全部成员；店铺管理员可管理本店子管理员和运营账号。支付配置、结算规则接口仅平台管理员可访问。
 - 公开接口 `GET /api/stores/public/partners/?platform=<store_id>` 返回某个平台下 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
-- 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、轮播、分类、动态专区和商品摘要，数据只来自该真实店铺。
+- 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区、商品摘要和新品商品，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
-- `Store.show_customer_group_name` 控制小程序是否展示当前客户分组名称；店铺管理员只能更新这个展示开关，不能修改店铺基础信息。
+- `Store.show_customer_group_name` 字段保留用于后台配置和接口兼容；当前小程序用户端不展示客户分组名称，只使用后端计算后的最终价格。
 - `stores.StoreCustomerGroup` 表示店铺自己的客户分组；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
 - `stores.StoreCustomerGroupPrice` 保存分组产品价格表，支持整品价格和 SKU 价格；海尔商品不允许配置分组价格，未配置分组价时回退商品/SKU默认价。
 - 客户分组权限码为 `customer_groups.manage`：平台管理员和店铺管理员拥有；店铺子管理员、店铺运营默认没有。
@@ -143,7 +143,7 @@
 - 店铺与权限（前缀 `/api/stores/`）：
   - `GET /current/` 当前账号店铺上下文，包含可访问店铺、默认店铺、平台管理员标记、成员关系和权限码。
   - `GET/POST/PATCH/DELETE /` 店铺管理；非平台管理员仅可更新本店 `show_customer_group_name` 展示开关。
-  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、轮播、分类、专区和商品摘要。
+  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区、商品摘要和新品商品。
   - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`GET /members/available_users/` 返回可绑定后台账号候选。
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
@@ -162,7 +162,7 @@
         - `price`：商户对外销售价；若从海尔同步且未手工调整，初始为“市场价（market_price）或供价（supply_price）”。
         - `display_price`：展示价；对经销商优先使用经销价（dealer_price），否则回退零售价 `price`。
         - 客户分组价：若当前用户在商品所属店铺存在启用分组，且该分组配置了产品/SKU价格，`display_price` 会优先使用分组价；SKU 会先找 SKU 分组价，再回退整品分组价，最后回退默认价。
-        - 分组展示字段：商品响应包含 `customer_group_id`、`customer_group_name`、`show_customer_group_name`，前端只有在店铺开关开启时展示分组名称。
+        - 分组展示字段：商品响应包含 `customer_group_id`、`customer_group_name`、`show_customer_group_name`，字段保留兼容；当前小程序用户端不渲染分组名称，只展示 `display_price`。
         - `discounted_price`：折后价；基于当前登录用户与商品的最佳有效折扣计算（`orders.services.get_best_active_discount`）。
         - `originalPrice`：原价字段；优先返回 `market_price`，否则返回 `price`。
       - 海尔商品辅助字段：
@@ -176,7 +176,7 @@
         - 创建订单时可指定 `sku_id`，后端会校验 SKU 库存并使用 SKU 价格计算。
         - 聚合规则：`stock` 为启用 SKU 库存之和，`price/display_price/discounted_price` 为对应最小值，便于前端直接展示区间内最低价格。
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
-  - `GET /products/by_brand/` 按品牌筛选 `backend/catalog/views.py`
+  - `GET /products/by_brand/` 按品牌筛选，支持 `category_id` 限定到某个分类树 `backend/catalog/views.py`
   - `GET /categories/` 分类列表 `backend/catalog/urls.py:7`
     - 数据结构：`{ id, name, order, logo }`（`logo` 为可选的图片 URL）
   - `GET /brands/` 品牌列表 `backend/catalog/urls.py:9`
@@ -206,6 +206,9 @@
     - `detail_blocks`：图文详情块数组 `[{ id, block_type, text, order, image_id, image_url }]`
     - 说明：详情块用于实现“详细（图文）”，支持文本块与图片块按 `order` 排序组合展示。
 - 订单与支付：
+  - `GET /cart/my_cart/` 获取购物车 `backend/orders/views.py:1661`
+    - 响应保留原平铺 `items`，并新增 `store_groups`，每组包含 `store_id`、`store_name`、`store_logo`、`store_type`、`item_count`、`total_quantity` 和该店铺下的 `items`。
+    - 店铺顺序按购物车项加入顺序确定：某店铺最早加入的商品越早，该店铺越靠前；单个购物车项返回 `is_available` 与 `unavailable_reason`，用于前端拦截已下架、规格下架或库存不足商品。
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
     - 查询参数：`status`（支持单状态如 `paid` 或多状态逗号分隔如 `returning,refunding,refunded`）。当传入 `returning` 时，除订单本身状态为 `returning` 外，还会包含存在退货申请且状态为 `requested|approved|in_transit|received` 的订单；当传入 `completed` 时，将排除上述处于退货流程中的订单。

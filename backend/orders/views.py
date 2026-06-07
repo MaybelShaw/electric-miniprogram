@@ -25,7 +25,7 @@ from catalog.models import Product
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
@@ -1659,10 +1659,19 @@ class CartViewSet(viewsets.ViewSet):
 
     @action(detail=False,methods=['get'])
     def my_cart(self,request):
-        cart = get_or_create_cart(request.user)
-        # Optimize cart query by prefetching related products
-        from .models import CartItem
-        cart.items.all().select_related('product', 'product__category', 'product__brand', 'sku')
+        base_cart = get_or_create_cart(request.user)
+        cart = Cart.objects.prefetch_related(
+            Prefetch(
+                'items',
+                queryset=CartItem.objects.select_related(
+                    'product',
+                    'product__store',
+                    'product__category',
+                    'product__brand',
+                    'sku',
+                ).order_by('id'),
+            )
+        ).get(pk=base_cart.pk)
         # 传入请求上下文以便 ProductSerializer 计算 discounted_price
         serializer = CartSerializer(cart, context={'request': request})
         return Response(serializer.data)

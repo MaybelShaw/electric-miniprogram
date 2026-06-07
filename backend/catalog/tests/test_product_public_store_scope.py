@@ -12,7 +12,7 @@ class ProductPublicStoreScopeTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.store = Store.objects.get(code=Store.MAIN_STORE_CODE)
-        major = Category.objects.create(
+        self.major = Category.objects.create(
             name="Test category",
             level=Category.LEVEL_MAJOR,
             store=self.store,
@@ -20,7 +20,7 @@ class ProductPublicStoreScopeTests(TestCase):
         self.category = Category.objects.create(
             name="Test item",
             level=Category.LEVEL_MINOR,
-            parent=major,
+            parent=self.major,
             store=self.store,
         )
         self.brand = Brand.objects.create(name="Test brand", store=self.store)
@@ -77,6 +77,26 @@ class ProductPublicStoreScopeTests(TestCase):
             stock=8,
             is_active=True,
         )
+        other_major = Category.objects.create(
+            name="Other category",
+            level=Category.LEVEL_MAJOR,
+            store=self.store,
+        )
+        other_category = Category.objects.create(
+            name="Other item",
+            level=Category.LEVEL_MINOR,
+            parent=other_major,
+            store=self.store,
+        )
+        self.same_brand_other_category_product = Product.objects.create(
+            name="Same brand other category",
+            category=other_category,
+            brand=self.brand,
+            store=self.store,
+            price=Decimal("2999.00"),
+            stock=3,
+            is_active=True,
+        )
         self.customer = User.objects.create_user(
             openid="customer-openid",
             username="customer",
@@ -90,8 +110,21 @@ class ProductPublicStoreScopeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(
             [item["id"] for item in response.data["results"]],
-            [self.product.id, self.partner_product.id],
+            [self.product.id, self.partner_product.id, self.same_brand_other_category_product.id],
         )
+
+    def test_by_brand_can_be_limited_to_category_tree(self):
+        response = self.client.get(
+            "/api/catalog/products/by_brand/",
+            {
+                "brand": self.brand.name,
+                "store": self.store.id,
+                "category_id": self.major.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.data["results"]], [self.product.id])
 
     def test_logged_in_customer_without_store_membership_can_open_any_public_product_detail(self):
         self.client.force_authenticate(self.customer)

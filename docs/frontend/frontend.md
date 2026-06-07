@@ -118,7 +118,8 @@
   - 首页“品类专区”点击“更多”跳转至此页（显示全部品类）
   - 支持从首页点击具体分类图标跳转并自动选中对应大类
 - 搜索页（`/pages/search/index`）：关键词检索、热门关键词、搜索建议
-- 购物车（`/pages/cart/index`）：选中/数量/移除/结算，跳转确认订单（Token 保护）
+- 购物车（`/pages/cart/index`）：按店铺分组展示，支持店铺全选、单品选择、数量调整、移除、清空与结算；已下架、规格下架或库存不足商品会显示不可结算原因并排除在结算选择外。
+- 订单确认页（`/pages/order-confirm/index`）：从购物车进入时延续店铺分组展示；提交参数仍为平铺 `items`，后端继续按店铺拆子单。
 - 订单详情/列表：状态筛选、支付入口、退款与取消、申请/查看发票
   - **确认收货**：当订单状态为 `shipped` 时，用户可在订单列表或详情页点击“确认收货”按钮，确认后订单状态变更为 `completed`。
   - **物流信息展示**：在订单详情页（`/pages/order-detail/index`），支持查看物流公司、快递单号、发货单号与 SN 码；快递单号支持长按复制。
@@ -179,7 +180,8 @@
   - 调用微信登录获取 `code`，后端交换为 JWT（开发支持模拟）
   - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:93`
 - 购物车结算：
-  - 选中商品并导航至确认页 `frontend/src/pages/cart/index.tsx:156`
+  - 购物车读取 `/api/cart/my_cart/` 的 `store_groups`/`items` 契约，页面按店铺展示；店铺顺序由购物车项加入顺序决定。
+  - 选中商品并导航至确认页，跳转参数会携带 `product_id`、`sku_id`、`quantity` 以及展示用店铺信息。
   - 批量创建订单与支付记录 `frontend/src/services/order.ts:16`
 - 支付成功状态：
   - 成功后将订单状态更新为 `paid`（服务端状态机）
@@ -202,7 +204,7 @@
 ## 类型与数据结构
 - 用户与登录响应：`frontend/src/types/index.ts:2`、`frontend/src/types/index.ts:16`
 - 商品与列表响应：`frontend/src/types/index.ts:23`、`frontend/src/types/index.ts:45`
-- 购物车与地址：`frontend/src/types/index.ts:71`、`frontend/src/types/index.ts:86`
+- 购物车与地址：购物车类型包含 `CartItem`、`CartStoreGroup` 和 `Cart`；地址类型位于 `frontend/src/types/index.ts`
 - 订单与支付：`frontend/src/types/index.ts:99`、`frontend/src/types/index.ts:119`
 - 客服消息：`SupportMessage`（`content_type`, `attachment_type`, `order_info`, `product_info`）
 - 信用账户：`CreditAccount`, `AccountStatement`, `AccountTransaction`（`frontend/src/services/credit.ts`）
@@ -224,9 +226,15 @@
 ## 资源与限制
 - 微信小程序不支持 SVG，请统一使用 `png/jpg/jpeg` 格式的图片资源（如聊天动作面板图标 `camera.png`、`picture.png`）。
 
+## 店铺首页共用模板
+- 店铺详情页 `/pages/store-detail/index?id=<store_id>` 是多店铺共用模板，展示真实经营店铺的公司名称、Logo、封面、图片轮播、产品类别、类别下品牌、产品大图、价格、库存、动态专区、商品摘要和新品商品；进入页面会记录“当前店铺”，供底部“新品”页读取。
+- 底部导航为 `首页 / 新品 / 我的`；`/pages/new-arrivals/index` 只展示当前店铺的图片轮播和新品商品，不支持视频，也不展示平台混合数据。
+- “产品类别 -> 品牌 -> 商品”流程：点击一级类别后调用公开店铺详情接口并传入 `category_id`，品牌列表只包含该分类树下有上架商品的品牌；点击品牌后调用 `getProductsByBrand` 并携带 `store` 与 `category_id`。
+- 商品卡片、产品大图和新品商品都使用后端返回的最终价格与库存；价格继续复用现有客户分组逻辑，但用户端不展示客户分组名称或价格身份。
+
 ## 客户分组价格展示
 - 商品接口返回的 `display_price` 已经是当前用户在该店铺下应看到的最终基础展示价：有客户分组价时使用分组价，没有配置时回退店铺商品/SKU默认价。
 - SKU 商品的分组价优先级为：SKU 分组价 → 整品分组价 → SKU 默认价；非 SKU 商品为：整品分组价 → 商品默认价。
 - 小程序商品卡片、商品列表和商品详情继续只按 `display_price`/`discounted_price` 渲染价格；订单确认和下单由后端再次解析并锁定当时价格。
-- 当后端返回 `show_customer_group_name=true` 且存在 `customer_group_name` 时，商品卡片、商品列表和商品详情会展示“当前价格身份”；开关关闭时不展示身份，只展示最终价格。
-- 海尔商品不展示客户分组身份，也不参与客户分组价格覆盖。
+- 小程序用户端不展示 `customer_group_name`，也不出现“当前价格身份”“客户分组价”等提示；`show_customer_group_name` 字段保留兼容，用户端只展示后端计算后的最终价格。
+- 海尔商品不参与客户分组价格覆盖。

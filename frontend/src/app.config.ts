@@ -1,8 +1,8 @@
 export default defineAppConfig({
   pages: [
     'pages/home/index',
+    'pages/new-arrivals/index',
     'pages/category/index',
-    // Product list page
     'pages/product-list/index',
     'pages/cart/index',
     'pages/profile/index',
@@ -35,7 +35,6 @@ export default defineAppConfig({
     'pages/request-return/index',
     'pages/return-tracking/index',
     'pages/payment-result/index',
-    // Support pages
     'pages/support-chat/index',
     'pages/support-chat/select-order/index',
     'pages/support-chat/select-product/index'
@@ -60,16 +59,10 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tabbar/home-active.png'
       },
       {
-        pagePath: 'pages/category/index',
-        text: '分类',
+        pagePath: 'pages/new-arrivals/index',
+        text: '新品',
         iconPath: 'assets/tabbar/category.png',
         selectedIconPath: 'assets/tabbar/category-active.png'
-      },
-      {
-        pagePath: 'pages/cart/index',
-        text: '购物车',
-        iconPath: 'assets/tabbar/cart.png',
-        selectedIconPath: 'assets/tabbar/cart-active.png'
       },
       {
         pagePath: 'pages/profile/index',

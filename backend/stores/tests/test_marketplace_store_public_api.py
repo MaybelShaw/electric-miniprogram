@@ -153,6 +153,7 @@ class MarketplaceStorePublicAPITest(TestCase):
             show_on_home=True,
         )
         product = self.create_store_product(partner, "Zhibang product")
+        second_product = self.create_store_product(partner, "Zhibang newer")
         other_product = self.create_store_product(other, "Other product")
         zone = SpecialZone.objects.create(
             store=partner,
@@ -180,7 +181,21 @@ class MarketplaceStorePublicAPITest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["store"]["id"], partner.id)
-        self.assertEqual([item["name"] for item in response.data["products"]], ["Zhibang product"])
+        self.assertEqual([item["name"] for item in response.data["products"]], ["Zhibang product", "Zhibang newer"])
+        self.assertEqual([item["name"] for item in response.data["new_arrivals"]], ["Zhibang newer", "Zhibang product"])
+        self.assertEqual(
+            [item["name"] for item in response.data["brands"]],
+            ["Zhibang product brand", "Zhibang newer brand"],
+        )
         self.assertEqual([item["title"] for item in response.data["special_zones"]], ["Zhibang zone"])
         self.assertEqual([item["title"] for item in response.data["banners"]], ["Partner banner"])
-        self.assertEqual([item["name"] for item in response.data["categories"]], ["Zhibang product major"])
+        self.assertEqual(
+            [item["name"] for item in response.data["categories"]],
+            ["Zhibang product major", "Zhibang newer major"],
+        )
+
+        category_response = self.client.get(f"/api/stores/public/{partner.id}/detail/?category_id={product.category.parent_id}")
+
+        self.assertEqual(category_response.status_code, 200)
+        self.assertEqual([item["name"] for item in category_response.data["products"]], ["Zhibang product"])
+        self.assertEqual([item["name"] for item in category_response.data["brands"]], ["Zhibang product brand"])

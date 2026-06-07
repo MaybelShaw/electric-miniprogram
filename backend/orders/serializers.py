@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
@@ -440,6 +442,12 @@ class CartItemSerializer(serializers.ModelSerializer):
     sku = ProductSKUSerializer(read_only=True)
     sku_id = serializers.IntegerField(required=False, allow_null=True)
     sku_specs = serializers.SerializerMethodField()
+    store_id = serializers.IntegerField(source="product.store_id", read_only=True)
+    store_name = serializers.CharField(source="product.store.name", read_only=True)
+    store_logo = serializers.SerializerMethodField()
+    store_type = serializers.CharField(source="product.store.store_type", read_only=True)
+    is_available = serializers.SerializerMethodField()
+    unavailable_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -451,6 +459,12 @@ class CartItemSerializer(serializers.ModelSerializer):
             "sku_id",
             "sku_specs",
             "quantity",
+            "store_id",
+            "store_name",
+            "store_logo",
+            "store_type",
+            "is_available",
+            "unavailable_reason",
         ]
 
     def get_sku_specs(self, obj: CartItem):
@@ -458,8 +472,34 @@ class CartItemSerializer(serializers.ModelSerializer):
             return obj.sku.specs
         return {}
 
+    def get_store_logo(self, obj: CartItem):
+        request = self.context.get("request")
+        store = getattr(obj.product, "store", None)
+        return _build_media_url(getattr(store, "logo", ""), request)
+
+    def _availability_reason(self, obj: CartItem) -> str:
+        product = obj.product
+        if not product.is_active:
+            return "商品已下架"
+        if obj.sku_id:
+            if not obj.sku or not obj.sku.is_active:
+                return "规格已下架"
+            if obj.quantity > obj.sku.stock:
+                return "库存不足"
+            return ""
+        if obj.quantity > product.stock:
+            return "库存不足"
+        return ""
+
+    def get_is_available(self, obj: CartItem):
+        return self._availability_reason(obj) == ""
+
+    def get_unavailable_reason(self, obj: CartItem):
+        return self._availability_reason(obj)
+
 class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
+    store_groups = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
@@ -467,7 +507,37 @@ class CartSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "items",
+            "store_groups",
         ]
+
+    def get_items(self, obj: Cart):
+        items = sorted(obj.items.all(), key=lambda cart_item: cart_item.id)
+        return CartItemSerializer(items, many=True, context=self.context).data
+
+    def get_store_groups(self, obj: Cart):
+        item_serializer = CartItemSerializer(context=self.context)
+        groups = OrderedDict()
+
+        for item in sorted(obj.items.all(), key=lambda cart_item: cart_item.id):
+            product = item.product
+            store = product.store
+            group = groups.setdefault(
+                store.id,
+                {
+                    "store_id": store.id,
+                    "store_name": store.name,
+                    "store_logo": _build_media_url(store.logo, self.context.get("request")),
+                    "store_type": store.store_type,
+                    "item_count": 0,
+                    "total_quantity": 0,
+                    "items": [],
+                },
+            )
+            group["item_count"] += 1
+            group["total_quantity"] += item.quantity
+            group["items"].append(item_serializer.to_representation(item))
+
+        return list(groups.values())
 
 
 class PaymentSerializer(serializers.ModelSerializer):

@@ -32,8 +32,9 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
   }
 
   const tagText = getTagText(product.tag)
-  const groupName = product.show_customer_group_name ? product.customer_group_name : ''
   const productImage = resolveLocalMediaUrl(product.main_images?.[0])
+  const stock = Number(product.stock ?? 0)
+  const stockText = Number.isFinite(stock) ? `库存 ${Math.max(stock, 0)}` : '库存待同步'
 
   return (
     <View className={`product-card product-card--${variant}`} onClick={goToDetail}>
@@ -53,11 +54,10 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
       </View>
 
       <View className='product-info'>
-        {(product.brand || tagText || groupName) ? (
+        {(product.brand || tagText) ? (
           <View className='product-meta-row'>
             {product.brand ? <Text className='product-brand'>{product.brand}</Text> : null}
             {tagText ? <Text className='product-tag'>{tagText}</Text> : null}
-            {groupName ? <Text className='product-group-tag'>{groupName}</Text> : null}
           </View>
         ) : null}
         <View className='product-name'>
@@ -66,6 +66,7 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
 
         <View className='product-bottom'>
           <PriceText value={sellingPrice} size={variant === 'compact' ? 'sm' : 'md'} />
+          <Text className={`product-stock ${stock <= 0 ? 'product-stock--empty' : ''}`}>{stockText}</Text>
           {onAddCart ? (
             <View className='product-add-btn' onClick={(event) => onAddCart(product, event)}>
               <AppIcon name='add' tone='primary' />

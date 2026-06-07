@@ -22,6 +22,8 @@ export const productService = {
     page_size?: number
     sort_by?: 'sales' | 'price_asc' | 'price_desc' | 'created'
     search?: string
+    category?: string
+    brand?: string
     show_in_gift_zone?: boolean
     show_in_designer_zone?: boolean
     show_in_best_seller_zone?: boolean
@@ -45,6 +47,7 @@ export const productService = {
     page?: number
     page_size?: number
     store?: number | string
+    category_id?: number
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_category/', params)
   },
@@ -56,6 +59,7 @@ export const productService = {
     page?: number
     page_size?: number
     store?: number | string
+    category_id?: number
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_brand/', params)
   },

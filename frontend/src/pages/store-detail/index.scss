@@ -139,8 +139,7 @@
     margin-top: $spacing-md;
   }
 
-  .meta-pill,
-  .audience-pill {
+  .meta-pill {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -161,19 +160,6 @@
       width: 28px;
       height: 28px;
     }
-  }
-
-  .store-audience-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: $spacing-md;
-  }
-
-  .audience-pill {
-    border: 1px solid rgba($secondary-color, 0.28);
-    background: rgba($secondary-color, 0.08);
-    color: $brand-brass-deep;
   }
 
   .store-section {
@@ -479,7 +465,6 @@
     overflow: hidden;
   }
 
-  .arrival-video,
   .arrival-image,
   .arrival-fallback {
     width: 100%;
@@ -698,32 +683,5 @@
     font-size: 22px;
     font-weight: 600;
     line-height: 1;
-  }
-}
-
-.store-detail-page--chuangyi {
-  .store-kicker,
-  .section-kicker {
-    color: $brand-brass-deep;
-  }
-
-  .store-hero-panel,
-  .store-section,
-  .showcase-card,
-  .category-card,
-  .brand-card,
-  .arrival-card,
-  .zone-card {
-    border-color: rgba($secondary-color, 0.22);
-  }
-
-  .category-card.active,
-  .brand-card.active {
-    border-color: rgba($secondary-color, 0.92);
-  }
-
-  .showcase-badge,
-  .arrival-badge {
-    background: rgba($brand-ink, 0.68);
   }
 }

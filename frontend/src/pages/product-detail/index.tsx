@@ -368,12 +368,6 @@ export default function ProductDetail() {
           {product.description && (
             <View className='product-desc'>{product.description}</View>
           )}
-          {product.show_customer_group_name && product.customer_group_name ? (
-            <View className='customer-group-strip'>
-              <Text className='customer-group-label'>当前价格身份</Text>
-              <Text className='customer-group-name'>{product.customer_group_name}</Text>
-            </View>
-          ) : null}
           <View className='product-price-row'>
             <View className='price-wrapper'>
               <Text className='price-badge'>{priceTier}</Text>
