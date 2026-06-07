@@ -30,6 +30,7 @@ export interface Store {
   contact_phone?: string;
   address?: string;
   allow_haier: boolean;
+  show_customer_group_name?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -105,6 +106,11 @@ export interface Product {
   show_in_best_seller_zone?: boolean;
   show_in_promotion_zone?: boolean;
   store?: number;
+  display_price?: string | number;
+  discounted_price?: string | number;
+  customer_group_id?: number | null;
+  customer_group_name?: string;
+  show_customer_group_name?: boolean;
 }
 
 export interface ProductSKU {
@@ -121,6 +127,46 @@ export interface ProductSKU {
   stock: number;
   image: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroup {
+  id: number;
+  store: number;
+  store_name?: string;
+  name: string;
+  description?: string;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroupMember {
+  id: number;
+  store: number;
+  store_name?: string;
+  group: number;
+  group_name?: string;
+  user?: number | null;
+  username?: string | null;
+  phone: string;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroupPrice {
+  id: number;
+  store: number;
+  group: number;
+  group_name?: string;
+  product: number;
+  product_name?: string;
+  sku?: number | null;
+  sku_name?: string | null;
+  sku_code?: string | null;
+  price: string | number;
   created_at: string;
   updated_at: string;
 }
@@ -367,6 +413,44 @@ export interface SupportReplyTemplate {
   sort_order?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export type FeedbackTicketType = 'question' | 'requirement';
+export type FeedbackTicketStatus = 'pending' | 'replied' | 'closed';
+export type FeedbackRecordType = 'user_supplement' | 'merchant_reply' | 'close';
+
+export interface FeedbackTicketReply {
+  id: number;
+  ticket: number;
+  sender: number;
+  sender_username: string;
+  record_type: FeedbackRecordType;
+  record_type_display: string;
+  content: string;
+  attachments: string[];
+  created_at: string;
+}
+
+export interface FeedbackTicket {
+  id: number;
+  ticket_number: string;
+  store: number;
+  store_name: string;
+  user: number;
+  user_username: string;
+  user_phone?: string;
+  ticket_type: FeedbackTicketType;
+  ticket_type_display: string;
+  title: string;
+  content: string;
+  contact_phone: string;
+  attachments: string[];
+  status: FeedbackTicketStatus;
+  status_display: string;
+  last_replied_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  replies: FeedbackTicketReply[];
 }
 
 export interface CaseDetailBlock {

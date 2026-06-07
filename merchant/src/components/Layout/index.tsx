@@ -27,7 +27,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
-import { getCurrentStoreContext, getSupportTickets } from '@/services/api';
+import { getCurrentStoreContext, getFeedbackTicketStats, getSupportTickets } from '@/services/api';
 import type { CurrentStoreContext } from '@/services/types';
 import { canAccessAdminRoute, STORE_DEFAULT_ROUTE } from '@/utils/permissions';
 import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
@@ -36,6 +36,7 @@ import './index.css';
 const { Header, Sider, Content, Footer } = AntLayout;
 
 export const adminMenuItems = [
+  { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
   {
     key: '/admin/platform-group',
     icon: <UserOutlined />,
@@ -62,6 +63,7 @@ export const adminMenuItems = [
       { key: '/admin/categories', icon: <AppstoreOutlined />, label: '分类管理' },
       { key: '/admin/products', icon: <ShoppingOutlined />, label: '产品管理' },
       { key: '/admin/product-skus', icon: <DatabaseOutlined />, label: 'SKU管理' },
+      { key: '/admin/customer-groups', icon: <TeamOutlined />, label: '客户分组' },
       { key: '/admin/media-images', icon: <PictureOutlined />, label: '媒体库' },
       { key: '/admin/search-logs', icon: <FileSearchOutlined />, label: '搜索日志' },
       { key: '/admin/inventory-logs', icon: <HistoryOutlined />, label: '库存日志' },
@@ -93,6 +95,7 @@ export const supportMenuItems = [
   { key: '/support/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
   { key: '/support/invoices', icon: <FileTextOutlined />, label: '发票管理' },
   { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '消息' },
+  { key: '/support/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
   { key: '/support/templates', icon: <BookOutlined />, label: '模板管理' },
 ];
 
@@ -106,6 +109,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [feedbackPendingCount, setFeedbackPendingCount] = useState(0);
   const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
   const [selectedStoreId, setSelectedStoreIdState] = useState<number | null>(getSelectedStoreId());
   const lastCountRef = useRef<number | null>(null);
@@ -170,6 +174,21 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     return () => clearInterval(intervalId);
   }, [isSupportLayout, navigate]);
 
+  useEffect(() => {
+    const pollFeedback = async () => {
+      try {
+        const res: any = await getFeedbackTicketStats();
+        setFeedbackPendingCount(res.pending_count || 0);
+      } catch (e) {
+        setFeedbackPendingCount(0);
+      }
+    };
+
+    pollFeedback();
+    const intervalId = setInterval(pollFeedback, 10000);
+    return () => clearInterval(intervalId);
+  }, []);
+
   const handleLogout = () => {
     removeToken();
     navigate('/login');
@@ -196,6 +215,17 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{item.label}</span>
             <Badge count={unreadCount} size="small" style={{ marginLeft: 8 }} />
+          </div>
+        )
+      };
+    }
+    if ((item.key === '/admin/feedback-tickets' || item.key === '/support/feedback-tickets') && feedbackPendingCount > 0) {
+      return {
+        ...item,
+        label: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{item.label}</span>
+            <Badge count={feedbackPendingCount} size="small" style={{ marginLeft: 8 }} />
           </div>
         )
       };

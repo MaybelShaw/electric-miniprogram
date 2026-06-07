@@ -165,6 +165,14 @@ function Profile() {
     Taro.navigateTo({ url: '/pages/support-chat/index' })
   }
 
+  const goToFeedback = () => {
+    if (!user) {
+      Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    Taro.navigateTo({ url: '/pages/feedback-list/index' })
+  }
+
   const getCertificationBadge = () => {
     if (!user) return null
     if (user.role === 'dealer') {
@@ -261,6 +269,7 @@ function Profile() {
             <Text className='order-text'>退货/售后</Text>
           </View>
         </View>
+
       </View>
 
       {/* 功能菜单 */}
@@ -320,6 +329,14 @@ function Profile() {
           <View className='menu-left'>
             <AppIcon name='service' tone='muted' className='menu-icon' />
             <Text className='menu-text'>客服支持</Text>
+          </View>
+          <Text className='arrow' />
+        </View>
+
+        <View className='menu-item' onTap={goToFeedback}>
+          <View className='menu-left'>
+            <AppIcon name='message' tone='muted' className='menu-icon' />
+            <Text className='menu-text'>问题建议</Text>
           </View>
           <Text className='arrow' />
         </View>

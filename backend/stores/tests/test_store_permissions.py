@@ -14,6 +14,7 @@ from stores.permissions import (
     PERMISSION_ORDERS_ADJUST_AMOUNT,
     PERMISSION_ORDERS_SHIP,
     PERMISSION_FINANCE_VIEW,
+    PERMISSION_CUSTOMER_GROUPS_MANAGE,
     PERMISSION_STORE_MEMBERS_MANAGE,
     STORE_OPERATION_PERMISSIONS,
     can_manage_store,
@@ -158,7 +159,10 @@ class StoreMarketplacePermissionTest(TestCase):
         permissions_file = repo_root / "merchant" / "src" / "utils" / "permissions.ts"
         permission_map_text = permissions_file.read_text(encoding="utf-8")
         merchant_permission_codes = set(re.findall(r":\s*'([^']+)'", permission_map_text))
-        backend_permission_codes = STORE_OPERATION_PERMISSIONS | {PERMISSION_STORE_MEMBERS_MANAGE}
+        backend_permission_codes = STORE_OPERATION_PERMISSIONS | {
+            PERMISSION_STORE_MEMBERS_MANAGE,
+            PERMISSION_CUSTOMER_GROUPS_MANAGE,
+        }
 
         self.assertTrue(merchant_permission_codes)
         self.assertEqual(merchant_permission_codes - backend_permission_codes, set())

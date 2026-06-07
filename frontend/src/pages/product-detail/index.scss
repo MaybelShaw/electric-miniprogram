@@ -153,6 +153,35 @@
       margin-bottom: 24px;
     }
 
+    .customer-group-strip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      height: 52px;
+      margin-bottom: 22px;
+      padding: 0 18px;
+      border-radius: $border-radius-sm;
+      background: rgba($brand-ink, 0.08);
+      border: 1px solid rgba($brand-ink, 0.16);
+    }
+
+    .customer-group-label {
+      flex-shrink: 0;
+      margin-right: 12px;
+      color: $text-color-secondary;
+      font-size: 22px;
+    }
+
+    .customer-group-name {
+      min-width: 0;
+      color: $text-color-base;
+      font-size: 24px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .product-price-row {
       display: flex;
       justify-content: space-between;

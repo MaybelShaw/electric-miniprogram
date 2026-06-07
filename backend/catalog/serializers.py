@@ -490,6 +490,7 @@ class ProductSerializer(serializers.ModelSerializer):
         rep['discounted_price'] = self.get_discounted_price(instance)
         rep['display_price'] = self.get_display_price(instance)
         rep['originalPrice'] = self.get_originalPrice(instance)
+        rep.update(self.get_customer_group_context(instance))
         rep['is_haier_product'] = self.get_is_haier_product(instance)
         rep['haier_info'] = self.get_haier_info(instance)
         
@@ -665,6 +666,20 @@ class ProductSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         return resolve_base_price(user, obj)
+
+    def get_customer_group_context(self, obj: Product):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        try:
+            from stores.pricing import get_customer_group_price_context
+
+            return get_customer_group_price_context(user, obj)
+        except Exception:
+            return {
+                'customer_group_id': None,
+                'customer_group_name': '',
+                'show_customer_group_name': False,
+            }
 
     def get_skus(self, obj: Product):
         skus = getattr(obj, 'skus', None)

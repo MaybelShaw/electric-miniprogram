@@ -24,6 +24,18 @@ export const getStoreMemberCandidates = (params?: any) => request.get('/stores/m
 export const createStoreMember = (data: any) => request.post('/stores/members/', data);
 export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
 export const deleteStoreMember = (id: number) => request.delete(`/stores/members/${id}/`);
+export const getStoreCustomerGroups = (params?: any) => request.get('/stores/customer-groups/', { params });
+export const createStoreCustomerGroup = (data: any) => request.post('/stores/customer-groups/', data);
+export const updateStoreCustomerGroup = (id: number, data: any) => request.patch(`/stores/customer-groups/${id}/`, data);
+export const deleteStoreCustomerGroup = (id: number) => request.delete(`/stores/customer-groups/${id}/`);
+export const getStoreCustomerGroupMembers = (params?: any) => request.get('/stores/customer-group-members/', { params });
+export const createStoreCustomerGroupMember = (data: any) => request.post('/stores/customer-group-members/', data);
+export const updateStoreCustomerGroupMember = (id: number, data: any) => request.patch(`/stores/customer-group-members/${id}/`, data);
+export const deleteStoreCustomerGroupMember = (id: number) => request.delete(`/stores/customer-group-members/${id}/`);
+export const getStoreCustomerGroupPrices = (params?: any) => request.get('/stores/customer-group-prices/', { params });
+export const createStoreCustomerGroupPrice = (data: any) => request.post('/stores/customer-group-prices/', data);
+export const updateStoreCustomerGroupPrice = (id: number, data: any) => request.patch(`/stores/customer-group-prices/${id}/`, data);
+export const deleteStoreCustomerGroupPrice = (id: number) => request.delete(`/stores/customer-group-prices/${id}/`);
 
 // 用户管理
 export const getUsers = (params?: any) => request.get('/users/', { params });
@@ -271,3 +283,16 @@ export const sendChatMessage = (
   
   return request.post('/support/chat/', formData);
 };
+
+// 问题建议工单
+export const getFeedbackTickets = (params?: any) => request.get('/support/feedback-tickets/', { params });
+export const getFeedbackTicket = (id: number) => request.get(`/support/feedback-tickets/${id}/`);
+export const getFeedbackTicketStats = (params?: any) => request.get('/support/feedback-tickets/stats/', { params });
+export const replyFeedbackTicket = (id: number, content: string, images: File[] = []) => {
+  const formData = new FormData();
+  formData.append('content', content);
+  images.forEach(file => formData.append('images', file));
+  return request.post(`/support/feedback-tickets/${id}/reply/`, formData);
+};
+export const closeFeedbackTicket = (id: number, content?: string) =>
+  request.post(`/support/feedback-tickets/${id}/close/`, { content: content || '' });

@@ -4,6 +4,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     PublicPartnerStoreListAPIView,
     PublicStoreDetailAPIView,
+    StoreCustomerGroupMemberViewSet,
+    StoreCustomerGroupPriceViewSet,
+    StoreCustomerGroupViewSet,
     StoreMemberViewSet,
     StorePaymentConfigViewSet,
     StoreSettlementRuleViewSet,
@@ -11,6 +14,9 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r"customer-groups", StoreCustomerGroupViewSet, basename="store-customer-groups")
+router.register(r"customer-group-members", StoreCustomerGroupMemberViewSet, basename="store-customer-group-members")
+router.register(r"customer-group-prices", StoreCustomerGroupPriceViewSet, basename="store-customer-group-prices")
 router.register(r"members", StoreMemberViewSet, basename="store-members")
 router.register(r"payment-configs", StorePaymentConfigViewSet, basename="store-payment-configs")
 router.register(r"settlement-rules", StoreSettlementRuleViewSet, basename="store-settlement-rules")

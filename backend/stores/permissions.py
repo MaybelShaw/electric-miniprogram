@@ -18,6 +18,7 @@ PERMISSION_INVOICES_MANAGE = "invoices.manage"
 PERMISSION_DISCOUNTS_MANAGE = "discounts.manage"
 PERMISSION_FINANCE_VIEW = "finance.view"
 PERMISSION_STORE_MEMBERS_MANAGE = "store_members.manage"
+PERMISSION_CUSTOMER_GROUPS_MANAGE = "customer_groups.manage"
 
 STORE_OPERATION_PERMISSIONS = {
     PERMISSION_DASHBOARD_VIEW,
@@ -35,8 +36,14 @@ STORE_OPERATION_PERMISSIONS = {
 }
 
 ROLE_PERMISSION_PRESETS = {
-    StoreMember.ROLE_PLATFORM_ADMIN: STORE_OPERATION_PERMISSIONS | {PERMISSION_STORE_MEMBERS_MANAGE},
-    StoreMember.ROLE_STORE_ADMIN: STORE_OPERATION_PERMISSIONS | {PERMISSION_STORE_MEMBERS_MANAGE},
+    StoreMember.ROLE_PLATFORM_ADMIN: STORE_OPERATION_PERMISSIONS | {
+        PERMISSION_STORE_MEMBERS_MANAGE,
+        PERMISSION_CUSTOMER_GROUPS_MANAGE,
+    },
+    StoreMember.ROLE_STORE_ADMIN: STORE_OPERATION_PERMISSIONS | {
+        PERMISSION_STORE_MEMBERS_MANAGE,
+        PERMISSION_CUSTOMER_GROUPS_MANAGE,
+    },
     StoreMember.ROLE_STORE_SUB_ADMIN: STORE_OPERATION_PERMISSIONS - {
         PERMISSION_FINANCE_VIEW,
         PERMISSION_ORDERS_ADJUST_AMOUNT,
@@ -133,7 +140,12 @@ def get_membership_permissions(membership) -> list[str]:
 def get_store_permissions(user, store) -> set[str]:
     if store is None:
         return set()
-    if is_platform_admin(user) or is_support_user(user):
+    if is_platform_admin(user):
+        return set(STORE_OPERATION_PERMISSIONS) | {
+            PERMISSION_STORE_MEMBERS_MANAGE,
+            PERMISSION_CUSTOMER_GROUPS_MANAGE,
+        }
+    if is_support_user(user):
         return set(STORE_OPERATION_PERMISSIONS) | {PERMISSION_STORE_MEMBERS_MANAGE}
     permissions = set()
     memberships = get_active_memberships(user).filter(store=store)

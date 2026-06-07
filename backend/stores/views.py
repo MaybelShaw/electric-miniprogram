@@ -4,8 +4,17 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from django.db.models import Q
 
-from .models import Store, StoreMember, StorePaymentConfig, StoreSettlementRule
+from .models import (
+    Store,
+    StoreCustomerGroup,
+    StoreCustomerGroupMember,
+    StoreCustomerGroupPrice,
+    StoreMember,
+    StorePaymentConfig,
+    StoreSettlementRule,
+)
 from .permissions import (
+    PERMISSION_CUSTOMER_GROUPS_MANAGE,
     PERMISSION_STORE_MEMBERS_MANAGE,
     get_accessible_stores,
     get_default_store,
@@ -14,6 +23,9 @@ from .permissions import (
 )
 from .serializers import (
     PublicStoreSerializer,
+    StoreCustomerGroupMemberSerializer,
+    StoreCustomerGroupPriceSerializer,
+    StoreCustomerGroupSerializer,
     StoreMemberSerializer,
     StorePaymentConfigSerializer,
     StoreSerializer,
@@ -114,7 +126,17 @@ class StoreViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if not is_platform_admin(self.request.user):
-            raise PermissionDenied("Only platform admins can update stores.")
+            editable_fields = set(serializer.validated_data.keys())
+            can_update_group_display = (
+                editable_fields <= {"show_customer_group_name"}
+                and has_store_permission(
+                    self.request.user,
+                    serializer.instance,
+                    PERMISSION_CUSTOMER_GROUPS_MANAGE,
+                )
+            )
+            if not can_update_group_display:
+                raise PermissionDenied("Only platform admins can update stores.")
         serializer.save()
 
     def perform_destroy(self, instance):
@@ -194,10 +216,149 @@ class StoreMemberViewSet(viewsets.ModelViewSet):
         from users.serializers import UserSerializer
 
         qs = User.objects.all().order_by("-date_joined")
+        qs = qs.exclude(
+            store_memberships__status=StoreMember.STATUS_ACTIVE,
+            store_memberships__role__in=[
+                StoreMember.ROLE_STORE_ADMIN,
+                StoreMember.ROLE_STORE_SUB_ADMIN,
+                StoreMember.ROLE_STORE_STAFF,
+            ],
+        )
         search = request.query_params.get("search")
         if search:
             qs = qs.filter(Q(username__icontains=search) | Q(phone__icontains=search) | Q(openid__icontains=search))
         return Response(UserSerializer(qs[:100], many=True).data)
+
+
+def _stores_with_customer_group_permission(user):
+    if is_platform_admin(user):
+        return Store.objects.filter(status=Store.STATUS_ACTIVE).order_by("-is_main", "id")
+    store_ids = [
+        store.id
+        for store in get_accessible_stores(user)
+        if has_store_permission(user, store, PERMISSION_CUSTOMER_GROUPS_MANAGE)
+    ]
+    return Store.objects.filter(id__in=store_ids).order_by("-is_main", "id")
+
+
+def _ensure_can_manage_customer_group_store(user, store):
+    if is_platform_admin(user):
+        return
+    if not has_store_permission(user, store, PERMISSION_CUSTOMER_GROUPS_MANAGE):
+        raise PermissionDenied("You cannot manage customer groups of this store.")
+
+
+class StoreCustomerGroupViewSet(viewsets.ModelViewSet):
+    serializer_class = StoreCustomerGroupSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        stores = _stores_with_customer_group_permission(self.request.user)
+        qs = StoreCustomerGroup.objects.select_related("store").filter(store__in=stores).order_by("store_id", "id")
+        store_id = self.request.query_params.get("store") or self.request.query_params.get("store_id")
+        if store_id not in (None, ""):
+            qs = qs.filter(store_id=store_id)
+        status_value = self.request.query_params.get("status")
+        if status_value:
+            qs = qs.filter(status=status_value)
+        return qs
+
+    def perform_create(self, serializer):
+        store = serializer.validated_data.get("store")
+        _ensure_can_manage_customer_group_store(self.request.user, store)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        store = serializer.validated_data.get("store", instance.store)
+        _ensure_can_manage_customer_group_store(self.request.user, instance.store)
+        if store != instance.store:
+            _ensure_can_manage_customer_group_store(self.request.user, store)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        _ensure_can_manage_customer_group_store(self.request.user, instance.store)
+        instance.delete()
+
+
+class StoreCustomerGroupMemberViewSet(viewsets.ModelViewSet):
+    serializer_class = StoreCustomerGroupMemberSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        stores = _stores_with_customer_group_permission(self.request.user)
+        qs = (
+            StoreCustomerGroupMember.objects.select_related("store", "group", "user")
+            .filter(store__in=stores)
+            .order_by("store_id", "id")
+        )
+        store_id = self.request.query_params.get("store") or self.request.query_params.get("store_id")
+        if store_id not in (None, ""):
+            qs = qs.filter(store_id=store_id)
+        group_id = self.request.query_params.get("group") or self.request.query_params.get("group_id")
+        if group_id not in (None, ""):
+            qs = qs.filter(group_id=group_id)
+        phone = self.request.query_params.get("phone")
+        if phone:
+            qs = qs.filter(phone__icontains=phone)
+        return qs
+
+    def perform_create(self, serializer):
+        store = serializer.validated_data.get("store")
+        _ensure_can_manage_customer_group_store(self.request.user, store)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        store = serializer.validated_data.get("store", instance.store)
+        _ensure_can_manage_customer_group_store(self.request.user, instance.store)
+        if store != instance.store:
+            _ensure_can_manage_customer_group_store(self.request.user, store)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        _ensure_can_manage_customer_group_store(self.request.user, instance.store)
+        instance.delete()
+
+
+class StoreCustomerGroupPriceViewSet(viewsets.ModelViewSet):
+    serializer_class = StoreCustomerGroupPriceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        stores = _stores_with_customer_group_permission(self.request.user)
+        qs = (
+            StoreCustomerGroupPrice.objects.select_related("group", "group__store", "product", "sku")
+            .filter(group__store__in=stores)
+            .order_by("group_id", "product_id", "sku_id")
+        )
+        store_id = self.request.query_params.get("store") or self.request.query_params.get("store_id")
+        if store_id not in (None, ""):
+            qs = qs.filter(group__store_id=store_id)
+        group_id = self.request.query_params.get("group") or self.request.query_params.get("group_id")
+        if group_id not in (None, ""):
+            qs = qs.filter(group_id=group_id)
+        product_id = self.request.query_params.get("product") or self.request.query_params.get("product_id")
+        if product_id not in (None, ""):
+            qs = qs.filter(product_id=product_id)
+        return qs
+
+    def perform_create(self, serializer):
+        group = serializer.validated_data.get("group")
+        _ensure_can_manage_customer_group_store(self.request.user, group.store)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        group = serializer.validated_data.get("group", instance.group)
+        _ensure_can_manage_customer_group_store(self.request.user, instance.group.store)
+        if group != instance.group:
+            _ensure_can_manage_customer_group_store(self.request.user, group.store)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        _ensure_can_manage_customer_group_store(self.request.user, instance.group.store)
+        instance.delete()
 
 
 class StorePaymentConfigViewSet(viewsets.ModelViewSet):

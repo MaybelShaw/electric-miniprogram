@@ -44,8 +44,18 @@ def _get_best_discount_rule(user, product):
 def resolve_base_price(user, product, sku=None):
     """Resolve base price for a user and optional SKU.
 
-    Dealer users always use product-level dealer_price when set (>0); otherwise fallback to product retail price.
+    Store customer group prices take precedence for local products. Haier products
+    intentionally keep the existing price behavior.
     """
+    try:
+        from stores.pricing import resolve_customer_group_price
+
+        group_price = resolve_customer_group_price(user, product, sku=sku)
+    except Exception:
+        group_price = None
+    if group_price is not None:
+        return Decimal(group_price)
+
     is_dealer = bool(user and getattr(user, 'is_authenticated', False) and getattr(user, 'role', '') == 'dealer')
     if is_dealer:
         dealer_price = getattr(product, 'dealer_price', None)

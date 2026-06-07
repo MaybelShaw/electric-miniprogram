@@ -51,6 +51,9 @@ export interface Product {
   price: string
   display_price?: string | number
   dealer_price?: string | number
+  customer_group_id?: number | null
+  customer_group_name?: string
+  show_customer_group_name?: boolean
   stock: number
   total_stock?: number
   main_images: string[]
@@ -399,6 +402,7 @@ export interface Store {
   contact_phone?: string
   address?: string
   home_order?: number
+  show_customer_group_name?: boolean
 }
 
 export interface PublicStoreDetail {

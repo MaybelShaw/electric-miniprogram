@@ -203,6 +203,16 @@
                 font-size: $font-size-sm;
                 color: $text-color-secondary;
               }
+
+              .customer-group {
+                display: inline-flex;
+                max-width: 100%;
+                color: $text-color-regular;
+                font-size: 22px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
             }
 
             .price-row {

@@ -101,14 +101,18 @@
 - `stores.Store` 是真实经营主体模型；庆勋愉悦家自身也是一个 `Store`，合作方入驻店铺也是 `Store`，不是“主店挂载子店铺”的组织层级。
 - `Store.is_main=true` 表示默认平台入口店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`；合作方店铺通过 `platform_store` 指向庆勋愉悦家平台入口店铺，表达入驻展示和结算关系。
 - `Store.logo`、`cover_image`、`description`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示。
-- `stores.StoreMember` 绑定用户、店铺和角色，角色包含 `platform_admin`、`store_admin`、`store_staff`。
+- `stores.StoreMember` 绑定用户、店铺和角色，角色包含 `platform_admin`、`store_admin`、`store_sub_admin`、`store_staff`。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
 - 平台管理员只认超级用户或主平台店铺有效 `StoreMember(role='platform_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
-- 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计和账务数据。
-- 店铺成员、支付配置、结算规则接口仅平台管理员可访问；合作方管理员不可见不可改。
+- 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。
+- 店铺成员接口允许平台管理员管理全部成员；店铺管理员可管理本店子管理员和运营账号。支付配置、结算规则接口仅平台管理员可访问。
 - 公开接口 `GET /api/stores/public/partners/?platform=<store_id>` 返回某个平台下 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
 - 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、轮播、分类、动态专区和商品摘要，数据只来自该真实店铺。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
+- `Store.show_customer_group_name` 控制小程序是否展示当前客户分组名称；店铺管理员只能更新这个展示开关，不能修改店铺基础信息。
+- `stores.StoreCustomerGroup` 表示店铺自己的客户分组；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
+- `stores.StoreCustomerGroupPrice` 保存分组产品价格表，支持整品价格和 SKU 价格；海尔商品不允许配置分组价格，未配置分组价时回退商品/SKU默认价。
+- 客户分组权限码为 `customer_groups.manage`：平台管理员和店铺管理员拥有；店铺子管理员、店铺运营默认没有。
 
 ## 核心模块
 - 用户与地址（`users/`）：微信登录、密码登录、用户资料、地址管理、公司认证、信用账户与账务对账
@@ -130,11 +134,22 @@
 - 认证与用户（前缀 `/api/`）：
   - `POST /wechat/explicit-login/` 显式微信快捷登录：请求体包含 `code` 和微信手机号授权 `phone_code`；首次登录缺少手机号授权会返回 `400`，不会创建用户。登录成功返回 `access`、`refresh` 和用户资料，并保存手机号与 `last_login_at`。
   - `POST /login/` 旧微信 code 登录入口（保留兼容，不用于普通浏览触发账号创建）
-  - `POST /auth/password/` 密码登录（管理员）`backend/users/urls.py:27`
-  - `POST /auth/refresh/` 刷新 Token `backend/users/urls.py:29`
-  - `GET/PATCH /user/profile/` 用户资料 `backend/users/urls.py:30`
-  - `GET /user/statistics/` 用户统计 `backend/users/urls.py:31`
+  - `POST /password_login/` 密码登录（管理员/客服）`backend/users/urls.py`
+  - `POST /admin/login/` 管理员登录别名 `backend/users/urls.py`
+  - `POST /token/refresh/` 刷新 Token `backend/users/urls.py`
+  - `GET/PATCH /user/profile/` 用户资料 `backend/users/urls.py`
+  - `GET /user/statistics/` 用户统计 `backend/users/urls.py`
   - `GET/POST/... /addresses/` 地址 CRUD 与解析 `backend/users/urls.py:18`
+- 店铺与权限（前缀 `/api/stores/`）：
+  - `GET /current/` 当前账号店铺上下文，包含可访问店铺、默认店铺、平台管理员标记、成员关系和权限码。
+  - `GET/POST/PATCH/DELETE /` 店铺管理；非平台管理员仅可更新本店 `show_customer_group_name` 展示开关。
+  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、轮播、分类、专区和商品摘要。
+  - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`GET /members/available_users/` 返回可绑定后台账号候选。
+  - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
+  - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
+  - `GET/POST/PATCH/DELETE /customer-group-prices/` 客户分组价格，支持按 `store`、`group`、`product` 过滤。
+  - `GET/POST/PATCH/DELETE /payment-configs/` 店铺支付配置（平台管理员）。
+  - `GET/POST/PATCH/DELETE /settlement-rules/` 店铺结算规则（平台管理员）。
 - 商品目录：
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
     - 字段与校验补充：
@@ -146,6 +161,8 @@
       - 价格字段与展示：
         - `price`：商户对外销售价；若从海尔同步且未手工调整，初始为“市场价（market_price）或供价（supply_price）”。
         - `display_price`：展示价；对经销商优先使用经销价（dealer_price），否则回退零售价 `price`。
+        - 客户分组价：若当前用户在商品所属店铺存在启用分组，且该分组配置了产品/SKU价格，`display_price` 会优先使用分组价；SKU 会先找 SKU 分组价，再回退整品分组价，最后回退默认价。
+        - 分组展示字段：商品响应包含 `customer_group_id`、`customer_group_name`、`show_customer_group_name`，前端只有在店铺开关开启时展示分组名称。
         - `discounted_price`：折后价；基于当前登录用户与商品的最佳有效折扣计算（`orders.services.get_best_active_discount`）。
         - `originalPrice`：原价字段；优先返回 `market_price`，否则返回 `price`。
       - 海尔商品辅助字段：
@@ -280,22 +297,34 @@
     - `content_payload` 用途：
       - `card`：`{ title, description, image_url, link_type, link_value }`
       - `quick_buttons`：`{ buttons: [{ text, value }] }`
-  - 工单端点兼容：
-    - `POST /support/tickets/{id}/add_message/` 支持文本/图片/视频以及关联订单或商品 `backend/support/views.py:26`
-      - 请求方式：`multipart/form-data`，字段同上。
+  - 问题建议工单 FeedbackTicket（独立工单，不走聊天）：
+    - `GET /support/feedback-tickets/stores/` 获取可提交问题建议的启用店铺列表。
+    - `POST /support/feedback-tickets/upload-image/` 上传单张图片附件，返回 `{ path, url }`；附件存储路径为 `support/feedback/%Y/%m/%d/`。
+    - `GET /support/feedback-tickets/` 工单列表，普通用户仅返回自己的工单；店铺后台用户返回可管理店铺的工单；平台管理员和 support 返回全部可见工单。
+      - 查询参数：`status`、`ticket_type`/`type`、`store`/`store_id`、`date_from`/`created_from`、`date_to`/`created_to`、`search`/`keyword`。
+    - `POST /support/feedback-tickets/` 用户创建问题或需求工单。
+      - 请求体：`store_id`、`ticket_type=question|requirement`、`title`、`content`、`contact_phone`、`attachments`。
+      - 校验：标题 `5-60` 字，内容 `10-1000` 字；只支持图片，单次最多 9 张；后台账号不能代用户创建。
+    - `GET /support/feedback-tickets/{id}/` 查看工单详情，返回用户提交内容和处理记录。
+    - `POST /support/feedback-tickets/{id}/supplement/` 用户补充文字或图片；关闭后不可补充，补充后状态回到 `pending`。
+    - `POST /support/feedback-tickets/{id}/reply/` 后台回复，回复内容必填，可附图片；回复后状态为 `replied`。
+    - `POST /support/feedback-tickets/{id}/close/` 关闭工单，关闭后只读。
+    - `GET /support/feedback-tickets/stats/` 返回当前账号可见的待处理数量 `{ pending_count }`，用于商家后台菜单角标。
+    - 状态：`pending` 待处理、`replied` 已回复、`closed` 已关闭。
+    - 权限：小程序用户仅自己的工单；`store_admin` 可看/回/关本店；`store_sub_admin` 与 `store_staff` 可看/回本店；`platform_admin` 可看/回/关全部；`support` 可看/回全部但不能关闭。
+    - 相关模型：`FeedbackTicket`、`FeedbackTicketReply`（`backend/support/models.py`）。
   - 环境差异：
-    - 开发与生产环境均注册聊天与工单端点 `backend/support/urls.py:8`
-    - 客服/管理员可查看全部；普通用户仅能看到自己发送的消息与自己工单下的消息。
-    - 查询参数：`ticket`（按工单过滤）、`after`（ISO 时间）、`limit`（返回条数）。
-    - 返回字段：同上。
+    - 开发与生产环境均注册聊天、回复模板和问题建议工单端点 `backend/support/urls.py`。
+    - 聊天中客服/管理员可查看全部会话；普通用户仅能看到自己的会话消息。
+    - 问题建议工单按用户、店铺成员、平台管理员和 support 角色分别隔离。
 
 > 聊天说明：为简化实现，后端通过轮询/增量拉取的方式支持聊天体验。前端实现建议：
 > 1. **增量拉取**：利用 `after` 参数传入本地缓存中最后一条消息的时间，实现高效的增量更新。
 > 2. **本地缓存**：建议前端缓存消息记录（如 localStorage），减少重复拉取并提升首屏加载速度。
 > 3. **离线队列**：发送消息时可先存入本地队列，网络恢复后自动重试，提升弱网环境下的可靠性。
-> 4. **状态反馈**：发送消息会刷新工单的 `updated_at`，以便列表按最近活跃排序。
+> 4. **状态反馈**：发送消息会刷新会话的 `updated_at`，以便列表按最近活跃排序。
 
-> 相关模型：`SupportTicket` 与 `SupportMessage`（`backend/support/models.py:6`, `backend/support/models.py:26`）
+> 相关模型：`SupportConversation`、`SupportMessage`、`SupportReplyTemplate`（`backend/support/models.py`）
 > - `SupportMessage` 新增：`attachment(FileField)`、`attachment_type(image|video)`，文本字段 `content` 允许为空；返回的 `attachment_url` 为可直接访问的绝对地址。
 - 统计与分析（仅管理员）：
   - `GET /analytics/sales_summary/` 销售汇总（`start_date/end_date`）
@@ -437,7 +466,7 @@
 - 角色与权限：
   - 用户（订单所有者）：可申请退货；仅在管理员同意后可填写退货物流与凭证。
   - 管理员：可同意/拒绝退货、验收退货、完成退款。
-- 图片上传：通过 `POST /api/media-images/` 上传图片，返回的 `url` 可作为 `evidence_images` 列表元素传入退货接口。
+- 图片上传：通过 `POST /api/catalog/media-images/` 上传图片，返回的 `url` 可作为 `evidence_images` 列表元素传入退货接口。
  - 状态机配合：填写退货物流后，若订单允许，将进入 `returning` 状态；完成退款后进入 `refunded` 并释放库存（`backend/orders/state_machine.py:203`）。
 -
 ## 生产环境 .env 示例

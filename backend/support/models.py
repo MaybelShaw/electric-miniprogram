@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from orders.models import Order
 from catalog.models import Product
+from stores.models import Store
+from django.utils import timezone
 
 
 class SupportConversation(models.Model):
@@ -106,4 +108,100 @@ class SupportMessage(models.Model):
             models.Index(fields=['attachment_type'], name='support_sup_attachm_54bc2a_idx'),
             models.Index(fields=['order'], name='support_sup_order_i_c35c9c_idx'),
             models.Index(fields=['product'], name='support_sup_product_cd2223_idx'),
+        ]
+
+
+class FeedbackTicket(models.Model):
+    TYPE_QUESTION = 'question'
+    TYPE_REQUIREMENT = 'requirement'
+    TYPE_CHOICES = [
+        (TYPE_QUESTION, '问题'),
+        (TYPE_REQUIREMENT, '需求'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_REPLIED = 'replied'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, '待处理'),
+        (STATUS_REPLIED, '已回复'),
+        (STATUS_CLOSED, '已关闭'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    ticket_number = models.CharField(max_length=20, unique=True, blank=True, verbose_name='工单编号')
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='feedback_tickets', verbose_name='店铺')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='feedback_tickets', verbose_name='用户')
+    ticket_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_QUESTION, verbose_name='工单类型')
+    title = models.CharField(max_length=60, verbose_name='标题')
+    content = models.TextField(verbose_name='内容')
+    contact_phone = models.CharField(max_length=32, blank=True, default='', verbose_name='联系电话')
+    attachments = models.JSONField(default=list, blank=True, verbose_name='图片附件')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, verbose_name='状态')
+    last_replied_at = models.DateTimeField(null=True, blank=True, verbose_name='最后回复时间')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        verbose_name = '问题建议工单'
+        verbose_name_plural = '问题建议工单'
+        ordering = ['-created_at', '-id']
+        indexes = [
+            models.Index(fields=['ticket_number'], name='fb_ticket_no_idx'),
+            models.Index(fields=['store', 'status'], name='fb_ticket_store_status_idx'),
+            models.Index(fields=['user', 'created_at'], name='fb_ticket_user_created_idx'),
+            models.Index(fields=['status', 'created_at'], name='fb_ticket_status_created_idx'),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_number:
+            self.ticket_number = self._generate_ticket_number()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def _generate_ticket_number(cls):
+        prefix = f"FB{timezone.localdate().strftime('%Y%m%d')}"
+        latest = (
+            cls.objects.filter(ticket_number__startswith=prefix)
+            .order_by('-ticket_number')
+            .values_list('ticket_number', flat=True)
+            .first()
+        )
+        next_seq = 1
+        if latest:
+            try:
+                next_seq = int(latest[-4:]) + 1
+            except (TypeError, ValueError):
+                next_seq = 1
+        return f"{prefix}{next_seq:04d}"
+
+    def __str__(self):
+        return self.ticket_number or f"FeedbackTicket#{self.pk}"
+
+
+class FeedbackTicketReply(models.Model):
+    TYPE_USER_SUPPLEMENT = 'user_supplement'
+    TYPE_MERCHANT_REPLY = 'merchant_reply'
+    TYPE_CLOSE = 'close'
+    TYPE_CHOICES = [
+        (TYPE_USER_SUPPLEMENT, '用户补充'),
+        (TYPE_MERCHANT_REPLY, '商家回复'),
+        (TYPE_CLOSE, '工单关闭'),
+    ]
+
+    id = models.BigAutoField(primary_key=True)
+    ticket = models.ForeignKey(FeedbackTicket, on_delete=models.CASCADE, related_name='replies', verbose_name='工单')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='feedback_ticket_replies', verbose_name='发送人')
+    record_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name='记录类型')
+    content = models.TextField(blank=True, default='', verbose_name='内容')
+    attachments = models.JSONField(default=list, blank=True, verbose_name='图片附件')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+
+    class Meta:
+        verbose_name = '问题建议处理记录'
+        verbose_name_plural = '问题建议处理记录'
+        ordering = ['created_at', 'id']
+        indexes = [
+            models.Index(fields=['ticket', 'created_at'], name='fb_reply_ticket_created_idx'),
+            models.Index(fields=['record_type'], name='fb_reply_type_idx'),
         ]

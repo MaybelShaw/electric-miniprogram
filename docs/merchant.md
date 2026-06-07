@@ -40,12 +40,21 @@
 ## 路由结构
 - 登录保护：`merchant/src/App.tsx:16`
 - 店铺上下文：登录后 `Layout` 调用 `GET /api/stores/current/`，平台管理员可在顶栏选择当前店铺；选中店铺会随请求作为 `store` 参数透传。
-- 店铺用户：拥有激活 `StoreMember` 的账号可登录商家后台，菜单收敛为本店商品、分类、品牌、轮播、订单、发票和折扣等业务入口。
+- 店铺用户：拥有激活 `StoreMember` 的账号可登录商家后台，菜单收敛为本店商品、分类、品牌、轮播、订单、发票、折扣和问题建议等业务入口。
 - 主要路由：`merchant/src/App.tsx:31`
   - `/users` 用户管理
+  - `/user-stats` 用户统计
+  - `/sales-stats` 销售统计
+  - `/stores` 店铺管理
+  - `/store-members` 店铺成员
   - `/brands` 品牌管理
   - `/categories` 品类管理
   - `/products` 商品管理
+  - `/product-skus` SKU 管理
+  - `/customer-groups` 客户分组
+  - `/media-images` 媒体库
+  - `/search-logs` 搜索日志
+  - `/inventory-logs` 库存日志
   - `/orders` 订单管理
   - `/discounts` 折扣管理
   - `/company-certification` 公司认证审核
@@ -54,8 +63,12 @@
   - `/account-transactions` 账务交易记录
   - `/invoices` 发票管理
   - `/home-banners` 轮播图管理
+  - `/home-store-cards` 首页店铺卡片管理
   - `/special-zones` 动态运营专区
+  - `/special-zone-covers` 专区封面
   - `/cases` 案例管理
+  - `/feedback-tickets` 问题建议工单
+  - 客服后台 `/support/tickets` 为聊天会话，`/support/feedback-tickets` 为问题建议工单，`/support/templates` 为回复模板。
 
 ## 页面与操作流程
 - 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
@@ -95,6 +108,13 @@
   - 分类层级（后端）：品类 → 子品类 → 品项 → 单品
     - 创建子品类时需选择父“品类”；创建品项时需选择父“子品类”
     - 产品关联建议指向“品项”，兼容指向“子品类”
+- 客户分组：
+  - 页面位置：`merchant/src/pages/CustomerGroups/index.tsx`，菜单入口 `/admin/customer-groups`
+  - 店铺管理员可维护本店客户分组、按手机号加入客户、维护分组产品价格表；平台管理员可按当前店铺上下文代配置。
+  - 同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的分组；手机号未注册时会先保存手机号，用户后续登录/绑定手机号后自动归组。
+  - 分组价格支持整品价和 SKU 价；未配置的商品/SKU 使用默认价格，海尔商品不参与客户分组价格。
+  - 店铺页顶部的“小程序展示分组名称”开关控制用户端是否显示当前价格身份，关闭时仅展示最终价格。
+  - 接口：`GET/POST/PATCH/DELETE /api/stores/customer-groups/`、`/api/stores/customer-group-members/`、`/api/stores/customer-group-prices/`
 - 订单管理：取消/发货/完成、海尔推送与物流查询 `merchant/src/services/api.ts:53`
   - 列表中的“数量”列来自后端订单的总购买数量字段（汇总所有明细行的数量），与 Django 管理后台中直接展示的单个 `quantity` 字段保持逻辑一致，用于反映整单实际采购件数。
   - **发货操作**：管理员点击发货时，需在弹窗中填写快递单号与物流公司。
@@ -163,6 +183,27 @@
   - 客服/管理员可通过 `user_id` 指定目标用户并向其会话发送消息。
   - 消息支持已读/未读状态（后端支持，前端暂未展示）。
 
+## 问题建议工单页面
+- 页面位置：`merchant/src/pages/FeedbackTickets/index.tsx`
+- 菜单入口：
+  - 平台后台：`/admin/feedback-tickets`
+  - 客服后台：`/support/feedback-tickets`
+- 能力概览：
+  - 列表展示问题/需求工单，支持按编号、标题关键词、类型、状态筛选。
+  - 详情抽屉展示用户提交内容、图片附件和全部处理记录。
+  - 后台可多次回复工单，回复内容必填，可附图片。
+  - 店铺管理员和平台管理员可关闭工单；关闭后页面只展示历史记录，不再显示回复区。
+  - 左侧菜单通过 `getFeedbackTicketStats` 轮询当前账号可见的待处理数量，并显示角标。
+- 状态：
+  - `pending` 待处理：用户新建或补充后进入。
+  - `replied` 已回复：后台回复后进入。
+  - `closed` 已关闭：店铺管理员或平台管理员关闭后进入，只读。
+- 权限：
+  - 平台管理员可查看、回复、关闭全部工单。
+  - 店铺管理员可查看、回复、关闭本店工单。
+  - 店铺子管理员和店铺员工可查看、回复本店工单，不能关闭。
+  - support 账号可查看、回复全部工单，不能关闭。
+
 ## 账务对账单页面
 - 列表、筛选、状态、操作与导出：`merchant/src/pages/AccountStatements/index.tsx:256`
 - 详情抽屉与财务汇总：`merchant/src/pages/AccountStatements/index.tsx:332`
@@ -185,9 +226,16 @@
 ## API 封装
 - 统一服务：`merchant/src/services/api.ts:74`
   - `credit-accounts`、`account-statements`、`account-transactions` 等端点
+  - 问题建议工单：`getFeedbackTickets`、`getFeedbackTicket`、`getFeedbackTicketStats`、`replyFeedbackTicket`、`closeFeedbackTicket`
 - Axios 基础：前端统一使用 `/api` 前缀，依赖 Vite 代理转发到后端
 
 ### 端点映射示例
+- 问题建议工单：
+  - 列表：`GET /support/feedback-tickets/`
+  - 详情：`GET /support/feedback-tickets/{id}/`
+  - 待处理统计：`GET /support/feedback-tickets/stats/`
+  - 回复：`POST /support/feedback-tickets/{id}/reply/`
+  - 关闭：`POST /support/feedback-tickets/{id}/close/`
 - 对账单：
   - 列表：`GET /account-statements/`
   - 详情：`GET /account-statements/{id}/`
@@ -230,7 +278,7 @@
 ## 多商户后台权限边界
 - 商家后台通过 `merchant/src/utils/permissions.ts` 集中判断平台管理员与店铺经营用户的可访问路由。
 - 平台管理员可看到平台级用户、认证、信用账户、店铺成员、支付配置、结算规则和跨店经营菜单，并可使用顶部店铺选择器切换经营店铺。
-- 自营店铺管理员和合作方管理员只显示本店经营菜单：销售统计、对账单、交易记录、首页轮播、动态专区、品牌、分类、商品、订单、发票和折扣。
+- 自营店铺管理员和合作方管理员只显示本店经营菜单：销售统计、对账单、交易记录、首页轮播、动态专区、品牌、分类、商品、订单、发票、折扣和问题建议。
 - 非平台管理员手动访问 `/admin/users`、`/admin/credit-accounts`、认证审核、店铺成员、支付配置、结算规则等平台页面时，会回到 `/admin/sales-stats`。
 - 普通店铺用户不显示跨店选择器；平台管理员切换店铺时，请求层显式注入 `store_id`，不覆盖调用方已经传入的 `store` 或 `store_id`。
 - 合作方管理员登录后台只获得本店经营权限，进入小程序店铺详情页不会产生任何后台授权。

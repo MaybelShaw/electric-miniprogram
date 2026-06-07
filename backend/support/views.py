@@ -1,7 +1,9 @@
 import json
 import logging
+import uuid
 from datetime import timedelta, datetime, time
 from zoneinfo import ZoneInfo
+from django.core.files.storage import default_storage
 from django.db import models
 from django.db.models import Prefetch, Subquery, OuterRef, Q
 from django.utils import timezone
@@ -13,18 +15,83 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog.models import Product
-from common.serializers import AttachmentFileValidator
+from common.serializers import AttachmentFileValidator, ImageFileValidator
 from orders.models import Order
-from .models import SupportConversation, SupportMessage, SupportReplyTemplate
-from .serializers import SupportConversationSerializer, SupportMessageSerializer, SupportReplyTemplateSerializer
-from stores.permissions import is_platform_admin, is_support_user
+from .models import FeedbackTicket, FeedbackTicketReply, SupportConversation, SupportMessage, SupportReplyTemplate
+from .serializers import (
+    FeedbackTicketSerializer,
+    SupportConversationSerializer,
+    SupportMessageSerializer,
+    SupportReplyTemplateSerializer,
+)
+from stores.models import Store, StoreMember
+from stores.permissions import can_manage_store, get_accessible_stores, has_store_role, is_platform_admin, is_support_user
 from users.models import User
 
 logger = logging.getLogger(__name__)
+FEEDBACK_MAX_IMAGES = 9
 
 
 def _is_support_backend_user(user):
     return is_platform_admin(user) or is_support_user(user)
+
+
+def _can_reply_feedback_ticket(user, ticket):
+    return _is_support_backend_user(user) or can_manage_store(user, ticket.store)
+
+
+def _can_close_feedback_ticket(user, ticket):
+    return is_platform_admin(user) or has_store_role(user, ticket.store, StoreMember.ROLE_STORE_ADMIN)
+
+
+def _collect_feedback_images(request):
+    files = []
+    for key in ('images', 'image', 'attachments', 'attachment'):
+        files.extend(request.FILES.getlist(key))
+    if not files and request.FILES:
+        files = list(request.FILES.values())
+
+    existing = request.data.get('attachments') or request.data.get('images')
+    existing_paths = []
+    if existing and not hasattr(existing, 'read'):
+        if isinstance(existing, str):
+            try:
+                parsed = json.loads(existing)
+            except (TypeError, ValueError):
+                parsed = [existing]
+        else:
+            parsed = existing
+        if isinstance(parsed, list):
+            existing_paths = [str(item).strip() for item in parsed if str(item).strip()]
+
+    if len(files) + len(existing_paths) > FEEDBACK_MAX_IMAGES:
+        raise serializers.ValidationError(f'每次最多上传 {FEEDBACK_MAX_IMAGES} 张图片')
+
+    validator = ImageFileValidator()
+    saved_paths = []
+    for image in files:
+        validator(image)
+        name = getattr(image, 'name', '') or 'image'
+        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else 'jpg'
+        today = timezone.localdate()
+        path = f"support/feedback/{today:%Y/%m/%d}/{uuid.uuid4().hex}.{ext}"
+        saved_paths.append(default_storage.save(path, image))
+    return existing_paths + saved_paths
+
+
+def _require_not_closed(ticket):
+    if ticket.status == FeedbackTicket.STATUS_CLOSED:
+        return Response({'detail': '工单已关闭，不能继续操作'}, status=status.HTTP_400_BAD_REQUEST)
+    return None
+
+
+def _is_store_backend_user(user):
+    return bool(
+        user
+        and getattr(user, 'is_authenticated', False)
+        and get_accessible_stores(user).exists()
+        and not _is_support_backend_user(user)
+    )
 
 
 def _get_support_sender():
@@ -570,8 +637,256 @@ class SupportApiRootView(APIView):
             'chat': base + 'chat/',
             'conversations': base + 'chat/conversations/',
             'reply_templates': base + 'reply-templates/',
+            'feedback_tickets': base + 'feedback-tickets/',
             'conversation_auto_reply': base + 'conversations/{id}/auto-reply/',
         })
+
+
+class FeedbackTicketViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = FeedbackTicketSerializer
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = (
+            FeedbackTicket.objects.select_related('store', 'user')
+            .prefetch_related(
+                Prefetch(
+                    'replies',
+                    queryset=FeedbackTicketReply.objects.select_related('sender').order_by('created_at', 'id'),
+                    to_attr='prefetched_replies',
+                )
+            )
+            .order_by('-created_at', '-id')
+        )
+
+        if is_platform_admin(user) or is_support_user(user):
+            pass
+        elif _is_store_backend_user(user):
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            qs = qs.filter(store_id__in=store_ids)
+        else:
+            qs = qs.filter(user=user)
+
+        ticket_type = self.request.query_params.get('ticket_type') or self.request.query_params.get('type')
+        if ticket_type:
+            types = [item.strip() for item in str(ticket_type).split(',') if item.strip()]
+            qs = qs.filter(ticket_type__in=types)
+
+        status_value = self.request.query_params.get('status')
+        if status_value:
+            statuses = [item.strip() for item in str(status_value).split(',') if item.strip()]
+            qs = qs.filter(status__in=statuses)
+
+        store_id = self.request.query_params.get('store') or self.request.query_params.get('store_id')
+        if store_id not in (None, ''):
+            qs = qs.filter(store_id=store_id)
+
+        date_from = self.request.query_params.get('date_from') or self.request.query_params.get('created_from')
+        date_to = self.request.query_params.get('date_to') or self.request.query_params.get('created_to')
+        if date_from:
+            dt = parse_datetime(date_from)
+            if dt is None:
+                try:
+                    dt = datetime.fromisoformat(f"{date_from}T00:00:00")
+                except ValueError:
+                    dt = None
+            if dt is not None:
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                qs = qs.filter(created_at__gte=dt)
+        if date_to:
+            dt = parse_datetime(date_to)
+            if dt is None:
+                try:
+                    dt = datetime.fromisoformat(f"{date_to}T23:59:59")
+                except ValueError:
+                    dt = None
+            if dt is not None:
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
+                qs = qs.filter(created_at__lte=dt)
+
+        keyword = self.request.query_params.get('search') or self.request.query_params.get('keyword')
+        if keyword:
+            qs = qs.filter(
+                Q(ticket_number__icontains=keyword)
+                | Q(title__icontains=keyword)
+                | Q(content__icontains=keyword)
+                | Q(user__username__icontains=keyword)
+                | Q(user__phone__icontains=keyword)
+                | Q(contact_phone__icontains=keyword)
+            )
+
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        if _is_store_backend_user(request.user) or _is_support_backend_user(request.user):
+            return Response({'detail': '后台账号不能创建用户工单'}, status=status.HTTP_403_FORBIDDEN)
+
+        store_id = request.data.get('store') or request.data.get('store_id')
+        if not store_id:
+            return Response({'detail': '请选择店铺'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            store = Store.objects.get(id=int(store_id), status=Store.STATUS_ACTIVE)
+        except (Store.DoesNotExist, ValueError, TypeError):
+            return Response({'detail': '店铺不存在或不可用'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket_type = request.data.get('ticket_type') or request.data.get('type') or FeedbackTicket.TYPE_QUESTION
+        if ticket_type not in {FeedbackTicket.TYPE_QUESTION, FeedbackTicket.TYPE_REQUIREMENT}:
+            return Response({'detail': '工单类型不正确'}, status=status.HTTP_400_BAD_REQUEST)
+
+        title = (request.data.get('title') or '').strip()
+        content = (request.data.get('content') or '').strip()
+        if not 5 <= len(title) <= 60:
+            return Response({'detail': '标题需为 5-60 字'}, status=status.HTTP_400_BAD_REQUEST)
+        if not 10 <= len(content) <= 1000:
+            return Response({'detail': '内容需为 10-1000 字'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            attachments = _collect_feedback_images(request)
+        except serializers.ValidationError as exc:
+            return Response({'detail': exc.detail if hasattr(exc, 'detail') else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        ticket = FeedbackTicket.objects.create(
+            store=store,
+            user=request.user,
+            ticket_type=ticket_type,
+            title=title,
+            content=content,
+            contact_phone=(request.data.get('contact_phone') or '').strip(),
+            attachments=attachments,
+        )
+        serializer = self.get_serializer(ticket)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='stores')
+    def stores(self, request):
+        qs = Store.objects.filter(status=Store.STATUS_ACTIVE).order_by('-show_on_home', 'home_order', '-is_main', 'id')
+        return Response([
+            {
+                'id': store.id,
+                'name': store.name,
+                'code': store.code,
+                'logo': store.logo,
+                'cover_image': store.cover_image,
+                'description': store.description,
+                'contact_phone': store.contact_phone,
+                'address': store.address,
+                'show_on_home': store.show_on_home,
+                'home_order': store.home_order,
+            }
+            for store in qs
+        ])
+
+    @action(detail=False, methods=['post'], url_path='upload-image')
+    def upload_image(self, request):
+        image = request.FILES.get('image') or request.FILES.get('file') or request.FILES.get('attachment')
+        if not image:
+            return Response({'detail': '请选择图片'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            ImageFileValidator()(image)
+        except serializers.ValidationError as exc:
+            return Response({'detail': exc.detail if hasattr(exc, 'detail') else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        name = getattr(image, 'name', '') or 'image'
+        ext = name.rsplit('.', 1)[-1].lower() if '.' in name else 'jpg'
+        today = timezone.localdate()
+        path = default_storage.save(f"support/feedback/{today:%Y/%m/%d}/{uuid.uuid4().hex}.{ext}", image)
+        return Response({'path': path, 'url': default_storage.url(path)}, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        pending_count = self.get_queryset().filter(status=FeedbackTicket.STATUS_PENDING).count()
+        return Response({'pending_count': pending_count})
+
+    @action(detail=True, methods=['post'], url_path='supplement')
+    def supplement(self, request, pk=None):
+        ticket = self.get_object()
+        if ticket.user_id != request.user.id:
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        closed_error = _require_not_closed(ticket)
+        if closed_error:
+            return closed_error
+
+        content = (request.data.get('content') or '').strip()
+        try:
+            attachments = _collect_feedback_images(request)
+        except serializers.ValidationError as exc:
+            return Response({'detail': exc.detail if hasattr(exc, 'detail') else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if not content and not attachments:
+            return Response({'detail': '请填写补充内容或上传图片'}, status=status.HTTP_400_BAD_REQUEST)
+        if content and len(content) > 1000:
+            return Response({'detail': '补充内容不能超过 1000 字'}, status=status.HTTP_400_BAD_REQUEST)
+
+        FeedbackTicketReply.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            record_type=FeedbackTicketReply.TYPE_USER_SUPPLEMENT,
+            content=content,
+            attachments=attachments,
+        )
+        FeedbackTicket.objects.filter(id=ticket.id).update(status=FeedbackTicket.STATUS_PENDING, updated_at=timezone.now())
+        ticket.refresh_from_db()
+        return Response(self.get_serializer(ticket).data)
+
+    @action(detail=True, methods=['post'], url_path='reply')
+    def reply(self, request, pk=None):
+        ticket = self.get_object()
+        if not _can_reply_feedback_ticket(request.user, ticket):
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        closed_error = _require_not_closed(ticket)
+        if closed_error:
+            return closed_error
+
+        content = (request.data.get('content') or '').strip()
+        if not content:
+            return Response({'detail': '请填写回复内容'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(content) > 1000:
+            return Response({'detail': '回复内容不能超过 1000 字'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            attachments = _collect_feedback_images(request)
+        except serializers.ValidationError as exc:
+            return Response({'detail': exc.detail if hasattr(exc, 'detail') else str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        FeedbackTicketReply.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            record_type=FeedbackTicketReply.TYPE_MERCHANT_REPLY,
+            content=content,
+            attachments=attachments,
+        )
+        FeedbackTicket.objects.filter(id=ticket.id).update(
+            status=FeedbackTicket.STATUS_REPLIED,
+            last_replied_at=now,
+            updated_at=now,
+        )
+        ticket.refresh_from_db()
+        return Response(self.get_serializer(ticket).data)
+
+    @action(detail=True, methods=['post'], url_path='close')
+    def close(self, request, pk=None):
+        ticket = self.get_object()
+        if not _can_close_feedback_ticket(request.user, ticket):
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        closed_error = _require_not_closed(ticket)
+        if closed_error:
+            return closed_error
+
+        content = (request.data.get('content') or request.data.get('close_note') or '').strip()
+        if len(content) > 1000:
+            return Response({'detail': '关闭说明不能超过 1000 字'}, status=status.HTTP_400_BAD_REQUEST)
+        FeedbackTicketReply.objects.create(
+            ticket=ticket,
+            sender=request.user,
+            record_type=FeedbackTicketReply.TYPE_CLOSE,
+            content=content,
+            attachments=[],
+        )
+        FeedbackTicket.objects.filter(id=ticket.id).update(status=FeedbackTicket.STATUS_CLOSED, updated_at=timezone.now())
+        ticket.refresh_from_db()
+        return Response(self.get_serializer(ticket).data)
 
 
 class SupportReplyTemplateViewSet(viewsets.ModelViewSet):

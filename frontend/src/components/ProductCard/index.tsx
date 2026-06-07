@@ -32,6 +32,7 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
   }
 
   const tagText = getTagText(product.tag)
+  const groupName = product.show_customer_group_name ? product.customer_group_name : ''
   const productImage = resolveLocalMediaUrl(product.main_images?.[0])
 
   return (
@@ -52,10 +53,11 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
       </View>
 
       <View className='product-info'>
-        {(product.brand || tagText) ? (
+        {(product.brand || tagText || groupName) ? (
           <View className='product-meta-row'>
             {product.brand ? <Text className='product-brand'>{product.brand}</Text> : null}
             {tagText ? <Text className='product-tag'>{tagText}</Text> : null}
+            {groupName ? <Text className='product-group-tag'>{groupName}</Text> : null}
           </View>
         ) : null}
         <View className='product-name'>

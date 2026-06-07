@@ -71,8 +71,12 @@
   - `requestReturn` 申请退货 `frontend/src/services/order.ts`
   - `addReturnTracking` 填写退货物流 `frontend/src/services/order.ts`
 - 客服支持服务：`frontend/src/services/support.ts`
-  - 工单列表/详情/创建/关闭
   - 消息列表/发送（支持增量拉取、离线发送）
+- 问题建议工单服务：`frontend/src/services/feedback.ts`
+  - `getStores` 获取可提交问题建议的启用店铺列表。
+  - `getTickets`/`getTicket` 获取当前用户自己的工单列表和详情。
+  - `createTicket` 创建问题或需求工单；提交前会先上传图片附件。
+  - `supplementTicket` 在未关闭工单中补充文字或图片。
 - 支付服务：`frontend/src/services/payment.ts:4`
   - 列表/创建/详情/开始/成功/失败/取消/过期 `frontend/src/services/payment.ts:6`
 - 地址服务：`frontend/src/services/address.ts:4`
@@ -119,7 +123,7 @@
   - 增加邮箱格式正则校验
   - 税率由后端计算，前端无需传递 `tax_rate` 字段
 - 个人中心（`/pages/profile/index`）：资料展示与编辑、地址管理入口
-- 菜单调整：客服支持入口已移动到“信用账户”下方，以更符合用户使用习惯（经销商用户显示为：收货地址 → 经销商认证 → 信用账户 → 客服支持）。
+- 菜单调整：客服支持入口位于“信用账户”下方，问题建议入口位于“客服支持”之后（经销商用户显示为：收货地址 → 经销商认证 → 信用账户 → 客服支持 → 问题建议）。
 - 客服支持系统：
   - **入口**：个人中心 -> 客服支持（直接进入聊天页面，不再有工单列表）
   - **功能**：
@@ -143,6 +147,12 @@
   - **消息发送**：统一封装在 `supportService.sendMessage`（`frontend/src/services/support.ts:31`），支持文本、图片、视频以及 `order_id`/`product_id`。
   - **动作面板**：为避免歧义，动作面板将“相册”重命名为“图片/视频”。
   - **卡片渲染**：订单/商品消息在聊天中以信息卡片展示，点击可跳转到详情页；订单卡片右上角显示状态标签。
+- 问题建议工单：
+  - **入口**：个人中心 -> 问题建议。
+  - **列表页**：`/pages/feedback-list/index`，支持按全部、待处理、已回复、已关闭筛选，并分页加载当前用户自己的工单。
+  - **提交页**：`/pages/feedback-submit/index`，用户需选择启用店铺，选择“问题”或“需求”，填写标题、内容和可选联系电话；只支持图片附件，最多 9 张。
+  - **详情页**：`/pages/feedback-detail/index`，展示用户提交内容和后台处理记录；未关闭时允许继续补充文字或图片，关闭后只读。
+  - **状态流转**：用户新建或补充后为 `pending`，后台回复后为 `replied`，店铺管理员或平台管理员关闭后为 `closed`。
 - 信用账户与账务（`/pages/credit-account`、`/pages/account-statements`、`/pages/statement-detail`）：额度、账期、对账单与交易明细
   - 账期规则：固定月度账期，正常 `30` 天；采购的应付日期为“交易日 + 账期天数”所在月份的最后一天。
   - 对账明细中的“应付日期/付款状态”与后端同步，逾期状态按天更新。
@@ -206,3 +216,10 @@
 - 店铺详情页 `/pages/store-detail/index?id=<store_id>` 展示该真实经营店铺的介绍、轮播、分类、动态专区和商品摘要。
 - 店铺详情内进入专区时携带 `store_id`：`/pages/special-zone/index?zone_id=<id>&store_id=<store_id>`，专区页和商品列表页会按该店铺上下文查询数据。
 - 进入合作方店铺详情只改变前台浏览上下文，不代表用户获得该店铺后台权限。
+
+## 客户分组价格展示
+- 商品接口返回的 `display_price` 已经是当前用户在该店铺下应看到的最终基础展示价：有客户分组价时使用分组价，没有配置时回退店铺商品/SKU默认价。
+- SKU 商品的分组价优先级为：SKU 分组价 → 整品分组价 → SKU 默认价；非 SKU 商品为：整品分组价 → 商品默认价。
+- 小程序商品卡片、商品列表和商品详情继续只按 `display_price`/`discounted_price` 渲染价格；订单确认和下单由后端再次解析并锁定当时价格。
+- 当后端返回 `show_customer_group_name=true` 且存在 `customer_group_name` 时，商品卡片、商品列表和商品详情会展示“当前价格身份”；开关关闭时不展示身份，只展示最终价格。
+- 海尔商品不展示客户分组身份，也不参与客户分组价格覆盖。
