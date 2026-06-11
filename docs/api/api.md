@@ -977,7 +977,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET /api/stores/current/` - 当前账号可访问店铺、默认店铺和成员权限
 - ✅ `GET/POST/PATCH/DELETE /api/stores/` - 店铺管理
 - ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表
-- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区、商品摘要和新品商品
+- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要
 - ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
 - ✅ `GET /api/stores/members/available_users/` - 可绑定后台账号候选
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-groups/` - 店铺客户分组
@@ -1028,6 +1028,15 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/catalog/media-images/` - 上传图片（支持压缩和格式转换）
 - ✅ `GET /api/catalog/media-images/{id}/` - 获取图片详情
 - ✅ `DELETE /api/catalog/media-images/{id}/` - 删除图片
+
+#### 首页与活动配置
+- ✅ `GET /api/catalog/home-banners/` - 获取首页/专区轮播图
+- ✅ `POST/PATCH/DELETE /api/catalog/home-banners/` - 管理轮播图
+- ✅ `GET /api/catalog/special-zones/` - 获取动态运营专区，支持 `store`、`kind` 过滤
+- ✅ `POST/PATCH/DELETE /api/catalog/special-zones/` - 管理动态运营专区；店铺管理员仅维护本店 `store_activity`
+- ✅ `GET/POST/DELETE /api/catalog/special-zones/{id}/products/` - 获取或维护专区商品绑定
+- ✅ `GET /api/catalog/home-store-cards/` - 获取平台首页橱窗卡片
+- ✅ `POST/PATCH/DELETE /api/catalog/home-store-cards/` - 管理平台首页橱窗卡片（平台管理员）
 
 #### 搜索日志
 - ✅ `GET /api/catalog/search-logs/` - 获取搜索日志（管理员）

@@ -101,18 +101,18 @@
 - `stores.Store` 是真实经营主体模型；庆勋愉悦家自身也是一个 `Store`，合作方入驻店铺也是 `Store`，不是“主店挂载子店铺”的组织层级。
 - `Store.is_main=true` 表示默认平台入口店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`；合作方店铺通过 `platform_store` 指向庆勋愉悦家平台入口店铺，表达入驻展示和结算关系。
 - `Store.logo`、`cover_image`、`description`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示。
-- `stores.StoreMember` 绑定用户、店铺和角色，角色包含 `platform_admin`、`store_admin`、`store_sub_admin`、`store_staff`。
+- `stores.StoreMember` 绑定用户、店铺和角色；业务可见角色为 `platform_admin` 与 `store_admin`。历史 `store_sub_admin`、`store_staff` 数据保留兼容，但权限按店铺管理员处理，后台不再新增或展示这两个角色。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
 - 平台管理员只认超级用户或主平台店铺有效 `StoreMember(role='platform_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
 - 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。
-- 店铺成员接口允许平台管理员管理全部成员；店铺管理员可管理本店子管理员和运营账号。支付配置、结算规则接口仅平台管理员可访问。
+- 店铺成员接口允许平台管理员管理全部成员；店铺管理员可管理本店店铺管理员账号。支付配置、结算规则接口仅平台管理员可访问。
 - 公开接口 `GET /api/stores/public/partners/?platform=<store_id>` 返回某个平台下 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
-- 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区、商品摘要和新品商品，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
+- 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区和商品摘要，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
 - `Store.show_customer_group_name` 字段保留用于后台配置和接口兼容；当前小程序用户端不展示客户分组名称，只使用后端计算后的最终价格。
 - `stores.StoreCustomerGroup` 表示店铺自己的客户分组；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
 - `stores.StoreCustomerGroupPrice` 保存分组产品价格表，支持整品价格和 SKU 价格；海尔商品不允许配置分组价格，未配置分组价时回退商品/SKU默认价。
-- 客户分组权限码为 `customer_groups.manage`：平台管理员和店铺管理员拥有；店铺子管理员、店铺运营默认没有。
+- 客户分组权限码为 `customer_groups.manage`：平台管理员和店铺管理员拥有；历史店铺角色按店铺管理员兼容。
 
 ## 核心模块
 - 用户与地址（`users/`）：微信登录、密码登录、用户资料、地址管理、公司认证、信用账户与账务对账
@@ -143,7 +143,7 @@
 - 店铺与权限（前缀 `/api/stores/`）：
   - `GET /current/` 当前账号店铺上下文，包含可访问店铺、默认店铺、平台管理员标记、成员关系和权限码。
   - `GET/POST/PATCH/DELETE /` 店铺管理；非平台管理员仅可更新本店 `show_customer_group_name` 展示开关。
-  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区、商品摘要和新品商品。
+  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要。
   - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`GET /members/available_users/` 返回可绑定后台账号候选。
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
@@ -191,11 +191,15 @@
     - 返回：已创建轮播图数据，包含 `image_url` 为完整可访问地址。
   - `GET/POST/PATCH/DELETE /special-zones/` 动态运营专区 `backend/catalog/urls.py`
     - `GET /special-zones/?store=<store_id>`：公开返回指定店铺下 `is_active=true`、`show_on_home=true` 且处于有效期内的专区，按 `home_order` 升序。
-    - 字段：`store_id`、`title`、`slug`、`kind(activity|promotion|category|brand|custom)`、`subtitle`、`cover_image`、`is_active`、`show_on_home`、`home_order`、`start_at`、`end_at`。
-    - 权限：平台管理员可跨店创建和维护；店铺成员只能维护自己店铺下的专区。
+    - 字段：`store_id`、`title`、`slug`、`kind(platform_activity|store_activity|activity|promotion|category|brand|custom)`、`subtitle`、`cover_image`、`is_active`、`show_on_home`、`home_order`、`start_at`、`end_at`。
+    - 权限：平台管理员可跨店创建和维护；店铺管理员只能维护自己店铺下的 `store_activity`。如“新品上新”这类店铺活动，使用 `store_activity` + 商品绑定手动配置。
     - 商品绑定：`GET/POST/DELETE /special-zones/{id}/products/` 读取或维护专区商品；商品必须与专区属于同一店铺，返回时只包含启用绑定并按绑定 `order` 排序。
-    - 管理端商品绑定：店铺成员或平台管理员可追加 `include_inactive=true` 读取绑定记录，返回 `product`、`order`、`is_active`，用于后台调整排序和恢复隐藏商品。
+    - 管理端商品绑定：店铺管理员或平台管理员可追加 `include_inactive=true` 读取绑定记录，返回 `product`、`order`、`is_active`，用于后台调整排序和恢复隐藏商品。
     - 商品列表兼容：`GET /products/?special_zone=<id>` 可按动态专区筛选商品；旧固定专区字段与 `position` 仍保留兼容。
+  - `GET/POST/PATCH/DELETE /home-store-cards/` 首页卡片 `backend/catalog/urls.py`
+    - 用途：配置庆勋主店/平台首页橱窗卡片，不用于“新品上新”活动。
+    - 字段：店铺、标题、副标题、排序、启停、1 个主推商品、4 个副推商品、至少 3 个一级分类。
+    - 权限：公开 GET 只返回启用卡片；POST/PATCH/DELETE 仅平台管理员可用。
   - `GET /cases/` 案例列表（公开）`backend/catalog/urls.py`
     - 返回字段：`{ id, title, order, is_active, cover_image_id, cover_image_url, created_at, updated_at }`
     - 说明：非管理员默认只返回 `is_active=true` 的案例，并按 `order` 升序。
@@ -314,7 +318,7 @@
     - `POST /support/feedback-tickets/{id}/close/` 关闭工单，关闭后只读。
     - `GET /support/feedback-tickets/stats/` 返回当前账号可见的待处理数量 `{ pending_count }`，用于商家后台菜单角标。
     - 状态：`pending` 待处理、`replied` 已回复、`closed` 已关闭。
-    - 权限：小程序用户仅自己的工单；`store_admin` 可看/回/关本店；`store_sub_admin` 与 `store_staff` 可看/回本店；`platform_admin` 可看/回/关全部；`support` 可看/回全部但不能关闭。
+    - 权限：小程序用户仅自己的工单；`store_admin` 可看/回/关本店；历史店铺角色按 `store_admin` 兼容；`platform_admin` 可看/回/关全部；`support` 可看/回全部但不能关闭。
     - 相关模型：`FeedbackTicket`、`FeedbackTicketReply`（`backend/support/models.py`）。
   - 环境差异：
     - 开发与生产环境均注册聊天、回复模板和问题建议工单端点 `backend/support/urls.py`。

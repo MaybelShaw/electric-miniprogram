@@ -103,7 +103,7 @@ class FeedbackTicketTests(TestCase):
         self.assertEqual(ids, [own.id])
         self.assertNotIn(other.id, ids)
 
-    def test_store_staff_can_reply_but_cannot_close(self):
+    def test_legacy_store_staff_can_reply_and_close_as_store_admin(self):
         ticket = self.create_ticket()
 
         self.client.force_authenticate(self.store_staff)
@@ -119,9 +119,9 @@ class FeedbackTicketTests(TestCase):
         )
 
         self.assertEqual(reply_response.status_code, 200, reply_response.content)
-        self.assertEqual(close_response.status_code, 403)
+        self.assertEqual(close_response.status_code, 200, close_response.content)
         ticket.refresh_from_db()
-        self.assertEqual(ticket.status, FeedbackTicket.STATUS_REPLIED)
+        self.assertEqual(ticket.status, FeedbackTicket.STATUS_CLOSED)
 
     def test_store_admin_can_close_own_ticket(self):
         ticket = self.create_ticket()

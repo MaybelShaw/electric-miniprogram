@@ -1742,12 +1742,16 @@ class HomeStoreCardViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
         store = serializer.validated_data.get('store')
         if not has_store_permission(self.request.user, store, PERMISSION_STORE_CONTENT_MANAGE):
             raise PermissionDenied('You cannot manage this store.')
         serializer.save()
 
     def perform_update(self, serializer):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
         instance = self.get_object()
         store = serializer.validated_data.get('store', instance.store)
         if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
@@ -1757,6 +1761,8 @@ class HomeStoreCardViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         serializer.save()
 
     def perform_destroy(self, instance):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
         if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
             raise PermissionDenied('You cannot manage this store.')
         instance.delete()

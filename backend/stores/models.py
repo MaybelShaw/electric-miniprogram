@@ -121,8 +121,8 @@ class StoreMember(models.Model):
     ROLE_CHOICES = [
         (ROLE_PLATFORM_ADMIN, "平台管理员"),
         (ROLE_STORE_ADMIN, "店铺管理员"),
-        (ROLE_STORE_SUB_ADMIN, "店铺子管理员"),
-        (ROLE_STORE_STAFF, "店铺运营"),
+        (ROLE_STORE_SUB_ADMIN, "店铺管理员"),
+        (ROLE_STORE_STAFF, "店铺管理员"),
     ]
 
     STATUS_ACTIVE = "active"
@@ -135,7 +135,7 @@ class StoreMember(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="store_memberships", verbose_name="用户")
     store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name="members", verbose_name="店铺")
-    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_STORE_STAFF, verbose_name="成员角色")
+    role = models.CharField(max_length=32, choices=ROLE_CHOICES, default=ROLE_STORE_ADMIN, verbose_name="成员角色")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name="状态")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")

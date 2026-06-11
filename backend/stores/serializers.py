@@ -82,7 +82,7 @@ class StoreMemberSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         user = attrs.get("user", getattr(self.instance, "user", None))
-        role = attrs.get("role", getattr(self.instance, "role", StoreMember.ROLE_STORE_STAFF))
+        role = attrs.get("role", getattr(self.instance, "role", StoreMember.ROLE_STORE_ADMIN))
         status = attrs.get("status", getattr(self.instance, "status", StoreMember.STATUS_ACTIVE))
         if user and status == StoreMember.STATUS_ACTIVE and role != StoreMember.ROLE_PLATFORM_ADMIN:
             exists = (

@@ -6,7 +6,6 @@ export const ROUTE_PERMISSION_MAP: Record<string, string> = {
   '/admin/account-transactions': 'finance.view',
   '/admin/home-banners': 'store_content.manage',
   '/admin/special-zones': 'store_content.manage',
-  '/admin/home-store-cards': 'store_content.manage',
   '/admin/brands': 'catalog.manage',
   '/admin/categories': 'catalog.manage',
   '/admin/products': 'catalog.manage',

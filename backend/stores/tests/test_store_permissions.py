@@ -151,12 +151,19 @@ class StoreMarketplacePermissionTest(TestCase):
 
         self.assertIn(PERMISSION_ORDERS_ADJUST_AMOUNT, get_membership_permissions(admin))
         self.assertIn(PERMISSION_ORDERS_SHIP, get_membership_permissions(sub_admin))
-        self.assertNotIn(PERMISSION_ORDERS_ADJUST_AMOUNT, get_membership_permissions(sub_admin))
+        self.assertIn(PERMISSION_ORDERS_ADJUST_AMOUNT, get_membership_permissions(sub_admin))
         self.assertTrue(can_manage_store(sub_admin.user, self.partner))
 
     def test_merchant_route_permission_map_uses_backend_permission_codes(self):
-        repo_root = Path(__file__).resolve().parents[3]
-        permissions_file = repo_root / "merchant" / "src" / "utils" / "permissions.ts"
+        permissions_file = None
+        for parent in Path(__file__).resolve().parents:
+            candidate = parent / "merchant" / "src" / "utils" / "permissions.ts"
+            if candidate.exists():
+                permissions_file = candidate
+                break
+        if permissions_file is None:
+            self.skipTest("merchant permissions file is not mounted in this test environment")
+
         permission_map_text = permissions_file.read_text(encoding="utf-8")
         merchant_permission_codes = set(re.findall(r":\s*'([^']+)'", permission_map_text))
         backend_permission_codes = STORE_OPERATION_PERMISSIONS | {
@@ -193,7 +200,7 @@ class StoreMarketplacePermissionTest(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.actual_amount, Decimal("90.00"))
 
-    def test_store_sub_admin_can_ship_but_cannot_adjust_amount(self):
+    def test_legacy_store_sub_admin_can_ship_and_adjust_amount(self):
         sub_admin = self.create_user("partner-sub-admin", is_staff=True, role="admin")
         customer = self.create_user("customer")
         StoreMember.objects.create(user=sub_admin, store=self.partner, role=StoreMember.ROLE_STORE_SUB_ADMIN)
@@ -205,7 +212,7 @@ class StoreMarketplacePermissionTest(TestCase):
             quantity=1,
             total_amount=Decimal("100.00"),
             actual_amount=Decimal("100.00"),
-            status="paid",
+            status="pending",
         )
 
         self.client.force_authenticate(sub_admin)
@@ -214,18 +221,22 @@ class StoreMarketplacePermissionTest(TestCase):
             {"actual_amount": "90.00"},
             format="json",
         )
+        order.refresh_from_db()
+        order.status = "paid"
+        order.save(update_fields=["status"])
         ship_response = self.client.patch(
             f"/api/orders/{order.id}/ship/",
             {"express_company": "STO", "logistics_no": "STO123456"},
             format="json",
         )
 
-        self.assertEqual(adjust_response.status_code, 403)
+        self.assertEqual(adjust_response.status_code, 200, adjust_response.content)
         self.assertEqual(ship_response.status_code, 200, ship_response.content)
         order.refresh_from_db()
+        self.assertEqual(order.actual_amount, Decimal("90.00"))
         self.assertEqual(order.status, "shipped")
 
-    def test_store_admin_can_create_sub_admin_for_own_store_only(self):
+    def test_store_admin_can_create_store_admin_for_own_store_only(self):
         admin = self.create_user("partner-admin", is_staff=True, role="admin")
         sub_admin = self.create_user("new-sub-admin")
         platform_member = self.create_user("new-platform-member")
@@ -237,7 +248,7 @@ class StoreMarketplacePermissionTest(TestCase):
             {
                 "user": sub_admin.id,
                 "store": self.partner.id,
-                "role": StoreMember.ROLE_STORE_SUB_ADMIN,
+                "role": StoreMember.ROLE_STORE_ADMIN,
                 "status": StoreMember.STATUS_ACTIVE,
             },
             format="json",
@@ -370,10 +381,10 @@ class StoreMarketplacePermissionTest(TestCase):
         self.assertFalse(Case.objects.filter(title="Store case").exists())
 
     def test_finance_permission_filters_store_account_data(self):
-        staff = self.create_user("finance-staff", is_staff=True, role="admin")
+        legacy_staff = self.create_user("finance-staff", is_staff=True, role="admin")
         admin = self.create_user("finance-admin", is_staff=True, role="admin")
         customer = self.create_user("finance-customer", role="dealer")
-        StoreMember.objects.create(user=staff, store=self.partner, role=StoreMember.ROLE_STORE_STAFF)
+        legacy_staff_membership = StoreMember.objects.create(user=legacy_staff, store=self.partner, role=StoreMember.ROLE_STORE_STAFF)
         admin_membership = StoreMember.objects.create(user=admin, store=self.partner, role=StoreMember.ROLE_STORE_ADMIN)
         product = self.create_store_product(self.partner, "Finance product")
         order = Order.objects.create(
@@ -402,8 +413,9 @@ class StoreMarketplacePermissionTest(TestCase):
         )
 
         self.assertIn(PERMISSION_FINANCE_VIEW, get_membership_permissions(admin_membership))
+        self.assertIn(PERMISSION_FINANCE_VIEW, get_membership_permissions(legacy_staff_membership))
 
-        self.client.force_authenticate(staff)
+        self.client.force_authenticate(legacy_staff)
         staff_statements = self.client.get("/api/account-statements/")
         staff_transactions = self.client.get("/api/account-transactions/")
 
@@ -414,8 +426,8 @@ class StoreMarketplacePermissionTest(TestCase):
 
         self.assertEqual(staff_statements.status_code, 200, staff_statements.content)
         self.assertEqual(staff_transactions.status_code, 200, staff_transactions.content)
-        self.assertEqual(staff_statements.data["results"], [])
-        self.assertEqual(staff_transactions.data["results"], [])
+        self.assertEqual([item["id"] for item in staff_statements.data["results"]], [statement.id])
+        self.assertEqual([item["id"] for item in staff_transactions.data["results"]], [statement.transactions.first().id])
         self.assertEqual([item["id"] for item in admin_statements.data["results"]], [statement.id])
         self.assertEqual([item["id"] for item in admin_transactions.data["results"]], [statement.transactions.first().id])
         self.assertEqual(admin_confirm.status_code, 403)

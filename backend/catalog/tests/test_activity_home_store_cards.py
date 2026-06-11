@@ -62,16 +62,40 @@ class ActivityHomeStoreCardTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertTrue(SpecialZoneProduct.objects.filter(zone=zone, product=product).exists())
 
-    def test_partner_cannot_create_activity(self):
+    def test_partner_can_create_store_activity(self):
         self.client.force_authenticate(self.partner_admin)
 
         response = self.client.post(
-            "/api/catalog/special-zones/",
+            f"/api/catalog/special-zones/?store={self.partner.id}",
             {
                 "store_id": self.partner.id,
                 "title": "Partner Activity",
                 "slug": "partner-activity",
                 "kind": SpecialZone.KIND_STORE_ACTIVITY,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["kind"], SpecialZone.KIND_STORE_ACTIVITY)
+
+    def test_partner_cannot_create_home_store_card(self):
+        products = []
+        category_ids = []
+        for index in range(5):
+            product, major = self.create_product(self.partner, f"Partner Card Product {index}")
+            products.append(product)
+            category_ids.append(major.id)
+        self.client.force_authenticate(self.partner_admin)
+
+        response = self.client.post(
+            "/api/catalog/home-store-cards/",
+            {
+                "store_id": self.partner.id,
+                "title": "Partner Card",
+                "main_product_id": products[0].id,
+                "secondary_product_ids": [product.id for product in products[1:]],
+                "category_ids": category_ids[:3],
             },
             format="json",
         )

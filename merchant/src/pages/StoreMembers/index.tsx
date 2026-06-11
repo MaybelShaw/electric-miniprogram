@@ -18,12 +18,9 @@ export default function StoreMembers() {
     ? [
         { label: '平台管理员', value: 'platform_admin' },
         { label: '店铺管理员', value: 'store_admin' },
-        { label: '店铺子管理员', value: 'store_sub_admin' },
-        { label: '店铺运营', value: 'store_staff' },
       ]
     : [
-        { label: '店铺子管理员', value: 'store_sub_admin' },
-        { label: '店铺运营', value: 'store_staff' },
+        { label: '店铺管理员', value: 'store_admin' },
       ];
 
   useEffect(() => {
@@ -46,13 +43,13 @@ export default function StoreMembers() {
 
   const canManageRecord = (record: StoreMember) => {
     if (isPlatformAdmin) return true;
-    return ['store_sub_admin', 'store_staff'].includes(record.role);
+    return record.role !== 'platform_admin';
   };
 
   const openCreate = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ role: isPlatformAdmin ? 'store_admin' : 'store_sub_admin', status: 'active' });
+    form.setFieldsValue({ role: 'store_admin', status: 'active' });
     setModalVisible(true);
   };
 
@@ -73,8 +70,8 @@ export default function StoreMembers() {
       valueEnum: {
         platform_admin: { text: '平台管理员' },
         store_admin: { text: '店铺管理员' },
-        store_sub_admin: { text: '店铺子管理员' },
-        store_staff: { text: '店铺运营' },
+        store_sub_admin: { text: '店铺管理员' },
+        store_staff: { text: '店铺管理员' },
       },
     },
     {

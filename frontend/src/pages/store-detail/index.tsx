@@ -10,9 +10,6 @@ import { Brand, Category, HomeBanner, Product, SpecialZone, Store } from '../../
 import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
-const CURRENT_STORE_ID_KEY = 'current_store_id'
-const CURRENT_STORE_NAME_KEY = 'current_store_name'
-
 interface DisplayCategory extends Partial<Category> {
   id?: number
   name: string
@@ -70,7 +67,6 @@ export default function StoreDetailPage() {
   const [zones, setZones] = useState<SpecialZone[]>([])
   const [storeProducts, setStoreProducts] = useState<Product[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
-  const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
@@ -135,11 +131,6 @@ export default function StoreDetailPage() {
     ...(resolveLocalMediaUrl(store?.cover_image) ? { imageUrl: resolveLocalMediaUrl(store?.cover_image) } : {}),
   }))
 
-  const rememberCurrentStore = (currentStore: Store) => {
-    Taro.setStorageSync(CURRENT_STORE_ID_KEY, currentStore.id)
-    Taro.setStorageSync(CURRENT_STORE_NAME_KEY, currentStore.name)
-  }
-
   const loadFeaturedProducts = async () => {
     try {
       const featuredResult = await productService.getProducts({ store: storeId, page: 1, page_size: 5, sort_by: 'sales' })
@@ -158,13 +149,11 @@ export default function StoreDetailPage() {
       )
 
       setStore(detail.store)
-      rememberCurrentStore(detail.store)
       setBanners(detail.banners || [])
       setCategories(detail.categories || [])
       setBrands(detail.brands || [])
       setZones(detail.special_zones || [])
       setStoreProducts(detail.products || [])
-      setNewArrivalProducts(detail.new_arrivals || [])
       setPage(1)
       setHasMore(!categoryId && (detail.products || []).length >= 20)
       setSelectedCategoryId(categoryId)
@@ -462,47 +451,6 @@ export default function StoreDetailPage() {
                 </SwiperItem>
               ))}
             </Swiper>
-          </View>
-        )}
-
-        {newArrivalProducts.length > 0 && (
-          <View className='store-section'>
-            <View className='section-header'>
-              <View>
-                <Text className='section-kicker'>新品上新</Text>
-                <Text className='section-title'>图片轮播和新品商品</Text>
-              </View>
-            </View>
-
-            <ScrollView className='arrival-scroll' scrollX scrollWithAnimation>
-              <View className='arrival-track'>
-                {newArrivalProducts.slice(0, 8).map((product) => {
-                  const imageUrl = getProductCover(product)
-                  return (
-                    <View key={product.id} className='arrival-card' onClick={() => goToProduct(product.id)}>
-                      <View className='arrival-media'>
-                        {imageUrl ? (
-                          <Image className='arrival-image' src={imageUrl} mode='aspectFill' />
-                        ) : (
-                          <View className='arrival-fallback'>
-                            <AppIcon name='package' tone='muted' />
-                          </View>
-                        )}
-                        <View className='arrival-badge'>新品</View>
-                      </View>
-                      <View className='arrival-body'>
-                        <Text className='arrival-name'>{product.name}</Text>
-                        <Text className='arrival-desc'>{product.brand || '店铺新品'}</Text>
-                        <View className='arrival-footer'>
-                          <PriceText value={getSellingPrice(product)} size='sm' />
-                          <Text className='arrival-stock'>{getStockLabel(product)}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  )
-                })}
-              </View>
-            </ScrollView>
           </View>
         )}
 

@@ -24,8 +24,8 @@ from .serializers import (
     SupportMessageSerializer,
     SupportReplyTemplateSerializer,
 )
-from stores.models import Store, StoreMember
-from stores.permissions import can_manage_store, get_accessible_stores, has_store_role, is_platform_admin, is_support_user
+from stores.models import Store
+from stores.permissions import can_manage_store, get_accessible_stores, is_platform_admin, is_support_user
 from users.models import User
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def _can_reply_feedback_ticket(user, ticket):
 
 
 def _can_close_feedback_ticket(user, ticket):
-    return is_platform_admin(user) or has_store_role(user, ticket.store, StoreMember.ROLE_STORE_ADMIN)
+    return is_platform_admin(user) or can_manage_store(user, ticket.store)
 
 
 def _collect_feedback_images(request):

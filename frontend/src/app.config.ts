@@ -1,7 +1,6 @@
 export default defineAppConfig({
   pages: [
     'pages/home/index',
-    'pages/new-arrivals/index',
     'pages/category/index',
     'pages/product-list/index',
     'pages/cart/index',
@@ -59,10 +58,16 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tabbar/home-active.png'
       },
       {
-        pagePath: 'pages/new-arrivals/index',
-        text: '新品',
+        pagePath: 'pages/category/index',
+        text: '分类',
         iconPath: 'assets/tabbar/category.png',
         selectedIconPath: 'assets/tabbar/category-active.png'
+      },
+      {
+        pagePath: 'pages/cart/index',
+        text: '购物车',
+        iconPath: 'assets/tabbar/cart.png',
+        selectedIconPath: 'assets/tabbar/cart-active.png'
       },
       {
         pagePath: 'pages/profile/index',

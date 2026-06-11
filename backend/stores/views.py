@@ -186,8 +186,8 @@ class StoreMemberViewSet(viewsets.ModelViewSet):
             return
         if not has_store_permission(self.request.user, store, PERMISSION_STORE_MEMBERS_MANAGE):
             raise PermissionDenied("You cannot manage members of this store.")
-        if role in {StoreMember.ROLE_PLATFORM_ADMIN, StoreMember.ROLE_STORE_ADMIN}:
-            raise PermissionDenied("Store admins can only assign sub-admin or staff roles.")
+        if role == StoreMember.ROLE_PLATFORM_ADMIN:
+            raise PermissionDenied("Store admins cannot assign platform admin roles.")
 
     def perform_create(self, serializer):
         store = serializer.validated_data.get("store")

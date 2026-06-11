@@ -40,7 +40,7 @@
 ## 路由结构
 - 登录保护：`merchant/src/App.tsx:16`
 - 店铺上下文：登录后 `Layout` 调用 `GET /api/stores/current/`，平台管理员可在顶栏选择当前店铺；选中店铺会随请求作为 `store` 参数透传。
-- 店铺用户：拥有激活 `StoreMember` 的账号可登录商家后台，菜单收敛为本店商品、分类、品牌、轮播、订单、发票、折扣和问题建议等业务入口。
+- 店铺用户：拥有激活 `StoreMember` 的账号可登录商家后台，菜单收敛为本店成员、客户分组、商品、分类、品牌、轮播、活动、订单、发票和问题建议等业务入口。
 - 主要路由：`merchant/src/App.tsx:31`
   - `/users` 用户管理
   - `/user-stats` 用户统计
@@ -63,7 +63,7 @@
   - `/account-transactions` 账务交易记录
   - `/invoices` 发票管理
   - `/home-banners` 轮播图管理
-  - `/home-store-cards` 首页店铺卡片管理
+  - `/home-store-cards` 首页卡片管理（平台管理员）
   - `/special-zones` 动态运营专区
   - `/special-zone-covers` 专区封面
   - `/cases` 案例管理
@@ -129,7 +129,7 @@
       - 管理员验收：`PATCH /api/orders/{id}/receive_return/`
       - 管理员退款：`PATCH /api/orders/{id}/complete_refund/`
 - 轮播图管理：
-  - 店铺首页共用模板复用本页轮播图能力，只展示图片，不支持视频；店铺管理员维护本店轮播图，作为小程序店铺首页和“新品”页的图片轮播来源。
+  - 店铺首页共用模板复用本页轮播图能力，只展示图片，不支持视频；店铺管理员维护本店轮播图，作为小程序店铺首页图片展示来源。
   - 支持按位置管理轮播图：首页、礼品专区、设计师专区、爆品专区、优惠专区
   - 支持选择动态运营专区作为轮播归属，用于 `618大促`、`夏季大促` 等专区页顶部轮播
   - 功能：列表查看、新增、编辑、删除、启用/禁用
@@ -137,16 +137,20 @@
 - 动态运营专区：
   - 页面位置：`merchant/src/pages/SpecialZones/index.tsx`，菜单入口 `/admin/special-zones`
   - 平台管理员可在专区表单选择店铺，为任意店铺创建、编辑、删除活动、优惠、品类、品牌或自定义专区
-  - 店铺用户只看到并维护本店专区；请求会随当前店铺上下文带上 `store` 参数
+  - 店铺管理员只看到并维护本店 `store_activity`；请求会随当前店铺上下文带上 `store` 参数
   - 配置字段：标题、标识、类型、副标题、封面、首页排序、首页显示、启停、开始时间、结束时间
   - 商品绑定：在专区列表点击“商品”，可搜索本店商品并维护专区内排序与显隐，跨店商品由后端拒绝
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/special-zones/`，`GET/POST/DELETE /api/catalog/special-zones/{id}/products/`
+- 首页卡片管理：
+  - 页面位置：`merchant/src/pages/HomeStoreCards/index.tsx`，菜单入口 `/admin/home-store-cards`
+  - 用于平台/主店首页橱窗卡片：选择店铺、1 个主推商品、4 个副推商品和至少 3 个一级分类。
+  - 仅平台管理员可新增、编辑、删除；店铺管理员通过轮播图和动态运营专区配置本店首页内容。
 - 案例管理：
   - 支持案例的 CRUD 操作，案例用于设计师专区展示
   - 字段：`title`, `order`, `is_active`, `cover_image`, `detail_blocks`（图文详情块）
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/cases/`
   - 详情块类型：`text`（文本块）, `image`（图片块），支持按 `order` 排序组合
-- 折扣管理：创建/更新/删除、批量设置目标（后端支持） `backend/orders/views.py:1047`
+- 折扣管理：创建/更新/删除、批量设置目标（平台管理员） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`
 - 信用账户：列表与编辑（额度、账期、激活状态） `merchant/src/services/api.ts:74`
 - 对账单：
@@ -213,7 +217,7 @@
 - 权限：
   - 平台管理员可查看、回复、关闭全部工单。
   - 店铺管理员可查看、回复、关闭本店工单。
-  - 店铺子管理员和店铺员工可查看、回复本店工单，不能关闭。
+  - 历史店铺角色按店铺管理员兼容处理。
   - support 账号可查看、回复全部工单，不能关闭。
 
 ## 账务对账单页面
