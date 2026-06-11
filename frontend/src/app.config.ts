@@ -20,6 +20,7 @@ export default defineAppConfig({
     'pages/search/index',
     'pages/store-list/index',
     'pages/store-detail/index',
+    'pages/store-category/index',
     'pages/special-zone/index',
     'pages/case-detail/index',
     'pages/brand/index',

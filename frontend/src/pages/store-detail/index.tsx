@@ -6,7 +6,7 @@ import PriceText from '../../components/PriceText'
 import AppIcon from '../../components/AppIcon'
 import { productService } from '../../services/product'
 import { storeService } from '../../services/store'
-import { Brand, Category, HomeBanner, Product, SpecialZone, Store } from '../../types'
+import { Category, HomeBanner, Product, SpecialZone, Store } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
@@ -52,27 +52,22 @@ function getCategoryCopy(category: DisplayCategory) {
   if (category.children?.length) {
     return `${category.children.length} 个子类`
   }
-  return '点击查看品牌和商品'
+  return ''
 }
 
 export default function StoreDetailPage() {
   const router = useRouter()
   const storeId = Number(router.params.id || router.params.store_id || 0)
-  const initialCategoryId = Number(router.params.category_id || 0) || undefined
 
   const [store, setStore] = useState<Store | null>(null)
   const [banners, setBanners] = useState<HomeBanner[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
   const [zones, setZones] = useState<SpecialZone[]>([])
   const [storeProducts, setStoreProducts] = useState<Product[]>([])
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(initialCategoryId)
-  const [selectedCategoryName, setSelectedCategoryName] = useState('')
-  const [selectedBrandName, setSelectedBrandName] = useState('')
 
   const displayCategories = useMemo<DisplayCategory[]>(() => categories, [categories])
 
@@ -106,7 +101,7 @@ export default function StoreDetailPage() {
     return [...bannerSlides, ...productSlides].slice(0, 6)
   }, [banners, featuredProducts, storeProducts, store?.name])
 
-  const currentFocusLabel = selectedBrandName || selectedCategoryName || '全部商品'
+  const currentFocusLabel = '全部商品'
 
   useEffect(() => {
     if (!storeId) {
@@ -114,7 +109,7 @@ export default function StoreDetailPage() {
       return
     }
 
-    loadStoreDetail(initialCategoryId)
+    loadStoreDetail()
     loadFeaturedProducts()
     Taro.showShareMenu({ withShareTicket: true })
   }, [storeId])
@@ -140,54 +135,21 @@ export default function StoreDetailPage() {
     }
   }
 
-  const loadStoreDetail = async (categoryId?: number) => {
+  const loadStoreDetail = async () => {
     setLoading(true)
     try {
-      const detail = await storeService.getStoreDetail(
-        storeId,
-        categoryId ? { category_id: categoryId } : undefined,
-      )
+      const detail = await storeService.getStoreDetail(storeId)
 
       setStore(detail.store)
       setBanners(detail.banners || [])
       setCategories(detail.categories || [])
-      setBrands(detail.brands || [])
       setZones(detail.special_zones || [])
       setStoreProducts(detail.products || [])
       setPage(1)
-      setHasMore(!categoryId && (detail.products || []).length >= 20)
-      setSelectedCategoryId(categoryId)
-      setSelectedCategoryName(
-        categoryId
-          ? (detail.categories || []).find(category => category.id === categoryId)?.name || ''
-          : '',
-      )
-      setSelectedBrandName('')
+      setHasMore((detail.products || []).length >= 20)
       Taro.setNavigationBarTitle({ title: detail.store.name })
     } catch {
       Taro.showToast({ title: '加载店铺失败', icon: 'none' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadBrandProducts = async (brandName: string, pageNum = 1) => {
-    setLoading(true)
-    try {
-      const res = await productService.getProductsByBrand({
-        brand: brandName,
-        store: storeId,
-        category_id: selectedCategoryId,
-        page: pageNum,
-        page_size: 20,
-      })
-
-      setStoreProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
-      setPage(pageNum)
-      setHasMore(res.has_next || false)
-      setSelectedBrandName(brandName)
-    } catch {
-      Taro.showToast({ title: '加载品牌失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -205,9 +167,6 @@ export default function StoreDetailPage() {
       setStoreProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setPage(pageNum)
       setHasMore(res.has_next || false)
-      setSelectedCategoryId(undefined)
-      setSelectedCategoryName('')
-      setSelectedBrandName('')
     } catch {
       Taro.showToast({ title: '加载商品失败', icon: 'none' })
     } finally {
@@ -215,20 +174,8 @@ export default function StoreDetailPage() {
     }
   }
 
-  const resetFilters = async () => {
-    if (loading) return
-    await loadStoreDetail()
-  }
-
   const loadMoreProducts = async () => {
     if (loading || !hasMore) return
-    if (selectedCategoryId) return
-
-    if (selectedBrandName) {
-      await loadBrandProducts(selectedBrandName, page + 1)
-      return
-    }
-
     await loadGeneralProducts(page + 1)
   }
 
@@ -242,24 +189,9 @@ export default function StoreDetailPage() {
 
   const handleCategoryClick = async (category: DisplayCategory) => {
     if (loading || !category.id) return
-
-    if (selectedCategoryId === category.id) {
-      await resetFilters()
-      return
-    }
-
-    await loadStoreDetail(category.id)
-  }
-
-  const handleBrandClick = async (brand: Brand) => {
-    if (loading) return
-
-    if (selectedBrandName === brand.name) {
-      await loadStoreDetail(selectedCategoryId)
-      return
-    }
-
-    await loadBrandProducts(brand.name)
+    Taro.navigateTo({
+      url: `/pages/store-category/index?store_id=${storeId}&category_id=${category.id}&category_name=${encodeURIComponent(category.name)}`,
+    })
   }
 
   const handleBannerClick = (banner: HomeBanner) => {
@@ -343,72 +275,28 @@ export default function StoreDetailPage() {
             <View className='section-header'>
               <View>
                 <Text className='section-kicker'>产品类别</Text>
-                <Text className='section-title'>先选类别，再看品牌</Text>
               </View>
             </View>
 
             <ScrollView className='category-scroll' scrollX scrollWithAnimation>
               <View className='category-track'>
-                {displayCategories.map((category) => {
-                  const isActive = selectedCategoryId === category.id
-                  return (
-                    <View
-                      key={category.id || category.name}
-                      className={`category-card ${isActive ? 'active' : ''}`}
-                      onClick={() => handleCategoryClick(category)}
-                    >
-                      <View className='category-media'>
-                        {resolveLocalMediaUrl(category.logo) ? (
-                          <Image className='category-image' src={resolveLocalMediaUrl(category.logo)} mode='aspectFit' />
-                        ) : (
-                          <View className='category-fallback'>{category.name.charAt(0)}</View>
-                        )}
-                      </View>
-                      <Text className='category-name'>{category.name}</Text>
-                      <Text className='category-copy'>{getCategoryCopy(category)}</Text>
+                {displayCategories.map(category => (
+                  <View
+                    key={category.id || category.name}
+                    className='category-card'
+                    onClick={() => handleCategoryClick(category)}
+                  >
+                    <View className='category-media'>
+                      {resolveLocalMediaUrl(category.logo) ? (
+                        <Image className='category-image' src={resolveLocalMediaUrl(category.logo)} mode='aspectFit' />
+                      ) : (
+                        <View className='category-fallback'>{category.name.charAt(0)}</View>
+                      )}
                     </View>
-                  )
-                })}
-              </View>
-            </ScrollView>
-          </View>
-        )}
-
-        {brands.length > 0 && (
-          <View className='store-section'>
-            <View className='section-header'>
-              <View>
-                <Text className='section-kicker'>品牌分类</Text>
-                <Text className='section-title'>
-                  {selectedCategoryName || selectedCategoryId ? '当前类别下的品牌' : '店铺品牌'}
-                </Text>
-              </View>
-            </View>
-
-            <ScrollView className='brand-scroll' scrollX scrollWithAnimation>
-              <View className='brand-track'>
-                {brands.map((brand) => {
-                  const isActive = selectedBrandName === brand.name
-                  return (
-                    <View
-                      key={brand.id || brand.name}
-                      className={`brand-card ${isActive ? 'active' : ''}`}
-                      onClick={() => handleBrandClick(brand)}
-                    >
-                      <View className='brand-media'>
-                        {resolveLocalMediaUrl(brand.logo) ? (
-                          <Image className='brand-image' src={resolveLocalMediaUrl(brand.logo)} mode='aspectFit' />
-                        ) : (
-                          <View className='brand-fallback'>
-                            <AppIcon name='store' tone='muted' />
-                          </View>
-                        )}
-                      </View>
-                      <Text className='brand-name'>{brand.name}</Text>
-                      <Text className='brand-copy'>{brand.description || '点击查看该品牌产品'}</Text>
-                    </View>
-                  )
-                })}
+                    <Text className='category-name'>{category.name}</Text>
+                    {getCategoryCopy(category) ? <Text className='category-copy'>{getCategoryCopy(category)}</Text> : null}
+                  </View>
+                ))}
               </View>
             </ScrollView>
           </View>
@@ -418,8 +306,7 @@ export default function StoreDetailPage() {
           <View className='store-section'>
             <View className='section-header'>
               <View>
-                <Text className='section-kicker'>产品大图</Text>
-                <Text className='section-title'>展示价格和库存</Text>
+                <Text className='section-kicker'>推荐产品</Text>
               </View>
             </View>
 
@@ -433,9 +320,7 @@ export default function StoreDetailPage() {
                     </View>
                     <View className='showcase-body'>
                       <Text className='showcase-title'>{slide.product?.name || slide.title}</Text>
-                      <Text className='showcase-desc'>
-                        {slide.product?.description || '点击查看详细产品介绍'}
-                      </Text>
+                      {slide.product?.description ? <Text className='showcase-desc'>{slide.product.description}</Text> : null}
                       <View className='showcase-footer'>
                         {slide.product ? (
                           <>
@@ -443,7 +328,7 @@ export default function StoreDetailPage() {
                             <View className='stock-pill'>{getStockLabel(slide.product)}</View>
                           </>
                         ) : (
-                          <View className='showcase-footnote'>点击进入详情</View>
+                          <View className='showcase-footnote'>{slide.title}</View>
                         )}
                       </View>
                     </View>
@@ -458,8 +343,7 @@ export default function StoreDetailPage() {
           <View className='store-section'>
             <View className='section-header'>
               <View>
-                <Text className='section-kicker'>店铺专区</Text>
-                <Text className='section-title'>活动和专题入口</Text>
+                <Text className='section-kicker'>店铺活动</Text>
               </View>
             </View>
             <View className='zone-grid'>
@@ -493,7 +377,7 @@ export default function StoreDetailPage() {
           {loading && <View className='status-text'>加载中...</View>}
           {!loading && storeProducts.length === 0 && (
             <View className='empty-panel'>
-              <Text className='status-text'>当前没有可展示的商品</Text>
+              <Text className='status-text'>暂无商品</Text>
             </View>
           )}
           {!loading && !hasMore && storeProducts.length > 0 && <View className='status-text'>没有更多商品了</View>}
