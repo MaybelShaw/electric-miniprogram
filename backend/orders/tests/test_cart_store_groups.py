@@ -17,11 +17,7 @@ class CartStoreGroupTests(TestCase):
         self.client.force_authenticate(self.user)
         self.cart = Cart.objects.create(user=self.user)
 
-        self.main_store = Store.objects.create(
-            name="Main Store",
-            code="main-cart-store",
-            store_type=Store.TYPE_SELF_OPERATED,
-        )
+        self.main_store = Store.objects.get(code=Store.MAIN_STORE_CODE)
         self.partner_store = Store.objects.create(
             name="Partner Store",
             code="partner-cart-store",
@@ -59,10 +55,13 @@ class CartStoreGroupTests(TestCase):
             [self.partner_store.id, self.main_store.id],
         )
         self.assertEqual(payload["store_groups"][0]["store_name"], "Partner Store")
+        self.assertFalse(payload["store_groups"][0]["store_is_main"])
         self.assertEqual(payload["store_groups"][0]["item_count"], 2)
         self.assertEqual(payload["store_groups"][0]["total_quantity"], 4)
         self.assertEqual(payload["store_groups"][1]["item_count"], 1)
+        self.assertTrue(payload["store_groups"][1]["store_is_main"])
         self.assertEqual(payload["store_groups"][1]["items"][0]["store_id"], self.main_store.id)
+        self.assertTrue(payload["store_groups"][1]["items"][0]["store_is_main"])
 
     def test_my_cart_marks_inactive_product_unavailable(self):
         self.partner_product.is_active = False

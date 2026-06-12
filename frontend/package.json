@@ -12,6 +12,8 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
+    "clean:dist": "node scripts/clean-dist.cjs",
+    "prebuild:weapp": "npm run clean:dist",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",

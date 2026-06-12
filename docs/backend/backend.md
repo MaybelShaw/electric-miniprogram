@@ -200,7 +200,7 @@
     - 商品列表兼容：`GET /products/?special_zone=<id>` 可按动态专区筛选商品；旧固定专区字段与 `position` 仍保留兼容。
   - `GET/POST/PATCH/DELETE /home-store-cards/` 首页卡片 `backend/catalog/urls.py`
     - 用途：配置庆勋主店/平台首页橱窗卡片，不用于“新品上新”活动。
-    - 字段：店铺、标题、副标题、排序、启停、1 个主推商品、4 个副推商品、至少 3 个一级分类。
+    - 字段：店铺、`store_type`、`store_is_main`、标题、副标题、排序、启停、1 个主推商品、4 个副推商品、至少 3 个一级分类。
     - 权限：公开 GET 只返回启用卡片；POST/PATCH/DELETE 仅平台管理员可用。
   - `GET /cases/` 案例列表（公开）`backend/catalog/urls.py`
     - 返回字段：`{ id, title, order, is_active, cover_image_id, cover_image_url, created_at, updated_at }`
@@ -211,8 +211,8 @@
     - 说明：详情块用于实现“详细（图文）”，支持文本块与图片块按 `order` 排序组合展示。
 - 订单与支付：
   - `GET /cart/my_cart/` 获取购物车 `backend/orders/views.py:1661`
-    - 响应保留原平铺 `items`，并新增 `store_groups`，每组包含 `store_id`、`store_name`、`store_logo`、`store_type`、`item_count`、`total_quantity` 和该店铺下的 `items`。
-    - 店铺顺序按购物车项加入顺序确定：某店铺最早加入的商品越早，该店铺越靠前；单个购物车项返回 `is_available` 与 `unavailable_reason`，用于前端拦截已下架、规格下架或库存不足商品。
+    - 响应保留原平铺 `items`，并新增 `store_groups`，每组包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`item_count`、`total_quantity` 和该店铺下的 `items`。
+    - 店铺顺序按购物车项加入顺序确定：某店铺最早加入的商品越早，该店铺越靠前；`store_is_main` 用于前端将主店铺入口返回平台首页；单个购物车项返回 `is_available` 与 `unavailable_reason`，用于前端拦截已下架、规格下架或库存不足商品。
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
     - 查询参数：`status`（支持单状态如 `paid` 或多状态逗号分隔如 `returning,refunding,refunded`）。当传入 `returning` 时，除订单本身状态为 `returning` 外，还会包含存在退货申请且状态为 `requested|approved|in_transit|received` 的订单；当传入 `completed` 时，将排除上述处于退货流程中的订单。

@@ -27,10 +27,12 @@
   ```bash
   npm run dev:weapp
   ```
+  - 启动前会自动清理旧 `frontend/dist`，避免删除页面后 watch 仍加载旧页面依赖。
 - 构建（微信小程序）：
   ```bash
   npm run build:weapp
   ```
+  - 构建前会自动清理旧 `frontend/dist`。
 - H5 开发/构建：
   ```bash
   npm run dev:h5
@@ -216,7 +218,10 @@
 - `kind='brand'` 的品牌店铺专区入口跳转到 `/pages/store-list/index`，不再用商品卡片模拟店铺入口。
 - 入驻店铺列表页 `/pages/store-list/index` 展示当前平台下 `show_on_home=true` 且启用中的合作方店铺。
 - 店铺详情页 `/pages/store-detail/index?id=<store_id>` 是多店铺共用模板，展示该真实经营店铺的公司名称、Logo、封面、图片轮播、产品类别入口、产品大图、价格、库存、动态专区和商品摘要；品牌分类不在首页默认堆叠展示。
-- 底部导航保持 `首页 / 分类 / 购物车 / 我的`；“新品上新”不作为底部导航入口，统一由店铺后台的动态运营专区配置成活动卡片。
+- 店铺详情页、店铺分类页和店铺我的页使用店铺内部底部导航 `首页 / 分类 / 我的`；三项均保留当前 `store_id` 上下文。店铺上下文不提供独立购物车页面或底部购物车入口，平台购物车仍为 `/pages/cart/index`。全局平台 TabBar 不因店铺模板而改变。
+- 平台购物车按店铺分组展示；点击合作方店铺进入对应店铺首页，点击主店铺（`store_is_main=true`）返回平台首页 `/pages/home/index`。
+- 所有主店铺入口都回到平台首页；店铺上下文页只用于合作方店铺，若旧链接打开主店铺店铺页，会自动返回平台首页。
+- “新品上新”不作为底部导航入口，统一由店铺后台的动态运营专区配置成活动卡片。
 - 店铺详情页的“产品类别 -> 品牌 -> 商品”流程：默认只展示产品类别；点击一级类别后跳转 `/pages/store-category/index?store_id=<store_id>&category_id=<category_id>`，类别页调用公开店铺详情接口并传入 `category_id`，此时才展示品牌分类，品牌列表只包含该分类树下有上架商品的品牌；点击品牌后调用 `getProductsByBrand` 并携带 `store` 与 `category_id`。
 - 店铺详情内进入专区时携带 `store_id`：`/pages/special-zone/index?zone_id=<id>&store_id=<store_id>`，专区页和商品列表页会按该店铺上下文查询数据。
 - 进入合作方店铺详情只改变前台浏览上下文，不代表用户获得该店铺后台权限。

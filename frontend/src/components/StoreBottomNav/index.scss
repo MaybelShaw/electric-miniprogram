@@ -1,0 +1,47 @@
+@use '../../styles/variables.scss' as *;
+
+.store-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid $border-color;
+  background: rgba($showroom-surface, 0.98);
+  box-shadow: 0 -10px 24px rgba(20, 25, 31, 0.08);
+}
+
+.store-bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 4px;
+  color: $text-color-secondary;
+  font-size: 20px;
+  line-height: 1.2;
+
+  .app-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  &:active {
+    opacity: 0.78;
+  }
+}
+
+.store-bottom-nav__item--active {
+  color: $primary-color;
+  font-weight: 600;
+}
+
+.store-bottom-nav__label {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+}

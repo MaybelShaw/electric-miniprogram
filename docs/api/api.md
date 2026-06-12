@@ -1037,6 +1037,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET/POST/DELETE /api/catalog/special-zones/{id}/products/` - 获取或维护专区商品绑定
 - ✅ `GET /api/catalog/home-store-cards/` - 获取平台首页橱窗卡片
 - ✅ `POST/PATCH/DELETE /api/catalog/home-store-cards/` - 管理平台首页橱窗卡片（平台管理员）
+  - 响应包含 `store_type` 与 `store_is_main`，前端可据此将主店铺入口返回平台首页，将合作方店铺入口跳转店铺详情页。
 
 #### 搜索日志
 - ✅ `GET /api/catalog/search-logs/` - 获取搜索日志（管理员）
@@ -1045,7 +1046,7 @@ fetch('/api/token/refresh/', {
 #### 购物车管理
 - ✅ `GET /api/cart/my_cart/` - 获取购物车
   - 响应保留平铺 `items`，并新增 `store_groups`。`store_groups` 按购物车项加入顺序确定店铺顺序：某店铺最早加入的商品越早，该店铺越靠前。
-  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组和失效/缺货提示。
+  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组、判断主店铺入口和失效/缺货提示。
 - ✅ `POST /api/cart/add_item/` - 添加商品
 - ✅ `POST /api/cart/update_item/` - 更新数量
 - ✅ `POST /api/cart/remove_item/` - 移除商品

@@ -162,10 +162,20 @@ function Home() {
   }
 
   const goToStore = (store: Store) => {
+    if (store.is_main) {
+      Taro.switchTab({ url: '/pages/home/index' })
+      return
+    }
+
     Taro.navigateTo({ url: `/pages/store-detail/index?id=${store.id}` })
   }
 
   const goToCardStore = (card: HomeStoreCard, categoryId?: number) => {
+    if (card.store_is_main) {
+      Taro.switchTab({ url: '/pages/home/index' })
+      return
+    }
+
     Taro.navigateTo({
       url: `/pages/store-detail/index?id=${card.store}${categoryId ? `&category_id=${categoryId}` : ''}`,
     })

@@ -33,6 +33,11 @@ export default function StoreListPage() {
   }
 
   const goToStore = (store: Store) => {
+    if (store.is_main) {
+      Taro.switchTab({ url: '/pages/home/index' })
+      return
+    }
+
     Taro.navigateTo({
       url: `/pages/store-detail/index?id=${store.id}`,
     })

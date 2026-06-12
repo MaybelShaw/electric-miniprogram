@@ -185,4 +185,6 @@ class ActivityHomeStoreCardTests(TestCase):
         data = response.json()
         results = data["results"] if isinstance(data, dict) and "results" in data else data
         self.assertEqual([item["id"] for item in results], [card.id])
+        self.assertEqual(results[0]["store_type"], Store.TYPE_PARTNER)
+        self.assertFalse(results[0]["store_is_main"])
         self.assertTrue(results[0]["has_inactive_products"])

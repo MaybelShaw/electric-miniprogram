@@ -161,6 +161,8 @@ export interface HomeStoreCard {
   id: number
   store: number
   store_id?: number
+  store_type?: StoreType
+  store_is_main?: boolean
   store_name?: string
   title: string
   subtitle: string
@@ -197,6 +199,7 @@ export interface CartItem {
   store_name?: string
   store_logo?: string
   store_type?: StoreType
+  store_is_main?: boolean
   is_available?: boolean
   unavailable_reason?: string
   selected?: boolean // 前端状态
@@ -207,6 +210,7 @@ export interface CartStoreGroup {
   store_name: string
   store_logo?: string
   store_type?: StoreType
+  store_is_main?: boolean
   item_count: number
   total_quantity: number
   items: CartItem[]
@@ -411,6 +415,7 @@ export interface Store {
   id: number
   name: string
   code: string
+  is_main?: boolean
   store_type: StoreType
   platform_store?: number | null
   logo?: string

@@ -45,6 +45,7 @@ class PublicStoreSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "code",
+            "is_main",
             "store_type",
             "platform_store",
             "logo",

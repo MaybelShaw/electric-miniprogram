@@ -4,6 +4,7 @@ import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/t
 import ProductCard from '../../components/ProductCard'
 import PriceText from '../../components/PriceText'
 import AppIcon from '../../components/AppIcon'
+import StoreBottomNav from '../../components/StoreBottomNav'
 import { productService } from '../../services/product'
 import { storeService } from '../../services/store'
 import { Category, HomeBanner, Product, SpecialZone, Store } from '../../types'
@@ -139,6 +140,10 @@ export default function StoreDetailPage() {
     setLoading(true)
     try {
       const detail = await storeService.getStoreDetail(storeId)
+      if (detail.store.is_main) {
+        Taro.switchTab({ url: '/pages/home/index' })
+        return
+      }
 
       setStore(detail.store)
       setBanners(detail.banners || [])
@@ -271,7 +276,7 @@ export default function StoreDetailPage() {
         )}
 
         {displayCategories.length > 0 && (
-          <View className='store-section'>
+          <View id='store-categories' className='store-section'>
             <View className='section-header'>
               <View>
                 <Text className='section-kicker'>产品类别</Text>
@@ -383,6 +388,7 @@ export default function StoreDetailPage() {
           {!loading && !hasMore && storeProducts.length > 0 && <View className='status-text'>没有更多商品了</View>}
         </View>
       </ScrollView>
+      <StoreBottomNav storeId={storeId} storeIsMain={store?.is_main} active='home' />
     </View>
   )
 }

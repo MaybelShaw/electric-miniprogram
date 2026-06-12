@@ -446,6 +446,7 @@ class CartItemSerializer(serializers.ModelSerializer):
     store_name = serializers.CharField(source="product.store.name", read_only=True)
     store_logo = serializers.SerializerMethodField()
     store_type = serializers.CharField(source="product.store.store_type", read_only=True)
+    store_is_main = serializers.BooleanField(source="product.store.is_main", read_only=True)
     is_available = serializers.SerializerMethodField()
     unavailable_reason = serializers.SerializerMethodField()
 
@@ -463,6 +464,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             "store_name",
             "store_logo",
             "store_type",
+            "store_is_main",
             "is_available",
             "unavailable_reason",
         ]
@@ -528,6 +530,7 @@ class CartSerializer(serializers.ModelSerializer):
                     "store_name": store.name,
                     "store_logo": _build_media_url(store.logo, self.context.get("request")),
                     "store_type": store.store_type,
+                    "store_is_main": store.is_main,
                     "item_count": 0,
                     "total_quantity": 0,
                     "items": [],

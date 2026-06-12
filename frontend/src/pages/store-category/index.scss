@@ -7,6 +7,8 @@
 
   .store-category-scroll {
     height: 100%;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
   }
 
   .category-hero {
@@ -151,7 +153,7 @@
   }
 
   .product-section {
-    margin-bottom: $spacing-md;
+    margin-bottom: calc(112px + env(safe-area-inset-bottom));
   }
 
   .product-list {

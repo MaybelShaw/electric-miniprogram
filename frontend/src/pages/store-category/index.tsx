@@ -3,6 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import ProductCard from '../../components/ProductCard'
 import AppIcon from '../../components/AppIcon'
+import StoreBottomNav from '../../components/StoreBottomNav'
 import { productService } from '../../services/product'
 import { storeService } from '../../services/store'
 import { Brand, Product, Store } from '../../types'
@@ -48,6 +49,11 @@ export default function StoreCategoryPage() {
     setLoading(true)
     try {
       const detail = await storeService.getStoreDetail(storeId, { category_id: categoryId })
+      if (detail.store.is_main) {
+        Taro.switchTab({ url: '/pages/home/index' })
+        return
+      }
+
       setStore(detail.store)
       setBrands(detail.brands || [])
       setProducts(detail.products || [])
@@ -165,6 +171,7 @@ export default function StoreCategoryPage() {
           {!loading && !hasMore && products.length > 0 && <View className='status-text'>没有更多商品了</View>}
         </View>
       </ScrollView>
+      <StoreBottomNav storeId={storeId} storeIsMain={store?.is_main} active='category' />
     </View>
   )
 }

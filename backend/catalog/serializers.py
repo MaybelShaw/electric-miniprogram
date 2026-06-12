@@ -904,6 +904,8 @@ class ProductActivitiesSerializer(serializers.Serializer):
 class HomeStoreCardSerializer(serializers.ModelSerializer):
     store_id = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), source='store')
     store_name = serializers.CharField(source='store.name', read_only=True)
+    store_type = serializers.CharField(source='store.store_type', read_only=True)
+    store_is_main = serializers.BooleanField(source='store.is_main', read_only=True)
     main_product_id = serializers.IntegerField(write_only=True)
     secondary_product_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
     category_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True)
@@ -916,7 +918,7 @@ class HomeStoreCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = HomeStoreCard
         fields = [
-            'id', 'store', 'store_id', 'store_name', 'title', 'subtitle', 'order', 'is_active',
+            'id', 'store', 'store_id', 'store_name', 'store_type', 'store_is_main', 'title', 'subtitle', 'order', 'is_active',
             'main_product_id', 'secondary_product_ids', 'category_ids',
             'main_product', 'secondary_products', 'categories',
             'has_inactive_products', 'inactive_product_names', 'created_at', 'updated_at',

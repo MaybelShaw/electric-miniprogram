@@ -3,7 +3,7 @@ import { View, ScrollView, Image, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
-import { Cart, CartItem } from '../../types'
+import { Cart, CartItem, StoreType } from '../../types'
 import { formatPrice } from '../../utils/format'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import EmptyState from '../../components/EmptyState'
@@ -14,6 +14,8 @@ interface CartStoreGroupView {
   store_id: number
   store_name: string
   store_logo?: string
+  store_type?: StoreType
+  store_is_main?: boolean
   items: CartItem[]
 }
 
@@ -104,6 +106,8 @@ export default function CartPage() {
           store_id: storeId,
           store_name: item.store_name || `店铺 ${storeId || ''}`.trim(),
           store_logo: item.store_logo,
+          store_type: item.store_type,
+          store_is_main: item.store_is_main,
           items: [],
         })
       }
@@ -222,9 +226,14 @@ export default function CartPage() {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${id}` })
   }
 
-  const goToStore = (storeId: number) => {
-    if (storeId) {
-      Taro.navigateTo({ url: `/pages/store-detail/index?id=${storeId}` })
+  const goToStore = (store: CartStoreGroupView) => {
+    if (store.store_is_main) {
+      Taro.switchTab({ url: '/pages/home/index' })
+      return
+    }
+
+    if (store.store_id) {
+      Taro.navigateTo({ url: `/pages/store-detail/index?id=${store.store_id}` })
     }
   }
 
@@ -293,7 +302,7 @@ export default function CartPage() {
                   className={`checkbox ${storeChecked ? 'checked' : ''} ${storeIndeterminate ? 'indeterminate' : ''}`}
                   onClick={() => handleSelectStore(group.store_id)}
                 />
-                <View className='store-info' onClick={() => goToStore(group.store_id)}>
+                <View className='store-info' onClick={() => goToStore(group)}>
                   {group.store_logo ? (
                     <Image className='store-logo' src={resolveLocalMediaUrl(group.store_logo)} mode='aspectFill' />
                   ) : (
