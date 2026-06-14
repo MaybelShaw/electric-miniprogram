@@ -34,7 +34,6 @@ services:
     command: >
       bash -lc "pip install uv &&
                 uv sync &&
-                .venv/bin/python manage.py wait_for_db --timeout 90 &&
                 .venv/bin/python manage.py migrate &&
                 .venv/bin/python manage.py collectstatic --noinput &&
                 .venv/bin/python manage.py runserver 0.0.0.0:8000"

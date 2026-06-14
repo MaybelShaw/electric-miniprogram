@@ -46,13 +46,8 @@ services:
       db:
         condition: service_healthy
     command: >
-      bash -lc "python /usr/local/bin/wait_for_tcp.py &&
-                uv sync &&
-                .venv/bin/python manage.py wait_for_db --timeout 90 &&
+      bash -lc "uv sync &&
                 .venv/bin/python manage.py migrate &&
-                .venv/bin/python manage.py seed_test_data &&
-                .venv/bin/python manage.py seed_test_products --products 10 --skus 3 &&
-                .venv/bin/python manage.py recalc_sales_count &&
                 (timeout 30s .venv/bin/python manage.py createsuperuser --noinput || true) &&
                 .venv/bin/python manage.py runserver 0.0.0.0:8000"
     ports:

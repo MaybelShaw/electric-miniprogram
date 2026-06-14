@@ -30,7 +30,7 @@
    ```bash
    docker compose -f docker/docker-compose.dev.yaml exec backend .venv/bin/python manage.py migrate
    ```
-5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。开发后端镜像由 `docker/Dockerfile.backend.dev` 构建，内置 `uv` 和 `docker/wait_for_tcp.py`；启动时会先等待 `POSTGRES_HOST:POSTGRES_PORT` 可解析且端口可连接，再执行 `uv sync`、`wait_for_db`、迁移和种子数据初始化，避免 Windows / Docker Desktop 下偶发 `failed to resolve host 'db'`。
+5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。开发后端镜像由 `docker/Dockerfile.backend.dev` 构建并内置 `uv`；启动依赖 Compose 的 `db` 健康检查，随后执行 `uv sync`、迁移、开发超级管理员创建和 `runserver`。测试数据、测试商品和销量重算不再随后端容器启动自动执行；如需演示数据，需要另行准备脚本或通过后台/API 创建。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`

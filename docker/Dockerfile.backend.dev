@@ -12,5 +12,3 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m pip install --no-cache-dir uv
 
 WORKDIR /app
-
-COPY docker/wait_for_tcp.py /usr/local/bin/wait_for_tcp.py

@@ -399,12 +399,6 @@
   ```bash
   python manage.py test
   ```
-- 开发演示数据：
-  ```bash
-  docker compose -f docker/docker-compose.dev.yaml exec backend .venv/bin/python manage.py seed_storefront_demo --confirm-dev
-  ```
-  - 仅用于本地/开发数据库；命令在 `DJANGO_ENV=production`、生产 settings 或非 dev/test PostgreSQL 库名下会拒绝执行。
-  - 数据使用 `cy_demo` 前缀，覆盖店铺、店铺管理员、客户、分类、品牌、商品、SKU、轮播、店铺活动、首页卡片、客户分组价格、折扣和示例订单关联，可重复执行。
 - 常用命令：数据库迁移、收集静态、清理会话、创建超级用户等（`manage.py` 系列）
 
 ## 部署与安全
