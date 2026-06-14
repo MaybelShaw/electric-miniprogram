@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'corsheaders',
     'django_filters',
+    'common',
     'users',
     'stores.apps.StoresConfig',
     'catalog.apps.CatalogConfig',

@@ -61,6 +61,7 @@
   - `/credit-accounts` 信用账户
   - `/account-statements` 账务对账单
   - `/account-transactions` 账务交易记录
+  - `/profit-sharing` 手动分账（平台管理员在主店铺上下文）
   - `/invoices` 发票管理
   - `/home-banners` 轮播图管理
   - `/home-store-cards` 首页卡片管理（平台管理员）
@@ -160,6 +161,12 @@
   - 导出为 Excel（Blob 下载） `merchant/src/pages/AccountStatements/index.tsx:147`
   - 详情抽屉（基本信息 + 财务汇总 + 交易明细） `merchant/src/pages/AccountStatements/index.tsx:332`
 - 交易记录：列表与筛选（付款状态、日期范围） `merchant/src/services/api.ts:90`
+- 手动分账：
+  - 页面位置：`merchant/src/pages/ProfitSharing/index.tsx`，菜单入口 `/admin/profit-sharing`，仅平台管理员在主店铺上下文可见；平台管理员切换到合作店铺时隐藏入口，直接访问返回 403，且页面会在店铺上下文加载并校验通过后才请求分账表格数据。
+  - 分账流水表支持按状态、结算单 ID、店铺筛选，展示子单实付、抽佣、分账金额、接收方、可分账时间、失败原因。
+  - 平台管理员可批量更新到期冻结流水、对同一支付单下的可分账/失败流水发起微信分账，默认不解冻剩余未分资金。
+  - 异常流水可标记人工结算；微信分账请求记录支持第一版联调或人工核对后的“标记成功/标记失败”。
+  - 接口：`GET /api/profit-sharing-entries/`、`POST /api/profit-sharing-entries/mark_available/`、`POST /api/profit-sharing-entries/share/`、`POST /api/profit-sharing-entries/{id}/mark_manual_settled/`、`GET /api/wechat-profit-sharing-orders/`、`POST /api/wechat-profit-sharing-orders/{id}/mark_succeeded|mark_failed/`。
 - 发票管理：
   - 列表：展示发票请求，支持按状态/发票类型/抬头筛选
   - 订单详情：点击订单号可快速查看关联订单的详细信息（商品、金额、收货信息等）
@@ -268,6 +275,10 @@
     - 管理员发货时需填写快递单号，系统会记录运单号并将状态流转为 `shipped`。
   - 海尔推送：`POST /orders/{id}/push_to_haier/`
   - 海尔物流：`GET /orders/{id}/haier_logistics/`
+- 微信分账：
+  - 店铺支付配置：平台管理员维护合作方 `wechat_mch_id`、分账接收方名称、已添加/已校验标记。
+  - 商户后台手动分账页：平台管理员仅在当前选择店铺为主店铺时可查看分账流水、更新到期冻结流水、手动发起微信分账、失败重试或标记人工结算。
+  - 请求记录：平台管理员可查看微信分账请求记录，并在第一版联调或人工核对后标记成功/失败。
 
 ## 权限与认证
 - 登录态判断：`merchant/src/App.tsx:16`

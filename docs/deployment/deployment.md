@@ -190,7 +190,7 @@
    docker compose -f docker/docker-compose.prod.yaml logs -f nginx
    ```
 7. 证书与支付密钥（可选）：
-   - 微信支付私钥与公钥建议放置于：`/etc/electric-miniprogram/certs/wechat/`，并在外部 `env_file` 中更新路径。
+   - 微信支付私钥与公钥建议放置于：`/etc/electric-miniprogram/certs/wechatpay/`，并在外部 `env_file` 中更新路径。
    - 如需在容器内使用，可在 Compose 为 `backend` 添加只读卷挂载并将路径改为容器内路径，参考文档的 TLS 示例与卷挂载做法。
 
 > 说明：Compose 已设置 `restart: unless-stopped`，在 Docker 服务启动后会自动拉起容器；数据库健康检查保证后端在 Postgres 就绪后再启动。
@@ -326,8 +326,9 @@ server {
   - 服务器路径：`/etc/electric-miniprogram/.env.production`
   - 执行：`docker compose -f docker/docker-compose.prod.yaml restart backend`
 - 微信支付证书与密钥：
-  - 建议存放：`/etc/electric-miniprogram/certs/wechat/`
-  - 更新 `.env.production` 中路径，并按需为 `backend` 添加只读卷挂载后重启。
+  - 生产/预发 Compose 已将宿主机 `/etc/electric-miniprogram/certs/wechatpay` 只读挂载到容器同路径。
+  - `.env.production` 中的 `WECHAT_PAY_PRIVATE_KEY_PATH`、`WECHAT_PAY_PUBLIC_KEY_PATH` 或 `WECHAT_PAY_PLATFORM_CERT_PATH` 应指向容器内 `/etc/electric-miniprogram/certs/wechatpay/...`。
+  - 微信支付分账复用同一套平台/主店商户号、API v3 密钥、私钥和公钥/平台证书；合作方店铺的 `wechat_mch_id` 只作为分账接收方商户号，不需要挂载合作方证书。
 
 ### 回滚策略
 - 若升级后出现异常：

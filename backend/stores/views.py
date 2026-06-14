@@ -374,6 +374,22 @@ class StorePaymentConfigViewSet(viewsets.ModelViewSet):
         stores = get_accessible_stores(self.request.user)
         return StorePaymentConfig.objects.filter(store__in=stores).select_related("store")
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self._refresh_profit_sharing_entries(instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        self._refresh_profit_sharing_entries(instance)
+
+    @staticmethod
+    def _refresh_profit_sharing_entries(instance):
+        try:
+            from orders.profit_sharing import ProfitSharingService
+            ProfitSharingService.refresh_entries_for_store(instance.store)
+        except Exception:
+            pass
+
 
 class StoreSettlementRuleViewSet(viewsets.ModelViewSet):
     serializer_class = StoreSettlementRuleSerializer

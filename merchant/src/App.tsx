@@ -22,6 +22,7 @@ import CompanyCertification from './pages/CompanyCertification';
 import CreditAccounts from './pages/CreditAccounts';
 import AccountStatements from './pages/AccountStatements';
 import AccountTransactions from './pages/AccountTransactions';
+import ProfitSharing from './pages/ProfitSharing';
 import HomeBanners from './pages/HomeBanners';
 import HomeStoreCards from './pages/HomeStoreCards';
 import SpecialZones from './pages/SpecialZones';
@@ -88,6 +89,7 @@ function App() {
                   <Route path="credit-accounts" element={<CreditAccounts />} />
                   <Route path="account-statements" element={<AccountStatements />} />
                   <Route path="account-transactions" element={<AccountTransactions />} />
+                  <Route path="profit-sharing" element={<ProfitSharing />} />
                   <Route path="home-banners" element={<HomeBanners />} />
                   <Route path="home-store-cards" element={<HomeStoreCards />} />
                   <Route path="special-zones" element={<SpecialZones />} />

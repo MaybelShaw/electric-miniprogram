@@ -53,6 +53,67 @@ export interface CurrentStoreContext {
   memberships: StoreMember[];
 }
 
+export type ProfitSharingEntryStatus =
+  | 'platform_retained'
+  | 'pending_receiver_config'
+  | 'frozen'
+  | 'available'
+  | 'available_for_manual_share'
+  | 'processing'
+  | 'shared'
+  | 'failed'
+  | 'manual_settled'
+  | 'manual_settlement_required'
+  | 'cancelled';
+
+export interface StoreProfitSharingEntry {
+  id: number;
+  checkout_order: number;
+  checkout_number: string;
+  payment: number;
+  order: number;
+  suborder: number;
+  suborder_number: string;
+  store: number;
+  store_name: string;
+  store_type_snapshot: string;
+  gross_amount: string | number;
+  commission_rate_snapshot: string | number;
+  commission_amount: string | number;
+  sharing_amount: string | number;
+  retained_amount: string | number;
+  receiver_type: string;
+  receiver_account: string;
+  receiver_name_snapshot: string;
+  status: ProfitSharingEntryStatus;
+  available_at: string | null;
+  shared_at: string | null;
+  failure_reason: string;
+  logs: Record<string, any>[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type WechatProfitSharingOrderStatus = 'processing' | 'shared' | 'failed' | 'closed';
+
+export interface WechatProfitSharingOrder {
+  id: number;
+  payment: number;
+  checkout_order: number;
+  entry_ids: number[];
+  out_order_no: string;
+  transaction_id: string;
+  receivers: Record<string, any>[];
+  amount: string | number;
+  unfreeze_unsplit: boolean;
+  status: WechatProfitSharingOrderStatus;
+  wechat_response: Record<string, any>;
+  error_message: string;
+  operator: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Brand {
   id: number;
   name: string;

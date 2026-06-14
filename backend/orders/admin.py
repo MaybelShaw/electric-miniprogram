@@ -14,6 +14,8 @@ from .models import (
     Payment,
     Refund,
     OrderShippingAction,
+    StoreProfitSharingEntry,
+    WechatProfitSharingOrder,
     OrderStatusHistory,
     OrderShippingSync,
 )
@@ -106,10 +108,28 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("id", "order", "amount", "method", "status", "created_at", "expires_at")
-    list_filter = ("status", "method", "created_at")
+    list_display = ("id", "order", "amount", "method", "status", "profit_sharing_required", "profit_sharing_status", "created_at", "expires_at")
+    list_filter = ("status", "method", "profit_sharing_required", "profit_sharing_status", "created_at")
     search_fields = ("id", "order__order_number", "order__user__username")
     list_select_related = ("order", "order__user")
+
+
+@admin.register(StoreProfitSharingEntry)
+class StoreProfitSharingEntryAdmin(admin.ModelAdmin):
+    list_display = ("id", "checkout_order", "suborder", "store", "status", "sharing_amount", "available_at", "shared_at")
+    list_filter = ("status", "store_type_snapshot", "created_at", "available_at")
+    search_fields = ("id", "checkout_order__checkout_number", "suborder__suborder_number", "store__name", "receiver_account")
+    list_select_related = ("checkout_order", "payment", "suborder", "store")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(WechatProfitSharingOrder)
+class WechatProfitSharingOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "out_order_no", "checkout_order", "payment", "amount", "unfreeze_unsplit", "status", "created_at")
+    list_filter = ("status", "unfreeze_unsplit", "created_at")
+    search_fields = ("out_order_no", "checkout_order__checkout_number", "payment__id", "transaction_id")
+    list_select_related = ("checkout_order", "payment", "operator")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Refund)

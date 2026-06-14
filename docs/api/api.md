@@ -1005,6 +1005,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-members/` - 客户分组成员
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-prices/` - 客户分组价格表
 - ✅ `GET/POST/PATCH/DELETE /api/stores/payment-configs/` - 店铺支付配置（平台管理员）
+  - 微信分账字段：`profit_sharing_enabled`、`profit_sharing_receiver_type=MERCHANT_ID`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified`。`wechat_mch_id` 复用为合作方分账接收商户号。
 - ✅ `GET/POST/PATCH/DELETE /api/stores/settlement-rules/` - 店铺结算规则（平台管理员）
 
 #### 收货地址管理
@@ -1094,6 +1095,12 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/payments/{id}/expire/` - 支付过期
 - ✅ `POST /api/payments/callback/{provider}/` - 支付回调（支持mock和wechat）
 - ✅ `POST /api/payments/{id}/sync/` - 主动同步支付状态
+- ✅ `GET /api/profit-sharing-entries/` - 分账流水列表（平台管理员，支持 `status`、`checkout_order`、`store`）
+- ✅ `POST /api/profit-sharing-entries/mark_available/` - 到期冻结流水转可分账
+- ✅ `POST /api/profit-sharing-entries/share/` - 手动发起微信分账，请求体 `{ "entry_ids": [1,2], "unfreeze_unsplit": false }`
+- ✅ `POST /api/profit-sharing-entries/{id}/mark_manual_settled/` - 标记人工结算
+- ✅ `GET /api/wechat-profit-sharing-orders/` - 微信分账请求记录
+- ✅ `POST /api/wechat-profit-sharing-orders/{id}/mark_succeeded/` / `mark_failed/` - 第一版人工同步分账结果
 
 #### 发票与退款
 - ✅ `GET/POST/PATCH/DELETE /api/invoices/` - 发票管理

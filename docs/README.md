@@ -28,7 +28,7 @@
 ## 计划与路线图
 
 - [计划目录说明](./plan/README.md) - `docs/plan/` 与 `docs/plan/archive/` 的用途、命名与收尾规则
-- [服务商分账与利润结算](./plan/2026-05-05-service-provider-profit-sharing.md) - 尚未落地的微信服务商分账、子单级分账记录、重试和审计计划
+- [微信支付分账与利润结算](./plan/2026-05-05-service-provider-profit-sharing.md) - 尚未落地的微信支付分账、后补接收方配置、手动分账、子单级记录、重试和审计计划
 - 已归档计划可在 [计划归档目录](./plan/archive/) 查看；已落地功能以各长期技术文档为准。
 
 ## 其他文档

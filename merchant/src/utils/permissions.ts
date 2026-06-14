@@ -44,7 +44,9 @@ export const canAccessAdminRoute = (
 export const isPlatformUserFromStoredUser = (user: any): boolean => {
   if (!user) return false;
   if (user.is_superuser) return true;
-  return Array.isArray(user.store_roles) && user.store_roles.some((role: any) => role?.role === 'platform_admin');
+  return Array.isArray(user.store_roles) && user.store_roles.some((role: any) =>
+    role?.role === 'platform_admin' && role?.status === 'active',
+  );
 };
 
 export const isStoreBackendUser = (user: any): boolean => {

@@ -148,7 +148,7 @@
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
   - `GET/POST/PATCH/DELETE /customer-group-prices/` 客户分组价格，支持按 `store`、`group`、`product` 过滤。
-  - `GET/POST/PATCH/DELETE /payment-configs/` 店铺支付配置（平台管理员）。
+  - `GET/POST/PATCH/DELETE /payment-configs/` 店铺支付配置（平台管理员）。合作方微信分账复用 `wechat_mch_id` 作为 `MERCHANT_ID` 接收方账号，并通过 `profit_sharing_enabled`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified` 标记是否可手动分账；不读取合作方证书。
   - `GET/POST/PATCH/DELETE /settlement-rules/` 店铺结算规则（平台管理员）。
 - 商品目录：
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
@@ -263,11 +263,17 @@
       - 字段：`status(reason/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
       - 状态：`requested | approved | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
+    - 微信分账：支付记录新增 `profit_sharing_required`、`profit_sharing_status`、`profit_sharing_unfrozen`。订单包含合作方店铺子单时，微信 JSAPI 下单传 `settle_info.profit_sharing=true`；只含主店铺子单时保持普通支付。
   - `POST /payments/{id}/sync/` 同步支付状态（查单）`backend/orders/views.py`
     - 用途：主动同步第三方支付状态（如微信支付查单）
     - 响应：`{ id, status, logs, ... }`
     - 说明：调用第三方支付查询接口，更新本地支付记录状态
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
+  - `GET /profit-sharing-entries/` 分账流水列表（平台管理员），支持 `status`、`checkout_order`、`store` 过滤。
+  - `POST /profit-sharing-entries/mark_available/` 将已到冻结期的分账流水转为可分账。
+  - `POST /profit-sharing-entries/share/` 手动发起微信分账；请求体 `{ "entry_ids": [1,2], "unfreeze_unsplit": false }`。
+  - `POST /profit-sharing-entries/{id}/mark_manual_settled/` 将异常或超期流水标记为人工结算。
+  - `GET /wechat-profit-sharing-orders/` 微信分账请求记录列表（平台管理员）；`POST /wechat-profit-sharing-orders/{id}/mark_succeeded|mark_failed/` 用于第一版人工同步或 mock 联调。
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`

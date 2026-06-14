@@ -77,6 +77,7 @@ export const adminMenuItems = [
       { key: '/admin/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
       { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
       { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
+      { key: '/admin/profit-sharing', icon: <AccountBookOutlined />, label: '手动分账' },
     ],
   },
   {
@@ -194,7 +195,20 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     navigate('/login');
   };
 
-  const visibleMenuItems = !isSupportLayout && !storeContext
+  const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
+  const allowProfitSharing = currentStore?.is_main === true;
+  const filterPlatformMenuItems = (items: any[]): any[] => items
+    .map((item: any) => {
+      if (item.key === '/admin/profit-sharing') {
+        return allowProfitSharing ? item : null;
+      }
+      if (!item.children) return item;
+      const children: any[] = filterPlatformMenuItems(item.children);
+      return children.length > 0 ? { ...item, children } : null;
+    })
+    .filter(Boolean);
+
+  const visibleMenuItems: any[] = !isSupportLayout && !storeContext
     ? []
     : storeContext && !storeContext.is_platform_admin
       ? menuItems
@@ -204,8 +218,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
           return children.length > 0 ? { ...item, children } : null;
         })
         .filter(Boolean)
-      : menuItems;
-  const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
+      : filterPlatformMenuItems(menuItems);
 
   const itemsWithBadge = visibleMenuItems.map(item => {
     if (item.key === '/support/tickets' && unreadCount > 0) {

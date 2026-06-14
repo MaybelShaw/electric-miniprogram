@@ -16,6 +16,8 @@ from .models import (
     ReturnRequest,
     OrderItem,
     OrderShippingAction,
+    StoreProfitSharingEntry,
+    WechatProfitSharingOrder,
 )
 from .shipping_action_service import get_shipping_capabilities, is_haier_order
 from catalog.models import Product
@@ -603,8 +605,42 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = [
-            'id', 'order', 'amount', 'method', 'status', 'created_at', 'updated_at', 'expires_at', 'logs'
+            'id', 'order', 'amount', 'method', 'status',
+            'profit_sharing_required', 'profit_sharing_status', 'profit_sharing_unfrozen',
+            'created_at', 'updated_at', 'expires_at', 'logs'
         ]
+
+
+class StoreProfitSharingEntrySerializer(serializers.ModelSerializer):
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    checkout_number = serializers.CharField(source='checkout_order.checkout_number', read_only=True)
+    suborder_number = serializers.CharField(source='suborder.suborder_number', read_only=True)
+
+    class Meta:
+        model = StoreProfitSharingEntry
+        fields = [
+            'id', 'checkout_order', 'checkout_number', 'payment', 'order', 'suborder',
+            'suborder_number', 'store', 'store_name', 'store_type_snapshot',
+            'gross_amount', 'commission_rate_snapshot', 'commission_amount',
+            'sharing_amount', 'retained_amount', 'receiver_type', 'receiver_account',
+            'receiver_name_snapshot', 'status', 'available_at', 'shared_at',
+            'failure_reason', 'logs', 'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
+
+
+class WechatProfitSharingOrderSerializer(serializers.ModelSerializer):
+    entry_ids = serializers.PrimaryKeyRelatedField(source='entries', many=True, read_only=True)
+
+    class Meta:
+        model = WechatProfitSharingOrder
+        fields = [
+            'id', 'payment', 'checkout_order', 'entry_ids', 'out_order_no',
+            'transaction_id', 'receivers', 'amount', 'unfreeze_unsplit',
+            'status', 'wechat_response', 'error_message', 'operator',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
 
 
 class RefundSerializer(serializers.ModelSerializer):

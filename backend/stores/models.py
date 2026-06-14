@@ -340,13 +340,38 @@ class StoreCustomerGroupPrice(models.Model):
 
 
 class StorePaymentConfig(models.Model):
+    RECEIVER_TYPE_MERCHANT_ID = "MERCHANT_ID"
+    RECEIVER_TYPE_CHOICES = [
+        (RECEIVER_TYPE_MERCHANT_ID, "商户号"),
+    ]
+
     id = models.BigAutoField(primary_key=True)
     store = models.OneToOneField(Store, on_delete=models.PROTECT, related_name="payment_config", verbose_name="店铺")
     wechat_mch_id = models.CharField(max_length=64, blank=True, default="", verbose_name="微信商户号")
     wechat_sub_mch_id = models.CharField(max_length=64, blank=True, default="", verbose_name="微信子商户号")
+    profit_sharing_enabled = models.BooleanField(default=False, verbose_name="启用微信分账")
+    profit_sharing_receiver_type = models.CharField(
+        max_length=32,
+        choices=RECEIVER_TYPE_CHOICES,
+        default=RECEIVER_TYPE_MERCHANT_ID,
+        verbose_name="分账接收方类型",
+    )
+    profit_sharing_receiver_name = models.CharField(max_length=128, blank=True, default="", verbose_name="分账接收方名称")
+    profit_sharing_receiver_added = models.BooleanField(default=False, verbose_name="已添加微信分账接收方")
+    profit_sharing_receiver_verified = models.BooleanField(default=False, verbose_name="分账接收方已校验")
     is_active = models.BooleanField(default=False, verbose_name="是否启用")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    @property
+    def is_profit_sharing_ready(self):
+        return (
+            self.is_active
+            and self.profit_sharing_enabled
+            and bool(self.wechat_mch_id)
+            and self.profit_sharing_receiver_added
+            and self.profit_sharing_receiver_verified
+        )
 
     class Meta:
         verbose_name = "店铺支付配置"

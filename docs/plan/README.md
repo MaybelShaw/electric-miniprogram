@@ -56,7 +56,7 @@
 
 ## 当前计划
 
-- [服务商分账与利润结算](./2026-05-05-service-provider-profit-sharing.md)
+- [微信支付分账与利润结算](./2026-05-05-service-provider-profit-sharing.md)
 
 ## 已归档计划
 
