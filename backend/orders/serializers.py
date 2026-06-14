@@ -4,7 +4,20 @@ from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
 from datetime import timedelta
-from .models import Order, Cart, CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest, OrderItem
+from .models import (
+    Order,
+    Cart,
+    CartItem,
+    Payment,
+    Refund,
+    Discount,
+    DiscountTarget,
+    Invoice,
+    ReturnRequest,
+    OrderItem,
+    OrderShippingAction,
+)
+from .shipping_action_service import get_shipping_capabilities, is_haier_order
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
@@ -94,6 +107,35 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return getattr(product, 'source', None) == getattr(product.__class__, 'SOURCE_HAIER', 'haier')
 
 
+class OrderShippingActionSerializer(serializers.ModelSerializer):
+    operator_username = serializers.CharField(
+        source='operator.username',
+        read_only=True,
+        allow_null=True,
+    )
+    action_label = serializers.CharField(source='get_action_display', read_only=True)
+    status_label = serializers.CharField(source='get_status_display', read_only=True)
+
+    class Meta:
+        model = OrderShippingAction
+        fields = [
+            'id',
+            'action',
+            'action_label',
+            'status',
+            'status_label',
+            'shipping_snapshot',
+            'operator',
+            'operator_username',
+            'reason',
+            'wechat_sync_required',
+            'wechat_synced',
+            'wechat_response',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+
 class OrderSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)
     user_username = serializers.CharField(source='user.username', read_only=True)
@@ -113,6 +155,10 @@ class OrderSerializer(serializers.ModelSerializer):
     refund_action_required = serializers.SerializerMethodField()
     refund_locked = serializers.SerializerMethodField()
     child_orders = serializers.SerializerMethodField()
+    can_cancel_shipping = serializers.SerializerMethodField()
+    is_reshipment_pending = serializers.SerializerMethodField()
+    reship_requires_wechat_sync = serializers.SerializerMethodField()
+    shipping_cancel_count = serializers.SerializerMethodField()
     order_type = serializers.CharField(read_only=True)
     parent_order = serializers.PrimaryKeyRelatedField(read_only=True)
 
@@ -162,6 +208,10 @@ class OrderSerializer(serializers.ModelSerializer):
             "order_type",
             "parent_order",
             "child_orders",
+            "can_cancel_shipping",
+            "is_reshipment_pending",
+            "reship_requires_wechat_sync",
+            "shipping_cancel_count",
         ]
 
     def get_quantity(self, obj: Order) -> int:
@@ -216,16 +266,22 @@ class OrderSerializer(serializers.ModelSerializer):
     
     def get_is_haier_order(self, obj: Order) -> bool:
         """判断是否为海尔订单"""
-        if obj.haier_so_id or obj.haier_status:
-            return True
-        if obj.items.exists():
-            for item in obj.items.select_related('product').all():
-                if getattr(item.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier'):
-                    return True
-            return False
-        if not obj.product:
-            return False
-        return getattr(obj.product, 'source', None) == getattr(Product, 'SOURCE_HAIER', 'haier')
+        return is_haier_order(obj)
+
+    def _shipping_capabilities(self, obj: Order) -> dict:
+        return get_shipping_capabilities(obj)
+
+    def get_can_cancel_shipping(self, obj: Order) -> bool:
+        return self._shipping_capabilities(obj)['can_cancel_shipping']
+
+    def get_is_reshipment_pending(self, obj: Order) -> bool:
+        return self._shipping_capabilities(obj)['is_reshipment_pending']
+
+    def get_reship_requires_wechat_sync(self, obj: Order) -> bool:
+        return self._shipping_capabilities(obj)['reship_requires_wechat_sync']
+
+    def get_shipping_cancel_count(self, obj: Order) -> int:
+        return self._shipping_capabilities(obj)['shipping_cancel_count']
     
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""

@@ -1,6 +1,17 @@
 from rest_framework import viewsets, permissions, status, serializers
 from rest_framework.views import APIView
-from .models import Order,Cart,CartItem, Payment, Refund, Discount, DiscountTarget, Invoice, ReturnRequest
+from .models import (
+    Order,
+    Cart,
+    CartItem,
+    Payment,
+    Refund,
+    Discount,
+    DiscountTarget,
+    Invoice,
+    ReturnRequest,
+    OrderShippingAction,
+)
 from .serializers import (
     OrderSerializer,
     OrderCreateSerializer,
@@ -15,6 +26,7 @@ from .serializers import (
     InvoiceCreateSerializer,
     ReturnRequestSerializer,
     ReturnRequestCreateSerializer,
+    OrderShippingActionSerializer,
 )
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
@@ -56,6 +68,13 @@ import logging
 import json
 from decimal import Decimal, ROUND_HALF_UP
 from .payment_service import PaymentService
+from .shipping_action_service import (
+    ShippingActionError,
+    cancel_shipping,
+    create_failed_reship_action,
+    create_successful_shipping_action,
+    get_shipping_context,
+)
 
 
 def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
@@ -69,7 +88,7 @@ def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
         -1: '系统繁忙，请稍后再试',
         10060001: '支付单不存在，请核对订单号或交易号',
         10060002: '支付单已完成发货，无法继续发货',
-        10060003: '该支付单已使用重新发货机会',
+        10060003: '该支付单已使用微信重新发货机会',
         10060004: '支付单处于不可发货状态',
         10060005: '物流类型有误',
         10060006: '非快递发货不允许分拆发货',
@@ -134,9 +153,17 @@ def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
 
 
 class _WechatShippingSyncException(Exception):
-    def __init__(self, message: str, status_code: int = status.HTTP_400_BAD_REQUEST):
+    def __init__(
+        self,
+        message: str,
+        status_code: int = status.HTTP_400_BAD_REQUEST,
+        response: Dict | None = None,
+        error: str = '',
+    ):
         self.message = message
         self.status_code = status_code
+        self.response = response or {}
+        self.error = error
         super().__init__(message)
 
 def _mask_tracking_no(value: str) -> str:
@@ -206,6 +233,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             'refunds',
             'child_orders',  # 预加载子订单用于 get_child_orders
             'child_orders__items',  # 预加载子订单的订单项
+            'shipping_actions',
+            'shipping_actions__operator',
+            'shipping_syncs',
         )
 
         # 订单状态筛选
@@ -282,6 +312,50 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         return qs.distinct().order_by('-created_at')
 
+    @staticmethod
+    def _is_shipping_operator(user) -> bool:
+        return bool(user.is_staff or getattr(user, 'role', '') == 'support')
+
+    @action(
+        detail=True,
+        methods=['patch'],
+        permission_classes=[IsAuthenticated],
+        url_path='cancel_shipping',
+        url_name='cancel-shipping',
+    )
+    def cancel_shipping_action(self, request, pk=None):
+        if not self._is_shipping_operator(request.user):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            action_record = cancel_shipping(
+                order_id=self.get_object().id,
+                operator=request.user,
+                reason=request.data.get('reason', ''),
+            )
+            order = self.get_queryset().get(pk=action_record.order_id)
+            return Response(self.get_serializer(order).data, status=status.HTTP_200_OK)
+        except ShippingActionError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(
+        detail=True,
+        methods=['get'],
+        permission_classes=[IsAuthenticated],
+        url_path='shipping_actions',
+        url_name='shipping-actions',
+    )
+    def shipping_actions(self, request, pk=None):
+        if not self._is_shipping_operator(request.user):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
+        order = self.get_object()
+        queryset = OrderShippingAction.objects.filter(order=order).select_related(
+            'operator',
+        ).order_by('-created_at', '-id')
+        return Response(
+            OrderShippingActionSerializer(queryset, many=True).data,
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=False, methods=['get'], permission_classes=[IsOwnerOrAdmin])
     def export(self, request):
         qs = self.filter_queryset(self.get_queryset())
@@ -332,6 +406,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         allowed = {s for s, _ in Order.STATUS_CHOICES}
         if new_status not in allowed:
             return Response({'detail': 'invalid status'}, status=400)
+        if order.status == 'shipped' and new_status == 'paid':
+            return Response(
+                {'detail': '请使用取消发货接口恢复待发货状态'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         # 权限已由 IsAdminOrOwner 保证；若为终态间切换，允许覆盖
         order.status = new_status
         order.save()
@@ -846,20 +925,33 @@ class OrderViewSet(viewsets.ModelViewSet):
             if resolved_delivery_mode == 2 and is_all_delivered is None:
                 return Response({"detail": "分拆发货必须提供 is_all_delivered"}, status=status.HTTP_400_BAD_REQUEST)
             wechat_synced = False
+            wechat_response = {}
+            is_reship = False
+            attempted_snapshot = None
             with transaction.atomic():
                 order = (
                     Order.objects.select_for_update()
                     .select_related('user')
+                    .prefetch_related('shipping_actions')
                     .get(pk=order.id)
                 )
                 if not OrderStateMachine.can_transition(order.status, 'shipped'):
                     allowed = OrderStateMachine.get_allowed_transitions(order.status)
                     raise ValueError(f'当前状态不允许发货。允许的转换: {allowed}')
 
-                should_sync = (
-                    getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False)
-                    and order.payments.filter(status='succeeded', method='wechat').exists()
-                )
+                shipping_context = get_shipping_context(order)
+                is_reship = shipping_context['is_reship']
+                requires_wechat_reship = shipping_context['wechat_sync_required']
+                if is_reship and requires_wechat_reship:
+                    if not getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False):
+                        raise ValueError('微信发货同步已关闭，无法重新发货')
+                    should_sync = True
+                else:
+                    should_sync = (
+                        not is_reship
+                        and getattr(settings, 'WECHAT_SHIPPING_SYNC_ENABLED', False)
+                        and order.payments.filter(status='succeeded', method='wechat').exists()
+                    )
                 _log_ship_debug(
                     logger,
                     "ship sync decision",
@@ -884,6 +976,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                         'express_company': express_company,
                         **({'item_desc': item_desc} if item_desc else {}),
                     }],
+                }
+                attempted_snapshot = {
+                    'logistics_no': tracking_number or '',
+                    'shipping_info': shipping_info,
+                    'delivery_record_code': order.delivery_record_code or '',
+                    'sn_code': order.sn_code or '',
+                    'delivery_images': order.delivery_images or [],
                 }
                 order.logistics_no = tracking_number
                 order.shipping_info = shipping_info
@@ -919,8 +1018,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                         )
                         if not ok:
                             logger.warning('wechat shipping sync failed', extra={'order_id': order.id, 'error': err, 'resp': resp})
-                            raise _WechatShippingSyncException(_wechat_shipping_error_message(err, resp))
+                            raise _WechatShippingSyncException(
+                                _wechat_shipping_error_message(err, resp),
+                                response=resp,
+                                error=err or '',
+                            )
                         wechat_synced = True
+                        wechat_response = resp or {}
                         _log_ship_debug(
                             logger,
                             "wechat shipping sync succeeded",
@@ -935,7 +1039,21 @@ class OrderViewSet(viewsets.ModelViewSet):
                         raise
                     except Exception:
                         logger.exception('wechat shipping sync failed', extra={'order_id': order.id})
-                        raise _WechatShippingSyncException("微信发货同步异常，请稍后重试", status.HTTP_502_BAD_GATEWAY)
+                        raise _WechatShippingSyncException(
+                            "微信发货同步异常，请稍后重试",
+                            status.HTTP_502_BAD_GATEWAY,
+                            error='unexpected_exception',
+                        )
+
+                create_successful_shipping_action(
+                    order=order,
+                    action=shipping_context['action'],
+                    operator=user,
+                    snapshot=attempted_snapshot,
+                    wechat_sync_required=should_sync,
+                    wechat_synced=wechat_synced,
+                    wechat_response=wechat_response,
+                )
 
                 def _send_ship_notification():
                     try:
@@ -962,9 +1080,24 @@ class OrderViewSet(viewsets.ModelViewSet):
                         pass
 
                 transaction.on_commit(_send_ship_notification)
+            order = self.get_queryset().get(pk=order.id)
             serializer = self.get_serializer(order)
             return Response(serializer.data, status=200)
         except _WechatShippingSyncException as e:
+            if is_reship and attempted_snapshot:
+                try:
+                    create_failed_reship_action(
+                        order_id=order.id,
+                        operator=user,
+                        snapshot=attempted_snapshot,
+                        response=e.response,
+                        error=e.error or e.message,
+                    )
+                except Exception:
+                    logger.exception(
+                        'failed to persist reship failure audit',
+                        extra={'order_id': order.id},
+                    )
             return Response({"detail": e.message}, status=e.status_code)
         except ValueError as e:
             detail = str(e)
