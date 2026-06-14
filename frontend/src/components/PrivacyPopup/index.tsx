@@ -12,12 +12,9 @@ const PrivacyPopup = () => {
     if (Taro.getPrivacySetting) {
       Taro.getPrivacySetting({
         success: (res) => {
-          console.log('getPrivacySetting success:', res)
           if (res.needAuthorization) {
             setPrivacyContractName(res.privacyContractName || '《小程序隐私保护指引》')
             setShow(true)
-          } else {
-            console.log('无需授权，可能是以下原因：1. 已授权 2. 基础库版本过低 3. AppID 为游客模式或未在后台配置隐私协议')
           }
         },
         fail: (err) => {
@@ -30,8 +27,7 @@ const PrivacyPopup = () => {
 
     // 2. 监听隐私接口调用被拦截的事件
     if (Taro.onNeedPrivacyAuthorization) {
-      Taro.onNeedPrivacyAuthorization((resolve) => {
-        console.log('触发 onNeedPrivacyAuthorization')
+      Taro.onNeedPrivacyAuthorization(() => {
         setShow(true)
       })
     }
@@ -55,9 +51,6 @@ const PrivacyPopup = () => {
   const openContract = () => {
     // 跳转至微信官方的隐私协议页面
     Taro.openPrivacyContract({
-      success: () => {
-        console.log('隐私协议页面打开成功')
-      },
       fail: (err) => {
         console.error('隐私协议页面打开失败:', err)
         Taro.showToast({
@@ -69,8 +62,6 @@ const PrivacyPopup = () => {
   }
 
   if (!show) return null
-
-  console.log('PrivacyPopup rendering, show:', show)
 
   return (
     <View className="privacy-popup-overlay">

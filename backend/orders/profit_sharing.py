@@ -23,10 +23,6 @@ def amount_to_cents(amount: Decimal) -> int:
     return int((Decimal(amount) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def cents_to_amount(cents: int) -> Decimal:
-    return (Decimal(cents) / Decimal("100")).quantize(Decimal("0.01"))
-
-
 class ProfitSharingService:
     @staticmethod
     def checkout_requires_profit_sharing(checkout_order) -> bool:

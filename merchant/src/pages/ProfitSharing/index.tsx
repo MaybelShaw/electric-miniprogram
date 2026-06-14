@@ -312,7 +312,7 @@ export default function ProfitSharing() {
     return <Spin />;
   }
 
-  if (contextLoaded && !storeContext?.is_platform_admin) {
+  if (!storeContext?.is_platform_admin) {
     return (
       <Result
         status="403"
@@ -322,7 +322,7 @@ export default function ProfitSharing() {
     );
   }
 
-  if (contextLoaded && storeContext?.is_platform_admin && currentStore?.is_main !== true) {
+  if (currentStore?.is_main !== true) {
     return (
       <Result
         status="403"
@@ -338,7 +338,6 @@ export default function ProfitSharing() {
         columns={entryColumns}
         actionRef={entryActionRef}
         rowKey="id"
-        loading={!contextLoaded}
         request={async (params) => {
           const requestParams: Record<string, any> = {
             page: params.current,

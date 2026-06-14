@@ -405,11 +405,8 @@ export default function OrderDetail() {
             } else {
                 Taro.openDocument({
                     filePath: filePath,
-                    success: function () {
-                        console.log('打开文档成功');
-                    },
                     fail: function (err) {
-                        console.log('打开文档失败', err);
+                        console.error('打开文档失败', err);
                         Taro.showToast({ title: '无法打开文件', icon: 'none' });
                     }
                 });

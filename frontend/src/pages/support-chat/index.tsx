@@ -243,8 +243,8 @@ export default function SupportChat() {
         sourceType: ['camera'],
       })
       handleMediaSelect(res)
-    } catch (e) {
-      console.log('Camera cancelled or failed', e)
+    } catch {
+      // 用户取消选择时保持当前聊天状态。
     }
   }
 
@@ -256,8 +256,8 @@ export default function SupportChat() {
         sourceType: ['album'],
       })
       handleMediaSelect(res)
-    } catch (e) {
-      console.log('Album cancelled or failed', e)
+    } catch {
+      // 用户取消选择时保持当前聊天状态。
     }
   }
 
@@ -287,7 +287,6 @@ export default function SupportChat() {
       url: '/pages/support-chat/select-order/index',
       events: {
         acceptSelectedOrder: (order) => {
-          console.log('Received order:', order)
           sendOrder(order).catch(err => {
              console.error('Failed to send order:', err)
              Taro.showToast({ title: '发送订单失败', icon: 'none' })
@@ -307,7 +306,6 @@ export default function SupportChat() {
       url: '/pages/support-chat/select-product/index',
       events: {
         acceptSelectedProduct: (product) => {
-          console.log('Received product:', product)
           sendProduct(product).catch(err => {
              console.error('Failed to send product:', err)
              Taro.showToast({ title: '发送商品失败', icon: 'none' })

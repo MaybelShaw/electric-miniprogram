@@ -163,8 +163,6 @@ export default function CategoryPage() {
   }
 
   const handleItemClick = (item: Category & { isBrand?: boolean, isCategory?: boolean }, minorId: number) => {
-    console.log('handleItemClick', item, minorId)
-    
     // 处理"全部商品"点击
     if (item.id === -1) {
       Taro.navigateTo({
@@ -194,7 +192,6 @@ export default function CategoryPage() {
 
     // 跳转到商品列表页，携带分类筛选
     const url = `/pages/product-list/index?majorId=${activeMajorId}&minorId=${minorId}&itemId=${item.id}&title=${encodeURIComponent(item.name)}`
-    console.log('navigating to', url)
     Taro.navigateTo({
       url: url,
       fail: (err) => {
