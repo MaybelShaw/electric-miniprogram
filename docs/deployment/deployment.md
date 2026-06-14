@@ -16,6 +16,10 @@
    ```bash.
    docker compose -f docker/docker-compose.dev.yaml up -d
    ```
+   Windows / Docker Desktop 首次启动或修改 `docker/Dockerfile.backend.dev` 后，建议显式重建后端开发镜像：
+   ```bash
+   docker compose -f docker/docker-compose.dev.yaml up -d --build backend
+   ```
 2. 代码更新后的生效方式（服务器开发环境常见）：
    - 拉取代码后，前端容器一般会自动热更新；若浏览器仍看到旧行为，可执行 `docker compose -f docker/docker-compose.dev.yaml restart merchant`。
    - 后端代码更新后建议执行 `docker compose -f docker/docker-compose.dev.yaml restart backend`；如涉及迁移再补充运行 `migrate`。
@@ -24,9 +28,9 @@
    - 前端：`http://localhost:3001`
 4. 数据库迁移（如需手动）：
    ```bash
-   docker compose -f docker/docker-compose.dev.yaml exec backend uv run python manage.py migrate
+   docker compose -f docker/docker-compose.dev.yaml exec backend .venv/bin/python manage.py migrate
    ```
-5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。
+5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。开发后端镜像由 `docker/Dockerfile.backend.dev` 构建，内置 `uv` 和 `docker/wait_for_tcp.py`；启动时会先等待 `POSTGRES_HOST:POSTGRES_PORT` 可解析且端口可连接，再执行 `uv sync`、`wait_for_db`、迁移和种子数据初始化，避免 Windows / Docker Desktop 下偶发 `failed to resolve host 'db'`。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`
@@ -104,6 +108,7 @@
   - `POSTGRES_PASSWORD=electric`
   - `POSTGRES_HOST=db`
   - `POSTGRES_PORT=5432`
+  - `SKIP_WECHAT_PAY_CONFIG_CHECK=1`（仅开发 Compose 使用，允许未配置微信支付证书时启动本地后端；生产不要设置）
 - 生产最小集（按需扩展）：
   - `DJANGO_ENV=production`
   - `DJANGO_SETTINGS_MODULE=backend.settings.production`
