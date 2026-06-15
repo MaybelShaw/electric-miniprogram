@@ -110,6 +110,44 @@ class WeChatExplicitLoginTests(TestCase):
 
     @patch("users.views.requests.post")
     @patch("users.views.requests.get")
+    def test_phone_authorization_prefers_existing_phone_user_over_openid_user(
+        self, mock_get, mock_post
+    ):
+        openid_user = User.objects.create_user(
+            openid="openid-current",
+            role="individual",
+        )
+        phone_user = User.objects.create_user(
+            openid="openid-phone-old",
+            phone="13800138000",
+            role="individual",
+        )
+        mock_get.side_effect = [
+            MockWechatResponse({"openid": "openid-current", "session_key": "session-key"}),
+            MockWechatResponse({"access_token": "access-token", "expires_in": 7200}),
+        ]
+        mock_post.return_value = MockWechatResponse(
+            {"errcode": 0, "phone_info": {"phoneNumber": "13800138000"}}
+        )
+
+        response = self.client.post(
+            self.url,
+            {"code": "js-code", "phone_code": "phone-code"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["id"], phone_user.id)
+        self.assertEqual(User.objects.count(), 2)
+
+        openid_user.refresh_from_db()
+        phone_user.refresh_from_db()
+        self.assertIsNone(openid_user.openid)
+        self.assertEqual(phone_user.openid, "openid-current")
+        self.assertEqual(phone_user.phone, "13800138000")
+
+    @patch("users.views.requests.post")
+    @patch("users.views.requests.get")
     def test_default_username_is_generated_without_profile_authorization(
         self, mock_get, mock_post
     ):
@@ -140,14 +178,13 @@ class WeChatExplicitLoginDevelopmentTests(TestCase):
         cache.clear()
         self.client = APIClient()
 
-    def test_debug_mode_without_wechat_credentials_simulates_phone_login(self):
+    def test_debug_mode_without_wechat_credentials_returns_service_unavailable(self):
         response = self.client.post(
             self.url,
             {"code": "dev-openid", "phone_code": "dev-phone-code"},
             format="json",
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access", response.data)
-        self.assertEqual(response.data["user"]["phone"], "13800000000")
-        self.assertTrue(User.objects.filter(openid="dev-openid").exists())
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertEqual(User.objects.count(), 0)
+        self.assertIn("configured", response.data["error"].lower())

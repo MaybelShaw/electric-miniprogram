@@ -31,6 +31,10 @@
    docker compose -f docker/docker-compose.dev.yaml exec backend .venv/bin/python manage.py migrate
    ```
 5. 说明：开发模式使用 `backend.settings.development`（`backend/manage.py:9`），并通过 `DJANGO_DB=postgres` 切换到 Postgres（`backend/backend/settings/env_config.py:215`）。开发后端镜像由 `docker/Dockerfile.backend.dev` 构建并内置 `uv`；启动依赖 Compose 的 `db` 健康检查，随后执行 `uv sync`、迁移、开发超级管理员创建和 `runserver`。测试数据、测试商品和销量重算不再随后端容器启动自动执行；如需演示数据，需要另行准备脚本或通过后台/API 创建。
+6. 本地微信支付联调：
+   - 将微信支付私钥、公钥或平台证书放到仓库外的安全来源后，复制到本地 `certs/wechatpay/`；该目录除 `.gitkeep` 外已被 `.gitignore` 忽略。
+   - 在 `backend/.env` 写入本地联调变量，证书路径使用容器内路径 `/etc/electric-miniprogram/certs/wechatpay/...`，例如 `WECHAT_PAY_PRIVATE_KEY_PATH=/etc/electric-miniprogram/certs/wechatpay/apiclient_key.pem`。
+   - `docker/docker-compose.dev.yaml` 会只读挂载 `certs/wechatpay`，并可通过 `ELECTRIC_DEV_ENV_FILE` 指向其他本地 env 文件；默认仍保留 `SKIP_WECHAT_PAY_CONFIG_CHECK=1`，允许未配置微信支付时启动开发后端。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`
@@ -109,6 +113,12 @@
   - `POSTGRES_HOST=db`
   - `POSTGRES_PORT=5432`
   - `SKIP_WECHAT_PAY_CONFIG_CHECK=1`（仅开发 Compose 使用，允许未配置微信支付证书时启动本地后端；生产不要设置）
+- 开发微信支付联调变量（按需写入 `backend/.env` 或 `ELECTRIC_DEV_ENV_FILE` 指向的文件）：
+  - `WECHAT_APPID/WECHAT_SECRET`
+  - `WECHAT_PAY_MCHID/WECHAT_PAY_SERIAL_NO/WECHAT_PAY_API_V3_KEY`
+  - `WECHAT_PAY_PRIVATE_KEY_PATH=/etc/electric-miniprogram/certs/wechatpay/...`
+  - `WECHAT_PAY_PUBLIC_KEY_PATH` 或 `WECHAT_PAY_PLATFORM_CERT_PATH`，路径同样使用容器内 `/etc/electric-miniprogram/certs/wechatpay/...`
+  - `WECHAT_PAY_NOTIFY_URL/WECHAT_PAY_REFUND_NOTIFY_URL`
 - 生产最小集（按需扩展）：
   - `DJANGO_ENV=production`
   - `DJANGO_SETTINGS_MODULE=backend.settings.production`

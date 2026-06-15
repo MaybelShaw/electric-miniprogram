@@ -24,6 +24,7 @@ from .serializers import (
     AccountTransactionSerializer,
     NotificationSerializer,
 )
+from django.db import transaction
 from django.db.models import Q
 from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
 from common.throttles import LoginRateThrottle
@@ -193,8 +194,6 @@ class WeChatMiniProgramAuthService:
 
     def code_to_session(self, code):
         if not self.appid or not self.secret:
-            if settings.DEBUG:
-                return {"openid": code, "session_key": None}
             raise WeChatAuthError(
                 "WeChat credentials are not configured",
                 status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -221,8 +220,11 @@ class WeChatMiniProgramAuthService:
         return data
 
     def phone_code_to_number(self, phone_code):
-        if (not self.appid or not self.secret) and settings.DEBUG:
-            return "13800000000"
+        if not self.appid or not self.secret:
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
 
         access_token = self._get_access_token()
         response = requests.post(
@@ -343,21 +345,37 @@ class WeChatExplicitLoginView(APIView):
 
         from .services import create_tokens_for_user, update_last_login
 
-        if user is None and phone_number:
-            user = User.objects.filter(phone=phone_number).order_by("id").first()
-            if user and user.openid != openid:
-                user.openid = openid
-                user.save(update_fields=["openid"])
-
-        if user is None:
-            user = User.objects.create_user(
-                openid=openid,
-                phone=phone_number,
-                role='individual',
-            )
-        elif phone_number and user.phone != phone_number:
-            user.phone = phone_number
-            user.save(update_fields=["phone"])
+        with transaction.atomic():
+            user = User.objects.select_for_update().filter(openid=openid).first()
+            if phone_number:
+                phone_user = (
+                    User.objects.select_for_update()
+                    .filter(phone=phone_number)
+                    .order_by("id")
+                    .first()
+                )
+                if phone_user and (user is None or phone_user.id != user.id):
+                    if user is not None:
+                        user.openid = None
+                        user.save(update_fields=["openid"])
+                    if phone_user.openid != openid:
+                        phone_user.openid = openid
+                        phone_user.save(update_fields=["openid"])
+                    user = phone_user
+                elif user is None:
+                    user = User.objects.create_user(
+                        openid=openid,
+                        phone=phone_number,
+                        role='individual',
+                    )
+                elif user.phone != phone_number:
+                    user.phone = phone_number
+                    user.save(update_fields=["phone"])
+            elif user is None:
+                return Response(
+                    {"error": "Phone authorization is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         update_last_login(user)
         refresh, access = create_tokens_for_user(user)

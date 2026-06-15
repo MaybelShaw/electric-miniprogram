@@ -24,6 +24,10 @@ services:
     working_dir: /app
     volumes:
       - ../backend:/app
+      - ../certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
+    env_file:
+      - path: ${ELECTRIC_DEV_ENV_FILE:-../backend/.env}
+        required: false
     environment:
       - DJANGO_ENV=development
       - DJANGO_SETTINGS_MODULE=backend.settings.development

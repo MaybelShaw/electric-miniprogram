@@ -59,6 +59,14 @@ Authorization: Bearer <access_token>
   - 说明：用户类型自动设置为 `wechat`，最后登录时间自动更新
   - 限流：5次/分钟
 
+- `POST /wechat/explicit-login/`
+  - 用途：微信手机号显式登录，用 `code` + `phone_code` 换取 `access/refresh` 令牌与用户信息
+  - 权限：AllowAny
+  - 请求体：`{ "code": string, "phone_code": string }`
+  - 响应：`{ "access": string, "refresh": string, "user": User }`
+  - 说明：首次登录必须携带手机号授权；同一手机号已有账号时会复用该账号。未配置微信凭证时直接返回 `503`
+  - 限流：5次/分钟
+
 - `POST /admin/login/`
   - 用途：管理端用户名密码登录
   - 权限：AllowAny

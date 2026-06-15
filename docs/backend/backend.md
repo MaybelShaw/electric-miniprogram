@@ -132,7 +132,8 @@
 
 ## 主要 API 端点
 - 认证与用户（前缀 `/api/`）：
-  - `POST /wechat/explicit-login/` 显式微信快捷登录：请求体包含 `code` 和微信手机号授权 `phone_code`；首次登录缺少手机号授权会返回 `400`，不会创建用户。登录成功返回 `access`、`refresh` 和用户资料，并保存手机号与 `last_login_at`。
+  - `POST /wechat/explicit-login/` 显式微信快捷登录：请求体包含 `code` 和微信手机号授权 `phone_code`；首次登录缺少手机号授权会返回 `400`，不会创建用户。登录成功返回 `access`、`refresh` 和用户资料，并保存手机号与 `last_login_at`。若同一手机号已存在账号，登录会归并到该账号，不会再创建重复手机号账号。
+  - 当微信凭证未配置时，显式登录直接返回 `503`，不会使用固定手机号或模拟账号兜底。
   - `POST /login/` 旧微信 code 登录入口（保留兼容，不用于普通浏览触发账号创建）
   - `POST /password_login/` 密码登录（管理员/客服）`backend/users/urls.py`
   - `POST /admin/login/` 管理员登录别名 `backend/users/urls.py`

@@ -55,6 +55,8 @@ backend/logs/
 
 #wechat
 frontend/project.config.json
+certs/wechatpay/*
+!certs/wechatpay/.gitkeep
 
 #docs
 回调地址配置.md

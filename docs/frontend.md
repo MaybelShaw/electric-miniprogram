@@ -164,6 +164,7 @@
 - 登录与鉴权：
   - 显式微信快捷登录通过 `authService.loginWithPhone(phoneCode)` 调用：先用 `Taro.login()` 获取 `code`，再把 `code` 和微信手机号授权返回的 `phone_code` 提交到 `/api/wechat/explicit-login/`。
   - 首次登录必须授权手机号；普通商品浏览不触发登录，也不会隐式创建账号。
+  - 如果后端微信凭证未配置，显式登录会返回 `503`，前端不再兜底生成模拟手机号账号。
   - 商品详情页的购买/加购动作通过 `frontend/src/utils/auth-guard.ts` 守卫；未登录时保存当前路径和 `buy/cart` 动作，切到个人中心授权登录，成功后回到原商品详情并携带 `auth_action` 恢复原动作。
   - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:93`
 - 购物车结算：
