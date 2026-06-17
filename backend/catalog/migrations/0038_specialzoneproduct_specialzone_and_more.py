@@ -5,6 +5,63 @@ import stores.models
 from django.db import migrations, models
 
 
+def _table_names(schema_editor):
+    with schema_editor.connection.cursor() as cursor:
+        return schema_editor.connection.introspection.table_names(cursor)
+
+
+def _column_names(schema_editor, table_name):
+    with schema_editor.connection.cursor() as cursor:
+        return {
+            column.name
+            for column in schema_editor.connection.introspection.get_table_description(
+                cursor,
+                table_name,
+            )
+        }
+
+
+def _constraint_names(schema_editor, table_name):
+    with schema_editor.connection.cursor() as cursor:
+        return schema_editor.connection.introspection.get_constraints(
+            cursor,
+            table_name,
+        )
+
+
+class IdempotentCreateModel(migrations.CreateModel):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.name)
+        if model._meta.db_table in _table_names(schema_editor):
+            return
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
+class IdempotentAddField(migrations.AddField):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        field = model._meta.get_field(self.name)
+        if field.column in _column_names(schema_editor, model._meta.db_table):
+            return
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
+class IdempotentAddIndex(migrations.AddIndex):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        if self.index.name in _constraint_names(schema_editor, model._meta.db_table):
+            return
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
+class IdempotentAddConstraint(migrations.AddConstraint):
+    def database_forwards(self, app_label, schema_editor, from_state, to_state):
+        model = to_state.apps.get_model(app_label, self.model_name)
+        if self.constraint.name in _constraint_names(schema_editor, model._meta.db_table):
+            return
+        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,7 +70,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
+        IdempotentCreateModel(
             name='SpecialZoneProduct',
             fields=[
                 ('id', models.BigAutoField(primary_key=True, serialize=False)),
@@ -27,7 +84,7 @@ class Migration(migrations.Migration):
                 'ordering': ['order', 'id'],
             },
         ),
-        migrations.CreateModel(
+        IdempotentCreateModel(
             name='SpecialZone',
             fields=[
                 ('id', models.BigAutoField(primary_key=True, serialize=False)),
@@ -51,50 +108,50 @@ class Migration(migrations.Migration):
                 'ordering': ['home_order', 'id'],
             },
         ),
-        migrations.AddField(
+        IdempotentAddField(
             model_name='homebanner',
             name='special_zone',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='home_banners', to='catalog.specialzone', verbose_name='动态专区'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='homebanner',
             index=models.Index(fields=['special_zone', 'is_active', 'order'], name='catalog_hom_special_c23499_idx'),
         ),
-        migrations.AddField(
+        IdempotentAddField(
             model_name='specialzoneproduct',
             name='product',
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='special_zone_links', to='catalog.product', verbose_name='商品'),
         ),
-        migrations.AddField(
+        IdempotentAddField(
             model_name='specialzoneproduct',
             name='zone',
             field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='zone_products', to='catalog.specialzone', verbose_name='专区'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='specialzone',
             index=models.Index(fields=['store', 'is_active', 'show_on_home', 'home_order'], name='catalog_spe_store_i_97bd19_idx'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='specialzone',
             index=models.Index(fields=['store', 'kind'], name='catalog_spe_store_i_57ba84_idx'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='specialzone',
             index=models.Index(fields=['start_at', 'end_at'], name='catalog_spe_start_a_dd56c9_idx'),
         ),
-        migrations.AddConstraint(
+        IdempotentAddConstraint(
             model_name='specialzone',
             constraint=models.UniqueConstraint(fields=('store', 'slug'), name='unique_special_zone_store_slug'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='specialzoneproduct',
             index=models.Index(fields=['zone', 'is_active', 'order'], name='catalog_spe_zone_id_b48ca9_idx'),
         ),
-        migrations.AddIndex(
+        IdempotentAddIndex(
             model_name='specialzoneproduct',
             index=models.Index(fields=['product'], name='catalog_spe_product_21b8b0_idx'),
         ),
-        migrations.AddConstraint(
+        IdempotentAddConstraint(
             model_name='specialzoneproduct',
             constraint=models.UniqueConstraint(fields=('zone', 'product'), name='unique_special_zone_product'),
         ),
