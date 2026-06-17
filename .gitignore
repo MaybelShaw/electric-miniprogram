@@ -11,6 +11,7 @@ venv/
 # Django
 *.log
 staticfiles/
+backend/db.sqlite3
 backend/media/*
 backend/backend/media/*
 backend/backend/media.rollback-*
@@ -41,14 +42,11 @@ htmlcov/
 .env
 .env.local
 .env.*
+.codex/
 
 # Build artifacts
 *.egg-info/
 *.bundle
-
-# Data retention
-# Keep SQLite DB as requested
-!backend/db.sqlite3
 
 # Logs directory keep marker
 backend/logs/
@@ -58,6 +56,7 @@ backend/logs/
 frontend/project.config.json
 certs/wechatpay/*
 !certs/wechatpay/.gitkeep
+certs.zip
 
 #docs
 回调地址配置.md
