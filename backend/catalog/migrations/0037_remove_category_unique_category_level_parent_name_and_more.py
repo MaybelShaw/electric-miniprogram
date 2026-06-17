@@ -5,6 +5,36 @@ import stores.models
 from django.db import migrations, models
 
 
+def remove_category_unique_constraint(apps, schema_editor):
+    Category = apps.get_model('catalog', 'Category')
+    constraint = models.UniqueConstraint(
+        fields=('level', 'parent', 'name'),
+        name='unique_category_level_parent_name',
+    )
+    with schema_editor.connection.cursor() as cursor:
+        constraints = schema_editor.connection.introspection.get_constraints(
+            cursor,
+            Category._meta.db_table,
+        )
+    if constraint.name in constraints:
+        schema_editor.remove_constraint(Category, constraint)
+
+
+def restore_category_unique_constraint(apps, schema_editor):
+    Category = apps.get_model('catalog', 'Category')
+    constraint = models.UniqueConstraint(
+        fields=('level', 'parent', 'name'),
+        name='unique_category_level_parent_name',
+    )
+    with schema_editor.connection.cursor() as cursor:
+        constraints = schema_editor.connection.introspection.get_constraints(
+            cursor,
+            Category._meta.db_table,
+        )
+    if constraint.name not in constraints:
+        schema_editor.add_constraint(Category, constraint)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,9 +43,19 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveConstraint(
-            model_name='category',
-            name='unique_category_level_parent_name',
+        migrations.SeparateDatabaseAndState(
+            database_operations=[
+                migrations.RunPython(
+                    remove_category_unique_constraint,
+                    reverse_code=restore_category_unique_constraint,
+                ),
+            ],
+            state_operations=[
+                migrations.RemoveConstraint(
+                    model_name='category',
+                    name='unique_category_level_parent_name',
+                ),
+            ],
         ),
         migrations.AddField(
             model_name='brand',
