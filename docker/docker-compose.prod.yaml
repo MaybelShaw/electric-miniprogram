@@ -3,10 +3,9 @@
 services:
   db:
     image: postgres:17-alpine
-    environment:
-      - POSTGRES_DB=electric_miniprogram
-      - POSTGRES_USER=electric
-      - POSTGRES_PASSWORD=electric
+    env_file:
+      # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
+      - ${ELECTRIC_ENV_FILE:-/etc/electric-miniprogram/.env.production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -17,69 +16,72 @@ services:
     restart: unless-stopped
 
   backend:
-    image: python:3.12-slim
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend.prod
     working_dir: /app
     volumes:
-      - ../backend:/app
+      - staticfiles:/app/backend/staticfiles
+      - /var/lib/electric-miniprogram/media:/app/backend/media
       - /etc/electric-miniprogram/certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
     env_file:
       # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
       - ${ELECTRIC_ENV_FILE:-/etc/electric-miniprogram/.env.production}
     environment:
       - ALLOWED_HOSTS=www.qxelectric.cn,qxelectric.cn,cdn.qxelectric.cn,origin.qxelectric.cn
-      - SECURE_SSL_REDIRECT=false
     depends_on:
       db:
         condition: service_healthy
     command: >
-      bash -lc "pip install uv &&
-                uv sync &&
-                .venv/bin/python manage.py migrate &&
+      sh -c ".venv/bin/python manage.py migrate &&
                 .venv/bin/python manage.py collectstatic --noinput &&
-                .venv/bin/python manage.py runserver 0.0.0.0:8000"
+                exec .venv/bin/gunicorn backend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 90 --access-logfile - --error-logfile -"
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          python -c 'import os,urllib.request; raw=os.getenv("ALLOWED_HOSTS",""); hosts=[h.strip() for h in raw.split(",") if h.strip()]; host=("127.0.0.1" if "*" in hosts else (hosts[0].lstrip(".") if hosts else "localhost")); req=urllib.request.Request("http://127.0.0.1:8000/healthz", headers={"Host": host}); urllib.request.urlopen(req, timeout=2).read()'
+          python -c 'import os,urllib.request; raw=os.getenv("ALLOWED_HOSTS",""); hosts=[h.strip() for h in raw.split(",") if h.strip()]; host=("127.0.0.1" if "*" in hosts else (hosts[0].lstrip(".") if hosts else "localhost")); req=urllib.request.Request("http://127.0.0.1:8000/healthz", headers={"Host": host, "X-Forwarded-Proto": "https"}); urllib.request.urlopen(req, timeout=2).read()'
       interval: 10s
       timeout: 3s
       retries: 12
       start_period: 30s
     restart: unless-stopped
 
-  merchant-build:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ../merchant:/app
-      - merchant_dist:/app/dist
-    command: sh -c "(npm ci || npm install) && npm run build && tail -f /dev/null"
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /app/dist/index.html"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-      start_period: 10s
-    restart: unless-stopped
-
   nginx:
-    image: nginx:alpine
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.nginx.prod
     depends_on:
       backend:
         condition: service_healthy
       merchant-build:
         condition: service_healthy
     ports:
+      - "80:80"
       - "443:443"
     volumes:
       - merchant_dist:/usr/share/nginx/html:ro
-      - ../deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ../backend:/var/www/backend:ro
+      - staticfiles:/var/www/backend/backend/staticfiles:ro
+      - /var/lib/electric-miniprogram/media:/var/www/backend/backend/media:ro
       # 证书请放在宿主机 /etc/electric-miniprogram/certs/nginx 下
       - /etc/electric-miniprogram/certs/nginx:/etc/nginx/certs:ro
     restart: unless-stopped
 
+  merchant-build:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.merchant.prod
+    volumes:
+      - merchant_dist:/dist
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /dist/index.html"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  staticfiles:
   merchant_dist:

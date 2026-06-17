@@ -13,6 +13,7 @@ from common.serializers import (
 from stores.models import Store
 from stores.permissions import get_active_memberships, is_platform_admin, is_support_user
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema_field
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -135,6 +136,7 @@ class CategorySerializer(serializers.ModelSerializer):
         else:
             self.fields['parent_id'].queryset = Category.objects.filter(id__isnull=False)
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_children(self, obj: Category):
         # 返回直接子节点（避免无限嵌套）
         if obj.level not in {Category.LEVEL_MAJOR, Category.LEVEL_MINOR}:
@@ -320,11 +322,13 @@ class ProductSKUSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('规格参数必须是键值对象')
         return value
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
     def get_display_price(self, obj: ProductSKU):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         return resolve_base_price(user, obj.product, sku=obj)
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
     def get_discounted_price(self, obj: ProductSKU):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
@@ -616,11 +620,13 @@ class ProductSerializer(serializers.ModelSerializer):
         
         return result
     
+    @extend_schema_field(serializers.BooleanField())
     def get_is_haier_product(self, obj: Product):
         """判断是否为海尔产品"""
         # 只根据 source 字段判断
         return getattr(obj, 'source', None) == getattr(obj, 'SOURCE_HAIER', 'haier')
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_haier_info(self, obj: Product):
         """获取海尔产品信息"""
         if not self._viewer_flags()['internal_fields']:
@@ -643,12 +649,14 @@ class ProductSerializer(serializers.ModelSerializer):
             'last_sync_at': obj.last_sync_at,
         }
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
     def get_originalPrice(self, obj: Product):
         """获取原价（市场价或普通价格）"""
         if obj.market_price:
             return obj.market_price
         return obj.price
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
     def get_discounted_price(self, obj: Product):
         """获取折扣价"""
         request = self.context.get('request')
@@ -661,6 +669,7 @@ class ProductSerializer(serializers.ModelSerializer):
         amount = get_best_active_discount(user, obj, base_price=base_price)
         return base_price - amount
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2))
     def get_display_price(self, obj: Product):
         """获取展示价（经销商优先经销价，空/0回退零售价）"""
         request = self.context.get('request')
@@ -681,6 +690,7 @@ class ProductSerializer(serializers.ModelSerializer):
                 'show_customer_group_name': False,
             }
 
+    @extend_schema_field(ProductSKUSerializer(many=True))
     def get_skus(self, obj: Product):
         skus = getattr(obj, 'skus', None)
         if skus is None:
@@ -692,6 +702,7 @@ class ProductSerializer(serializers.ModelSerializer):
         )
         return serializer.data
 
+    @extend_schema_field(serializers.DictField(child=serializers.ListField(child=serializers.CharField())))
     def get_spec_options(self, obj: Product):
         options = {}
         for sku in obj.skus.all() if hasattr(obj, 'skus') else []:
@@ -732,6 +743,7 @@ class MediaImageSerializer(serializers.ModelSerializer):
         fields = ['id', 'file', 'url', 'original_name', 'content_type', 'size', 'created_at']
         read_only_fields = ['id', 'created_at']
 
+    @extend_schema_field(serializers.CharField())
     def get_url(self, obj: MediaImage):
         """
         Get the absolute URL for the media image.
@@ -1006,14 +1018,17 @@ class HomeStoreCardSerializer(serializers.ModelSerializer):
         for index, category_id in enumerate(category_ids):
             HomeStoreCardCategory.objects.create(card=card, category_id=category_id, order=index)
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_main_product(self, obj):
         link = obj.card_products.filter(role=HomeStoreCardProduct.ROLE_MAIN).select_related('product').first()
         return ProductSerializer(link.product, context=self.context).data if link else None
 
+    @extend_schema_field(ProductSerializer(many=True))
     def get_secondary_products(self, obj):
         products = [link.product for link in obj.card_products.filter(role=HomeStoreCardProduct.ROLE_SECONDARY).select_related('product').order_by('order', 'id')]
         return ProductSerializer(products, many=True, context=self.context).data
 
+    @extend_schema_field(CategorySerializer(many=True))
     def get_categories(self, obj):
         categories = [link.category for link in obj.card_categories.select_related('category').order_by('order', 'id')]
         return CategorySerializer(categories, many=True, context=self.context).data
@@ -1021,9 +1036,11 @@ class HomeStoreCardSerializer(serializers.ModelSerializer):
     def _card_products(self, obj):
         return [link.product for link in obj.card_products.select_related('product')]
 
+    @extend_schema_field(serializers.BooleanField())
     def get_has_inactive_products(self, obj):
         return any(not product.is_active for product in self._card_products(obj))
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_inactive_product_names(self, obj):
         return [product.name for product in self._card_products(obj) if not product.is_active]
 
@@ -1061,6 +1078,7 @@ class HomeBannerSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'store', 'special_zone', 'created_at', 'updated_at', 'image_id', 'image_url', 'product_name']
 
+    @extend_schema_field(serializers.CharField())
     def get_image_url(self, obj: HomeBanner):
         return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
@@ -1090,6 +1108,7 @@ class SpecialZoneCoverSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'store', 'created_at', 'updated_at', 'image_id', 'image_url']
         validators = []
 
+    @extend_schema_field(serializers.CharField())
     def get_image_url(self, obj: SpecialZoneCover):
         return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
@@ -1116,6 +1135,7 @@ class CaseDetailBlockSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['image_url']
 
+    @extend_schema_field(serializers.CharField())
     def get_image_url(self, obj: CaseDetailBlock):
         return _build_media_file_url(obj.image.file if obj.image else None, self.context.get('request'))
 
@@ -1143,6 +1163,7 @@ class CaseSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'cover_image_url']
 
+    @extend_schema_field(serializers.CharField())
     def get_cover_image_url(self, obj: Case):
         return _build_media_file_url(obj.cover_image.file if obj.cover_image else None, self.context.get('request'))
 

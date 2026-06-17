@@ -10,6 +10,7 @@ from .models import (
     StoreSettlementRule,
 )
 from .permissions import get_membership_permissions
+from drf_spectacular.utils import extend_schema_field
 
 
 class StoreSerializer(serializers.ModelSerializer):
@@ -78,6 +79,7 @@ class StoreMemberSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "username", "store_name", "store_is_main", "permissions", "created_at", "updated_at"]
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_permissions(self, obj):
         return get_membership_permissions(obj)
 

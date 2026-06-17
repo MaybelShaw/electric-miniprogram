@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from catalog.models import Product
 from common.serializers import AttachmentFileValidator, ImageFileValidator
+from common.serializers import EmptySerializer
 from orders.models import Order
 from .models import FeedbackTicket, FeedbackTicketReply, SupportConversation, SupportMessage, SupportReplyTemplate
 from .serializers import (
@@ -605,6 +606,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
 
 class SupportConversationAutoReplyView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = EmptySerializer
 
     def post(self, request, conversation_id):
         user = request.user
@@ -630,6 +632,7 @@ class SupportConversationAutoReplyView(APIView):
 
 class SupportApiRootView(APIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = EmptySerializer
 
     def get(self, request):
         base = request.build_absolute_uri('.')
@@ -643,6 +646,7 @@ class SupportApiRootView(APIView):
 
 
 class FeedbackTicketViewSet(viewsets.ModelViewSet):
+    queryset = FeedbackTicket.objects.none()
     permission_classes = [IsAuthenticated]
     serializer_class = FeedbackTicketSerializer
     http_method_names = ['get', 'post', 'head', 'options']

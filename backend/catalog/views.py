@@ -1281,7 +1281,14 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'results': serializer.data, 'total': total})
 
     @extend_schema(
-        operation_id='search_logs_clear_history',
+        methods=['POST'],
+        operation_id='search_logs_clear_history_post',
+        description='Clear search history for current user. Optionally provide keyword to delete a single keyword history.',
+        request=None,
+    )
+    @extend_schema(
+        methods=['DELETE'],
+        operation_id='search_logs_clear_history_delete',
         description='Clear search history for current user. Optionally provide keyword to delete a single keyword history.',
         request=None,
     )

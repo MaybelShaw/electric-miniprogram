@@ -12,6 +12,10 @@ from decimal import Decimal
 import mimetypes
 
 
+class EmptySerializer(serializers.Serializer):
+    """Named schema placeholder for endpoints with ad-hoc object payloads."""
+
+
 class SecureCharField(serializers.CharField):
     """
     A CharField that automatically escapes HTML content to prevent XSS attacks.

@@ -24,6 +24,7 @@ from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
 from stores.permissions import is_platform_admin, is_support_user
+from drf_spectacular.utils import extend_schema_field
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -285,6 +286,7 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_shipping_cancel_count(self, obj: Order) -> int:
         return self._shipping_capabilities(obj)['shipping_cancel_count']
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""
         primary_product = obj.primary_product
@@ -299,6 +301,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'product_code': primary_product.product_code if primary_product else '',
         }
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_logistics_info(self, obj: Order):
         """获取物流信息"""
         # 只要有任意一项物流相关信息，就返回字典，确保前端能展示已有信息
@@ -320,6 +323,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_info': obj.shipping_info or None,
         }
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_invoice_info(self, obj: Order):
         """获取发票信息"""
         if hasattr(obj, 'invoice'):
@@ -331,6 +335,7 @@ class OrderSerializer(serializers.ModelSerializer):
             }
         return None
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_return_info(self, obj: Order):
         rr = getattr(obj, 'return_request', None)
         if not rr:
@@ -355,12 +360,14 @@ class OrderSerializer(serializers.ModelSerializer):
             'processed_at': rr.processed_at,
         }
 
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
     def get_expires_at(self, obj: Order):
         if obj.status == 'pending':
             timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440)
             return obj.created_at + timedelta(minutes=timeout)
         return None
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_child_orders(self, obj: Order):
         """获取子订单列表（仅当为主订单时返回）"""
         if obj.order_type != 'main':
@@ -527,11 +534,13 @@ class CartItemSerializer(serializers.ModelSerializer):
             "unavailable_reason",
         ]
 
+    @extend_schema_field(serializers.DictField())
     def get_sku_specs(self, obj: CartItem):
         if obj.sku_id and obj.sku and obj.sku.specs:
             return obj.sku.specs
         return {}
 
+    @extend_schema_field(serializers.CharField())
     def get_store_logo(self, obj: CartItem):
         request = self.context.get("request")
         store = getattr(obj.product, "store", None)
@@ -551,9 +560,11 @@ class CartItemSerializer(serializers.ModelSerializer):
             return "库存不足"
         return ""
 
+    @extend_schema_field(serializers.BooleanField())
     def get_is_available(self, obj: CartItem):
         return self._availability_reason(obj) == ""
 
+    @extend_schema_field(serializers.CharField())
     def get_unavailable_reason(self, obj: CartItem):
         return self._availability_reason(obj)
 
@@ -570,10 +581,12 @@ class CartSerializer(serializers.ModelSerializer):
             "store_groups",
         ]
 
+    @extend_schema_field(CartItemSerializer(many=True))
     def get_items(self, obj: Cart):
         items = sorted(obj.items.all(), key=lambda cart_item: cart_item.id)
         return CartItemSerializer(items, many=True, context=self.context).data
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_store_groups(self, obj: Cart):
         item_serializer = CartItemSerializer(context=self.context)
         groups = OrderedDict()
@@ -844,12 +857,14 @@ class DiscountTargetSerializer(serializers.ModelSerializer):
             'discounted_retail_price', 'discounted_dealer_price'
         ]
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
     def get_discounted_retail_price(self, obj):
         if not obj.product or obj.product.price is None:
             return None
         discount_amount = obj.discount.resolve_discount_amount(obj.product.price)
         return obj.product.price - discount_amount
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
     def get_discounted_dealer_price(self, obj):
         if not obj.product or obj.product.dealer_price is None:
             return None

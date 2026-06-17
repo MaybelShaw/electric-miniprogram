@@ -1,6 +1,10 @@
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken
+from backend.settings.env_config import EnvironmentConfig
 from .models import User, Notification
+
+def is_production_environment():
+    return EnvironmentConfig.is_production()
 
 def get_or_create_wechat_user(openid):
     return User.objects.get_or_create(openid=openid, defaults={'role': 'individual'})
@@ -24,6 +28,9 @@ def create_tokens_for_user(user):
     return str(refresh), str(refresh.access_token)
 
 def bootstrap_or_init_admin(username, password):
+    if is_production_environment():
+        return None
+
     admin_qs = User.objects.filter(is_staff=True, is_superuser=True)
     try:
         user = User.objects.get(username=username)

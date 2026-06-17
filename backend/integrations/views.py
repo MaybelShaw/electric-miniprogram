@@ -1,7 +1,7 @@
 """
 海尔API视图
 """
-from rest_framework import viewsets, status
+from rest_framework import serializers, viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
@@ -19,6 +19,9 @@ from .haierapi import HaierAPI
 from .ylhapi import YLHSystemAPI
 from .models import HaierConfig, HaierSyncLog
 from .wechat import WeChatMiniProgramClient
+from common.serializers import EmptySerializer
+from drf_spectacular.types import OpenApiTypes as OT
+from drf_spectacular.utils import extend_schema
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +68,7 @@ def _get_client_ip(request) -> str:
     return request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or ""
 
 
+@extend_schema(responses=OT.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def wechat_delivery_company_list_view(request):
@@ -105,6 +109,7 @@ class HaierConfigViewSet(viewsets.ModelViewSet):
     
     queryset = HaierConfig.objects.all()
     permission_classes = [IsAdmin]
+    serializer_class = EmptySerializer
     
     def get_serializer_class(self):
         """获取序列化器类"""
@@ -173,6 +178,7 @@ class HaierAPIViewSet(viewsets.ViewSet):
     """
     
     permission_classes = [IsAdmin]
+    serializer_class = EmptySerializer
     
     def _get_haier_api(self):
         """获取海尔API实例"""
@@ -404,6 +410,7 @@ class HaierAPIViewSet(viewsets.ViewSet):
         })
 
 
+@extend_schema(request=OT.OBJECT, responses=OT.OBJECT)
 @csrf_exempt
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -510,6 +517,7 @@ def ylh_callback_view(request):
         }, status=500)
 
 
+@extend_schema(request=OT.OBJECT, responses=OT.OBJECT)
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def ylh_create_order_view(request):
@@ -569,6 +577,7 @@ def ylh_create_order_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(request=OT.OBJECT, responses=OT.OBJECT)
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def ylh_cancel_order_view(request):
@@ -623,6 +632,7 @@ def ylh_cancel_order_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(request=OT.OBJECT, responses=OT.OBJECT)
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def ylh_update_distribution_time_view(request):
@@ -675,6 +685,7 @@ def ylh_update_distribution_time_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(responses=OT.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAdmin])
 def ylh_get_delivery_images_view(request):
@@ -718,6 +729,7 @@ def ylh_get_delivery_images_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(request=OT.OBJECT, responses=OT.OBJECT)
 @api_view(['POST'])
 @permission_classes([IsAdmin])
 def ylh_get_logistics_view(request):

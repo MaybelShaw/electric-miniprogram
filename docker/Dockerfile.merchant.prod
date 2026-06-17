@@ -1,0 +1,17 @@
+FROM node:20-alpine AS merchant-builder
+
+WORKDIR /merchant
+
+COPY merchant/package.json merchant/package-lock.json ./
+RUN npm ci
+
+COPY merchant/ ./
+RUN npm run build
+
+FROM node:20-alpine
+
+WORKDIR /merchant
+
+COPY --from=merchant-builder /merchant/dist /merchant/dist
+
+CMD ["sh", "-c", "mkdir -p /dist && cp -a /merchant/dist/. /dist/ && tail -f /dev/null"]

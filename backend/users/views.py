@@ -1,7 +1,7 @@
 from django.shortcuts import render
 import requests
 import uuid
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +32,7 @@ from common.address_parser import address_parser
 from common.utils import to_bool
 from common.excel import build_excel_response
 from common.pagination import SmallResultsSetPagination
+from common.serializers import EmptySerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
 from stores.permissions import is_platform_admin
@@ -60,6 +61,7 @@ class WeChatLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes: list = []
     throttle_classes = [LoginRateThrottle]
+    serializer_class = EmptySerializer
     
     @extend_schema(
         operation_id='wechat_login',
@@ -292,6 +294,7 @@ class WeChatExplicitLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes: list = []
     throttle_classes = [LoginRateThrottle]
+    serializer_class = WeChatExplicitLoginSerializer
 
     @extend_schema(
         operation_id='wechat_explicit_login',
@@ -404,6 +407,7 @@ class PasswordLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     throttle_classes = [LoginRateThrottle]
+    serializer_class = EmptySerializer
 
     @extend_schema(
         operation_id='password_login',
@@ -413,6 +417,7 @@ class PasswordLoginView(APIView):
         from .services import (
             bootstrap_or_init_admin,
             ensure_user_password,
+            is_production_environment,
             update_last_login,
             create_tokens_for_user,
         )
@@ -455,7 +460,7 @@ class PasswordLoginView(APIView):
                 has_store_membership = False
             if has_store_membership or getattr(user, 'role', '') == 'support':
                 pass
-            elif not admin_exists:
+            elif not admin_exists and not is_production_environment():
                 user.is_staff = True
                 user.is_superuser = True
                 user.role = 'admin'
@@ -480,6 +485,18 @@ class PasswordLoginView(APIView):
             }
         )
 
+
+class AdminPasswordLoginView(PasswordLoginView):
+    @extend_schema(
+        operation_id='admin_password_login',
+        description='Admin login alias for password login. Authenticate with username and password to get JWT token.',
+        responses=OT.OBJECT,
+    )
+    def post(self, request):
+        return super().post(request)
+
+
+@extend_schema(request=UserProfileSerializer, responses=UserProfileSerializer)
 @api_view(['GET','PATCH'])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
@@ -495,6 +512,7 @@ def user_profile(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(responses=OT.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_statistics(request):
@@ -659,6 +677,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     - 支持标记单条或全部已读
     - 提供订阅模板配置
     """
+    queryset = Notification.objects.none()
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = SmallResultsSetPagination
@@ -1764,6 +1783,7 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
 
         return qs
 
+    @extend_schema(operation_id='account_statements_export_list', responses=OT.OBJECT)
     @action(detail=False, methods=['get'], url_path='export')
     def export_list(self, request):
         qs = self.filter_queryset(self.get_queryset())
@@ -2004,6 +2024,7 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
             "statement": AccountStatementSerializer(statement).data
         })
     
+    @extend_schema(operation_id='account_statements_export_detail', responses=OT.OBJECT)
     @action(detail=True, methods=['get'])
     def export(self, request, pk=None):
         """导出对账单为Excel"""

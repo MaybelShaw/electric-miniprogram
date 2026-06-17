@@ -48,6 +48,7 @@
   - Swagger UI：`/api/docs/`
   - ReDoc：`/api/redoc/`
   - OpenAPI：`/api/schema/`
+- OpenAPI schema 生成使用显式 `@extend_schema`、`@extend_schema_field` 与枚举命名覆盖，`manage.py spectacular --validate` 应保持无 drf-spectacular warning；`/api/admin/login/` 作为密码登录别名使用独立 `admin_password_login` operationId，避免与 `/api/password_login/` 冲突。
 
 ## 环境变量
 - 开发：
@@ -407,6 +408,8 @@
 - 使用 `PostgreSQL`，按需配置缓存与限流，严格校验输入。
  - 反向代理与 CORS：在 `ALLOWED_HOSTS/CORS_ALLOWED_ORIGINS` 中配置网关域名，开启 HTTPS；按需启用 `django-cors-headers`。
 - 回调安全：海尔回调签名验证与错误处理 `backend/orders/views.py:585`
+- 生产运行：生产/预发 Compose 已使用 Gunicorn 启动 Django，并通过 `docker/Dockerfile.backend.prod` 在镜像 build 阶段安装后端依赖。运行阶段只执行迁移、静态收集和 Gunicorn，不再安装 Python 依赖或挂载后端源码目录。
+- 生产调试日志：`.env.production` 建议显式设置 `WECHAT_PAY_DEBUG=False`、`INTEGRATIONS_API_DEBUG=False`、`INTEGRATIONS_CALLBACK_DEBUG=False`。需要排查微信支付或海尔/YLH 集成问题时再短时间打开，排障完成后关闭。
 
 ## 开发环境切换到 PostgreSQL（不保留数据，适合小白）
 - 目标：把本地数据库从默认 SQLite 改为 PostgreSQL，直接清空并重新初始化数据。
@@ -500,6 +503,16 @@ POSTGRES_HOST=your-postgres-host
 POSTGRES_PORT=5432
 
 SECURE_SSL_REDIRECT=True
+WECHAT_PAY_DEBUG=False
+INTEGRATIONS_API_DEBUG=False
+INTEGRATIONS_CALLBACK_DEBUG=False
 MEDIA_URL=/media/
 ```
 - 校验：生产启动时会检查必需变量是否齐全（`env_config.py:236`）。
+
+## 生产管理员账号策略
+- 生产数据库应预先存在受控超级管理员；`POST /api/admin/login/` 与 `POST /api/password_login/` 在 `DJANGO_ENV=production` 下不会创建首个超级管理员，也不会在无管理员时把普通账号自动提升为超级管理员。
+- `reset_admin` 管理命令在生产环境只允许重置已有后台账号；如果找不到任何 `is_staff=true` 用户会直接失败，避免线上匿名初始化超级管理员。
+
+## 生产上线剩余后端事项
+- P1：调试开关默认值。当前代码仍需后续收紧 `WECHAT_PAY_DEBUG`、`INTEGRATIONS_API_DEBUG`、`INTEGRATIONS_CALLBACK_DEBUG` 的默认行为，生产 `.env.production` 先显式关闭。

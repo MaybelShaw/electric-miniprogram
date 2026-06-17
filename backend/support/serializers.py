@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
+from drf_spectacular.utils import extend_schema_field
 from .models import (
     FeedbackTicket,
     FeedbackTicketReply,
@@ -97,6 +98,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'created_at',
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_attachment_url(self, obj):
         if not obj.attachment:
             return None
@@ -104,6 +106,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         url = obj.attachment.url
         return _build_media_url(url, request)
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_order_info(self, obj):
         request = self.context.get('request')
         o = getattr(obj, 'order', None)
@@ -129,6 +132,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'image': image,
         }
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_product_info(self, obj):
         request = self.context.get('request')
         p = getattr(obj, 'product', None)
@@ -245,6 +249,7 @@ class FeedbackTicketReplySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_attachments(self, obj):
         request = self.context.get('request')
         return [_build_media_url(url, request) for url in (obj.attachments or [])]
@@ -284,10 +289,12 @@ class FeedbackTicketSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_attachments(self, obj):
         request = self.context.get('request')
         return [_build_media_url(url, request) for url in (obj.attachments or [])]
 
+    @extend_schema_field(FeedbackTicketReplySerializer(many=True))
     def get_replies(self, obj):
         replies = getattr(obj, 'prefetched_replies', None)
         if replies is None:

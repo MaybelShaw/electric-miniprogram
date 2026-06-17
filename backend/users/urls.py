@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     WeChatLoginView, 
     WeChatExplicitLoginView,
+    AdminPasswordLoginView,
     PasswordLoginView, 
     AddressViewSet, 
     user_profile, 
@@ -29,7 +30,7 @@ urlpatterns = [
     path('login/', WeChatLoginView.as_view(), name='wechat-login'),
     path('wechat/explicit-login/', WeChatExplicitLoginView.as_view(), name='wechat-explicit-login'),
     path('password_login/', PasswordLoginView.as_view(), name='password-login'),
-    path('admin/login/', PasswordLoginView.as_view(), name='admin-login'),  # 管理员登录别名
+    path('admin/login/', AdminPasswordLoginView.as_view(), name='admin-login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('user/profile/', user_profile, name='user-profile'),
     path('user/statistics/', user_statistics, name='user-statistics'),

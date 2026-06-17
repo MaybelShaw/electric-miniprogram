@@ -72,7 +72,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API documentation for the e-commerce system',
     'VERSION': '1.0.0',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAdminUser'] if EnvironmentConfig.is_production() else ['rest_framework.permissions.AllowAny'],
-    'SERVE_AUTHENTICATION': 'rest_framework_simplejwt.authentication.JWTAuthentication' if EnvironmentConfig.is_production() else None,
+    'SERVE_AUTHENTICATION': ['rest_framework_simplejwt.authentication.JWTAuthentication'] if EnvironmentConfig.is_production() else None,
     'SCHEMA_PATH_PREFIX': r'/api',
     'CONTACT': {
         'name': 'API Support',
@@ -87,6 +87,23 @@ SPECTACULAR_SETTINGS = {
             'scheme': 'bearer',
             'bearerFormat': 'JWT',
         }
+    },
+    'ENUM_NAME_OVERRIDES': {
+        'AccountStatementStatusEnum': [
+            ('draft', '草稿'),
+            ('confirmed', '已确认'),
+            ('settled', '已结清'),
+        ],
+        'StoreActiveStatusEnum': [
+            ('active', '启用'),
+            ('disabled', '停用'),
+        ],
+        'UserRoleEnum': [
+            ('individual', '个人用户'),
+            ('dealer', '经销商'),
+            ('support', '客服'),
+            ('admin', '管理员'),
+        ],
     },
     'SECURITY': [
         {

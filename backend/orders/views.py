@@ -45,6 +45,7 @@ from django.db.models import Prefetch, Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
 from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
+from common.serializers import EmptySerializer
 from stores.permissions import (
     PERMISSION_ORDERS_ADJUST_AMOUNT,
     PERMISSION_ORDERS_CANCEL,
@@ -1794,6 +1795,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = CartSerializer
 
     @action(detail=False,methods=['get'])
     def my_cart(self,request):
@@ -2377,6 +2379,7 @@ class RefundCallbackView(APIView):
     """微信退款回调处理视图。"""
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PaymentRateThrottle]
+    serializer_class = EmptySerializer
 
     def post(self, request, provider: str = 'wechat'):
         provider = (provider or 'wechat').lower()
@@ -2774,6 +2777,7 @@ class PaymentCallbackView(APIView):
     """支付回调处理视图（微信支付）。"""
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PaymentRateThrottle]
+    serializer_class = EmptySerializer
 
     def post(self, request, provider: str = 'wechat'):
         """处理支付回调
@@ -3359,6 +3363,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
     - Order status distribution
     """
     permission_classes = [IsStoreStaffOrAdmin]
+    serializer_class = EmptySerializer
     store_scoped_actions = {
         'regional_sales',
         'export_regional_sales',

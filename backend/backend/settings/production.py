@@ -21,6 +21,9 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'Tr
 SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'True').lower() in ('true', '1', 'yes')
 # Trust X-Forwarded-Proto from Nginx so Django treats HTTPS correctly
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+X_FRAME_OPTIONS = 'DENY'
 
 # CSRF trusted origins (env override; fallback to allowed hosts)
 _raw_csrf_trusted = os.getenv('CSRF_TRUSTED_ORIGINS', '')

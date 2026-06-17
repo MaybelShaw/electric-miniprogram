@@ -43,6 +43,7 @@
 ## 环境配置
 - 后端 API 基址通过环境变量控制：`frontend/src/utils/request.ts:3`
   - `TARO_APP_API_BASE_URL`（默认 `http://127.0.0.1:8000/api`）
+- 生产小程序构建必须显式设置 `TARO_APP_API_BASE_URL` 为线上 HTTPS API 地址，例如 `https://www.qxelectric.cn/api`。当前生产配置缺失该变量时仍会回退到本地地址，这是待修风险；上线构建前应通过脚本或 CI 明确校验该变量。
 - 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:61`
 
 ## 请求封装详解
