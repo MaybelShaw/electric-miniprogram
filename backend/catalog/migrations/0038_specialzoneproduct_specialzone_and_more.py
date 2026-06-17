@@ -32,9 +32,14 @@ def _constraint_names(schema_editor, table_name):
 class IdempotentCreateModel(migrations.CreateModel):
     def database_forwards(self, app_label, schema_editor, from_state, to_state):
         model = to_state.apps.get_model(app_label, self.name)
-        if model._meta.db_table in _table_names(schema_editor):
+        if model._meta.db_table not in _table_names(schema_editor):
+            super().database_forwards(app_label, schema_editor, from_state, to_state)
             return
-        super().database_forwards(app_label, schema_editor, from_state, to_state)
+
+        existing_columns = _column_names(schema_editor, model._meta.db_table)
+        for field in model._meta.local_fields:
+            if field.column not in existing_columns:
+                schema_editor.add_field(model, field)
 
 
 class IdempotentAddField(migrations.AddField):
