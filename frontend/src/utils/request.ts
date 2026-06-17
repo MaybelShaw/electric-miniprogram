@@ -1,6 +1,8 @@
 import Taro from '@tarojs/taro'
 
-export const BASE_URL = process.env.TARO_APP_API_BASE_URL || 'http://106.54.224.44:8000/api'
+const DEFAULT_LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api'
+
+export const BASE_URL = process.env.TARO_APP_API_BASE_URL || DEFAULT_LOCAL_API_BASE_URL
 
 interface RequestOptions {
   url: string
@@ -16,6 +18,28 @@ interface ApiResponse<T = any> {
   message?: string
   detail?: string
   details?: any
+}
+
+function stringifyApiError(value: any): string {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    return value.map(stringifyApiError).filter(Boolean).join('；')
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).map(stringifyApiError).filter(Boolean).join('；')
+  }
+  return String(value)
+}
+
+function getApiErrorMessage(errorData: ApiResponse): string {
+  return (
+    stringifyApiError(errorData.message) ||
+    stringifyApiError(errorData.error) ||
+    stringifyApiError(errorData.detail) ||
+    stringifyApiError(errorData.details) ||
+    '请求失败'
+  )
 }
 
 // Token 管理
@@ -63,7 +87,8 @@ export const TokenManager = {
 // 统一请求方法
 export async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, needAuth = true, showError = true } = options
-  
+  let loadingHidden = false
+
   const header: any = {}
   
   // 添加认证 Token
@@ -89,9 +114,10 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       header,
       dataType: 'json'  // Explicitly set dataType
     })
-    
+
     Taro.hideLoading()
-    
+    loadingHidden = true
+
     // 处理 401 错误 - Token 过期
     if (res.statusCode === 401 && needAuth) {
       const refreshed = await TokenManager.refreshAccessToken()
@@ -112,7 +138,7 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
     // 处理其他错误
     if (res.statusCode >= 400) {
       const errorData = res.data as ApiResponse
-      const errorMsg = errorData.message || errorData.error || errorData.detail || '请求失败'
+      const errorMsg = getApiErrorMessage(errorData)
       
       if (showError) {
         // 429 限流错误
@@ -133,8 +159,11 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
     
     return res.data as T
   } catch (error: any) {
-    Taro.hideLoading()
-    
+    if (!loadingHidden) {
+      Taro.hideLoading()
+      loadingHidden = true
+    }
+
     if (error.message === 'UNAUTHORIZED') {
       throw error
     }

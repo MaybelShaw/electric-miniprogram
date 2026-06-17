@@ -1,4 +1,6 @@
 import request from '@/utils/request';
+import type { CurrentStoreContext, StoreProfitSharingEntry, WechatProfitSharingOrder } from './types';
+import { withSelectedStoreId } from '@/utils/storeScope';
 
 // 登录
 export const loginAdmin = (data: { username: string; password: string }) =>
@@ -10,6 +12,31 @@ export const loginSupport = (data: { username: string; password: string }) =>
 // 兼容旧调用
 export const login = (data: { username: string; password: string }) =>
   request.post('/admin/login/', data);
+
+// 店铺上下文
+export const getCurrentStoreContext = (): Promise<CurrentStoreContext> =>
+  request.get('/stores/current/');
+export const getStores = (params?: any) => request.get('/stores/', { params });
+export const createStore = (data: any) => request.post('/stores/', data);
+export const updateStore = (id: number, data: any) => request.patch(`/stores/${id}/`, data);
+export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
+export const getStoreMemberCandidates = (params?: any) => request.get('/stores/members/available_users/', { params });
+export const createStoreMember = (data: any) => request.post('/stores/members/', data);
+export const createStoreMemberUser = (data: any) => request.post('/stores/members/create_user_member/', data);
+export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
+export const deleteStoreMember = (id: number) => request.delete(`/stores/members/${id}/`);
+export const getStoreCustomerGroups = (params?: any) => request.get('/stores/customer-groups/', { params });
+export const createStoreCustomerGroup = (data: any) => request.post('/stores/customer-groups/', data);
+export const updateStoreCustomerGroup = (id: number, data: any) => request.patch(`/stores/customer-groups/${id}/`, data);
+export const deleteStoreCustomerGroup = (id: number) => request.delete(`/stores/customer-groups/${id}/`);
+export const getStoreCustomerGroupMembers = (params?: any) => request.get('/stores/customer-group-members/', { params });
+export const createStoreCustomerGroupMember = (data: any) => request.post('/stores/customer-group-members/', data);
+export const updateStoreCustomerGroupMember = (id: number, data: any) => request.patch(`/stores/customer-group-members/${id}/`, data);
+export const deleteStoreCustomerGroupMember = (id: number) => request.delete(`/stores/customer-group-members/${id}/`);
+export const getStoreCustomerGroupPrices = (params?: any) => request.get('/stores/customer-group-prices/', { params });
+export const createStoreCustomerGroupPrice = (data: any) => request.post('/stores/customer-group-prices/', data);
+export const updateStoreCustomerGroupPrice = (id: number, data: any) => request.patch(`/stores/customer-group-prices/${id}/`, data);
+export const deleteStoreCustomerGroupPrice = (id: number) => request.delete(`/stores/customer-group-prices/${id}/`);
 
 // 用户管理
 export const getUsers = (params?: any) => request.get('/users/', { params });
@@ -28,24 +55,33 @@ export const exportCustomersTransactionStats = (params?: any) => request.get(`/u
 
 // 品牌管理
 export const getBrands = (params?: any) => request.get('/catalog/brands/', { params });
-export const createBrand = (data: any) => request.post('/catalog/brands/', data);
+export const createBrand = (data: any) => request.post('/catalog/brands/', withSelectedStoreId(data));
 export const updateBrand = (id: number, data: any) => request.patch(`/catalog/brands/${id}/`, data);
 export const deleteBrand = (id: number, force?: boolean) =>
   request.delete(`/catalog/brands/${id}/`, { params: { force_delete: force } });
 
 // 品类管理
 export const getCategories = (params?: any) => request.get('/catalog/categories/', { params });
-export const createCategory = (data: any) => request.post('/catalog/categories/', data);
+export const createCategory = (data: any) => request.post('/catalog/categories/', withSelectedStoreId(data));
 export const updateCategory = (id: number, data: any) => request.patch(`/catalog/categories/${id}/`, data);
 export const deleteCategory = (id: number) => request.delete(`/catalog/categories/${id}/`);
 
 // 产品管理
 export const getProducts = (params?: any) => request.get('/catalog/products/', { params });
 export const getProduct = (id: number) => request.get(`/catalog/products/${id}/`);
-export const createProduct = (data: any) => request.post('/catalog/products/', data);
+export const createProduct = (data: any) => request.post('/catalog/products/', withSelectedStoreId(data));
 export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
 export const exportProducts = (params?: any) => request.get('/catalog/products/export/', { params, responseType: 'blob' });
+export const getProductActivities = (id: number) => request.get(`/catalog/products/${id}/activities/`);
+export const updateProductActivities = (id: number, activityIds: number[]) =>
+  request.put(`/catalog/products/${id}/activities/`, { activity_ids: activityIds });
+export const getProductSkus = (params?: any) => request.get('/catalog/product-skus/', { params });
+export const createProductSku = (data: any) => request.post('/catalog/product-skus/', data);
+export const updateProductSku = (id: number, data: any) => request.patch(`/catalog/product-skus/${id}/`, data);
+export const deleteProductSku = (id: number) => request.delete(`/catalog/product-skus/${id}/`);
+export const getInventoryLogs = (params?: any) => request.get('/catalog/inventory-logs/', { params });
+export const getSearchLogs = (params?: any) => request.get('/catalog/search-logs/', { params });
 export const getHaierProducts = (productCodes: string) => request.get('/haier/api/products/', { params: { product_codes: productCodes } });
 export const getHaierStock = (productCode: string, countyCode: string = '110101') => request.get('/haier/api/stock/', { params: { product_code: productCode, county_code: countyCode } });
 export const getHaierPrices = (productCodes: string) => request.get('/haier/api/prices/', { params: { product_codes: productCodes } });
@@ -65,6 +101,8 @@ export const uploadImage = (file: File, productId?: number, fieldName?: string) 
   
   return request.post('/catalog/media-images/', formData);
 };
+export const getMediaImages = (params?: any) => request.get('/catalog/media-images/', { params });
+export const deleteMediaImage = (id: number) => request.delete(`/catalog/media-images/${id}/`);
 
 // 订单管理
 export const getOrders = (params?: any) => request.get('/orders/', { params });
@@ -126,6 +164,22 @@ export const failRefund = (id: number, data?: any) => request.post(`/refunds/${i
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
 export const exportAccountTransactions = (params?: any) => request.get('/account-transactions/export/', { params, responseType: 'blob' });
 
+// 微信分账管理
+export const getProfitSharingEntries = (params?: any): Promise<any> =>
+  request.get('/profit-sharing-entries/', { params });
+export const markProfitSharingEntriesAvailable = (): Promise<{ updated: number }> =>
+  request.post('/profit-sharing-entries/mark_available/', {});
+export const shareProfitSharingEntries = (data: { entry_ids: number[]; unfreeze_unsplit?: boolean }): Promise<WechatProfitSharingOrder> =>
+  request.post('/profit-sharing-entries/share/', data);
+export const markProfitSharingEntryManualSettled = (id: number, data?: { note?: string }): Promise<StoreProfitSharingEntry> =>
+  request.post(`/profit-sharing-entries/${id}/mark_manual_settled/`, data || {});
+export const getWechatProfitSharingOrders = (params?: any): Promise<any> =>
+  request.get('/wechat-profit-sharing-orders/', { params });
+export const markWechatProfitSharingOrderSucceeded = (id: number, data?: { wechat_response?: Record<string, any> }): Promise<WechatProfitSharingOrder> =>
+  request.post(`/wechat-profit-sharing-orders/${id}/mark_succeeded/`, data || {});
+export const markWechatProfitSharingOrderFailed = (id: number, data?: { error_message?: string }): Promise<WechatProfitSharingOrder> =>
+  request.post(`/wechat-profit-sharing-orders/${id}/mark_failed/`, data || {});
+
 // 统计分析
 export const getRegionalSales = (params?: any) => request.get('/analytics/regional_sales/', { params });
 export const getProductRegionDistribution = (params?: any) => request.get('/analytics/product_region_distribution/', { params });
@@ -150,7 +204,8 @@ export const cancelInvoice = (id: number) => request.post(`/invoices/${id}/cance
 
 // 轮播图管理
 export const getHomeBanners = (params?: any) => request.get('/catalog/home-banners/', { params });
-export const createHomeBanner = (data: any) => request.post('/catalog/home-banners/', data);
+export const createHomeBanner = (data: any) =>
+  request.post('/catalog/home-banners/', withSelectedStoreId(data), { params: data?.store_id ? { store: data.store_id } : undefined });
 export const updateHomeBanner = (id: number, data: any) => request.patch(`/catalog/home-banners/${id}/`, data);
 export const deleteHomeBanner = (id: number) => request.delete(`/catalog/home-banners/${id}/`);
 export const uploadHomeBanner = (file: File, data?: any) => {
@@ -166,9 +221,29 @@ export const uploadHomeBanner = (file: File, data?: any) => {
 
 // 首页专区图片管理
 export const getSpecialZoneCovers = (params?: any) => request.get('/catalog/special-zone-covers/', { params });
-export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', data);
+export const createSpecialZoneCover = (data: any) => request.post('/catalog/special-zone-covers/', withSelectedStoreId(data));
 export const updateSpecialZoneCover = (id: number, data: any) => request.patch(`/catalog/special-zone-covers/${id}/`, data);
 export const deleteSpecialZoneCover = (id: number) => request.delete(`/catalog/special-zone-covers/${id}/`);
+
+// 动态运营专区管理
+export const getSpecialZones = (params?: any) => request.get('/catalog/special-zones/', { params });
+export const createSpecialZone = (data: any) =>
+  request.post('/catalog/special-zones/', withSelectedStoreId(data), { params: data?.store_id ? { store: data.store_id } : undefined });
+export const updateSpecialZone = (id: number, data: any) => request.patch(`/catalog/special-zones/${id}/`, data);
+export const deleteSpecialZone = (id: number) => request.delete(`/catalog/special-zones/${id}/`);
+export const getSpecialZoneProducts = (zoneId: number, params?: any) =>
+  request.get(`/catalog/special-zones/${zoneId}/products/`, { params });
+export const bindSpecialZoneProduct = (zoneId: number, data: any) =>
+  request.post(`/catalog/special-zones/${zoneId}/products/`, data);
+export const updateSpecialZoneProduct = (zoneId: number, productId: number, data: any) =>
+  request.post(`/catalog/special-zones/${zoneId}/products/`, { product_id: productId, ...data });
+export const removeSpecialZoneProduct = (zoneId: number, productId: number) =>
+  request.delete(`/catalog/special-zones/${zoneId}/products/`, { data: { product_id: productId } });
+
+export const getHomeStoreCards = (params?: any) => request.get('/catalog/home-store-cards/', { params });
+export const createHomeStoreCard = (data: any) => request.post('/catalog/home-store-cards/', data);
+export const updateHomeStoreCard = (id: number, data: any) => request.patch(`/catalog/home-store-cards/${id}/`, data);
+export const deleteHomeStoreCard = (id: number) => request.delete(`/catalog/home-store-cards/${id}/`);
 
 // 案例管理
 export const getCases = (params?: any) => request.get('/catalog/cases/', { params });
@@ -229,3 +304,16 @@ export const sendChatMessage = (
   
   return request.post('/support/chat/', formData);
 };
+
+// 问题建议工单
+export const getFeedbackTickets = (params?: any) => request.get('/support/feedback-tickets/', { params });
+export const getFeedbackTicket = (id: number) => request.get(`/support/feedback-tickets/${id}/`);
+export const getFeedbackTicketStats = (params?: any) => request.get('/support/feedback-tickets/stats/', { params });
+export const replyFeedbackTicket = (id: number, content: string, images: File[] = []) => {
+  const formData = new FormData();
+  formData.append('content', content);
+  images.forEach(file => formData.append('images', file));
+  return request.post(`/support/feedback-tickets/${id}/reply/`, formData);
+};
+export const closeFeedbackTicket = (id: number, content?: string) =>
+  request.post(`/support/feedback-tickets/${id}/close/`, { content: content || '' });

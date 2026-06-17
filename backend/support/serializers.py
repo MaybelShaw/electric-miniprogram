@@ -1,7 +1,14 @@
 from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
-from .models import SupportConversation, SupportMessage, SupportReplyTemplate
+from drf_spectacular.utils import extend_schema_field
+from .models import (
+    FeedbackTicket,
+    FeedbackTicketReply,
+    SupportConversation,
+    SupportMessage,
+    SupportReplyTemplate,
+)
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -91,6 +98,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'created_at',
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_attachment_url(self, obj):
         if not obj.attachment:
             return None
@@ -98,6 +106,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
         url = obj.attachment.url
         return _build_media_url(url, request)
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_order_info(self, obj):
         request = self.context.get('request')
         o = getattr(obj, 'order', None)
@@ -123,6 +132,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
             'image': image,
         }
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_product_info(self, obj):
         request = self.context.get('request')
         p = getattr(obj, 'product', None)
@@ -217,3 +227,76 @@ class SupportReplyTemplateSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+
+class FeedbackTicketReplySerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    attachments = serializers.SerializerMethodField()
+    record_type_display = serializers.CharField(source='get_record_type_display', read_only=True)
+
+    class Meta:
+        model = FeedbackTicketReply
+        fields = [
+            'id',
+            'ticket',
+            'sender',
+            'sender_username',
+            'record_type',
+            'record_type_display',
+            'content',
+            'attachments',
+            'created_at',
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_attachments(self, obj):
+        request = self.context.get('request')
+        return [_build_media_url(url, request) for url in (obj.attachments or [])]
+
+
+class FeedbackTicketSerializer(serializers.ModelSerializer):
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    user_username = serializers.CharField(source='user.username', read_only=True)
+    user_phone = serializers.CharField(source='user.phone', read_only=True)
+    ticket_type_display = serializers.CharField(source='get_ticket_type_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    attachments = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FeedbackTicket
+        fields = [
+            'id',
+            'ticket_number',
+            'store',
+            'store_name',
+            'user',
+            'user_username',
+            'user_phone',
+            'ticket_type',
+            'ticket_type_display',
+            'title',
+            'content',
+            'contact_phone',
+            'attachments',
+            'status',
+            'status_display',
+            'last_replied_at',
+            'created_at',
+            'updated_at',
+            'replies',
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_attachments(self, obj):
+        request = self.context.get('request')
+        return [_build_media_url(url, request) for url in (obj.attachments or [])]
+
+    @extend_schema_field(FeedbackTicketReplySerializer(many=True))
+    def get_replies(self, obj):
+        replies = getattr(obj, 'prefetched_replies', None)
+        if replies is None:
+            replies = obj.replies.select_related('sender').order_by('created_at', 'id')
+        return FeedbackTicketReplySerializer(replies, many=True, context=self.context).data

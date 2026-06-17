@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .company-certification {
   min-height: 100vh;
@@ -26,22 +26,22 @@
       font-weight: 500;
 
       &.status-pending {
-        background: #FFF7E6;
+        background: rgba($warning-color, 0.14);
         color: $warning-color;
       }
 
       &.status-approved {
-        background: #F6FFED;
+        background: rgba($success-color, 0.12);
         color: $success-color;
       }
 
       &.status-rejected {
-        background: #FFF1F0;
+        background: rgba($danger-color, 0.12);
         color: $danger-color;
       }
 
       &.status-withdrawn {
-        background: #F5F5F5;
+        background: $background-color-base;
         color: $text-color-secondary;
       }
     }
@@ -58,27 +58,27 @@
     gap: $spacing-xs;
 
     &.success {
-      background: #F6FFED;
+      background: rgba($success-color, 0.12);
       color: $success-color;
-      border: 1px solid #B7EB8F;
+      border: 1px solid rgba($success-color, 0.22);
     }
 
     &.error {
-      background: #FFF1F0;
+      background: rgba($danger-color, 0.12);
       color: $danger-color;
-      border: 1px solid #FFA39E;
+      border: 1px solid rgba($danger-color, 0.22);
     }
 
     &.warning {
-      background: #FFF7E6;
+      background: rgba($warning-color, 0.14);
       color: $warning-color;
-      border: 1px solid #FFD591;
+      border: 1px solid rgba($warning-color, 0.24);
     }
 
     &.info {
-      background: #F0F5FF;
+      background: $primary-light;
       color: $primary-color;
-      border: 1px solid #ADC6FF;
+      border: 1px solid rgba($primary-color, 0.22);
     }
 
     .reject-reason {
@@ -108,11 +108,12 @@
 
   .form {
     .form-section {
-      background: $white;
+      background: $showroom-surface;
       border-radius: $border-radius-lg;
       padding: $spacing-lg $spacing-md;
       margin-bottom: $spacing-md;
       box-shadow: $shadow-sm;
+      border: 1px solid rgba($border-color, 0.88);
 
       .section-title {
         font-size: $font-size-lg;
@@ -130,7 +131,7 @@
           transform: translateY(-50%);
           width: 3px;
           height: 14px;
-          background: linear-gradient(to bottom, lighten-c($primary-color, 10%), $primary-color);
+          background: $secondary-color;
           border-radius: 1.5px;
         }
       }
@@ -161,14 +162,14 @@
           font-size: $font-size-md;
           border: 1px solid $border-color;
           border-radius: $border-radius-md;
-          background: #F9F9F9;
+          background: $background-color-base;
           color: $text-color-base;
           box-sizing: border-box;
           transition: all 0.3s;
 
           &:focus {
             border-color: $primary-color;
-            background: $white;
+            background: $showroom-surface;
           }
 
           &:disabled {
@@ -196,16 +197,16 @@
         line-height: $button-height;
         font-size: $font-size-lg;
         font-weight: 600;
-        border-radius: 44px;
-        background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+        border-radius: $border-radius-md;
+        background: $brand-ink;
         color: $white;
         border: none;
-        box-shadow: 0 4px 10px rgba($primary-color, 0.25);
+        box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
         transition: all 0.3s;
 
         &:active {
           transform: scale(0.98);
-          opacity: 0.9;
+          background: darken-c($brand-ink, 3%);
         }
 
         &::after {
@@ -218,8 +219,8 @@
         height: $button-height;
         line-height: $button-height;
         font-size: $font-size-md;
-        border-radius: 44px;
-        background: $white;
+        border-radius: $border-radius-md;
+        background: $showroom-surface;
         color: $text-color-secondary;
         border: 1px solid $border-color;
       }

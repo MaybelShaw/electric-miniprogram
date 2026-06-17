@@ -2,11 +2,13 @@ export default defineAppConfig({
   pages: [
     'pages/home/index',
     'pages/category/index',
-    // Product list page
     'pages/product-list/index',
     'pages/cart/index',
     'pages/profile/index',
     'pages/message-center/index',
+    'pages/feedback-list/index',
+    'pages/feedback-submit/index',
+    'pages/feedback-detail/index',
     'pages/login/index',
     'pages/product-detail/index',
     'pages/order-list/index',
@@ -16,6 +18,11 @@ export default defineAppConfig({
     'pages/address-edit/index',
     'pages/profile-edit/index',
     'pages/search/index',
+    'pages/store-list/index',
+    'pages/store-detail/index',
+    'pages/store-categories/index',
+    'pages/store-category/index',
+    'pages/store-profile/index',
     'pages/special-zone/index',
     'pages/case-detail/index',
     'pages/brand/index',
@@ -30,22 +37,21 @@ export default defineAppConfig({
     'pages/request-return/index',
     'pages/return-tracking/index',
     'pages/payment-result/index',
-    // Support pages
     'pages/support-chat/index',
     'pages/support-chat/select-order/index',
     'pages/support-chat/select-product/index'
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#fff',
+    navigationBarBackgroundColor: '#ffffff',
     navigationBarTitleText: '庆勋愉悦家',
     navigationBarTextStyle: 'black',
-    backgroundColor: '#F7F8FA'
+    backgroundColor: '#f6f9fb'
   },
   tabBar: {
-    color: '#969799',
-    selectedColor: '#1989FA',
-    backgroundColor: '#fff',
+    color: '#818B92',
+    selectedColor: '#14191F',
+    backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [
       {

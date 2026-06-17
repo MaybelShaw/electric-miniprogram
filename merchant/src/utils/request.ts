@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { message } from 'antd';
 import { getToken, removeToken } from './auth';
+import { getSelectedStoreId } from './store';
 
 const request = axios.create({
   baseURL: '/api',
@@ -55,6 +56,14 @@ request.interceptors.request.use(
     const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const selectedStoreId = getSelectedStoreId();
+    if (selectedStoreId) {
+      const explicitStore = config.params?.store || config.params?.store_id;
+      config.params = {
+        ...(config.params || {}),
+        ...(explicitStore ? {} : { store_id: selectedStoreId }),
+      };
     }
     return config;
   },

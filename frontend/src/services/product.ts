@@ -1,11 +1,18 @@
 import { fetchAllPaginated, http } from '../utils/request'
-import { Product, ProductListResponse, Category, Brand, HomeBanner } from '../types/index'
+import { Product, ProductListResponse, Category, Brand, HomeBanner, HomeBannerPosition } from '../types/index'
+
+interface HomeBannerParams {
+  position?: HomeBannerPosition
+  special_zone?: number
+  store?: number | string
+  store_id?: number | string
+}
 
 export const productService = {
   // 获取轮播图列表
-  async getHomeBanners(position?: 'home' | 'gift' | 'designer' | 'best_seller'): Promise<HomeBanner[]> {
-    const params = position ? { position } : undefined
-    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', params, false)
+  async getHomeBanners(params?: HomeBannerPosition | HomeBannerParams): Promise<HomeBanner[]> {
+    const query = typeof params === 'string' ? { position: params } : params
+    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', query, false)
     return response.results || []
   },
 
@@ -15,9 +22,15 @@ export const productService = {
     page_size?: number
     sort_by?: 'sales' | 'price_asc' | 'price_desc' | 'created'
     search?: string
+    category?: string
+    brand?: string
     show_in_gift_zone?: boolean
     show_in_designer_zone?: boolean
     show_in_best_seller_zone?: boolean
+    show_in_promotion_zone?: boolean
+    special_zone?: number
+    store?: number | string
+    store_id?: number | string
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/', params)
   },
@@ -33,6 +46,8 @@ export const productService = {
     sort_by?: 'relevance' | 'sales' | 'price_asc' | 'price_desc'
     page?: number
     page_size?: number
+    store?: number | string
+    category_id?: number
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_category/', params)
   },
@@ -43,18 +58,20 @@ export const productService = {
     sort_by?: 'relevance' | 'sales' | 'price_asc' | 'price_desc'
     page?: number
     page_size?: number
+    store?: number | string
+    category_id?: number
   }): Promise<ProductListResponse> {
     return http.get<ProductListResponse>('/catalog/products/by_brand/', params)
   },
   
   // 获取分类列表
-  async getCategories(params?: { level?: 'major' | 'minor' | 'item'; parent_id?: number }): Promise<Category[]> {
+  async getCategories(params?: { level?: 'major' | 'minor' | 'item'; parent_id?: number; store?: number | string }): Promise<Category[]> {
     return fetchAllPaginated<Category>('/catalog/categories/', params)
   },
   
   // 获取品牌列表
-  async getBrands(): Promise<Brand[]> {
-    return fetchAllPaginated<Brand>('/catalog/brands/')
+  async getBrands(params?: { store?: number | string }): Promise<Brand[]> {
+    return fetchAllPaginated<Brand>('/catalog/brands/', params)
   },
   
 

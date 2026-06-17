@@ -1,0 +1,63 @@
+@use '../../styles/variables.scss' as *;
+
+.app-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.app-search-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 0 22px;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-max;
+  background: $showroom-surface;
+  box-shadow: 0 8px 22px rgba($brand-ink, 0.035);
+
+  &:active {
+    border-color: rgba($brand-brass, 0.5);
+    background: $brand-paper;
+  }
+}
+
+.app-search-icon {
+  width: 36px;
+  height: 36px;
+  margin-right: 12px;
+}
+
+.app-search-field {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-size-md;
+  color: $text-color-base;
+}
+
+.app-search-placeholder {
+  color: $text-color-placeholder;
+}
+
+.app-search-button {
+  height: 72px;
+  min-width: 112px;
+  padding: 0 26px;
+  border-radius: $border-radius-max;
+  background: $brand-ink;
+  color: $white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-md;
+  font-weight: 600;
+  box-shadow: 0 12px 24px rgba($brand-ink, 0.12);
+
+  &:active {
+    transform: translateY(1px);
+    background: darken-c($brand-ink, 3%);
+  }
+}

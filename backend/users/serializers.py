@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import User, Address, CompanyInfo, CreditAccount, AccountStatement, AccountTransaction, Notification
 from django.core.cache import cache
+from drf_spectacular.utils import extend_schema_field
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -15,11 +16,13 @@ class UserSerializer(serializers.ModelSerializer):
     orders_count = serializers.SerializerMethodField()
     completed_orders_count = serializers.SerializerMethodField()
     company_info = serializers.SerializerMethodField()
+    store_roles = serializers.SerializerMethodField()
     
     class Meta:
         model = User
         fields = "__all__"
     
+    @extend_schema_field(serializers.IntegerField())
     def get_orders_count(self, obj):
         """Get total number of orders for the user."""
         cache_key = f'user_orders_count_{obj.id}'
@@ -31,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
         
         return count
     
+    @extend_schema_field(serializers.IntegerField())
     def get_completed_orders_count(self, obj):
         """Get number of completed orders for the user."""
         cache_key = f'user_completed_orders_count_{obj.id}'
@@ -42,6 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
         
         return count
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_company_info(self, obj):
         """Get company info for dealers."""
         if hasattr(obj, 'company_info'):
@@ -50,6 +55,24 @@ class UserSerializer(serializers.ModelSerializer):
                 'status': obj.company_info.status,
             }
         return None
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_store_roles(self, obj):
+        try:
+            from stores.permissions import get_membership_permissions
+            return [
+                {
+                    'store': membership.store_id,
+                    'store_name': membership.store.name,
+                    'store_is_main': membership.store.is_main,
+                    'role': membership.role,
+                    'permissions': get_membership_permissions(membership),
+                    'status': membership.status,
+                }
+                for membership in obj.store_memberships.select_related('store').filter(status='active')
+            ]
+        except Exception:
+            return []
 
 class UserProfileSerializer(serializers.ModelSerializer):
     has_company_info = serializers.SerializerMethodField()
@@ -69,16 +92,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "company_name",
         ]
     
+    @extend_schema_field(serializers.BooleanField())
     def get_has_company_info(self, obj):
         """Check if user has company info"""
         return hasattr(obj, 'company_info')
     
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_status(self, obj):
         """Get company info approval status"""
         if hasattr(obj, 'company_info'):
             return obj.company_info.status
         return None
     
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_name(self, obj):
         """Get company name if approved"""
         if hasattr(obj, 'company_info') and obj.company_info.status == 'approved':
@@ -87,6 +113,25 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         return data
+
+
+class WeChatExplicitLoginSerializer(serializers.Serializer):
+    code = serializers.CharField(required=True, allow_blank=False)
+    phone_code = serializers.CharField(required=False, allow_blank=True)
+    phoneCode = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    phone_credential = serializers.CharField(required=False, allow_blank=True, write_only=True)
+
+    def validate(self, attrs):
+        phone_code = (
+            attrs.get("phone_code")
+            or attrs.get("phoneCode")
+            or attrs.get("phone_credential")
+            or ""
+        )
+        attrs["phone_code"] = phone_code.strip()
+        attrs.pop("phoneCode", None)
+        attrs.pop("phone_credential", None)
+        return attrs
 
 
 class CompanyInfoSerializer(serializers.ModelSerializer):
@@ -187,6 +232,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    @extend_schema_field(serializers.BooleanField())
     def get_is_read(self, obj):
         return bool(getattr(obj, 'read_at', None))
 
@@ -275,6 +321,7 @@ class AccountTransactionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'balance_after', 'created_at']
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_order_info(self, obj):
         """获取订单详细信息"""
         if not obj.order_id:

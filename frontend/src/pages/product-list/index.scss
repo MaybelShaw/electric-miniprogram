@@ -1,11 +1,11 @@
-@import '../../styles/variables.scss';
-@import '../../styles/mixins.scss';
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .product-list-page {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: $white;
+  background: $background-color-base;
 
   .content-container {
     flex: 1;
@@ -13,12 +13,13 @@
     overflow: hidden;
 
     .sidebar {
-      width: 180px;
-      background-color: $background-color-base;
+      width: 172px;
+      background: $showroom-surface;
+      border-right: 1px solid $border-color;
       height: 100%;
 
       .sidebar-item {
-        height: 100px;
+        min-height: 96px;
         padding: 0 $spacing-md;
         display: flex;
         align-items: center;
@@ -33,9 +34,9 @@
         text-overflow: ellipsis;
 
         &.active {
-          background-color: $white;
+          background: $background-color-base;
           color: $primary-color;
-          font-weight: 500;
+          font-weight: 600;
 
           &::before {
             content: '';
@@ -43,9 +44,9 @@
             left: 0;
             top: $spacing-lg;
             bottom: $spacing-lg;
-            width: 6px;
-            background-color: $primary-color;
-            border-radius: 0 4px 4px 0;
+            width: 3px;
+            background: $secondary-color;
+            border-radius: 0 3px 3px 0;
           }
         }
       }
@@ -56,14 +57,14 @@
       display: flex;
       flex-direction: column;
       height: 100%;
-      background-color: $white;
+      background: $background-color-base;
       overflow: hidden; // 防止内容溢出
 
       .items-scroll {
         height: 100px;
         white-space: nowrap;
-        border-bottom: 1px solid $border-color;
-        background-color: $white;
+        border-bottom: 1px solid rgba($border-color, 0.75);
+        background: $showroom-surface;
         
         .items-container {
             display: inline-flex;
@@ -76,17 +77,18 @@
           display: inline-block;
           padding: $spacing-xs $spacing-lg;
           margin-right: $spacing-md;
-          background-color: $background-color-base;
-          border-radius: 30px;
+          background: $showroom-surface-warm;
+          border: 1px solid transparent;
+          border-radius: $border-radius-max;
           font-size: $font-size-sm;
           color: $text-color-regular;
           transition: all 0.2s;
           
           &.active {
-            background-color: lighten-c($primary-color, 45%);
+            background: $showroom-surface;
             color: $primary-color;
-            border: 1px solid lighten-c($primary-color, 30%);
-            font-weight: 500;
+            border: 1px solid $secondary-color;
+            font-weight: 600;
           }
         }
       }
@@ -95,7 +97,8 @@
         height: 80px;
         display: flex;
         align-items: center;
-        border-bottom: 1px solid $border-color;
+        border-bottom: 1px solid rgba($border-color, 0.75);
+        background: rgba($showroom-surface, 0.76);
         
         .sort-item {
             flex: 1;
@@ -108,12 +111,26 @@
             
             &.active {
                 color: $primary-color;
-                font-weight: 500;
+                font-weight: 600;
             }
 
             .sort-arrow {
-              font-size: 20px;
-              margin-left: 4px;
+              width: 10px;
+              height: 10px;
+              margin-left: 8px;
+              border-right: 2px solid currentColor;
+              border-bottom: 2px solid currentColor;
+              flex-shrink: 0;
+            }
+
+            .sort-arrow--up {
+              transform: rotate(-135deg);
+              margin-top: 6px;
+            }
+
+            .sort-arrow--down {
+              transform: rotate(45deg);
+              margin-bottom: 6px;
             }
         }
       }
@@ -121,7 +138,7 @@
       .products-scroll {
         flex: 1;
         min-height: 0; // 确保 flex 容器正确计算高度
-        background-color: $white;
+        background-color: transparent;
         padding: 0 24px 120px; // 增加底部内边距，确保最后一张卡片完整显示
         box-sizing: border-box;
         width: 100%;
@@ -129,8 +146,12 @@
         .product-card {
           display: flex;
           flex-direction: row;
-          padding: 24px 0;
-          border-bottom: 1px solid $border-color;
+          margin-top: 18px;
+          padding: 18px;
+          border: 1px solid $border-color;
+          border-radius: $border-radius-lg;
+          background: $showroom-surface;
+          box-shadow: none;
           width: 100%;
           align-items: stretch;
 
@@ -143,7 +164,7 @@
             width: 200px;
             height: 200px;
             border-radius: $border-radius-md;
-            background-color: $background-color-base;
+            background: $showroom-surface-warm;
             margin-right: 24px;
             flex-shrink: 0;
             object-fit: cover;
@@ -203,7 +224,7 @@
               .price {
                 font-size: 32px;
                 color: $danger-color;
-                font-weight: bold;
+                font-weight: 700;
                 font-family: 'DIN Alternate', sans-serif;
                 line-height: 1;
                 
@@ -219,16 +240,17 @@
                 width: 56px;
                 height: 56px;
                 border-radius: 50%;
-                background: linear-gradient(135deg, $primary-color, darken-c($primary-color, 10%));
-                color: $white;
+                background: transparent;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 32px;
-                line-height: 1;
-                padding-bottom: 4px; // Optically center the + sign
-                box-shadow: 0 4px 8px rgba($primary-color, 0.3);
+                box-shadow: none;
                 transition: transform 0.1s;
+
+                .app-icon {
+                  width: 56px;
+                  height: 56px;
+                }
 
                 &:active {
                   transform: scale(0.9);
@@ -260,9 +282,10 @@
     right: 30px;
     width: 96px;
     height: 96px;
-    background-color: $white;
+    background: $showroom-surface;
     border-radius: 50%;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -274,8 +297,8 @@
     }
     
     .cart-icon {
-        font-size: 48px;
-        color: $text-color-base;
+        width: 62px;
+        height: 62px;
     }
   }
 }

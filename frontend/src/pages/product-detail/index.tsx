@@ -4,9 +4,14 @@ import Taro, { useShareAppMessage, useShareTimeline, useRouter } from '@tarojs/t
 import { productService } from '../../services/product'
 import { cartService } from '../../services/cart'
 import { TokenManager } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import { Product, ProductSKU } from '../../types'
+import AppIcon from '../../components/AppIcon'
+import BottomActionBar from '../../components/BottomActionBar'
+import EmptyState from '../../components/EmptyState'
 import ProductCard from '../../components/ProductCard'
-import { requireLogin } from '../../utils/login-guard'
+import QuantityStepper from '../../components/QuantityStepper'
+import { requireTransactionAuth, TransactionAction } from '../../utils/auth-guard'
 import './index.scss'
 
 export default function ProductDetail() {
@@ -47,7 +52,7 @@ export default function ProductDetail() {
         path: '/pages/home/index',
       }
     }
-    const imageUrl = product?.main_images?.[0]
+    const imageUrl = resolveLocalMediaUrl(product?.main_images?.[0])
     return {
       title: product?.name || '商品详情',
       path: `/pages/product-detail/index?id=${productId}`,
@@ -62,7 +67,7 @@ export default function ProductDetail() {
         title: '家电商城',
       }
     }
-    const imageUrl = product?.main_images?.[0]
+    const imageUrl = resolveLocalMediaUrl(product?.main_images?.[0])
     return {
       title: product?.name || '商品详情',
       query: `id=${productId}`,
@@ -88,12 +93,12 @@ export default function ProductDetail() {
     if (!product || hasAutoResumed) return
     if (!TokenManager.getAccessToken()) return
 
-    const intent = router.params?.intent
+    const intent = router.params?.auth_action || router.params?.intent
     if (intent !== 'buy' && intent !== 'cart') return
 
     setHasAutoResumed(true)
-    handleShowQuantityPopup(intent)
-  }, [router.params?.intent, hasAutoResumed, product])
+    handleShowQuantityPopup(intent as TransactionAction)
+  }, [router.params?.auth_action, router.params?.intent, hasAutoResumed, product])
 
   const loadProduct = async (id: number) => {
     setLoading(true)
@@ -183,8 +188,8 @@ export default function ProductDetail() {
 
 
 
-  const handleShowQuantityPopup = async (type: 'cart' | 'buy') => {
-    const loggedIn = await requireLogin({ intent: type })
+  const handleShowQuantityPopup = async (type: TransactionAction) => {
+    const loggedIn = await requireTransactionAuth(type)
     if (!loggedIn) {
       return
     }
@@ -222,26 +227,17 @@ export default function ProductDetail() {
 
 
 
-  const handleQuantityChange = (delta: number) => {
-    const newQuantity = quantity + delta
-    if (newQuantity < 1) return
-    const stock = getAvailableStock()
-    if (product && stock > 0 && newQuantity > stock) {
-      Taro.showToast({ title: '库存不足', icon: 'none' })
-      return
-    }
-    setQuantity(newQuantity)
-  }
-
   const handleImagePreview = (index: number, isDetailImage = false) => {
     if (!product) return
     
-    const images = isDetailImage ? product.detail_images : product.main_images
+    const images = (isDetailImage ? product.detail_images : product.main_images)
+      ?.map(resolveLocalMediaUrl)
+      .filter(Boolean)
     if (!images || images.length === 0) return
     
     Taro.previewImage({
       urls: images,
-      current: images[index]
+      current: images[index] || images[0]
     })
   }
 
@@ -315,25 +311,18 @@ export default function ProductDetail() {
   const displayPrice = currentSku ? skuFinalPrice : productFinalPrice
   // 只有当最终展示价格小于原价时，才显示划线价
   const hasDiscount = displayPrice < currentBasePrice
+  const priceTier = product.dealer_price ? '经销价' : hasDiscount ? '活动价' : '零售价'
 
   const selectedSpecText = currentSku?.specs ? Object.values(currentSku.specs).join(' / ') : ''
 
   return (
     <View className='product-detail'>
-      <View 
-        className='nav-bar' 
-        style={{ 
-          backgroundColor: `rgba(255, 255, 255, ${navOpacity})`,
-          boxShadow: navOpacity > 0.8 ? '0 2px 8px rgba(0, 0, 0, 0.05)' : 'none',
-          borderBottom: navOpacity > 0.8 ? '1px solid #EBEDF0' : 'none'
-        }}
-      >
+      <View className={`nav-bar ${navOpacity > 0.8 ? 'visible' : ''}`}>
         {['product', 'detail', 'recommend'].map((tab) => (
           <View
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`}
             onClick={() => handleTabClick(tab)}
-            style={{ opacity: navOpacity }}
           >
             {tab === 'product' ? '商品' : tab === 'detail' ? '详情' : '推荐'}
           </View>
@@ -357,9 +346,9 @@ export default function ProductDetail() {
           >
             {product.main_images.map((img, index) => (
               <SwiperItem key={index}>
-                <Image 
-                  className='product-image' 
-                  src={img} 
+                <Image
+                  className='product-image'
+                  src={resolveLocalMediaUrl(img)}
                   mode='aspectFill'
                   onClick={() => handleImagePreview(index)}
                 />
@@ -381,6 +370,7 @@ export default function ProductDetail() {
           )}
           <View className='product-price-row'>
             <View className='price-wrapper'>
+              <Text className='price-badge'>{priceTier}</Text>
               <Text className='price-label'>¥</Text>
               <Text className='price'>
                  {Number(displayPrice || 0).toFixed(2)}
@@ -404,6 +394,21 @@ export default function ProductDetail() {
               <Text className='meta-label'>分类</Text>
               <Text className='meta-value'>{product.category}</Text>
             </View>
+          </View>
+        </View>
+
+        <View className='service-strip'>
+          <View className='service-item'>
+            <AppIcon name='done' tone='muted' className='service-icon' />
+            <Text className='service-text'>正品保障</Text>
+          </View>
+          <View className='service-item'>
+            <AppIcon name='ship' tone='muted' className='service-icon' />
+            <Text className='service-text'>配送安装</Text>
+          </View>
+          <View className='service-item'>
+            <AppIcon name='service' tone='muted' className='service-icon' />
+            <Text className='service-text'>售后无忧</Text>
           </View>
         </View>
 
@@ -464,9 +469,9 @@ export default function ProductDetail() {
             <View className='detail-images'>
               {product.detail_images.map((img, index) => (
                 <View key={index} className='detail-image-wrapper'>
-                  <Image 
-                    className='detail-image' 
-                    src={img} 
+                  <Image
+                    className='detail-image'
+                    src={resolveLocalMediaUrl(img)}
                     mode='widthFix'
                     lazyLoad
                     onClick={() => handleImagePreview(index, true)}
@@ -480,11 +485,7 @@ export default function ProductDetail() {
               </View>
             </View>
           ) : (
-            <View className='no-detail'>
-              <View className='no-detail-icon'>📦</View>
-              <View className='no-detail-text'>暂无详细信息</View>
-              <View className='no-detail-tip'>商品详情图片正在准备中</View>
-            </View>
+            <EmptyState title='暂无详细信息' description='商品详情图片正在准备中' icon='package' />
           )}
         </View>
 
@@ -501,11 +502,13 @@ export default function ProductDetail() {
             <View className='recommend-placeholder'>推荐加载中...</View>
           ) : relatedProducts.length > 0 ? (
             <ScrollView className='recommend-scroll' scrollX>
-              {relatedProducts.map((item) => (
-                <View key={item.id} className='recommend-card'>
-                  <ProductCard product={item} />
-                </View>
-              ))}
+              <View className='recommend-row'>
+                {relatedProducts.map((item) => (
+                  <View key={item.id} className='recommend-card'>
+                    <ProductCard product={item} variant='compact' />
+                  </View>
+                ))}
+              </View>
             </ScrollView>
           ) : (
             <View className='recommend-placeholder'>暂无同类推荐</View>
@@ -514,25 +517,25 @@ export default function ProductDetail() {
       </ScrollView>
 
       {/* 底部操作栏 */}
-      <View className='footer-bar'>
+      <BottomActionBar className='detail-action-bar'>
         <View className='footer-left'>
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/home/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🏠</Text>
+              <AppIcon name='home' tone='muted' />
             </View>
             <Text className='icon-text'>首页</Text>
           </View>
 
           <View className='icon-btn contact-btn' onClick={() => Taro.navigateTo({ url: '/pages/support-chat/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🎧</Text>
+              <AppIcon name='service' tone='muted' />
             </View>
             <Text className='icon-text'>客服</Text>
           </View>
 
           <View className='icon-btn' onClick={() => Taro.switchTab({ url: '/pages/cart/index' })}>
             <View className='icon-wrapper'>
-              <Text className='icon'>🛒</Text>
+              <AppIcon name='cart' tone='muted' />
             </View>
             <Text className='icon-text'>购物车</Text>
           </View>
@@ -551,7 +554,7 @@ export default function ProductDetail() {
             {availableStock === 0 ? '已售罄' : '立即购买'}
           </View>
         </View>
-      </View>
+      </BottomActionBar>
 
       {/* 数量选择弹窗 */}
       {showQuantityPopup && (
@@ -559,7 +562,7 @@ export default function ProductDetail() {
           <View className='quantity-popup' onClick={(e) => e.stopPropagation()}>
             <View className='popup-header'>
               <View className='popup-product-info'>
-                <Image className='popup-product-image' src={currentSku?.image || product.main_images[0]} mode='aspectFill' />
+                <Image className='popup-product-image' src={resolveLocalMediaUrl(currentSku?.image || product.main_images[0])} mode='aspectFill' />
                 <View className='popup-product-details'>
                   <View className='popup-product-name'>{product.name}</View>
                   <View className='popup-product-price-row'>
@@ -572,26 +575,14 @@ export default function ProductDetail() {
                   <View className='popup-stock-text'>库存 {availableStock} 件</View>
                 </View>
               </View>
-              <View className='popup-close' onClick={() => setShowQuantityPopup(false)}>✕</View>
+              <View className='popup-close' onClick={() => setShowQuantityPopup(false)}>
+                <AppIcon name='close' tone='muted' />
+              </View>
             </View>
 
             <View className='popup-quantity-section'>
               <Text className='popup-section-title'>购买数量</Text>
-              <View className='popup-quantity-control'>
-                <View 
-                  className={`popup-btn minus ${quantity <= 1 ? 'disabled' : ''}`}
-                  onClick={() => handleQuantityChange(-1)}
-                >
-                  -
-                </View>
-                <View className='popup-quantity'>{quantity}</View>
-                <View 
-                  className={`popup-btn plus ${quantity >= availableStock ? 'disabled' : ''}`}
-                  onClick={() => handleQuantityChange(1)}
-                >
-                  +
-                </View>
-              </View>
+              <QuantityStepper value={quantity} max={availableStock || undefined} onChange={setQuantity} />
             </View>
 
             <View className='popup-footer'>

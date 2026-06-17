@@ -1,0 +1,206 @@
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
+
+.store-showcase-card {
+  overflow: hidden;
+  background: $showroom-surface;
+  border: 1px solid rgba($border-color, 0.92);
+  border-radius: $border-radius-lg;
+  box-shadow: 0 10px 32px rgba($brand-ink, 0.045);
+
+  &:active {
+    transform: translateY(1px);
+    background: $showroom-surface-warm;
+  }
+}
+
+.store-showcase-media {
+  position: relative;
+  height: 196px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 72% 28%, rgba($brand-teal, 0.16), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, $brand-mist 52%, $showroom-surface-warm 100%);
+}
+
+.store-showcase-cover,
+.store-showcase-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.store-showcase-cover {
+  opacity: 0.9;
+}
+
+.store-showcase-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .app-icon {
+    width: 104px;
+    height: 104px;
+  }
+}
+
+.store-showcase-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(246, 249, 251, 0.1) 48%, rgba(246, 249, 251, 0.82) 100%),
+    linear-gradient(135deg, rgba($brand-teal, 0.1), rgba($brand-ink, 0.04));
+}
+
+.store-showcase-badge {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  height: 36px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  border-radius: $border-radius-max;
+  background: rgba($showroom-surface, 0.92);
+  border: 1px solid rgba($border-color, 0.72);
+  color: $text-color-base;
+  font-size: 20px;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba($brand-ink, 0.05);
+}
+
+.store-showcase-body {
+  padding: 24px 24px 26px;
+}
+
+.store-showcase-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.store-showcase-logo-wrap {
+  width: 88px;
+  height: 88px;
+  padding: 12px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #ffffff 0%, $brand-mist 100%);
+  border: 1px solid rgba($border-color, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 10px 26px rgba($brand-ink, 0.045);
+
+  .app-icon {
+    width: 68px;
+    height: 68px;
+  }
+}
+
+.store-showcase-logo-wrap--icon {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.store-showcase-logo {
+  width: 100%;
+  height: 100%;
+}
+
+.store-showcase-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.store-showcase-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: $brand-brass-deep;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.store-showcase-title {
+  display: block;
+  color: $text-color-base;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.25;
+  @include text-ellipsis;
+}
+
+.store-showcase-desc {
+  display: -webkit-box;
+  min-height: 66px;
+  color: $text-color-secondary;
+  font-size: 24px;
+  line-height: 1.42;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.store-showcase-footer {
+  min-height: 66px;
+  margin-top: 22px;
+  padding: 0 18px 0 20px;
+  border: 1px solid rgba($border-color, 0.86);
+  border-radius: $border-radius-md;
+  background: $brand-mist;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: $text-color-base;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.store-showcase-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: $showroom-surface;
+  border: 1px solid rgba($border-color, 0.92);
+  color: $text-color-secondary;
+  font-size: 30px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.store-showcase-card--chuangyi {
+  border-color: rgba($brand-teal, 0.3);
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 64%, $brand-mist 100%);
+
+  .store-showcase-media {
+    height: 222px;
+    background:
+      radial-gradient(circle at 76% 24%, rgba($brand-teal, 0.22), transparent 34%),
+      linear-gradient(135deg, #ffffff 0%, #edf4f7 52%, #dfe8ed 100%);
+  }
+
+  .store-showcase-shade {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(246, 249, 251, 0.08) 46%, rgba(246, 249, 251, 0.86) 100%),
+      linear-gradient(135deg, rgba($brand-teal, 0.16), rgba($brand-ink, 0.05));
+  }
+
+  .store-showcase-badge {
+    color: $brand-ink;
+    border-color: rgba($brand-teal, 0.2);
+  }
+
+  .store-showcase-logo-wrap {
+    width: 94px;
+    height: 94px;
+    border-color: rgba($brand-teal, 0.24);
+  }
+
+  .store-showcase-footer {
+    background: $showroom-surface;
+    border-color: rgba($brand-teal, 0.22);
+  }
+}

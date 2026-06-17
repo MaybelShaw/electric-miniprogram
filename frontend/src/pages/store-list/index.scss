@@ -1,0 +1,26 @@
+@use '../../styles/variables.scss' as *;
+
+.store-list-page {
+  height: 100vh;
+  background: $background-color-base;
+  overflow: hidden;
+
+  .store-list-scroll {
+    height: 100%;
+  }
+
+  .store-list {
+    padding: 24px 24px 48px;
+  }
+
+  .store-list-card {
+    margin-bottom: 24px;
+  }
+
+  .status-text {
+    padding: 40px 0;
+    text-align: center;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+  }
+}

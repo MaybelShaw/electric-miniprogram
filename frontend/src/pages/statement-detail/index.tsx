@@ -79,7 +79,7 @@ export default function StatementDetailPage() {
       const res = await Taro.showModal({
         title: '确认对账单',
         content: '确认对账单无误吗？确认后将无法修改。',
-        confirmColor: '#1989FA'
+        confirmColor: '#211C16'
       })
 
       if (res.confirm) {

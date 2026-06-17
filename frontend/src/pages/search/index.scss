@@ -1,5 +1,5 @@
-@import '../../styles/variables.scss';
-@import '../../styles/mixins.scss';
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .search-page {
   min-height: 100vh;
@@ -13,18 +13,20 @@
     left: 0;
     right: 0;
     z-index: 100;
-    background: $white;
-    padding: 20px 32px;
+    background: rgba($showroom-bg, 0.98);
+    padding: 18px 24px;
     display: flex;
     align-items: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    box-shadow: none;
+    border-bottom: 1px solid rgba($border-color, 0.72);
 
     .search-input {
       flex: 1;
       display: flex;
       align-items: center;
-      background: $background-color-base;
-      border-radius: 32px;
+      background: $showroom-surface;
+      border: 1px solid $border-color;
+      border-radius: $border-radius-md;
       padding: 16px 24px;
       transition: all 0.3s;
 
@@ -51,17 +53,17 @@
     .search-btn {
       margin-left: 24px;
       padding: 16px 32px;
-      background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+      background: $brand-ink;
       color: $white;
       font-size: $font-size-md;
-      border-radius: 32px;
+      border-radius: $border-radius-md;
       font-weight: 500;
-      box-shadow: 0 4px 12px rgba($primary-color, 0.2);
+      box-shadow: 0 8px 18px rgba($brand-ink, 0.12);
       transition: all 0.3s;
 
       &:active {
         transform: scale(0.96);
-        opacity: 0.9;
+        background: darken-c($brand-ink, 3%);
       }
     }
   }
@@ -72,52 +74,35 @@
     box-sizing: border-box;
   }
 
-  .empty {
-    text-align: center;
-    padding-top: 200px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-
-    .empty-icon {
-      width: 300px;
-      height: 300px;
-      opacity: 0.8;
-      margin-bottom: 40px;
-    }
-
-    .empty-text {
-      display: block;
-      font-size: $font-size-md;
-      color: $text-color-secondary;
-    }
-  }
-
   .product-list {
     padding: $spacing-md;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
 
     .product-item {
       display: flex;
       padding: $spacing-md;
-      background: $white;
+      background: $showroom-surface;
       border-radius: $border-radius-lg;
       margin-bottom: $spacing-md;
       box-shadow: $shadow-sm;
+      border: 1px solid $border-color;
       transition: all 0.3s;
       position: relative;
       overflow: hidden;
 
       &:active {
         transform: scale(0.99);
-        box-shadow: $shadow-sm;
+        box-shadow: $shadow-md;
       }
 
       .product-image {
         width: 200px;
         height: 200px;
         border-radius: $border-radius-md;
-        background: $background-color-base;
+        background: $showroom-surface-warm;
         flex-shrink: 0;
         object-fit: cover;
       }
@@ -146,7 +131,7 @@
           font-size: $font-size-sm;
           color: $text-color-secondary;
           margin-top: $spacing-xs;
-          background: $background-color-base;
+          background: $showroom-surface-warm;
           padding: 4px $spacing-sm;
           border-radius: $border-radius-md;
           align-self: flex-start;

@@ -1,10 +1,20 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSwitch, ProFormSelect } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Upload, Image, Form } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { getHomeBanners, createHomeBanner, updateHomeBanner, deleteHomeBanner, uploadImage, getProducts } from '@/services/api';
+import {
+  getCurrentStoreContext,
+  getHomeBanners,
+  createHomeBanner,
+  updateHomeBanner,
+  deleteHomeBanner,
+  uploadImage,
+  getProducts,
+  getSpecialZones,
+} from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { HomeBanner } from '@/services/types';
+import type { CurrentStoreContext, HomeBanner, SpecialZone } from '@/services/types';
+import { getSelectedStoreId } from '@/utils/store';
 
 export default function HomeBanners() {
   const actionRef = useRef<ActionType>();
@@ -13,7 +23,37 @@ export default function HomeBanners() {
   const [imageUrl, setImageUrl] = useState<string>();
   const [imageId, setImageId] = useState<number>();
   const [defaultProductOption, setDefaultProductOption] = useState<{ label: string; value: number } | null>(null);
+  const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
+  const [selectedBannerStoreId, setSelectedBannerStoreId] = useState<number | undefined>();
+  const [specialZones, setSpecialZones] = useState<SpecialZone[]>([]);
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    getCurrentStoreContext()
+      .then((context) => {
+        setStoreContext(context);
+        const defaultStoreId = getSelectedStoreId() || context.default_store?.id || context.stores[0]?.id;
+        setSelectedBannerStoreId(defaultStoreId);
+      })
+      .catch(() => setStoreContext(null));
+  }, []);
+
+  useEffect(() => {
+    getSpecialZones({
+      page: 1,
+      page_size: 200,
+      ...(selectedBannerStoreId ? { store: selectedBannerStoreId } : {}),
+    })
+      .then((res: any) => {
+        const data = Array.isArray(res) ? res : (res.results || []);
+        setSpecialZones(data);
+      })
+      .catch(() => setSpecialZones([]));
+  }, [selectedBannerStoreId]);
+
+  const isPlatformAdmin = Boolean(storeContext?.is_platform_admin);
+  const storeOptions = storeContext?.stores.map(store => ({ label: store.name, value: store.id })) || [];
+  const zoneNameById = new Map(specialZones.map(zone => [zone.id, zone.title]));
 
   const handleUpload = async (options: any) => {
     const { file, onSuccess, onError } = options;
@@ -32,9 +72,12 @@ export default function HomeBanners() {
   };
 
   const handleEdit = (record: HomeBanner) => {
+    const zoneStoreId = specialZones.find(zone => zone.id === (record.special_zone_id ?? record.special_zone))?.store;
+    const storeId = record.store || zoneStoreId || selectedBannerStoreId;
     setEditingRecord(record);
     setImageUrl(record.image_url);
     setImageId(record.image_id);
+    setSelectedBannerStoreId(storeId);
     setDefaultProductOption(
       record.product_id
         ? { label: record.product_name || `商品 #${record.product_id}`, value: record.product_id }
@@ -42,26 +85,32 @@ export default function HomeBanners() {
     );
     setModalVisible(true);
     form.setFieldsValue({
+      store_id: storeId,
       title: record.title,
       position: record.position,
       order: record.order,
       is_active: record.is_active,
       product_id: record.product_id ?? undefined,
+      special_zone_id: record.special_zone_id ?? record.special_zone ?? undefined,
     });
   };
 
   const handleAdd = () => {
+    const defaultStoreId = selectedBannerStoreId || getSelectedStoreId() || storeContext?.default_store?.id || storeContext?.stores[0]?.id;
     setEditingRecord(null);
     setImageUrl(undefined);
     setImageId(undefined);
     setDefaultProductOption(null);
+    setSelectedBannerStoreId(defaultStoreId);
     setModalVisible(true);
     form.resetFields();
     form.setFieldsValue({
+      store_id: defaultStoreId,
       order: 0,
       is_active: true,
       position: 'home',
       product_id: undefined,
+      special_zone_id: undefined,
     });
   };
 
@@ -117,8 +166,20 @@ export default function HomeBanners() {
         home: { text: '首页', status: 'Default' },
         gift: { text: '礼品专区', status: 'Processing' },
         designer: { text: '设计师专区', status: 'Success' },
+        best_seller: { text: '爆品专区', status: 'Error' },
+        promotion: { text: '优惠专区', status: 'Warning' },
       },
       width: 120,
+    },
+    {
+      title: '动态专区',
+      dataIndex: 'special_zone_id',
+      hideInSearch: true,
+      width: 150,
+      render: (_, record) => {
+        const zoneId = record.special_zone_id ?? record.special_zone;
+        return zoneId ? zoneNameById.get(zoneId) || `专区 #${zoneId}` : '-';
+      },
     },
     {
       title: '排序',
@@ -227,7 +288,11 @@ export default function HomeBanners() {
               ...values,
               image: imageId || editingRecord?.image_id,
               product_id: values.product_id ?? null,
+              special_zone_id: values.special_zone_id ?? null,
             };
+            if (!isPlatformAdmin) {
+              delete data.store_id;
+            }
 
             if (editingRecord) {
               await updateHomeBanner(editingRecord.id, data);
@@ -262,6 +327,22 @@ export default function HomeBanners() {
           </Upload>
         </Form.Item>
 
+        {isPlatformAdmin && (
+          <ProFormSelect
+            name="store_id"
+            label="所属店铺"
+            options={storeOptions}
+            rules={[{ required: true, message: '请选择店铺' }]}
+            fieldProps={{
+              onChange: (storeId) => {
+                const nextStoreId = typeof storeId === 'number' ? storeId : Number(storeId);
+                setSelectedBannerStoreId(Number.isFinite(nextStoreId) ? nextStoreId : undefined);
+                form.setFieldValue('special_zone_id', undefined);
+              },
+            }}
+          />
+        )}
+
         <ProFormSelect
             name="position"
             label="展示位置"
@@ -269,9 +350,23 @@ export default function HomeBanners() {
                 home: '首页',
                 gift: '礼品专区',
                 designer: '设计师专区',
+                best_seller: '爆品专区',
+                promotion: '优惠专区',
             }}
             rules={[{ required: true, message: '请选择展示位置' }]}
             initialValue="home"
+        />
+
+        <ProFormSelect
+          name="special_zone_id"
+          label="动态专区"
+          tooltip="选择后该轮播图归属指定动态专区页；旧展示位置仍保留兼容"
+          options={specialZones.map(zone => ({ label: zone.title, value: zone.id }))}
+          fieldProps={{
+            showSearch: true,
+            allowClear: true,
+            placeholder: '请选择动态专区',
+          }}
         />
 
         <ProFormSelect

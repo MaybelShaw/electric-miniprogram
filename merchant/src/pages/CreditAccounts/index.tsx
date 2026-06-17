@@ -106,7 +106,7 @@ export default function CreditAccounts() {
         <a
           key="transactions"
           onClick={() => {
-            navigate(`/account-transactions?credit_account=${record.id}`);
+            navigate(`/admin/account-transactions?credit_account=${record.id}`);
           }}
         >
           交易记录

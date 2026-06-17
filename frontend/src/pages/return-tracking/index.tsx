@@ -3,6 +3,7 @@ import { View, Text, Button, Input, Image } from '@tarojs/components'
 import Taro, { useLoad } from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { uploadService } from '../../services/upload'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function ReturnTracking() {
@@ -71,7 +72,7 @@ export default function ReturnTracking() {
       <View className='form-group'>
         <View className='form-item'>
           <View className='label'>
-            快递单号 <Text style={{ color: '#ff4d4f' }}>*</Text>
+            快递单号 <Text className='required-mark'>*</Text>
           </View>
           <Input
             className='input'
@@ -87,7 +88,7 @@ export default function ReturnTracking() {
         <View className='image-list'>
           {images.map((url, index) => (
             <View key={index} className='image-item'>
-              <Image className='image' src={url} mode='aspectFill' />
+              <Image className='image' src={resolveLocalMediaUrl(url)} mode='aspectFill' />
               <View className='delete-btn' onClick={() => handleRemoveImage(index)}>×</View>
             </View>
           ))}

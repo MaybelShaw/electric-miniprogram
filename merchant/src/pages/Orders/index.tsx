@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormRadio, ProFormTextArea, ProFormDependency, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormList, ProFormGroup } from '@ant-design/pro-components';
 import { Alert, Tag, Button, message, Space, Popconfirm, Drawer, Modal, Form, Input, List, Image, Tooltip, Card } from 'antd';
 import { EyeOutlined, SendOutlined, CheckOutlined, CloseOutlined, CloudUploadOutlined, CarOutlined, RollbackOutlined, PayCircleOutlined, UploadOutlined, DownloadOutlined, EditOutlined } from '@ant-design/icons';
-import { getOrders, getOrder, shipOrder, cancelShipping, getShippingActions, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
+import { getCurrentStoreContext, getOrders, getOrder, shipOrder, cancelShipping, getShippingActions, completeOrder, cancelOrder, pushToHaier, getHaierLogistics, getDeliveryCompanies, receiveReturn, completeRefund, uploadInvoice, downloadInvoice, approveReturn, rejectReturn, getRefunds, startRefund, failRefund, exportOrders, adjustOrderAmount } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import type { Order, OrderShippingAction } from '@/services/types';
+import type { CurrentStoreContext, Order, OrderShippingAction } from '@/services/types';
 import { Upload } from 'antd';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
@@ -84,6 +84,7 @@ export default function Orders() {
   const [adjustForm] = Form.useForm();
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
+  const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
   const exportLockRef = useRef(false);
   const adjustErrorMap: Record<string, string> = {
     'Only pending orders can be adjusted': '仅待支付订单可改价',
@@ -92,6 +93,32 @@ export default function Orders() {
     'actual_amount cannot exceed current payable amount': '改后金额不能高于当前应付金额',
     'actual_amount must be greater than 0': '改后金额必须大于 0',
     'actual_amount is required': '请输入改后金额',
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentStoreContext()
+      .then((context) => {
+        if (!cancelled) {
+          setStoreContext(context);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStoreContext(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const hasPermission = (permission: string) => {
+    if (!storeContext) return false;
+    if (storeContext.is_platform_admin) return true;
+    return storeContext.memberships.some((membership) =>
+      membership.status === 'active' && Array.isArray(membership.permissions) && membership.permissions.includes(permission),
+    );
   };
 
   useEffect(() => {
@@ -676,8 +703,15 @@ export default function Orders() {
             查看
           </Button>
         ];
+        const canAdjustAmount = hasPermission('orders.adjust_amount');
+        const canCancelOrder = hasPermission('orders.cancel');
+        const canShipOrder = hasPermission('orders.ship');
+        const canCompleteOrder = hasPermission('orders.complete');
+        const canManageReturns = hasPermission('returns.manage');
+        const canManageRefunds = hasPermission('refunds.manage');
+        const canManageInvoices = hasPermission('invoices.manage');
 
-        if (record.status === 'pending') {
+        if (record.status === 'pending' && canAdjustAmount) {
           actions.push(
             <Button
               key="adjust"
@@ -700,7 +734,7 @@ export default function Orders() {
         const isCancelPending = isHaierOrder && haierStatus === 'cancel_pending';
         const canRetryCancel = isHaierOrder && haierStatus === 'cancel_failed';
         
-        if (canPushHaier) {
+        if (canPushHaier && canShipOrder) {
           actions.push(
             <Button
               key="push"
@@ -728,7 +762,7 @@ export default function Orders() {
           );
         }
         
-        if (record.status === 'paid' && !isCancelPending && !isHaierOrder) {
+        if (record.status === 'paid' && !isCancelPending && !isHaierOrder && canShipOrder) {
           actions.push(
             <Button
               key="ship"
@@ -743,7 +777,7 @@ export default function Orders() {
         }
         
         if (record.status === 'shipped') {
-          if (record.can_cancel_shipping) {
+          if (record.can_cancel_shipping && canShipOrder) {
             actions.push(
               <Button
                 key="cancel-shipping"
@@ -757,24 +791,26 @@ export default function Orders() {
               </Button>
             );
           }
-          actions.push(
-            <Popconfirm
-              key="complete"
-              title="确认完成订单?"
-              onConfirm={() => handleComplete(record.id)}
-            >
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckOutlined />}
+          if (canCompleteOrder) {
+            actions.push(
+              <Popconfirm
+                key="complete"
+                title="确认完成订单?"
+                onConfirm={() => handleComplete(record.id)}
               >
-                完成
-              </Button>
-            </Popconfirm>
-          );
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CheckOutlined />}
+                >
+                  完成
+                </Button>
+              </Popconfirm>
+            );
+          }
         }
         
-        if (['pending', 'paid'].includes(record.status) || canRetryCancel) {
+        if ((['pending', 'paid'].includes(record.status) || canRetryCancel) && canCancelOrder) {
           actions.push(
             <Button
               key="cancel"
@@ -792,7 +828,7 @@ export default function Orders() {
         
         // 退货相关操作
         if (record.return_info) {
-          if (record.return_info.status === 'requested') {
+          if (record.return_info.status === 'requested' && canManageReturns) {
             actions.push(
               <Button
                 key="process_return"
@@ -817,7 +853,7 @@ export default function Orders() {
             );
           }
 
-          if (record.return_info.status === 'in_transit') {
+          if (record.return_info.status === 'in_transit' && canManageReturns) {
             actions.push(
               <Button
                 key="receive_return"
@@ -831,7 +867,7 @@ export default function Orders() {
             );
           }
           
-          if (record.return_info.status === 'received' && record.status !== 'refunded') {
+          if (record.return_info.status === 'received' && record.status !== 'refunded' && canManageRefunds) {
              actions.push(
               <Popconfirm
                 key="complete_refund"
@@ -850,7 +886,7 @@ export default function Orders() {
           }
         }
 
-        if (record.refund_action_required && record.status !== 'refunding') {
+        if (record.refund_action_required && record.status !== 'refunding' && canManageRefunds) {
           actions.push(
             <Button
               key="review_refund"
@@ -865,7 +901,7 @@ export default function Orders() {
         }
 
         // 退款中：提供重新发起退款
-        if (record.status === 'refunding') {
+        if (record.status === 'refunding' && canManageRefunds) {
           actions.push(
             <Popconfirm
               key="retry_refund"
@@ -887,7 +923,7 @@ export default function Orders() {
               退款详情
             </Button>
           );
-        } else if (record.payment_method === 'credit' && ['paid', 'shipped'].includes(record.status)) {
+        } else if (record.payment_method === 'credit' && ['paid', 'shipped'].includes(record.status) && canManageRefunds) {
           // 信用支付退款入口：未发货可直接完成，已发货提示人工处理
           actions.push(
             <Popconfirm
@@ -903,7 +939,7 @@ export default function Orders() {
         }
 
         // 发票相关操作
-        if (record.invoice_info) {
+        if (record.invoice_info && canManageInvoices) {
           actions.push(
             <Button
               key="upload_invoice"

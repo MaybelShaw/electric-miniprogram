@@ -1,0 +1,160 @@
+@use '../../styles/variables.scss' as *;
+
+.feedback-list-page {
+  min-height: 100vh;
+  background: $background-color-base;
+  display: flex;
+  flex-direction: column;
+}
+
+.feedback-header {
+  margin: 24rpx;
+  padding: 30rpx;
+  background: $showroom-surface;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-lg;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .title {
+    display: block;
+    font-size: 36rpx;
+    font-weight: 700;
+    color: $text-color-base;
+    margin-bottom: 8rpx;
+  }
+
+  .subtitle {
+    display: block;
+    font-size: 24rpx;
+    color: $text-color-secondary;
+  }
+
+  .create-btn {
+    width: 120rpx;
+    height: 64rpx;
+    border-radius: $border-radius-md;
+    background: $brand-ink;
+    color: $brand-paper;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26rpx;
+    font-weight: 600;
+  }
+}
+
+.tabs {
+  margin: 0 24rpx 18rpx;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+
+  .tab {
+    height: 64rpx;
+    border-radius: $border-radius-md;
+    background: $showroom-surface;
+    color: $text-color-secondary;
+    border: 1px solid $border-color;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24rpx;
+
+    &.active {
+      background: $brand-ink;
+      color: $brand-paper;
+      border-color: $brand-ink;
+      font-weight: 600;
+    }
+  }
+}
+
+.ticket-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.ticket-list {
+  padding: 0 24rpx 48rpx;
+}
+
+.ticket-card {
+  background: $showroom-surface;
+  border: 1px solid $border-color;
+  border-radius: $border-radius-lg;
+  padding: 28rpx;
+  margin-bottom: 18rpx;
+
+  .card-top,
+  .card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12rpx;
+  }
+
+  .ticket-no {
+    font-size: 22rpx;
+    color: $text-color-secondary;
+  }
+
+  .status {
+    padding: 6rpx 14rpx;
+    border-radius: 999rpx;
+    font-size: 22rpx;
+    font-weight: 600;
+
+    &.pending {
+      background: rgba($warning-color, 0.12);
+      color: $warning-color;
+    }
+
+    &.replied {
+      background: rgba($success-color, 0.12);
+      color: $success-color;
+    }
+
+    &.closed {
+      background: $background-color-base;
+      color: $text-color-secondary;
+    }
+  }
+
+  .card-title {
+    margin-top: 16rpx;
+    font-size: 30rpx;
+    font-weight: 600;
+    color: $text-color-base;
+  }
+
+  .card-content {
+    margin-top: 10rpx;
+    color: $text-color-secondary;
+    font-size: 25rpx;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-meta {
+    margin-top: 20rpx;
+    color: $text-color-placeholder;
+    font-size: 22rpx;
+  }
+}
+
+.empty {
+  min-height: 500rpx;
+  padding-top: 96rpx;
+}
+
+.loading {
+  text-align: center;
+  color: $text-color-secondary;
+  font-size: 24rpx;
+  padding: 32rpx 0;
+}

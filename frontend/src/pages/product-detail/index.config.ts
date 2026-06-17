@@ -1,8 +1,8 @@
 export default definePageConfig({
   navigationBarTitleText: '商品详情',
-  navigationBarBackgroundColor: '#fff',
+  navigationBarBackgroundColor: '#ffffff',
   navigationBarTextStyle: 'black',
-  backgroundColor: '#F7F8FA',
+  backgroundColor: '#f6f9fb',
   enableShareAppMessage: true,
   enableShareTimeline: true,
 })

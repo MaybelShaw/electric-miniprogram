@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from rest_framework import serializers
 from django.conf import settings
 from urllib.parse import urlparse
@@ -14,11 +16,15 @@ from .models import (
     ReturnRequest,
     OrderItem,
     OrderShippingAction,
+    StoreProfitSharingEntry,
+    WechatProfitSharingOrder,
 )
 from .shipping_action_service import get_shipping_capabilities, is_haier_order
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
+from stores.permissions import is_platform_admin, is_support_user
+from drf_spectacular.utils import extend_schema_field
 
 
 def _is_absolute_url(url: str) -> bool:
@@ -280,6 +286,7 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_shipping_cancel_count(self, obj: Order) -> int:
         return self._shipping_capabilities(obj)['shipping_cancel_count']
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_haier_order_info(self, obj: Order):
         """获取海尔订单信息"""
         primary_product = obj.primary_product
@@ -294,6 +301,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'product_code': primary_product.product_code if primary_product else '',
         }
     
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_logistics_info(self, obj: Order):
         """获取物流信息"""
         # 只要有任意一项物流相关信息，就返回字典，确保前端能展示已有信息
@@ -315,6 +323,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'shipping_info': obj.shipping_info or None,
         }
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_invoice_info(self, obj: Order):
         """获取发票信息"""
         if hasattr(obj, 'invoice'):
@@ -326,6 +335,7 @@ class OrderSerializer(serializers.ModelSerializer):
             }
         return None
 
+    @extend_schema_field(serializers.DictField(allow_null=True))
     def get_return_info(self, obj: Order):
         rr = getattr(obj, 'return_request', None)
         if not rr:
@@ -350,12 +360,14 @@ class OrderSerializer(serializers.ModelSerializer):
             'processed_at': rr.processed_at,
         }
 
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
     def get_expires_at(self, obj: Order):
         if obj.status == 'pending':
             timeout = getattr(settings, 'ORDER_PAYMENT_TIMEOUT_MINUTES', 1440)
             return obj.created_at + timedelta(minutes=timeout)
         return None
 
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
     def get_child_orders(self, obj: Order):
         """获取子订单列表（仅当为主订单时返回）"""
         if obj.order_type != 'main':
@@ -495,6 +507,13 @@ class CartItemSerializer(serializers.ModelSerializer):
     sku = ProductSKUSerializer(read_only=True)
     sku_id = serializers.IntegerField(required=False, allow_null=True)
     sku_specs = serializers.SerializerMethodField()
+    store_id = serializers.IntegerField(source="product.store_id", read_only=True)
+    store_name = serializers.CharField(source="product.store.name", read_only=True)
+    store_logo = serializers.SerializerMethodField()
+    store_type = serializers.CharField(source="product.store.store_type", read_only=True)
+    store_is_main = serializers.BooleanField(source="product.store.is_main", read_only=True)
+    is_available = serializers.SerializerMethodField()
+    unavailable_reason = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
@@ -506,15 +525,52 @@ class CartItemSerializer(serializers.ModelSerializer):
             "sku_id",
             "sku_specs",
             "quantity",
+            "store_id",
+            "store_name",
+            "store_logo",
+            "store_type",
+            "store_is_main",
+            "is_available",
+            "unavailable_reason",
         ]
 
+    @extend_schema_field(serializers.DictField())
     def get_sku_specs(self, obj: CartItem):
         if obj.sku_id and obj.sku and obj.sku.specs:
             return obj.sku.specs
         return {}
 
+    @extend_schema_field(serializers.CharField())
+    def get_store_logo(self, obj: CartItem):
+        request = self.context.get("request")
+        store = getattr(obj.product, "store", None)
+        return _build_media_url(getattr(store, "logo", ""), request)
+
+    def _availability_reason(self, obj: CartItem) -> str:
+        product = obj.product
+        if not product.is_active:
+            return "商品已下架"
+        if obj.sku_id:
+            if not obj.sku or not obj.sku.is_active:
+                return "规格已下架"
+            if obj.quantity > obj.sku.stock:
+                return "库存不足"
+            return ""
+        if obj.quantity > product.stock:
+            return "库存不足"
+        return ""
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_available(self, obj: CartItem):
+        return self._availability_reason(obj) == ""
+
+    @extend_schema_field(serializers.CharField())
+    def get_unavailable_reason(self, obj: CartItem):
+        return self._availability_reason(obj)
+
 class CartSerializer(serializers.ModelSerializer):
-    items = CartItemSerializer(many=True, read_only=True)
+    items = serializers.SerializerMethodField()
+    store_groups = serializers.SerializerMethodField()
 
     class Meta:
         model = Cart
@@ -522,15 +578,82 @@ class CartSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "items",
+            "store_groups",
         ]
+
+    @extend_schema_field(CartItemSerializer(many=True))
+    def get_items(self, obj: Cart):
+        items = sorted(obj.items.all(), key=lambda cart_item: cart_item.id)
+        return CartItemSerializer(items, many=True, context=self.context).data
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_store_groups(self, obj: Cart):
+        item_serializer = CartItemSerializer(context=self.context)
+        groups = OrderedDict()
+
+        for item in sorted(obj.items.all(), key=lambda cart_item: cart_item.id):
+            product = item.product
+            store = product.store
+            group = groups.setdefault(
+                store.id,
+                {
+                    "store_id": store.id,
+                    "store_name": store.name,
+                    "store_logo": _build_media_url(store.logo, self.context.get("request")),
+                    "store_type": store.store_type,
+                    "store_is_main": store.is_main,
+                    "item_count": 0,
+                    "total_quantity": 0,
+                    "items": [],
+                },
+            )
+            group["item_count"] += 1
+            group["total_quantity"] += item.quantity
+            group["items"].append(item_serializer.to_representation(item))
+
+        return list(groups.values())
 
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = [
-            'id', 'order', 'amount', 'method', 'status', 'created_at', 'updated_at', 'expires_at', 'logs'
+            'id', 'order', 'amount', 'method', 'status',
+            'profit_sharing_required', 'profit_sharing_status', 'profit_sharing_unfrozen',
+            'created_at', 'updated_at', 'expires_at', 'logs'
         ]
+
+
+class StoreProfitSharingEntrySerializer(serializers.ModelSerializer):
+    store_name = serializers.CharField(source='store.name', read_only=True)
+    checkout_number = serializers.CharField(source='checkout_order.checkout_number', read_only=True)
+    suborder_number = serializers.CharField(source='suborder.suborder_number', read_only=True)
+
+    class Meta:
+        model = StoreProfitSharingEntry
+        fields = [
+            'id', 'checkout_order', 'checkout_number', 'payment', 'order', 'suborder',
+            'suborder_number', 'store', 'store_name', 'store_type_snapshot',
+            'gross_amount', 'commission_rate_snapshot', 'commission_amount',
+            'sharing_amount', 'retained_amount', 'receiver_type', 'receiver_account',
+            'receiver_name_snapshot', 'status', 'available_at', 'shared_at',
+            'failure_reason', 'logs', 'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
+
+
+class WechatProfitSharingOrderSerializer(serializers.ModelSerializer):
+    entry_ids = serializers.PrimaryKeyRelatedField(source='entries', many=True, read_only=True)
+
+    class Meta:
+        model = WechatProfitSharingOrder
+        fields = [
+            'id', 'payment', 'checkout_order', 'entry_ids', 'out_order_no',
+            'transaction_id', 'receivers', 'amount', 'unfreeze_unsplit',
+            'status', 'wechat_response', 'error_message', 'operator',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
 
 
 class RefundSerializer(serializers.ModelSerializer):
@@ -589,7 +712,7 @@ class RefundCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('仅支持已收货订单申请退款')
 
         # 普通用户只能操作自己的订单
-        if request and not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+        if request and not (is_platform_admin(request.user) or is_support_user(request.user)):
             if order.user_id != request.user.id:
                 raise serializers.ValidationError('没有权限为该订单退款')
 
@@ -734,12 +857,14 @@ class DiscountTargetSerializer(serializers.ModelSerializer):
             'discounted_retail_price', 'discounted_dealer_price'
         ]
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
     def get_discounted_retail_price(self, obj):
         if not obj.product or obj.product.price is None:
             return None
         discount_amount = obj.discount.resolve_discount_amount(obj.product.price)
         return obj.product.price - discount_amount
 
+    @extend_schema_field(serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True))
     def get_discounted_dealer_price(self, obj):
         if not obj.product or obj.product.dealer_price is None:
             return None

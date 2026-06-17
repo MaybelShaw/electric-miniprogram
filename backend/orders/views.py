@@ -11,6 +11,8 @@ from .models import (
     Invoice,
     ReturnRequest,
     OrderShippingAction,
+    StoreProfitSharingEntry,
+    WechatProfitSharingOrder,
 )
 from .serializers import (
     OrderSerializer,
@@ -27,6 +29,8 @@ from .serializers import (
     ReturnRequestSerializer,
     ReturnRequestCreateSerializer,
     OrderShippingActionSerializer,
+    StoreProfitSharingEntrySerializer,
+    WechatProfitSharingOrderSerializer,
 )
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
@@ -37,10 +41,26 @@ from catalog.models import Product
 from django.utils import timezone
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.db.models.deletion import ProtectedError
 from typing import Dict, Optional
-from common.permissions import IsOwnerOrAdmin, IsAdmin
+from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
+from common.serializers import EmptySerializer
+from stores.permissions import (
+    PERMISSION_ORDERS_ADJUST_AMOUNT,
+    PERMISSION_ORDERS_CANCEL,
+    PERMISSION_ORDERS_COMPLETE,
+    PERMISSION_ORDERS_SHIP,
+    PERMISSION_ORDERS_VIEW,
+    PERMISSION_INVOICES_MANAGE,
+    PERMISSION_REFUNDS_MANAGE,
+    PERMISSION_RETURNS_MANAGE,
+    get_accessible_stores,
+    get_requested_store,
+    has_store_permission,
+    is_platform_admin,
+    is_support_user,
+)
 from common.excel import build_excel_response
 from common.utils import parse_int, parse_datetime
 from common.throttles import PaymentRateThrottle
@@ -60,6 +80,7 @@ from .shipping_action_service import (
     create_successful_shipping_action,
     get_shipping_context,
 )
+from .profit_sharing import ProfitSharingService
 
 
 def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
@@ -167,6 +188,16 @@ def _log_ship_debug(logger, message: str, extra: dict | None = None):
 def _contains_chinese(value: str) -> bool:
     return any('\u4e00' <= ch <= '\u9fff' for ch in (value or ''))
 
+
+def _can_operate_order(user, order, permission_code: str, *, allow_owner: bool = False) -> bool:
+    if allow_owner and order.user_id == getattr(user, "id", None):
+        return True
+    return has_store_permission(user, order.store, permission_code)
+
+
+def _is_platform_or_support(user) -> bool:
+    return is_platform_admin(user) or is_support_user(user)
+
 # Create your views here.
 @extend_schema(tags=['Orders'])
 class OrderViewSet(viewsets.ModelViewSet):
@@ -182,10 +213,24 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Order.objects.all() if (user.is_staff or getattr(user, 'role', '') == 'support') else Order.objects.filter(user=user)
+        if is_platform_admin(user) or is_support_user(user):
+            qs = Order.objects.all()
+        else:
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if store_ids:
+                qs = Order.objects.filter(store_id__in=store_ids)
+            else:
+                qs = Order.objects.filter(user=user)
+
+        requested_store = get_requested_store(self.request)
+        if requested_store is not None:
+            qs = qs.filter(store=requested_store)
+
+        if getattr(self, 'action', '') in {'list', 'my_orders', 'export'} and self.request.query_params.get('include_checkout_main') not in {'1', 'true', 'True'}:
+            qs = qs.exclude(checkout_order__isnull=False, order_type='main')
 
         # Optimize queries by prefetching related objects
-        qs = qs.select_related('user', 'product', 'return_request').prefetch_related(
+        qs = qs.select_related('user', 'store', 'product', 'return_request').prefetch_related(
             'payments',
             'status_history',
             'items',
@@ -237,15 +282,15 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         # 用户名搜索（管理员可用）：模糊匹配 user.username
         username = self.request.query_params.get('username')
-        if (self.request.user.is_staff or getattr(self.request.user, 'role', '') == 'support') and username:
+        if username:
             try:
                 qs = qs.filter(user__username__icontains=username)
             except Exception:
                 pass
 
-        # 按用户ID筛选（仅管理员有效）
+        # 按用户ID筛选（在已授权的数据范围内继续收窄）
         user_id = self.request.query_params.get('user_id')
-        if (user.is_staff or getattr(user, 'role', '') == 'support') and user_id:
+        if user_id:
             uid = parse_int(user_id)
             if uid is not None:
                 try:
@@ -377,11 +422,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         order.save()
         return Response(OrderSerializer(order).data)
 
-    @action(detail=True, methods=['post'], permission_classes=[IsAdmin])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def adjust_amount(self, request, pk=None):
         import logging as pylogging
         logger = pylogging.getLogger(__name__)
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_ORDERS_ADJUST_AMOUNT):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if order.status != 'pending':
             logger.info(
                 '[ORDER_ADJUST] blocked: status_not_pending',
@@ -569,7 +616,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         target_user = request.user
         user_id_raw = request.data.get('user_id')
-        if user_id_raw and (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
+        if user_id_raw and _is_platform_or_support(request.user):
             try:
                 from users.models import User
                 target_user = User.objects.get(id=int(user_id_raw))
@@ -577,6 +624,8 @@ class OrderViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 logger.error(f'无效的user_id: {user_id_raw}, error: {str(e)}')
                 return Response({'detail': 'invalid user_id'}, status=400)
+        elif user_id_raw:
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             with transaction.atomic():
@@ -730,7 +779,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         logger = pylogging.getLogger(__name__)
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
+        if not _can_operate_order(user, order, PERMISSION_ORDERS_CANCEL, allow_owner=True):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -794,7 +843,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         logger = logging.getLogger(__name__)
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support'):
+        if not _can_operate_order(user, order, PERMISSION_ORDERS_SHIP):
             return Response({"detail": "Only admins can ship orders"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -1072,7 +1121,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """完成订单：仅管理员可操作，状态从 shipped 转换到 completed"""
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support'):
+        if not _can_operate_order(user, order, PERMISSION_ORDERS_COMPLETE):
             return Response({"detail": "Only admins can complete orders"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -1096,7 +1145,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         """确认收货：订单所有者或管理员可操作，状态从 shipped 转换到 completed"""
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
+        if not _can_operate_order(user, order, PERMISSION_ORDERS_COMPLETE, allow_owner=True):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         
         try:
@@ -1135,7 +1184,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         返回：创建的发票记录
         """
         order = self.get_object()
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or order.user_id == request.user.id):
+        if not _can_operate_order(request.user, order, PERMISSION_INVOICES_MANAGE, allow_owner=True):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = InvoiceCreateSerializer(data=request.data, context={'request': request, 'order': order})
@@ -1157,7 +1206,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def request_return(self, request, pk=None):
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
+        if not _can_operate_order(user, order, PERMISSION_RETURNS_MANAGE, allow_owner=True):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         serializer = ReturnRequestCreateSerializer(data=request.data, context={'request': request, 'order': order})
         serializer.is_valid(raise_exception=True)
@@ -1190,7 +1239,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def add_return_tracking(self, request, pk=None):
         order = self.get_object()
         user = request.user
-        if not (user.is_staff or getattr(user, 'role', '') == 'support' or order.user_id == user.id):
+        if not _can_operate_order(user, order, PERMISSION_RETURNS_MANAGE, allow_owner=True):
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
@@ -1216,9 +1265,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def approve_return(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_RETURNS_MANAGE):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1256,9 +1305,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def reject_return(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_RETURNS_MANAGE):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1296,9 +1345,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def receive_return(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_RETURNS_MANAGE):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1334,9 +1383,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], permission_classes=[IsAuthenticated])
     def complete_refund(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_REFUNDS_MANAGE):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
         rr = getattr(order, 'return_request', None)
         if not rr:
             return Response({"detail": "尚未申请退货"}, status=status.HTTP_400_BAD_REQUEST)
@@ -1452,10 +1501,9 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         需要管理员权限
         """
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
-
         order = self.get_object()
+        if not _can_operate_order(request.user, order, PERMISSION_ORDERS_SHIP):
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 
         # 兼容旧订单：迁移前创建的订单 order_type 可能为 NULL 或空字符串
         order_type = getattr(order, 'order_type', None) or 'main'
@@ -1698,7 +1746,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         
         # 检查权限
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support') and order.user != request.user:
+        if not _can_operate_order(request.user, order, PERMISSION_ORDERS_VIEW, allow_owner=True):
             return Response(
                 {'detail': '无权查看该订单'},
                 status=status.HTTP_403_FORBIDDEN
@@ -1747,13 +1795,23 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 class CartViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = CartSerializer
 
     @action(detail=False,methods=['get'])
     def my_cart(self,request):
-        cart = get_or_create_cart(request.user)
-        # Optimize cart query by prefetching related products
-        from .models import CartItem
-        cart.items.all().select_related('product', 'product__category', 'product__brand', 'sku')
+        base_cart = get_or_create_cart(request.user)
+        cart = Cart.objects.prefetch_related(
+            Prefetch(
+                'items',
+                queryset=CartItem.objects.select_related(
+                    'product',
+                    'product__store',
+                    'product__category',
+                    'product__brand',
+                    'sku',
+                ).order_by('id'),
+            )
+        ).get(pk=base_cart.pk)
         # 传入请求上下文以便 ProductSerializer 计算 discounted_price
         serializer = CartSerializer(cart, context={'request': request})
         return Response(serializer.data)
@@ -1902,7 +1960,14 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Payment.objects.filter(order__user=user) if not user.is_staff else Payment.objects.all()
+        if is_platform_admin(user) or is_support_user(user):
+            qs = Payment.objects.all()
+        else:
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if store_ids:
+                qs = Payment.objects.filter(order__store_id__in=store_ids)
+            else:
+                qs = Payment.objects.filter(order__user=user)
         
         # Optimize queries by prefetching related order data
         qs = qs.select_related('order', 'order__user', 'order__product').prefetch_related('order__items__product', 'order__items__sku')
@@ -2084,7 +2149,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
         # 仅待支付订单可启动支付
         if payment.order.status not in ['pending', 'paid']:
             return Response({'detail': '订单状态不支持支付'}, status=status.HTTP_409_CONFLICT)
-        if not request.user.is_staff and payment.order.user_id != request.user.id:
+        if not (
+            _is_platform_or_support(request.user)
+            or payment.order.user_id == request.user.id
+        ):
             return Response({'detail': '无权支付该订单'}, status=status.HTTP_403_FORBIDDEN)
 
         # 金额阈值校验
@@ -2156,7 +2224,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def sync(self, request, pk=None):
         """主动查询微信支付结果并同步支付/订单状态。"""
         payment = self.get_object()
-        if not request.user.is_staff and payment.order.user_id != request.user.id:
+        if not (
+            _is_platform_or_support(request.user)
+            or payment.order.user_id == request.user.id
+        ):
             return Response({'detail': '无权查询该支付'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
@@ -2186,11 +2257,129 @@ class PaymentViewSet(viewsets.ModelViewSet):
             'transaction': result
         })
 
+
+@extend_schema(tags=['ProfitSharing'])
+class StoreProfitSharingEntryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = StoreProfitSharingEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if not is_platform_admin(request.user):
+            self.permission_denied(request, message='仅平台管理员可管理微信分账')
+
+    def get_queryset(self):
+        qs = (
+            StoreProfitSharingEntry.objects
+            .select_related('checkout_order', 'payment', 'order', 'suborder', 'store')
+            .order_by('-created_at')
+        )
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        checkout_id = parse_int(self.request.query_params.get('checkout_order'))
+        if checkout_id is not None:
+            qs = qs.filter(checkout_order_id=checkout_id)
+        store_id = parse_int(self.request.query_params.get('store'))
+        if store_id is not None:
+            qs = qs.filter(store_id=store_id)
+        return qs
+
+    @action(detail=False, methods=['post'])
+    def mark_available(self, request):
+        updated = ProfitSharingService.mark_available()
+        return Response({'updated': updated})
+
+    @action(detail=False, methods=['post'])
+    def share(self, request):
+        ids = request.data.get('entry_ids') or []
+        if not isinstance(ids, list) or not ids:
+            return Response({'detail': 'entry_ids 必须是非空数组'}, status=status.HTTP_400_BAD_REQUEST)
+        entries = list(
+            StoreProfitSharingEntry.objects
+            .select_related('payment', 'checkout_order', 'suborder')
+            .filter(id__in=ids)
+        )
+        if len(entries) != len(set(ids)):
+            return Response({'detail': '部分分账流水不存在'}, status=status.HTTP_404_NOT_FOUND)
+        payment_ids = {entry.payment_id for entry in entries}
+        if len(payment_ids) != 1:
+            return Response({'detail': '一次只能处理同一支付单下的分账流水'}, status=status.HTTP_400_BAD_REQUEST)
+        payment = entries[0].payment
+        unfreeze_unsplit = bool(request.data.get('unfreeze_unsplit', False))
+        try:
+            share_order = ProfitSharingService.start_manual_share(
+                payment,
+                entries,
+                operator=request.user,
+                unfreeze_unsplit=unfreeze_unsplit,
+            )
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(WechatProfitSharingOrderSerializer(share_order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def mark_manual_settled(self, request, pk=None):
+        entry = self.get_object()
+        if entry.status in {'shared', 'platform_retained'}:
+            return Response({'detail': '当前状态不可标记人工结算'}, status=status.HTTP_400_BAD_REQUEST)
+        entry.status = 'manual_settled'
+        entry.logs.append({
+            't': timezone.now().isoformat(),
+            'event': 'manual_settled',
+            'operator': request.user.username,
+            'note': request.data.get('note', ''),
+        })
+        entry.save(update_fields=['status', 'logs', 'updated_at'])
+        ProfitSharingService.update_payment_status(entry.payment)
+        return Response(self.get_serializer(entry).data)
+
+
+@extend_schema(tags=['ProfitSharing'])
+class WechatProfitSharingOrderViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = WechatProfitSharingOrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        if not is_platform_admin(request.user):
+            self.permission_denied(request, message='仅平台管理员可管理微信分账')
+
+    def get_queryset(self):
+        qs = (
+            WechatProfitSharingOrder.objects
+            .select_related('payment', 'checkout_order', 'operator')
+            .prefetch_related('entries')
+            .order_by('-created_at')
+        )
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def mark_succeeded(self, request, pk=None):
+        share_order = self.get_object()
+        ProfitSharingService.mark_share_succeeded(share_order, response=request.data.get('wechat_response'))
+        share_order.refresh_from_db()
+        return Response(self.get_serializer(share_order).data)
+
+    @action(detail=True, methods=['post'])
+    def mark_failed(self, request, pk=None):
+        share_order = self.get_object()
+        error_message = request.data.get('error_message') or 'manual_failed'
+        ProfitSharingService.mark_share_failed(share_order, error_message)
+        share_order.refresh_from_db()
+        return Response(self.get_serializer(share_order).data)
+
 @extend_schema(tags=['Payments'])
 class RefundCallbackView(APIView):
     """微信退款回调处理视图。"""
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PaymentRateThrottle]
+    serializer_class = EmptySerializer
 
     def post(self, request, provider: str = 'wechat'):
         provider = (provider or 'wechat').lower()
@@ -2256,7 +2445,7 @@ class DiscountViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         # 折扣管理仅管理员可见；普通用户仅能查看与自己相关的折扣（用于调试），实际前端不暴露列表
         user = self.request.user
-        if user.is_staff:
+        if _is_platform_or_support(user):
             qs = Discount.objects.prefetch_related('targets', 'targets__product').all()
             # 名称模糊搜索
             name = self.request.query_params.get('name')
@@ -2435,8 +2624,15 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        is_admin = user.is_staff or getattr(user, 'role', '') == 'support'
-        qs = Invoice.objects.all() if is_admin else Invoice.objects.filter(user=user)
+        is_admin = is_platform_admin(user) or is_support_user(user)
+        if is_admin:
+            qs = Invoice.objects.all()
+        else:
+            store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if store_ids:
+                qs = Invoice.objects.filter(order__store_id__in=store_ids)
+            else:
+                qs = Invoice.objects.filter(user=user)
         qs = qs.select_related('order', 'user', 'order__product').order_by('-requested_at')
 
         order_number = self.request.query_params.get('order_number')
@@ -2495,11 +2691,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def issue(self, request, pk=None):
-        # Support staff should be able to issue invoices
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
-
         inv = self.get_object()
+        if not has_store_permission(request.user, inv.order.store, PERMISSION_INVOICES_MANAGE):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if inv.status == 'issued':
             return Response({'detail': '发票已开具'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -2526,11 +2720,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def cancel(self, request, pk=None):
-        # Support staff should be able to cancel invoices
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
-
         inv = self.get_object()
+        if not has_store_permission(request.user, inv.order.store, PERMISSION_INVOICES_MANAGE):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if inv.status == 'issued':
             return Response({'detail': '已开具发票不可取消'}, status=status.HTTP_400_BAD_REQUEST)
         inv.status = 'cancelled'
@@ -2540,11 +2732,9 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrAdmin])
     def upload_file(self, request, pk=None):
         """上传发票文件（PDF/图片），管理员或客服。"""
-        # Support staff should be able to upload invoice files
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
-
         inv = self.get_object()
+        if not has_store_permission(request.user, inv.order.store, PERMISSION_INVOICES_MANAGE):
+             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         file = request.FILES.get('file')
         if not file:
             return Response({'detail': '缺少文件参数 file'}, status=status.HTTP_400_BAD_REQUEST)
@@ -2559,11 +2749,13 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['get'], permission_classes=[IsOwnerOrAdmin])
     def download(self, request, pk=None):
         """下载发票文件，订单所有者或管理员或客服可访问。"""
-        # Support staff should be able to download invoice files
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support' or self.get_object().user_id == request.user.id):
+        inv = self.get_object()
+        if not (
+            has_store_permission(request.user, inv.order.store, PERMISSION_INVOICES_MANAGE)
+            or inv.user_id == request.user.id
+        ):
              return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
 
-        inv = self.get_object()
         # 优先使用 FileField
         if getattr(inv, 'file', None):
             f = inv.file
@@ -2585,6 +2777,7 @@ class PaymentCallbackView(APIView):
     """支付回调处理视图（微信支付）。"""
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PaymentRateThrottle]
+    serializer_class = EmptySerializer
 
     def post(self, request, provider: str = 'wechat'):
         """处理支付回调
@@ -2831,7 +3024,12 @@ class RefundViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = self.queryset
-        if not user.is_staff:
+        if is_platform_admin(user) or is_support_user(user):
+            return qs.order_by('-created_at')
+        store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+        if store_ids:
+            qs = qs.filter(order__store_id__in=store_ids)
+        else:
             qs = qs.filter(order__user=user)
         return qs.order_by('-created_at')
 
@@ -2857,7 +3055,7 @@ class RefundViewSet(viewsets.ModelViewSet):
         # 管理员创建的退款可直接进入退款中状态，用户申请保持审核中
         try:
             from .state_machine import OrderStateMachine
-            if request.user.is_staff or getattr(request.user, 'role', '') == 'support':
+            if has_store_permission(request.user, refund.order.store, PERMISSION_REFUNDS_MANAGE):
                 if refund.order.status not in ['refunded', 'refunding']:
                     OrderStateMachine.transition(refund.order, 'refunding', operator=request.user, note='申请退款')
         except Exception:
@@ -2867,10 +3065,10 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         from .state_machine import OrderStateMachine
         refund = self.get_object()
+        if not has_store_permission(request.user, refund.order.store, PERMISSION_REFUNDS_MANAGE):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if refund.order.status in ['pending', 'cancelled']:
             return Response({'detail': '当前订单状态不支持退款'}, status=status.HTTP_400_BAD_REQUEST)
         if refund.status not in ['pending', 'failed']:
@@ -3014,9 +3212,9 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def succeed(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         refund = self.get_object()
+        if not has_store_permission(request.user, refund.order.store, PERMISSION_REFUNDS_MANAGE):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if refund.status != 'processing':
             return Response({'detail': '当前状态不可标记成功'}, status=400)
 
@@ -3075,9 +3273,9 @@ class RefundViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def fail(self, request, pk=None):
-        if not (request.user.is_staff or getattr(request.user, 'role', '') == 'support'):
-            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         refund = self.get_object()
+        if not has_store_permission(request.user, refund.order.store, PERMISSION_REFUNDS_MANAGE):
+            return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
         if refund.status not in ['pending', 'processing']:
             return Response({'detail': '当前状态不可标记失败'}, status=400)
         refund.status = 'failed'
@@ -3164,7 +3362,28 @@ class AnalyticsViewSet(viewsets.ViewSet):
     - User growth statistics
     - Order status distribution
     """
-    permission_classes = [IsAdmin]
+    permission_classes = [IsStoreStaffOrAdmin]
+    serializer_class = EmptySerializer
+    store_scoped_actions = {
+        'regional_sales',
+        'export_regional_sales',
+        'product_region_distribution',
+        'export_product_region_distribution',
+        'region_product_stats',
+        'export_region_product_stats',
+    }
+
+    def get_permissions(self):
+        permission_classes = [IsStoreStaffOrAdmin] if self.action in self.store_scoped_actions else [IsAdmin]
+        return [permission() for permission in permission_classes]
+
+    def _get_store_scope_ids(self, request):
+        requested_store = get_requested_store(request)
+        if requested_store is not None:
+            return [requested_store.id]
+        if is_platform_admin(request.user) or is_support_user(request.user):
+            return None
+        return list(get_accessible_stores(request.user).values_list('id', flat=True))
     
     @action(detail=False, methods=['get'])
     def sales_summary(self, request):
@@ -3358,6 +3577,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         product_id = request.query_params.get('product_id')
         order_by = request.query_params.get('order_by', 'amount')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
         
         try:
             product_id = int(product_id) if product_id is not None else None
@@ -3384,6 +3604,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             product_id=product_id,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3395,6 +3616,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         product_id = request.query_params.get('product_id')
         order_by = request.query_params.get('order_by', 'amount')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
 
         try:
             product_id = int(product_id) if product_id is not None else None
@@ -3421,6 +3643,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             product_id=product_id,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         headers = ['地区', '订单数', '销售数量', '销售金额']
         rows = [
@@ -3455,6 +3678,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
+        store_ids = self._get_store_scope_ids(request)
         
         try:
             product_id = int(product_id)
@@ -3475,6 +3699,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             start_date=start_date,
             end_date=end_date,
             order_by=str(order_by).lower(),
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3485,6 +3710,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
+        store_ids = self._get_store_scope_ids(request)
 
         try:
             product_id = int(product_id)
@@ -3505,6 +3731,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             start_date=start_date,
             end_date=end_date,
             order_by=str(order_by).lower(),
+            store_ids=store_ids,
         )
         headers = ['地区', '订单数', '销售数量', '销售金额']
         rows = [
@@ -3541,6 +3768,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
         
         if not region_name:
             return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3565,6 +3793,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             end_date=end_date,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         return Response(result)
 
@@ -3576,6 +3805,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
         end_date = request.query_params.get('end_date')
         order_by = request.query_params.get('order_by', 'total_quantity')
         limit = request.query_params.get('limit')
+        store_ids = self._get_store_scope_ids(request)
 
         if not region_name:
             return Response({'detail': 'region_name is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -3600,6 +3830,7 @@ class AnalyticsViewSet(viewsets.ViewSet):
             end_date=end_date,
             order_by=str(order_by).lower(),
             limit=limit,
+            store_ids=store_ids,
         )
         headers = ['商品', '订单数', '销售数量', '销售金额']
         rows = [

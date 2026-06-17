@@ -2,13 +2,26 @@ from django.test import TestCase
 from orders.models import Order, Payment
 from users.models import User, CreditAccount, AccountTransaction
 from orders.serializers import OrderSerializer
-from catalog.models import Product
+from catalog.models import Brand, Category, Product
 from decimal import Decimal
 
 class OrderSerializerPaymentMethodTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username='testuser', password='password')
-        self.product = Product.objects.create(name='Test Product', price=100, stock=10)
+        self.major_category = Category.objects.create(name='家电', level=Category.LEVEL_MAJOR)
+        self.category = Category.objects.create(
+            name='厨房电器',
+            level=Category.LEVEL_MINOR,
+            parent=self.major_category,
+        )
+        self.brand = Brand.objects.create(name='测试品牌')
+        self.product = Product.objects.create(
+            name='Test Product',
+            category=self.category,
+            brand=self.brand,
+            price=100,
+            stock=10,
+        )
         
     def test_payment_method_online(self):
         order = Order.objects.create(

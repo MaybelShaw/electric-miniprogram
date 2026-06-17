@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .return-tracking {
   min-height: 100vh;
@@ -7,11 +7,12 @@
   padding: $spacing-md;
 
   .form-group {
-    background: $white;
-    border-radius: $border-radius-md;
+    background: $showroom-surface;
+    border-radius: $border-radius-lg;
     padding: 0 $spacing-md;
     margin-bottom: $spacing-md;
     box-shadow: $shadow-sm;
+    border: 1px solid rgba($border-color, 0.88);
 
     .form-item {
       padding: $spacing-lg 0;
@@ -22,6 +23,11 @@
         width: $form-label-width;
         font-size: $font-size-md;
         color: $text-color-base;
+      }
+
+      .required-mark {
+        color: $danger-color;
+        margin-left: 4px;
       }
 
       .input {
@@ -98,19 +104,19 @@
 
   .submit-btn {
     margin-top: $spacing-xl;
-    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    background: $brand-ink;
     color: $white;
-    border-radius: 44px;
+    border-radius: $border-radius-md;
     font-size: $font-size-lg;
     font-weight: bold;
-    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
+    box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
     transition: all 0.3s;
     padding: $spacing-sm 0;
     text-align: center;
 
     &:active {
       transform: scale(0.98);
-      opacity: 0.9;
+      background: darken-c($brand-ink, 3%);
     }
   }
 }

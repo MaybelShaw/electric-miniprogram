@@ -40,6 +40,8 @@ export interface Notification {
 // 商品相关
 export interface Product {
   id: number
+  store?: number
+  store_id?: number
   name: string
   description: string
   category: string  // 分类名称
@@ -49,6 +51,9 @@ export interface Product {
   price: string
   display_price?: string | number
   dealer_price?: string | number
+  customer_group_id?: number | null
+  customer_group_name?: string
+  show_customer_group_name?: boolean
   stock: number
   total_stock?: number
   main_images: string[]
@@ -65,6 +70,7 @@ export interface Product {
   show_in_gift_zone?: boolean
   show_in_designer_zone?: boolean
   show_in_best_seller_zone?: boolean
+  show_in_promotion_zone?: boolean
   created_at: string
   updated_at: string
 }
@@ -112,22 +118,69 @@ export interface Brand {
   is_active: boolean
 }
 
+export type LegacySpecialZoneType = 'gift' | 'designer' | 'best_seller' | 'promotion'
+export type HomeBannerPosition = 'home' | LegacySpecialZoneType
+
 // 轮播图
 export interface HomeBanner {
   id: number
   title: string
-  position: 'home' | 'gift' | 'designer' | 'best_seller'
+  position: HomeBannerPosition
   order: number
   image_url: string
   image_id: number
+  special_zone?: number | null
+  special_zone_id?: number | null
   product_id?: number | null
   product_name?: string
+}
+
+export type SpecialZoneKind = 'platform_activity' | 'store_activity' | 'activity' | 'promotion' | 'category' | 'brand' | 'custom'
+
+export interface SpecialZone {
+  id: number
+  store: number
+  store_id?: number
+  title: string
+  slug: string
+  kind: SpecialZoneKind
+  subtitle: string
+  cover_image: string
+  is_active: boolean
+  show_on_home: boolean
+  home_order: number
+  description?: string
+  rules?: string
+  start_at?: string | null
+  end_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface HomeStoreCard {
+  id: number
+  store: number
+  store_id?: number
+  store_type?: StoreType
+  store_is_main?: boolean
+  store_name?: string
+  title: string
+  subtitle: string
+  order: number
+  is_active: boolean
+  main_product?: Product | null
+  secondary_products: Product[]
+  categories: Category[]
+  has_inactive_products: boolean
+  inactive_product_names: string[]
 }
 
 // 首页专区图片
 export interface SpecialZoneCover {
   id: number
-  type: 'gift' | 'designer' | 'best_seller'
+  store?: number
+  store_id?: number
+  type: LegacySpecialZoneType
   is_active: boolean
   image_url: string
   image_id: number
@@ -142,13 +195,32 @@ export interface CartItem {
   sku_id?: number | null
   sku_specs?: Record<string, string>
   quantity: number
+  store_id?: number
+  store_name?: string
+  store_logo?: string
+  store_type?: StoreType
+  store_is_main?: boolean
+  is_available?: boolean
+  unavailable_reason?: string
   selected?: boolean // 前端状态
+}
+
+export interface CartStoreGroup {
+  store_id: number
+  store_name: string
+  store_logo?: string
+  store_type?: StoreType
+  store_is_main?: boolean
+  item_count: number
+  total_quantity: number
+  items: CartItem[]
 }
 
 export interface Cart {
   id: number
   user: number
   items: CartItem[]
+  store_groups?: CartStoreGroup[]
 }
 
 // 地址相关
@@ -335,4 +407,32 @@ export interface PaginatedResponse<T> {
   total_pages: number
   has_next: boolean
   has_previous: boolean
+}
+
+export type StoreType = 'self_operated' | 'partner' | 'supplier'
+
+export interface Store {
+  id: number
+  name: string
+  code: string
+  is_main?: boolean
+  store_type: StoreType
+  platform_store?: number | null
+  logo?: string
+  cover_image?: string
+  description?: string
+  contact_phone?: string
+  address?: string
+  home_order?: number
+  show_customer_group_name?: boolean
+}
+
+export interface PublicStoreDetail {
+  store: Store
+  banners: HomeBanner[]
+  categories: Category[]
+  brands: Brand[]
+  special_zones: SpecialZone[]
+  products: Product[]
+  new_arrivals: Product[]
 }

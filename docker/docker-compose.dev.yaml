@@ -1,4 +1,4 @@
-version: "3.9"
+﻿version: "3.9"
 
 services:
   db:
@@ -18,10 +18,16 @@ services:
       retries: 10
 
   backend:
-    image: python:3.12-slim
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend.dev
     working_dir: /app
     volumes:
       - ../backend:/app
+      - ../certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
+    env_file:
+      - path: ${ELECTRIC_DEV_ENV_FILE:-../backend/.env}
+        required: false
     environment:
       - DJANGO_ENV=development
       - DJANGO_SETTINGS_MODULE=backend.settings.development
@@ -32,6 +38,7 @@ services:
       - POSTGRES_PASSWORD=electric
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
+      - SKIP_WECHAT_PAY_CONFIG_CHECK=1
       - CORS_ALLOWED_ORIGINS=http://localhost:3001,http://127.0.0.1:3001
       - DJANGO_SUPERUSER_USERNAME=admin
       - DJANGO_SUPERUSER_EMAIL=admin@example.com
@@ -43,15 +50,10 @@ services:
       db:
         condition: service_healthy
     command: >
-      bash -lc "pip install uv &&
-                uv sync &&
-                uv run python manage.py migrate &&
-                uv run python manage.py seed_test_data &&
-                uv run python manage.py seed_test_products --products 10 --skus 3 &&
-                uv run python manage.py recalc_sales_count &&
-                # uv run python manage.py reconcile_ylh_cancel_status &&
-                uv run python manage.py createsuperuser --noinput || true &&
-                uv run python manage.py runserver 0.0.0.0:8000"
+      bash -lc "uv sync &&
+                .venv/bin/python manage.py migrate &&
+                (timeout 30s .venv/bin/python manage.py createsuperuser --noinput || true) &&
+                .venv/bin/python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     restart: unless-stopped

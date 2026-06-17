@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from users.models import User
+from users.services import is_production_environment
 
 
 class Command(BaseCommand):
@@ -31,6 +32,11 @@ class Command(BaseCommand):
             if not user:
                 raise CommandError(f"No admin found with openid={target_openid}")
         elif staff_qs.count() == 0:
+            if is_production_environment():
+                raise CommandError(
+                    "No existing admin found. Production does not auto-create superusers."
+                )
+
             # Create first admin if none exists
             user = User.objects.create_user(
                 openid=f"bootstrap:{username}", username=username, password=password

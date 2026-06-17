@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { getUser } from '@/utils/auth';
+import { isStoreBackendUser } from '@/utils/permissions';
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -14,7 +15,9 @@ const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
     return <Navigate to={allowedRoles.includes('support') ? "/support/login" : "/admin/login"} replace />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const hasStoreBackendAccess = allowedRoles.includes('admin') && isStoreBackendUser(user);
+
+  if (!allowedRoles.includes(user.role) && !hasStoreBackendAccess) {
     return <Navigate to={allowedRoles.includes('support') ? "/support/login" : "/admin/login"} replace />;
   }
 

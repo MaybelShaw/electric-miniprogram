@@ -3,6 +3,7 @@ import { View, Image, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { productService } from '../../services/product'
 import { Brand } from '../../types'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import './index.scss'
 
 export default function BrandListPage() {
@@ -42,7 +43,7 @@ export default function BrandListPage() {
             {brands.map(brand => (
               <View key={brand.id} className='brand-item' onClick={() => goToBrand(brand.name)}>
                 <View className='brand-logo-wrapper'>
-                  <Image className='brand-logo' src={brand.logo} mode='aspectFit' />
+                  <Image className='brand-logo' src={resolveLocalMediaUrl(brand.logo)} mode='aspectFit' />
                 </View>
                 <View className='brand-name'>{brand.name}</View>
               </View>

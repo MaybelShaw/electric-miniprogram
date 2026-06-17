@@ -1,17 +1,19 @@
+@use '../../styles/variables.scss' as *;
+
 .case-detail {
   padding: 30px;
-  background-color: #fff;
+  background: $background-color-base;
   min-height: 100vh;
 
   .header {
     margin-bottom: 40px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid $border-color-light;
     padding-bottom: 30px;
 
     .title {
       font-size: 40px;
       font-weight: bold;
-      color: #333;
+      color: $text-color-base;
       display: block;
       margin-bottom: 20px;
       line-height: 1.4;
@@ -19,7 +21,7 @@
 
     .date {
       font-size: 24px;
-      color: #999;
+      color: $text-color-secondary;
     }
   }
 
@@ -29,7 +31,7 @@
       
       .block-text {
         font-size: 30px;
-        color: #333;
+        color: $text-color-base;
         line-height: 1.8;
         display: block;
         text-align: justify;
@@ -37,7 +39,7 @@
 
       .block-image {
         width: 100%;
-        border-radius: 8px;
+        border-radius: $border-radius-lg;
         display: block;
       }
     }

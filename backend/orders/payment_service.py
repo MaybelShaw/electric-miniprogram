@@ -183,6 +183,8 @@ class PaymentService:
             "payer": {"openid": openid},
             "attach": json.dumps({"payment_id": payment.id}),
         }
+        if getattr(payment, 'profit_sharing_required', False):
+            body["settle_info"] = {"profit_sharing": True}
         if client_ip:
             body["scene_info"] = {"payer_client_ip": client_ip}
 
@@ -1022,6 +1024,37 @@ class PaymentService:
             })
             payment.save()
             raise
+
+        if payment.checkout_order_id:
+            checkout = payment.checkout_order
+            checkout.status = 'paid'
+            checkout.payment_status = 'succeeded'
+            if transaction_id:
+                checkout.payment_number = transaction_id
+            checkout.save(update_fields=['status', 'payment_status', 'payment_number', 'updated_at'])
+
+            for child_order in payment.order.child_orders.select_for_update().all():
+                if OrderStateMachine.can_transition(child_order.status, 'paid'):
+                    OrderStateMachine.transition(
+                        child_order,
+                        'paid',
+                        operator=operator,
+                        note=f'Checkout payment succeeded: {transaction_id}' if transaction_id else 'Checkout payment succeeded'
+                    )
+
+            checkout.suborders.update(status='paid', updated_at=timezone.now())
+
+            try:
+                from .profit_sharing import ProfitSharingService
+                ProfitSharingService.create_entries_for_payment(payment)
+            except Exception as exc:
+                logger.exception('创建分账流水失败', extra={'payment_id': payment.id, 'checkout_order_id': checkout.id})
+                payment.logs.append({
+                    't': timezone.now().isoformat(),
+                    'event': 'profit_sharing_entry_error',
+                    'error': str(exc)
+                })
+                payment.save(update_fields=['logs', 'updated_at'])
 
         # 创建通知（订阅消息/站内）
         try:

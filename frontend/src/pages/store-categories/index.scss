@@ -1,0 +1,95 @@
+@use '../../styles/variables.scss' as *;
+
+.store-categories-page {
+  height: 100vh;
+  overflow: hidden;
+  background: $background-color-base;
+
+  .store-categories-scroll {
+    height: 100%;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+  }
+
+  .store-categories-hero {
+    margin: $spacing-md $spacing-md 0;
+    padding: 30px 28px;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $showroom-surface;
+    box-shadow: $shadow-sm;
+  }
+
+  .store-name {
+    display: block;
+    font-size: 38px;
+    font-weight: 700;
+    color: $text-color-base;
+    line-height: 1.25;
+  }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $spacing-md $spacing-sm;
+    margin: $spacing-md;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+  }
+
+  .category-card {
+    padding: $spacing-md $spacing-sm;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-lg;
+    background: $showroom-surface;
+    text-align: center;
+    box-shadow: $shadow-sm;
+
+    &:active {
+      opacity: 0.92;
+    }
+  }
+
+  .category-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 180px;
+    border-radius: 14px;
+    background: $showroom-surface-warm;
+    overflow: hidden;
+  }
+
+  .category-image {
+    width: 100%;
+    height: 100%;
+  }
+
+  .category-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+
+    .app-icon {
+      width: 82px;
+      height: 82px;
+    }
+  }
+
+  .category-name {
+    display: block;
+    margin-top: 16px;
+    font-size: 28px;
+    font-weight: 600;
+    color: $text-color-base;
+    line-height: 1.35;
+  }
+
+  .status-text {
+    padding: 42px 0;
+    text-align: center;
+    font-size: $font-size-sm;
+    color: $text-color-secondary;
+  }
+}

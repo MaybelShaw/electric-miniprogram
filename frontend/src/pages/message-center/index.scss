@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .message-center {
   min-height: 100vh;
@@ -14,22 +14,20 @@
   margin: $spacing-md;
   padding: $spacing-lg;
   border-radius: $border-radius-lg;
-  background: linear-gradient(135deg, $primary-color 0%, darken-c($primary-color, 15%) 100%);
+  background: $brand-ink;
   color: $white;
-  box-shadow: $shadow-lg;
+  box-shadow: $shadow-md;
   position: relative;
   overflow: hidden;
 
-  // Decorative circle
   &::after {
     content: '';
     position: absolute;
-    top: -50px;
-    right: -50px;
-    width: 200px;
-    height: 200px;
-    border-radius: 50%;
-    background: rgba($white, 0.1);
+    left: $spacing-lg;
+    right: $spacing-lg;
+    bottom: $spacing-lg;
+    height: 1px;
+    background: rgba($secondary-color, 0.42);
     pointer-events: none;
   }
 
@@ -104,7 +102,7 @@
       }
 
       &.primary {
-        background: $white;
+        background: $brand-paper;
         color: $primary-color;
         border: none;
         
@@ -153,13 +151,13 @@
 }
 
 .notice-card {
-  background: $white;
+  background: $showroom-surface;
   border-radius: $border-radius-lg;
   padding: $spacing-md;
   margin-bottom: $spacing-md;
   box-shadow: $shadow-sm;
   transition: all 0.2s;
-  border: 1px solid transparent;
+  border: 1px solid rgba($border-color, 0.88);
 
   &:active {
     transform: scale(0.99);
@@ -168,8 +166,8 @@
 
   &.read {
     opacity: 0.7;
-    background: #fafafa;
-    box-shadow: none;
+    background: $showroom-surface-warm;
+    box-shadow: 0 6px 16px rgba($brand-ink, 0.04);
     border: 1px solid $border-color-light;
     
     .card-title {
@@ -211,6 +209,28 @@
       font-weight: 600;
       white-space: nowrap;
       flex-shrink: 0;
+
+      &.payment,
+      &.order {
+        color: $primary-color;
+        background: $primary-light;
+      }
+
+      &.refund,
+      &.return {
+        color: $danger-color;
+        background: rgba($danger-color, 0.12);
+      }
+
+      &.statement {
+        color: darken-c($secondary-color, 10%);
+        background: rgba($secondary-color, 0.14);
+      }
+
+      &.system {
+        color: $text-color-secondary;
+        background: $background-color-base;
+      }
     }
 
     .card-title {
@@ -249,7 +269,7 @@
 
     .status {
       padding: 2px 8px;
-      border-radius: 10px;
+      border-radius: $border-radius-sm;
       font-size: 10px;
       font-weight: 500;
       background: $background-color-base;
@@ -275,30 +295,15 @@
       padding: 2px 8px;
       background: $background-color-base;
       color: $text-color-secondary;
-      border-radius: 10px;
+      border-radius: $border-radius-sm;
       font-size: 10px;
     }
   }
 }
 
-.empty {
-  padding-top: 80px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: $text-color-secondary;
-
-  .empty-icon {
-    font-size: 48px;
-    margin-bottom: $spacing-md;
-    opacity: 0.5;
-  }
-
-  .empty-text {
-    font-size: $font-size-md;
-    color: $text-color-secondary;
-  }
+.message-empty {
+  min-height: 480px;
+  padding-top: 96px;
 }
 
 .loading {

@@ -1,4 +1,4 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .cart {
   height: 100vh;
@@ -30,12 +30,12 @@
       .go-shopping-btn {
         margin-top: $spacing-xl;
         padding: 20px 60px;
-        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        background: $brand-ink;
         color: $white;
         font-size: $font-size-md;
-        border-radius: 40px;
+        border-radius: $border-radius-md;
         display: inline-block;
-        box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+        box-shadow: 0 8px 18px rgba($brand-ink, 0.12);
         
         &:active {
           transform: scale(0.96);
@@ -46,26 +46,41 @@
 
   .cart-list {
     flex: 1;
-    padding-bottom: 140px;
+    padding: 12px 0 150px;
 
     .cart-item {
       display: flex;
       align-items: center;
-      padding: $spacing-lg;
-      background: $background-color-light;
-      margin: $spacing-md $spacing-md 0;
-      border-radius: $spacing-md;
-      box-shadow: $shadow-sm;
+      padding: 24px;
+      background: $showroom-surface;
+      margin: 0 24px 18px;
+      border-radius: $border-radius-lg;
+      box-shadow: none;
+      border: 1px solid $border-color;
       position: relative;
       transition: all 0.3s;
+
+      &.unavailable {
+        opacity: 0.62;
+
+        .checkbox {
+          background: $showroom-surface-warm;
+          border-color: $border-color;
+        }
+
+        .product-name,
+        .product-price {
+          color: $text-color-secondary;
+        }
+      }
 
       &:last-child {
         margin-bottom: $spacing-md;
       }
 
       .checkbox {
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border: 2px solid $text-color-placeholder;
         border-radius: 50%;
         margin-right: $spacing-md;
@@ -83,9 +98,9 @@
             left: 50%;
             top: 50%;
             transform: translate(-50%, -60%) rotate(45deg);
-            width: 10px;
-            height: 20px;
-            border: 4px solid $white;
+            width: 9px;
+            height: 18px;
+            border: 3px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -93,10 +108,10 @@
       }
 
       .product-image {
-        width: 180px;
-        height: 180px;
-        border-radius: $border-radius-lg;
-        background: $background-color-base;
+        width: 172px;
+        height: 172px;
+        border-radius: $border-radius-md;
+        background: $showroom-surface-warm;
         flex-shrink: 0;
         object-fit: cover;
       }
@@ -125,6 +140,13 @@
           font-size: $font-size-sm;
           color: $text-color-secondary;
           margin-top: 6px;
+          padding: 4px 0;
+        }
+
+        .unavailable-reason {
+          margin-top: 6px;
+          font-size: $font-size-sm;
+          color: $danger-color;
         }
 
         .product-bottom {
@@ -134,7 +156,7 @@
 
           .product-price {
             font-size: $font-size-xl;
-            font-weight: bold;
+            font-weight: 700;
             color: $danger-color;
             font-family: DIN;
           }
@@ -142,7 +164,7 @@
           .quantity-control {
             display: flex;
             align-items: center;
-            background: $background-color-base;
+            background: $showroom-surface-warm;
             border-radius: $border-radius-sm;
             padding: 4px;
 
@@ -154,9 +176,9 @@
               justify-content: center;
               font-size: $font-size-lg;
               color: $text-color-base;
-              background: $background-color-light;
+              background: $showroom-surface;
               border-radius: 6px;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+              box-shadow: none;
               transition: all 0.2s;
 
               &:active {
@@ -186,8 +208,139 @@
         font-size: $font-size-sm;
         color: $text-color-secondary;
         padding: 8px 16px;
-        background: $background-color-base;
-        border-radius: 24px;
+        background: $showroom-surface-warm;
+        border-radius: $border-radius-max;
+      }
+    }
+
+    .cart-store-group {
+      margin: 0 24px 18px;
+      background: $showroom-surface;
+      border: 1px solid $border-color;
+      border-radius: $border-radius-lg;
+      overflow: hidden;
+
+      .store-header {
+        min-height: 82px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid $border-color;
+        background: rgba($showroom-surface-warm, 0.72);
+
+        .checkbox {
+          width: 38px;
+          height: 38px;
+          border: 2px solid $text-color-placeholder;
+          border-radius: 50%;
+          margin-right: $spacing-md;
+          flex-shrink: 0;
+          transition: all 0.2s;
+
+          &.checked,
+          &.indeterminate {
+            background: $primary-color;
+            border-color: $primary-color;
+            position: relative;
+          }
+
+          &.checked::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -60%) rotate(45deg);
+            width: 9px;
+            height: 18px;
+            border: 3px solid $white;
+            border-top: none;
+            border-left: none;
+          }
+
+          &.indeterminate::after {
+            content: '';
+            position: absolute;
+            left: 9px;
+            right: 9px;
+            top: 17px;
+            height: 4px;
+            background: $white;
+            border-radius: 4px;
+          }
+        }
+
+        .store-info {
+          min-width: 0;
+          flex: 1;
+          display: flex;
+          align-items: center;
+        }
+
+        .store-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          margin-right: $spacing-sm;
+          background: $showroom-surface;
+          flex-shrink: 0;
+
+          &.fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $white;
+            background: $brand-ink;
+            font-size: $font-size-sm;
+            font-weight: 600;
+          }
+        }
+
+        .store-name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: $font-size-md;
+          font-weight: 600;
+          color: $text-color-base;
+        }
+
+        .store-count {
+          margin-left: $spacing-md;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          flex-shrink: 0;
+        }
+      }
+
+      .cart-item {
+        margin: 0;
+        border: none;
+        border-bottom: 1px solid $border-color;
+        border-radius: 0;
+
+        &:last-of-type {
+          margin-bottom: 0;
+          border-bottom: none;
+        }
+      }
+
+      .store-summary {
+        min-height: 66px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: $spacing-sm;
+        font-size: $font-size-sm;
+        color: $text-color-secondary;
+
+        .store-subtotal {
+          font-size: $font-size-md;
+          font-weight: 700;
+          color: $danger-color;
+          font-family: DIN;
+        }
       }
     }
   }
@@ -197,14 +350,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 110px;
-    background: rgba(255, 255, 255, 0.95);
+    min-height: 116px;
+    background: rgba($showroom-surface, 0.96);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 30px;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    padding: 14px 30px calc(14px + env(safe-area-inset-bottom));
+    box-shadow: $shadow-top;
+    border-top: 1px solid $border-color;
     z-index: 100;
 
     .footer-left {
@@ -212,8 +366,8 @@
       align-items: center;
 
       .checkbox {
-        width: 40px;
-        height: 40px;
+        width: 38px;
+        height: 38px;
         border: 2px solid $text-color-placeholder;
         border-radius: 50%;
         margin-right: $spacing-sm;
@@ -232,7 +386,7 @@
             transform: translate(-50%, -60%) rotate(45deg);
             width: 10px;
             height: 20px;
-            border: 4px solid $white;
+            border: 3px solid $white;
             border-top: none;
             border-left: none;
           }
@@ -242,6 +396,12 @@
       .select-all-text {
         font-size: 28px;
         color: $text-color-base;
+      }
+
+      .clear-text {
+        margin-left: $spacing-md;
+        font-size: 26px;
+        color: $text-color-secondary;
       }
     }
 
@@ -271,16 +431,17 @@
         height: 80px;
         display: flex;
         align-items: center;
-        background: linear-gradient(135deg, lighten-c($primary-color, 10%), $primary-color);
+        background: $brand-ink;
         color: $white;
         font-size: 28px;
         font-weight: 600;
-        border-radius: 40px;
-        box-shadow: 0 4px 12px rgba($primary-color, 0.2);
+        border-radius: $border-radius-max;
+        box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
         transition: all 0.2s;
         
         &:active {
           transform: scale(0.96);
+          background: darken-c($brand-ink, 3%);
         }
       }
     }

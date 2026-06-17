@@ -1,9 +1,9 @@
 from rest_framework import viewsets, permissions, status
-from .models import Product, Category, MediaImage, Brand, SearchLog, HomeBanner, SpecialZoneCover, Case
-from .serializers import ProductSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, HomeBannerSerializer, SpecialZoneCoverSerializer, CaseSerializer
+from .models import Product, ProductSKU, Category, MediaImage, Brand, SearchLog, InventoryLog, HomeBanner, SpecialZone, SpecialZoneProduct, SpecialZoneCover, HomeStoreCard, Case
+from .serializers import ProductSerializer, ProductSKUSerializer, CategorySerializer, MediaImageSerializer, BrandSerializer, SearchLogSerializer, InventoryLogSerializer, HomeBannerSerializer, SpecialZoneSerializer, SpecialZoneProductSerializer, SpecialZoneCoverSerializer, HomeStoreCardSerializer, ActivitySummarySerializer, CaseSerializer
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
-from django.db.models import Q, Count, Max
+from django.db.models import Q, Count, Max, F
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import PermissionDenied
 from django.core.files.uploadedfile import UploadedFile
@@ -11,11 +11,23 @@ from django.core.files.base import ContentFile
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.conf import settings
-from common.permissions import IsAdminOrReadOnly, IsAdmin
+from common.permissions import IsAdminOrReadOnly, IsAdmin, IsStoreStaffOrAdmin
 from common.excel import build_excel_response
 from common.utils import to_bool, parse_decimal, parse_int
 from common.pagination import LargeResultsSetPagination
 from common.throttles import CatalogBrowseAnonRateThrottle, CatalogBrowseRateThrottle
+from stores.models import Store
+from stores.permissions import (
+    PERMISSION_CATALOG_MANAGE,
+    PERMISSION_STORE_CONTENT_MANAGE,
+    get_accessible_stores,
+    get_active_memberships,
+    has_store_permission,
+    is_platform_admin,
+    filter_queryset_by_store,
+    get_requested_store,
+    is_support_user,
+)
 from .search import ProductSearchService
 from decimal import Decimal
 import uuid
@@ -48,9 +60,106 @@ class BrowseThrottleMixin:
             return [throttle() for throttle in self.browse_throttle_classes]
         return super().get_throttles()
 
+
+class StoreScopedCreateMixin:
+    store_permission_code = PERMISSION_CATALOG_MANAGE
+
+    def _check_store_permission(self, store):
+        if not has_store_permission(self.request.user, store, self.store_permission_code):
+            raise PermissionDenied('You cannot manage this store.')
+
+    def perform_create(self, serializer):
+        store = get_requested_store(self.request, required=True)
+        self._check_store_permission(store)
+        serializer.save(store=store)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        store = getattr(instance, 'store', None)
+        if store is not None:
+            self._check_store_permission(store)
+        target_store = serializer.validated_data.get('store', store)
+        if target_store is not None and target_store != store:
+            self._check_store_permission(target_store)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        store = getattr(instance, 'store', None)
+        if store is not None:
+            self._check_store_permission(store)
+        instance.delete()
+
+
+class PlatformAdminOrReadOnly(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        return is_platform_admin(getattr(request, 'user', None))
+
+
+@extend_schema(tags=['ProductSKUs'])
+class ProductSKUViewSet(viewsets.ModelViewSet):
+    queryset = ProductSKU.objects.select_related('product', 'product__store').order_by('product_id', 'id')
+    serializer_class = ProductSKUSerializer
+    permission_classes = [IsStoreStaffOrAdmin]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request, field='product__store')
+        product_id = parse_int(self.request.query_params.get('product') or self.request.query_params.get('product_id'))
+        if product_id is not None:
+            qs = qs.filter(product_id=product_id)
+        is_active = self.request.query_params.get('is_active')
+        if is_active is not None:
+            parsed = to_bool(is_active)
+            if parsed is not None:
+                qs = qs.filter(is_active=parsed)
+        return qs
+
+    def perform_create(self, serializer):
+        product = serializer.validated_data.get('product')
+        if not has_store_permission(self.request.user, product.store, PERMISSION_CATALOG_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if not has_store_permission(self.request.user, instance.product.store, PERMISSION_CATALOG_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        product = serializer.validated_data.get('product', instance.product)
+        if not has_store_permission(self.request.user, product.store, PERMISSION_CATALOG_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save()
+
+
+@extend_schema(tags=['InventoryLogs'])
+class InventoryLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = InventoryLog.objects.select_related(
+        'product',
+        'product__store',
+        'sku',
+        'created_by',
+    ).order_by('-created_at')
+    serializer_class = InventoryLogSerializer
+    permission_classes = [IsStoreStaffOrAdmin]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request, field='product__store')
+        product_id = parse_int(self.request.query_params.get('product') or self.request.query_params.get('product_id'))
+        if product_id is not None:
+            qs = qs.filter(product_id=product_id)
+        sku_id = parse_int(self.request.query_params.get('sku') or self.request.query_params.get('sku_id'))
+        if sku_id is not None:
+            qs = qs.filter(sku_id=sku_id)
+        change_type = (self.request.query_params.get('change_type') or '').strip()
+        if change_type:
+            qs = qs.filter(change_type=change_type)
+        return qs
+
 # Create your views here.
 @extend_schema(tags=['Products'])
-class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing products with advanced search and filtering.
     
@@ -72,17 +181,33 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [IsAdminOrReadOnly]
 
+    def _can_view_inactive_products(self):
+        user = getattr(self.request, 'user', None)
+        return bool(
+            user
+            and getattr(user, 'is_authenticated', False)
+            and (
+                is_platform_admin(user)
+                or is_support_user(user)
+                or get_active_memberships(user).exists()
+            )
+        )
+
     def get_queryset(self):
         """Get base queryset with is_active filter support and optimized queries."""
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request, allow_public_all=True)
         
         # Optimize queries by prefetching related objects
         qs = qs.select_related('category', 'brand')
+        can_view_inactive = self._can_view_inactive_products()
+        if self.request.method in permissions.SAFE_METHODS and not can_view_inactive:
+            qs = qs.filter(is_active=True)
         
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             parsed = to_bool(is_active)
-            if parsed is not None:
+            if parsed is not None and can_view_inactive:
                 try:
                     qs = qs.filter(is_active=parsed)
                 except Exception:
@@ -114,6 +239,23 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                     qs = qs.filter(show_in_best_seller_zone=parsed)
                 except Exception:
                     pass
+        promotion_flag = self.request.query_params.get('show_in_promotion_zone')
+        if promotion_flag is not None:
+            parsed = to_bool(promotion_flag)
+            if parsed is not None:
+                try:
+                    qs = qs.filter(show_in_promotion_zone=parsed)
+                except Exception:
+                    pass
+        special_zone_id = parse_int(self.request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            qs = qs.filter(
+                special_zone_links__zone_id=special_zone_id,
+                special_zone_links__is_active=True,
+            ).distinct()
+            zone = SpecialZone.objects.filter(id=special_zone_id).first()
+            if zone and zone.kind == SpecialZone.KIND_STORE_ACTIVITY:
+                qs = qs.filter(store_id=zone.store_id)
         return qs
 
     @extend_schema(
@@ -167,6 +309,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
             OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
             OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
+            OpenApiParameter('show_in_promotion_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在优惠专区展示'),
             OpenApiParameter('page', OT.INT, OpenApiParameter.QUERY, description='Page number (default: 1)'),
             OpenApiParameter('page_size', OT.INT, OpenApiParameter.QUERY, description='Results per page (default: 20, max: 100)'),
         ],
@@ -193,6 +336,17 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
+        show_in_promotion_zone = to_bool(request.query_params.get('show_in_promotion_zone'))
+        special_zone_id = parse_int(request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            store_ids = None
+        else:
+            store_scoped_products = filter_queryset_by_store(
+                Product.objects.all(),
+                request,
+                allow_public_all=True,
+            )
+            store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
         
         # Parse pagination parameters
         page = parse_int(request.query_params.get('page')) or 1
@@ -212,6 +366,9 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             show_in_gift_zone=show_in_gift_zone,
             show_in_designer_zone=show_in_designer_zone,
             show_in_best_seller_zone=show_in_best_seller_zone,
+            show_in_promotion_zone=show_in_promotion_zone,
+            special_zone=special_zone_id,
+            store_ids=store_ids,
             sort_by=sort_by,
             page=page,
             page_size=page_size,
@@ -231,6 +388,51 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             'has_previous': search_result['has_previous']
         })
 
+    def _manageable_activities_for_product(self, product):
+        if is_platform_admin(self.request.user):
+            return SpecialZone.objects.filter(
+                kind__in=[SpecialZone.KIND_PLATFORM_ACTIVITY, SpecialZone.KIND_STORE_ACTIVITY],
+                is_active=True,
+            ).select_related('store').order_by('home_order', 'id')
+        if not has_store_permission(self.request.user, product.store, PERMISSION_CATALOG_MANAGE):
+            return SpecialZone.objects.none()
+        return SpecialZone.objects.filter(
+            Q(kind=SpecialZone.KIND_PLATFORM_ACTIVITY) | Q(kind=SpecialZone.KIND_STORE_ACTIVITY, store=product.store),
+            is_active=True,
+        ).select_related('store').order_by('home_order', 'id')
+
+    @action(detail=True, methods=['get', 'put'], permission_classes=[IsStoreStaffOrAdmin])
+    def activities(self, request, pk=None):
+        product = self.get_object()
+        if not has_store_permission(request.user, product.store, PERMISSION_CATALOG_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        available = self._manageable_activities_for_product(product)
+        if request.method == 'PUT':
+            activity_ids = request.data.get('activity_ids', request.data.get('activities', []))
+            if not isinstance(activity_ids, list):
+                return Response({'activity_ids': ['必须是列表']}, status=status.HTTP_400_BAD_REQUEST)
+            target_ids = {int(item) for item in activity_ids}
+            allowed_ids = set(available.values_list('id', flat=True))
+            if not target_ids.issubset(allowed_ids):
+                return Response({'activity_ids': ['包含当前账号不可操作的活动']}, status=status.HTTP_400_BAD_REQUEST)
+            current_allowed_links = SpecialZoneProduct.objects.filter(product=product, zone_id__in=allowed_ids)
+            current_allowed_links.exclude(zone_id__in=target_ids).delete()
+            for zone in available.filter(id__in=target_ids):
+                SpecialZoneProduct.objects.update_or_create(
+                    zone=zone,
+                    product=product,
+                    defaults={'is_active': True, 'order': 0},
+                )
+        selected = SpecialZone.objects.filter(
+            zone_products__product=product,
+            zone_products__is_active=True,
+        ).select_related('store').distinct().order_by('home_order', 'id')
+        return Response({
+            'available': ActivitySummarySerializer(available, many=True, context=self.get_serializer_context()).data,
+            'selected': ActivitySummarySerializer(selected, many=True, context=self.get_serializer_context()).data,
+            'can_edit': True,
+        })
+
     @extend_schema(
         operation_id='products_export',
         parameters=[
@@ -243,11 +445,21 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             OpenApiParameter('is_active', OT.BOOL, OpenApiParameter.QUERY, description='是否上架'),
             OpenApiParameter('show_in_gift_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在礼品专区展示'),
             OpenApiParameter('show_in_designer_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在设计师专区展示'),
+            OpenApiParameter('show_in_promotion_zone', OT.BOOL, OpenApiParameter.QUERY, description='是否在优惠专区展示'),
         ],
         description='Export products with advanced search and filtering.',
     )
-    @action(detail=False, methods=['get'], permission_classes=[IsAdmin])
+    @action(detail=False, methods=['get'], permission_classes=[IsStoreStaffOrAdmin])
     def export(self, request):
+        if not is_platform_admin(request.user):
+            allowed_store_ids = [
+                store.id
+                for store in get_accessible_stores(request.user)
+                if has_store_permission(request.user, store, PERMISSION_CATALOG_MANAGE)
+            ]
+            if not allowed_store_ids:
+                raise PermissionDenied('You cannot manage catalog.')
+
         keyword = request.query_params.get('search', '').strip() or None
         category = request.query_params.get('category', '').strip() or None
         brand = request.query_params.get('brand', '').strip() or None
@@ -260,11 +472,14 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         show_in_gift_zone = to_bool(request.query_params.get('show_in_gift_zone'))
         show_in_designer_zone = to_bool(request.query_params.get('show_in_designer_zone'))
         show_in_best_seller_zone = to_bool(request.query_params.get('show_in_best_seller_zone'))
+        show_in_promotion_zone = to_bool(request.query_params.get('show_in_promotion_zone'))
 
         if sort_by not in ProductSearchService.VALID_SORT_OPTIONS:
             sort_by = 'relevance'
 
         qs = self.get_queryset()
+        if not is_platform_admin(request.user):
+            qs = qs.filter(store_id__in=allowed_store_ids)
         if keyword:
             qs = qs.filter(Q(name__icontains=keyword) | Q(description__icontains=keyword))
         if category:
@@ -283,6 +498,8 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             qs = qs.filter(show_in_designer_zone=bool(show_in_designer_zone))
         if show_in_best_seller_zone is not None:
             qs = qs.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
+        if show_in_promotion_zone is not None:
+            qs = qs.filter(show_in_promotion_zone=bool(show_in_promotion_zone))
 
         qs = ProductSearchService._apply_sorting(qs, sort_by, keyword)
 
@@ -299,6 +516,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             '礼品专区',
             '设计师专区',
             '爆品专区',
+            '优惠专区',
             '销量',
             '浏览量',
             '创建时间',
@@ -318,6 +536,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                 '是' if product.show_in_gift_zone else '否',
                 '是' if product.show_in_designer_zone else '否',
                 '是' if product.show_in_best_seller_zone else '否',
+                '是' if product.show_in_promotion_zone else '否',
                 product.sales_count,
                 product.view_count,
                 product.created_at,
@@ -424,7 +643,8 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             products = self.get_queryset().filter(category__name=category_name)
         else:
             products = self.get_queryset()
-        if not request.user.is_staff:
+        is_store_member = request.user.is_authenticated and get_active_memberships(request.user).exists()
+        if not is_platform_admin(request.user) and not is_store_member:
             products = products.filter(is_active=True)
         
         # Apply sorting
@@ -472,6 +692,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         - page_size: Results per page (default: 20)
         """
         brand_name = request.query_params.get('brand', None)
+        category_id = parse_int(request.query_params.get('category_id'))
         sort_by = request.query_params.get('sort_by', 'relevance').strip()
         
         # Parse pagination parameters
@@ -489,7 +710,14 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             products = self.get_queryset().filter(brand__name=brand_name)
         else:
             products = self.get_queryset()
-        if not request.user.is_staff:
+        if category_id is not None:
+            products = products.filter(
+                Q(category_id=category_id)
+                | Q(category__parent_id=category_id)
+                | Q(category__parent__parent_id=category_id)
+            )
+        is_store_member = request.user.is_authenticated and get_active_memberships(request.user).exists()
+        if not is_platform_admin(request.user) and not is_store_member:
             products = products.filter(is_active=True)
         
         # Apply sorting
@@ -753,7 +981,7 @@ class ProductViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Categories'])
-class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class CategoryViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product categories.
     
@@ -767,6 +995,7 @@ class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -826,7 +1055,7 @@ class CategoryViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Brands'])
-class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class BrandViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
     """
     ViewSet for managing product brands.
     
@@ -857,6 +1086,7 @@ class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         - search: Brand name substring search
         """
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -900,7 +1130,7 @@ class BrandViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                 )
             else:
                 # Only admins can force delete
-                if not request.user or not request.user.is_staff:
+                if not has_store_permission(request.user, instance.store, PERMISSION_CATALOG_MANAGE):
                     return Response(
                         {
                             'error': '权限不足',
@@ -940,7 +1170,14 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = SearchLog.objects.all().order_by('-created_at')
     serializer_class = SearchLogSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAdmin]
+
+    def get_permissions(self):
+        if getattr(self, 'action', None) == 'hot_keywords':
+            return [permissions.AllowAny()]
+        if getattr(self, 'action', None) in {'my_history', 'clear_history'}:
+            return [permissions.IsAuthenticated()]
+        return [IsAdmin()]
     
     def get_queryset(self):
         """Filter search logs by optional parameters."""
@@ -1044,7 +1281,14 @@ class SearchLogViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({'results': serializer.data, 'total': total})
 
     @extend_schema(
-        operation_id='search_logs_clear_history',
+        methods=['POST'],
+        operation_id='search_logs_clear_history_post',
+        description='Clear search history for current user. Optionally provide keyword to delete a single keyword history.',
+        request=None,
+    )
+    @extend_schema(
+        methods=['DELETE'],
+        operation_id='search_logs_clear_history_delete',
         description='Clear search history for current user. Optionally provide keyword to delete a single keyword history.',
         request=None,
     )
@@ -1091,6 +1335,13 @@ class MediaImageViewSet(viewsets.ModelViewSet):
     queryset = MediaImage.objects.all().order_by('-created_at')
     serializer_class = MediaImageSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in {'update', 'partial_update', 'destroy'}:
+            return [IsAdmin()]
+        if self.action == 'create':
+            return [permissions.IsAuthenticated()]
+        return [permissions.AllowAny()]
 
     def _build_secure_filename(self, ext: str) -> str:
         """
@@ -1257,6 +1508,8 @@ class MediaImageViewSet(viewsets.ModelViewSet):
                 # 转换product_id为整数
                 product_id = int(product_id)
                 product = Product.objects.get(id=product_id)
+                if not has_store_permission(request.user, product.store, PERMISSION_CATALOG_MANAGE):
+                    raise PermissionDenied('You cannot manage this store.')
                 
                 logger.info(f'找到产品 {product_id}，准备更新 {field_name}')
                 
@@ -1301,6 +1554,227 @@ class MediaImageViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(tags=['SpecialZones'])
+class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+    queryset = SpecialZone.objects.all().select_related('store').order_by('home_order', 'id')
+    serializer_class = SpecialZoneSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        kind = self.request.query_params.get('kind')
+        if kind:
+            qs = qs.filter(kind=kind)
+        if self.request.method not in permissions.SAFE_METHODS:
+            if self.request.user and self.request.user.is_authenticated:
+                return qs
+            return qs.none()
+
+        user = getattr(self.request, 'user', None)
+        requested_store_id = self._requested_store_id()
+        if user and user.is_authenticated and (is_platform_admin(user) or get_active_memberships(user).exists()):
+            if is_platform_admin(user):
+                if requested_store_id is not None:
+                    return qs.filter(store_id=requested_store_id)
+                return qs
+            accessible_store_ids = list(get_accessible_stores(user).values_list('id', flat=True))
+            if requested_store_id is not None:
+                if requested_store_id not in accessible_store_ids:
+                    raise PermissionDenied('You cannot access this store.')
+                return qs.filter(store_id=requested_store_id)
+            return qs.filter(store_id__in=accessible_store_ids)
+
+        if requested_store_id is not None:
+            qs = qs.filter(store_id=requested_store_id)
+        elif kind in [SpecialZone.KIND_PLATFORM_ACTIVITY, SpecialZone.KIND_STORE_ACTIVITY]:
+            pass
+        elif self.kwargs.get(self.lookup_field):
+            pass
+        else:
+            main_store = Store.objects.filter(is_main=True).first()
+            if main_store:
+                qs = qs.filter(store=main_store)
+        return self._visible_home_zones(qs)
+
+    def _requested_store_id(self):
+        return parse_int(
+            self.request.query_params.get('store')
+            or self.request.query_params.get('store_id')
+        )
+
+    def _visible_home_zones(self, qs):
+        now = timezone.now()
+        return qs.filter(
+            is_active=True,
+            show_on_home=True,
+        ).filter(
+            Q(start_at__isnull=True) | Q(start_at__lte=now),
+            Q(end_at__isnull=True) | Q(end_at__gte=now),
+        ).order_by('home_order', 'id')
+
+    def perform_create(self, serializer):
+        store = get_requested_store(self.request, required=True)
+        if not has_store_permission(self.request.user, store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        kind = serializer.validated_data.get('kind')
+        if not is_platform_admin(self.request.user) and kind != SpecialZone.KIND_STORE_ACTIVITY:
+            raise PermissionDenied('Store members can only create store activities.')
+        serializer.save(store=store)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        if not is_platform_admin(self.request.user):
+            if instance.kind != SpecialZone.KIND_STORE_ACTIVITY:
+                raise PermissionDenied('Store members can only edit store activities.')
+            target_kind = serializer.validated_data.get('kind', instance.kind)
+            if target_kind != SpecialZone.KIND_STORE_ACTIVITY:
+                raise PermissionDenied('Store members cannot change activity type.')
+        target_store = serializer.validated_data.get('store', instance.store)
+        if target_store != instance.store and not is_platform_admin(self.request.user):
+            raise PermissionDenied('You cannot move this zone to another store.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        if not is_platform_admin(self.request.user) and instance.kind != SpecialZone.KIND_STORE_ACTIVITY:
+            raise PermissionDenied('Store members can only delete store activities.')
+        instance.delete()
+
+    @action(detail=True, methods=['get', 'post', 'delete'])
+    def products(self, request, pk=None):
+        zone = self.get_object()
+        if request.method == 'GET':
+            include_inactive = to_bool(request.query_params.get('include_inactive'))
+            if include_inactive:
+                if not has_store_permission(request.user, zone.store, PERMISSION_STORE_CONTENT_MANAGE):
+                    raise PermissionDenied('You cannot manage this store.')
+                bindings = SpecialZoneProduct.objects.filter(zone=zone).select_related(
+                    'product',
+                    'product__category',
+                    'product__brand',
+                ).order_by('order', 'id')
+                serializer = SpecialZoneProductSerializer(
+                    bindings,
+                    many=True,
+                    context={**self.get_serializer_context(), 'zone': zone},
+                )
+                return Response(serializer.data)
+
+            products = Product.objects.filter(
+                special_zone_links__zone=zone,
+                special_zone_links__is_active=True,
+            ).select_related('category', 'brand').order_by(
+                '-created_at',
+                'id',
+            )
+            if zone.kind == SpecialZone.KIND_STORE_ACTIVITY:
+                products = products.filter(store=zone.store)
+            store_id = parse_int(request.query_params.get('store') or request.query_params.get('store_id'))
+            if store_id is not None:
+                products = products.filter(store_id=store_id)
+            serializer = ProductSerializer(products, many=True, context=self.get_serializer_context())
+            return Response(serializer.data)
+
+        product_id = request.data.get('product_id') or request.data.get('product')
+        product = Product.objects.filter(id=product_id).first()
+        if product is None:
+            return Response({'product_id': ['商品不存在']}, status=status.HTTP_400_BAD_REQUEST)
+        if zone.kind != SpecialZone.KIND_PLATFORM_ACTIVITY and product.store_id != zone.store_id:
+            return Response({'product_id': ['专区商品必须属于同一店铺']}, status=status.HTTP_400_BAD_REQUEST)
+
+        if is_platform_admin(request.user):
+            pass
+        elif not has_store_permission(request.user, product.store, PERMISSION_CATALOG_MANAGE):
+            raise PermissionDenied('You cannot manage this product.')
+        elif zone.kind == SpecialZone.KIND_STORE_ACTIVITY and not has_store_permission(request.user, zone.store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this activity.')
+        elif zone.kind != SpecialZone.KIND_PLATFORM_ACTIVITY:
+            raise PermissionDenied('You cannot manage this activity.')
+
+        if request.method == 'DELETE':
+            SpecialZoneProduct.objects.filter(zone=zone, product=product).delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        is_active_raw = request.data.get('is_active')
+        is_active = to_bool(is_active_raw) if is_active_raw is not None else True
+        if is_active is None:
+            is_active = True
+        order = parse_int(request.data.get('order')) or 0
+        binding, _ = SpecialZoneProduct.objects.update_or_create(
+            zone=zone,
+            product=product,
+            defaults={
+                'is_active': is_active,
+                'order': order,
+            },
+        )
+        serializer = SpecialZoneProductSerializer(binding, context={**self.get_serializer_context(), 'zone': zone})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(tags=['HomeStoreCards'])
+class HomeStoreCardViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+    queryset = HomeStoreCard.objects.select_related('store').prefetch_related(
+        'card_products__product',
+        'card_categories__category',
+    ).order_by('order', 'id')
+    serializer_class = HomeStoreCardSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.request.method in permissions.SAFE_METHODS:
+            user = getattr(self.request, 'user', None)
+            is_store_member = bool(user and user.is_authenticated and get_active_memberships(user).exists())
+            if not (user and user.is_authenticated and (is_platform_admin(user) or is_store_member)):
+                qs = qs.filter(is_active=True)
+            store_id = parse_int(self.request.query_params.get('store') or self.request.query_params.get('store_id'))
+            if store_id is not None:
+                if is_store_member and store_id not in list(get_accessible_stores(user).values_list('id', flat=True)):
+                    raise PermissionDenied('You cannot access this store.')
+                qs = qs.filter(store_id=store_id)
+            elif is_store_member and not is_platform_admin(user):
+                qs = qs.filter(store_id__in=get_accessible_stores(user).values('id'))
+            return qs
+        if not is_platform_admin(self.request.user):
+            allowed_store_ids = [
+                store.id
+                for store in get_accessible_stores(self.request.user)
+                if has_store_permission(self.request.user, store, PERMISSION_STORE_CONTENT_MANAGE)
+            ]
+            return qs.filter(store_id__in=allowed_store_ids)
+        return qs
+
+    def perform_create(self, serializer):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
+        store = serializer.validated_data.get('store')
+        if not has_store_permission(self.request.user, store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
+        instance = self.get_object()
+        store = serializer.validated_data.get('store', instance.store)
+        if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        if store != instance.store and not has_store_permission(self.request.user, store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot move this card to this store.')
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not is_platform_admin(self.request.user):
+            raise PermissionDenied('Only platform admins can manage home store cards.')
+        if not has_store_permission(self.request.user, instance.store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        instance.delete()
+
+
 @extend_schema(tags=['Home'])
 class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     """
@@ -1316,6 +1790,14 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        special_zone_id = parse_int(self.request.query_params.get('special_zone'))
+        if special_zone_id is not None:
+            zone = SpecialZone.objects.filter(id=special_zone_id).first()
+            if zone is None:
+                return qs.none()
+            qs = qs.filter(store_id=zone.store_id, special_zone=zone)
+        else:
+            qs = filter_queryset_by_store(qs, self.request)
         
         # position filter
         position = self.request.query_params.get('position')
@@ -1323,15 +1805,24 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             qs = qs.filter(position=position)
 
         # 公开接口默认只返回启用的轮播图
-        if self.request and self.request.method == 'GET' and not self.request.user.is_staff:
+        from stores.permissions import get_active_memberships
+        is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
+        if self.request and self.request.method == 'GET' and not is_platform_admin(self.request.user) and not is_store_member:
             return qs.filter(is_active=True)
         return qs
 
     def perform_create(self, serializer):
         user = getattr(self.request, 'user', None)
-        if not user or not user.is_staff:
+        if not user or not user.is_authenticated:
             raise PermissionDenied('仅管理员可创建轮播图')
-        serializer.save()
+        special_zone = serializer.validated_data.get('special_zone')
+        if special_zone is not None:
+            store = special_zone.store
+        else:
+            store = get_requested_store(self.request, required=True)
+        if not has_store_permission(user, store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
+        serializer.save(store=store)
 
     @extend_schema(
         operation_id='home_banners_upload',
@@ -1347,8 +1838,11 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def upload(self, request):
         user = getattr(request, 'user', None)
-        if not user or not user.is_staff:
+        if not user or not user.is_authenticated:
             raise PermissionDenied('仅管理员可上传轮播图')
+        store = get_requested_store(request, required=True)
+        if not has_store_permission(user, store, PERMISSION_STORE_CONTENT_MANAGE):
+            raise PermissionDenied('You cannot manage this store.')
 
         file: UploadedFile | None = request.FILES.get('file')
         if not file:
@@ -1384,6 +1878,8 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
                 raise ValidationError('product_id格式错误')
             except Product.DoesNotExist:
                 raise ValidationError('product_id对应商品不存在')
+            if product.store_id != store.id:
+                raise ValidationError('product_id对应商品不属于当前店铺')
         position = request.data.get('position') or request.query_params.get('position') or 'home'
         try:
             order = int(request.data.get('order') or request.query_params.get('order') or 0)
@@ -1394,6 +1890,7 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
         banner = HomeBanner.objects.create(
             image=media,
+            store=store,
             title=title,
             product=product,
             position=position,
@@ -1421,7 +1918,8 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
 
 @extend_schema(tags=['Home'])
-class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
+class SpecialZoneCoverViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelViewSet):
+    store_permission_code = PERMISSION_STORE_CONTENT_MANAGE
     """
     首页专区图片管理
 
@@ -1434,12 +1932,15 @@ class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
+        qs = filter_queryset_by_store(qs, self.request)
 
         zone_type = self.request.query_params.get('type')
         if zone_type:
             qs = qs.filter(type=zone_type)
 
-        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False):
+        from stores.permissions import get_active_memberships
+        is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
+        if self.request and self.request.method == 'GET' and not is_platform_admin(self.request.user) and not is_store_member:
             return qs.filter(is_active=True)
         return qs
 
@@ -1448,7 +1949,7 @@ class SpecialZoneCoverViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
 class CaseViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
     queryset = Case.objects.all().order_by('order', '-id')
     serializer_class = CaseSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [PlatformAdminOrReadOnly]
 
     def get_queryset(self):
         qs = (
@@ -1457,6 +1958,6 @@ class CaseViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             .select_related('cover_image')
             .prefetch_related('detail_blocks__image')
         )
-        if self.request and self.request.method == 'GET' and not getattr(self.request.user, 'is_staff', False):
+        if self.request and self.request.method == 'GET' and not is_platform_admin(self.request.user):
             return qs.filter(is_active=True)
         return qs

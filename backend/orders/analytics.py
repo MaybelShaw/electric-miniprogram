@@ -81,6 +81,7 @@ class OrderAnalytics:
         product_id: Optional[int] = None,
         order_by: str = 'amount',
         limit: Optional[int] = None,
+        store_ids: Optional[List[int]] = None,
     ) -> List[Dict]:
         """
         获取按地区聚合的销售统计
@@ -115,7 +116,10 @@ class OrderAnalytics:
         }
         order_field = order_map.get(order_by, 'amount')
         
-        cache_key = f'regional_sales_{region_field}_{start_date}_{end_date}_{product_id}_{order_field}_{limit}'
+        store_scope = tuple(sorted(store_ids)) if store_ids is not None else None
+        if store_scope == ():
+            return []
+        cache_key = f'regional_sales_{region_field}_{start_date}_{end_date}_{product_id}_{order_field}_{limit}_{store_scope}'
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
@@ -123,6 +127,8 @@ class OrderAnalytics:
         if product_id:
             from orders.models import OrderItem
             item_qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES, product_id=product_id)
+            if store_ids is not None:
+                item_qs = item_qs.filter(order__store_id__in=store_ids)
             if start_date:
                 item_qs = item_qs.filter(order__created_at__date__gte=start_date)
             if end_date:
@@ -140,6 +146,8 @@ class OrderAnalytics:
             result = list(item_qs if limit is None else item_qs[:int(limit)])
         else:
             qs = Order.objects.filter(status__in=cls.SALES_STATUSES)
+            if store_ids is not None:
+                qs = qs.filter(store_id__in=store_ids)
             if start_date:
                 qs = qs.filter(created_at__date__gte=start_date)
             if end_date:
@@ -167,6 +175,7 @@ class OrderAnalytics:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         order_by: str = 'total_quantity',
+        store_ids: Optional[List[int]] = None,
     ) -> List[Dict]:
         """
         获取某商品在各地区的销售分布
@@ -200,13 +209,18 @@ class OrderAnalytics:
         }
         order_field = order_map.get(order_by, 'total_quantity')
         
-        cache_key = f'product_region_{product_id}_{region_field}_{start_date}_{end_date}_{order_field}'
+        store_scope = tuple(sorted(store_ids)) if store_ids is not None else None
+        if store_scope == ():
+            return []
+        cache_key = f'product_region_{product_id}_{region_field}_{start_date}_{end_date}_{order_field}_{store_scope}'
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
         
         from orders.models import OrderItem
         qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES, product_id=product_id)
+        if store_ids is not None:
+            qs = qs.filter(order__store_id__in=store_ids)
         if start_date:
             qs = qs.filter(order__created_at__date__gte=start_date)
         if end_date:
@@ -236,6 +250,7 @@ class OrderAnalytics:
         end_date: Optional[str] = None,
         order_by: str = 'total_quantity',
         limit: Optional[int] = None,
+        store_ids: Optional[List[int]] = None,
     ) -> List[Dict]:
         """
         获取某地区的热销商品统计
@@ -270,13 +285,18 @@ class OrderAnalytics:
         }
         order_field = order_map.get(order_by, 'total_quantity')
         
-        cache_key = f'region_prod_{region_name}_{region_field}_{start_date}_{end_date}_{order_field}_{limit}'
+        store_scope = tuple(sorted(store_ids)) if store_ids is not None else None
+        if store_scope == ():
+            return []
+        cache_key = f'region_prod_{region_name}_{region_field}_{start_date}_{end_date}_{order_field}_{limit}_{store_scope}'
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
         
         from orders.models import OrderItem
         qs = OrderItem.objects.filter(order__status__in=cls.SALES_STATUSES)
+        if store_ids is not None:
+            qs = qs.filter(order__store_id__in=store_ids)
         
         # 地区过滤
         filter_kwargs = {f'order__{region_field}': region_name}

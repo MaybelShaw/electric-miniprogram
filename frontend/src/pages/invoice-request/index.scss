@@ -1,5 +1,5 @@
-@import "../../styles/variables.scss";
-@import "../../styles/mixins.scss";
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .invoice-request {
   padding: $spacing-md;
@@ -9,7 +9,8 @@
   padding-bottom: calc(#{$spacing-lg} + env(safe-area-inset-bottom));
 
   .form {
-    background: $white;
+    background: $showroom-surface;
+    border: 1px solid rgba($border-color, 0.9);
     border-radius: $border-radius-lg;
     padding: 0 $spacing-md;
     margin-bottom: $spacing-md;
@@ -75,7 +76,7 @@
 
           &.active {
             color: $primary-color;
-            background: rgba($primary-color, 0.08);
+            background: rgba($secondary-color, 0.12);
             border-color: $primary-color;
             font-weight: 500;
           }
@@ -89,17 +90,17 @@
     height: $button-height;
     line-height: $button-height;
     text-align: center;
-    background: linear-gradient(135deg, lighten-c($primary-color, 10%) 0%, $primary-color 100%);
+    background: $brand-ink;
     color: $white;
     font-size: $font-size-lg;
-    border-radius: calc($button-height / 2);
+    border-radius: $border-radius-md;
     font-weight: 600;
-    box-shadow: 0 4px 10px rgba($primary-color, 0.25);
+    box-shadow: 0 10px 22px rgba($brand-ink, 0.14);
     transition: all 0.3s;
 
     &:active {
       transform: scale(0.98);
-      opacity: 0.9;
+      background: darken-c($brand-ink, 3%);
     }
   }
 

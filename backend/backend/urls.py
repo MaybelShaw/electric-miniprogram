@@ -21,6 +21,10 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 from common.health import health_check
 
+admin.site.site_header = "庆勋愉悦家开发后台"
+admin.site.site_title = "庆勋愉悦家开发后台"
+admin.site.index_title = "开发后台"
+
 urlpatterns = [
     path('django-admin/', admin.site.urls),
     
@@ -33,6 +37,7 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
     # Non-versioned API endpoints
+    path('api/stores/', include('stores.urls')),
     path('api/catalog/', include('catalog.urls')),
     path('api/', include('orders.urls')),
     path('api/', include('users.urls')),

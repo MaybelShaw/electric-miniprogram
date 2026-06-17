@@ -1,7 +1,7 @@
 from django.shortcuts import render
 import requests
 import uuid
-from rest_framework import viewsets, status, permissions
+from rest_framework import viewsets, status, permissions, serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -15,6 +15,7 @@ from django.db.models.functions import TruncMonth, TruncYear
 from .serializers import (
     UserSerializer,
     UserProfileSerializer,
+    WeChatExplicitLoginSerializer,
     AddressSerializer,
     CompanyInfoSerializer,
     CreditAccountSerializer,
@@ -23,15 +24,18 @@ from .serializers import (
     AccountTransactionSerializer,
     NotificationSerializer,
 )
+from django.db import transaction
 from django.db.models import Q
-from common.permissions import IsOwnerOrAdmin, IsAdmin
+from common.permissions import IsOwnerOrAdmin, IsAdmin, IsStoreStaffOrAdmin
 from common.throttles import LoginRateThrottle
 from common.address_parser import address_parser
 from common.utils import to_bool
 from common.excel import build_excel_response
 from common.pagination import SmallResultsSetPagination
+from common.serializers import EmptySerializer
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes as OT
+from stores.permissions import is_platform_admin
 
 
 # Create your views here.
@@ -57,6 +61,7 @@ class WeChatLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes: list = []
     throttle_classes = [LoginRateThrottle]
+    serializer_class = EmptySerializer
     
     @extend_schema(
         operation_id='wechat_login',
@@ -176,6 +181,217 @@ class WeChatLoginView(APIView):
         )
 
 
+class WeChatAuthError(Exception):
+    def __init__(self, message, status_code=status.HTTP_400_BAD_REQUEST, details=None):
+        self.message = message
+        self.status_code = status_code
+        self.details = details or {}
+        super().__init__(message)
+
+
+class WeChatMiniProgramAuthService:
+    def __init__(self):
+        self.appid = settings.WECHAT_APPID
+        self.secret = settings.WECHAT_SECRET
+
+    def code_to_session(self, code):
+        if not self.appid or not self.secret:
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        response = requests.get(
+            "https://api.weixin.qq.com/sns/jscode2session",
+            params={
+                "appid": self.appid,
+                "secret": self.secret,
+                "js_code": code,
+                "grant_type": "authorization_code",
+            },
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat API error")
+        if not data.get("openid"):
+            raise WeChatAuthError(
+                "Invalid WeChat response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return data
+
+    def phone_code_to_number(self, phone_code):
+        if not self.appid or not self.secret:
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        access_token = self._get_access_token()
+        response = requests.post(
+            f"https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token={access_token}",
+            json={"code": phone_code},
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat phone API error")
+
+        phone_info = data.get("phone_info") or {}
+        phone_number = phone_info.get("phoneNumber") or phone_info.get("purePhoneNumber")
+        if not phone_number:
+            raise WeChatAuthError(
+                "Invalid WeChat phone response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return phone_number
+
+    def _get_access_token(self):
+        if not self.appid or not self.secret:
+            raise WeChatAuthError(
+                "WeChat credentials are not configured",
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        response = requests.get(
+            "https://api.weixin.qq.com/cgi-bin/token",
+            params={
+                "grant_type": "client_credential",
+                "appid": self.appid,
+                "secret": self.secret,
+            },
+            timeout=10,
+        )
+        data = response.json()
+        self._raise_for_wechat_error(data, "WeChat access token API error")
+        access_token = data.get("access_token")
+        if not access_token:
+            raise WeChatAuthError(
+                "Invalid WeChat access token response",
+                status.HTTP_502_BAD_GATEWAY,
+                {"response": data},
+            )
+        return access_token
+
+    def _raise_for_wechat_error(self, data, message):
+        errcode = data.get("errcode")
+        if errcode not in (None, 0, "0"):
+            raise WeChatAuthError(
+                message,
+                status.HTTP_400_BAD_REQUEST,
+                {
+                    "errcode": errcode,
+                    "errmsg": data.get("errmsg", "Unknown error"),
+                },
+            )
+
+
+@extend_schema(tags=['Authentication'])
+class WeChatExplicitLoginView(APIView):
+    """显式微信快捷登录：首次登录必须携带手机号授权凭证。"""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
+    throttle_classes = [LoginRateThrottle]
+    serializer_class = WeChatExplicitLoginSerializer
+
+    @extend_schema(
+        operation_id='wechat_explicit_login',
+        description='Explicit WeChat mini program login with phone authorization.',
+        request=WeChatExplicitLoginSerializer,
+    )
+    def post(self, request):
+        serializer = WeChatExplicitLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data["code"]
+        phone_code = serializer.validated_data.get("phone_code")
+
+        service = WeChatMiniProgramAuthService()
+        try:
+            session_data = service.code_to_session(code)
+        except requests.RequestException:
+            return Response(
+                {"error": "Failed to connect to WeChat API"},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except WeChatAuthError as exc:
+            return Response(
+                {"error": exc.message, **exc.details},
+                status=exc.status_code,
+            )
+
+        openid = session_data["openid"]
+        user = User.objects.filter(openid=openid).first()
+        requires_phone = user is None or not user.phone
+
+        if requires_phone and not phone_code:
+            return Response(
+                {"error": "Phone authorization is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        phone_number = None
+        if phone_code:
+            try:
+                phone_number = service.phone_code_to_number(phone_code)
+            except requests.RequestException:
+                return Response(
+                    {"error": "Failed to connect to WeChat phone API"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
+            except WeChatAuthError as exc:
+                return Response(
+                    {"error": exc.message, **exc.details},
+                    status=exc.status_code,
+                )
+
+        from .services import create_tokens_for_user, update_last_login
+
+        with transaction.atomic():
+            user = User.objects.select_for_update().filter(openid=openid).first()
+            if phone_number:
+                phone_user = (
+                    User.objects.select_for_update()
+                    .filter(phone=phone_number)
+                    .order_by("id")
+                    .first()
+                )
+                if phone_user and (user is None or phone_user.id != user.id):
+                    if user is not None:
+                        user.openid = None
+                        user.save(update_fields=["openid"])
+                    if phone_user.openid != openid:
+                        phone_user.openid = openid
+                        phone_user.save(update_fields=["openid"])
+                    user = phone_user
+                elif user is None:
+                    user = User.objects.create_user(
+                        openid=openid,
+                        phone=phone_number,
+                        role='individual',
+                    )
+                elif user.phone != phone_number:
+                    user.phone = phone_number
+                    user.save(update_fields=["phone"])
+            elif user is None:
+                return Response(
+                    {"error": "Phone authorization is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        update_last_login(user)
+        refresh, access = create_tokens_for_user(user)
+
+        return Response(
+            {
+                "access": access,
+                "refresh": refresh,
+                "user": UserSerializer(user).data,
+            }
+        )
+
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 
@@ -191,6 +407,7 @@ class PasswordLoginView(APIView):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []
     throttle_classes = [LoginRateThrottle]
+    serializer_class = EmptySerializer
 
     @extend_schema(
         operation_id='password_login',
@@ -200,6 +417,7 @@ class PasswordLoginView(APIView):
         from .services import (
             bootstrap_or_init_admin,
             ensure_user_password,
+            is_production_environment,
             update_last_login,
             create_tokens_for_user,
         )
@@ -234,16 +452,24 @@ class PasswordLoginView(APIView):
 
         # 权限校验：仅在系统无管理员的情况下提升为管理员以完成首次引导
         if not user.is_staff:
-            if not admin_exists:
+            has_store_membership = False
+            try:
+                from stores.permissions import get_active_memberships
+                has_store_membership = get_active_memberships(user).exists()
+            except Exception:
+                has_store_membership = False
+            if has_store_membership or getattr(user, 'role', '') == 'support':
+                pass
+            elif not admin_exists and not is_production_environment():
                 user.is_staff = True
                 user.is_superuser = True
                 user.role = 'admin'
                 user.save()
-            elif getattr(user, 'role', '') != 'support':
+            elif getattr(user, 'role', '') != 'support' and not has_store_membership:
                 return Response({"error": "无管理员权限"}, status=status.HTTP_403_FORBIDDEN)
         
         # 确保管理员用户的 role 字段正确
-        if user.is_staff and user.role != 'admin':
+        if user.is_staff and user.role not in {'admin', 'support'}:
             user.role = 'admin'
             user.save(update_fields=['role'])
 
@@ -259,6 +485,18 @@ class PasswordLoginView(APIView):
             }
         )
 
+
+class AdminPasswordLoginView(PasswordLoginView):
+    @extend_schema(
+        operation_id='admin_password_login',
+        description='Admin login alias for password login. Authenticate with username and password to get JWT token.',
+        responses=OT.OBJECT,
+    )
+    def post(self, request):
+        return super().post(request)
+
+
+@extend_schema(request=UserProfileSerializer, responses=UserProfileSerializer)
 @api_view(['GET','PATCH'])
 @permission_classes([IsAuthenticated])
 def user_profile(request):
@@ -274,6 +512,7 @@ def user_profile(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(responses=OT.OBJECT)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_statistics(request):
@@ -438,6 +677,7 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     - 支持标记单条或全部已读
     - 提供订阅模板配置
     """
+    queryset = Notification.objects.none()
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = SmallResultsSetPagination
@@ -787,7 +1027,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def customers_transaction_stats(self, request):
-        if not request.user.is_staff:
+        if not is_platform_admin(request.user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         period = request.query_params.get('period', 'month')
@@ -953,7 +1193,7 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         import openpyxl
         from openpyxl.styles import Font, Alignment, PatternFill
         from openpyxl.utils import get_column_letter
-        if not request.user.is_staff:
+        if not is_platform_admin(request.user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         period = request.query_params.get('period', 'month')
         include_paid = request.query_params.get('include_paid', 'false')
@@ -1136,7 +1376,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return CompanyInfo.objects.none()
         
-        if user.is_staff:
+        if is_platform_admin(user):
             # Admin can see all
             qs = super().get_queryset()
             # Filter by status
@@ -1150,7 +1390,10 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
     
     def list(self, request, *args, **kwargs):
         """List company info - admin sees all, users see their own"""
-        if not request.user.is_staff:
+        from stores.permissions import get_active_memberships
+        if not is_platform_admin(request.user):
+            if get_active_memberships(request.user).exists():
+                return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
             # For regular users, return their company info or empty
             try:
                 company_info = CompanyInfo.objects.get(user=request.user)
@@ -1209,7 +1452,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         
         # Only owner or admin can update
-        if instance.user != request.user and not request.user.is_staff:
+        if instance.user != request.user and not is_platform_admin(request.user):
             logger.warning(f'无权限修改公司信息: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "无权限修改"},
@@ -1217,13 +1460,13 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             )
         
         # Users can only update if rejected or withdrawn
-        if not request.user.is_staff and instance.status == 'approved':
+        if not is_platform_admin(request.user) and instance.status == 'approved':
             logger.warning(f'已审核通过的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "已审核通过的信息不可修改"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        if not request.user.is_staff and instance.status == 'pending':
+        if not is_platform_admin(request.user) and instance.status == 'pending':
             logger.warning(f'审核中的信息不可修改: user_id={request.user.id}, company_info_id={instance.id}')
             return Response(
                 {"error": "审核中不可修改，请先撤回"},
@@ -1231,7 +1474,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
             )
         
         # If user is updating rejected/withdrawn info, reset status to pending
-        if not request.user.is_staff and instance.status in ['rejected', 'withdrawn']:
+        if not is_platform_admin(request.user) and instance.status in ['rejected', 'withdrawn']:
             logger.info(f'用户重新提交公司信息: user_id={request.user.id}, company_info_id={instance.id}')
             instance.status = 'pending'
             instance.approved_at = None
@@ -1240,7 +1483,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         response = super().update(request, *args, **kwargs)
         
         # Save status change if it was modified
-        if not request.user.is_staff and instance.status == 'pending':
+        if not is_platform_admin(request.user) and instance.status == 'pending':
             instance.save(update_fields=['status', 'approved_at', 'reject_reason', 'updated_at'])
         
         return response
@@ -1317,7 +1560,7 @@ class CompanyInfoViewSet(viewsets.ModelViewSet):
         """Withdraw pending company info submission"""
         company_info = self.get_object()
 
-        if company_info.user != request.user and not request.user.is_staff:
+        if company_info.user != request.user and not is_platform_admin(request.user):
             return Response(
                 {"error": "无权限撤回"},
                 status=status.HTTP_403_FORBIDDEN
@@ -1386,7 +1629,9 @@ class CreditAccountViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return CreditAccount.objects.none()
         
-        if user.is_staff:
+        from stores.permissions import is_platform_admin
+
+        if is_platform_admin(user):
             # Admin can see all
             qs = super().get_queryset()
             # Filter by active status
@@ -1473,6 +1718,8 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
     ).order_by('-period_end', '-created_at')
     
     def get_permissions(self):
+        if self.action in ['list', 'export_list']:
+            return [IsAuthenticated(), IsStoreStaffOrAdmin()]
         if self.action in ['my_statements', 'retrieve', 'confirm']:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdmin()]
@@ -1487,44 +1734,56 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         if not user or not user.is_authenticated:
             return AccountStatement.objects.none()
         
-        if user.is_staff:
-            # Admin can see all
+        from stores.permissions import (
+            PERMISSION_FINANCE_VIEW,
+            get_accessible_stores,
+            get_active_memberships,
+            has_store_permission,
+            is_platform_admin,
+            is_support_user,
+        )
+        if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
-
-            search = self.request.query_params.get('search')
-            if search:
-                qs = qs.filter(
-                    Q(credit_account__user__username__icontains=search) |
-                    Q(credit_account__user__company_info__company_name__icontains=search)
-                )
-
-            # Filter by status
-            status_filter = self.request.query_params.get('status')
-            if status_filter:
-                qs = qs.filter(status=status_filter)
-            
-            # Filter by credit account
-            credit_account_id = self.request.query_params.get('credit_account')
-            if credit_account_id:
-                qs = qs.filter(credit_account_id=credit_account_id)
-            
-            # Filter by date range
-            start_date = self.request.query_params.get('start_date')
-            end_date = self.request.query_params.get('end_date')
-            if start_date:
-                qs = qs.filter(period_start__gte=start_date)
-            if end_date:
-                qs = qs.filter(period_end__lte=end_date)
-            
-            return qs
+        elif get_active_memberships(user).exists():
+            store_ids = [
+                store.id
+                for store in get_accessible_stores(user)
+                if has_store_permission(user, store, PERMISSION_FINANCE_VIEW)
+            ]
+            order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
+            qs = super().get_queryset().filter(transactions__order_id__in=order_ids).distinct()
         else:
-            # Dealers can only see their own
             try:
                 credit_account = CreditAccount.objects.get(user=user)
                 return AccountStatement.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountStatement.objects.none()
 
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(credit_account__user__username__icontains=search) |
+                Q(credit_account__user__company_info__company_name__icontains=search)
+            )
+
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        credit_account_id = self.request.query_params.get('credit_account')
+        if credit_account_id:
+            qs = qs.filter(credit_account_id=credit_account_id)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date:
+            qs = qs.filter(period_start__gte=start_date)
+        if end_date:
+            qs = qs.filter(period_end__lte=end_date)
+
+        return qs
+
+    @extend_schema(operation_id='account_statements_export_list', responses=OT.OBJECT)
     @action(detail=False, methods=['get'], url_path='export')
     def export_list(self, request):
         qs = self.filter_queryset(self.get_queryset())
@@ -1655,6 +1914,11 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
         from django.utils import timezone
         
         statement = self.get_object()
+        if not (
+            is_platform_admin(request.user)
+            or statement.credit_account.user_id == request.user.id
+        ):
+            return Response({"detail": "forbidden"}, status=status.HTTP_403_FORBIDDEN)
         
         if statement.status != 'draft':
             return Response(
@@ -1760,6 +2024,7 @@ class AccountStatementViewSet(viewsets.ModelViewSet):
             "statement": AccountStatementSerializer(statement).data
         })
     
+    @extend_schema(operation_id='account_statements_export_detail', responses=OT.OBJECT)
     @action(detail=True, methods=['get'])
     def export(self, request, pk=None):
         """导出对账单为Excel"""
@@ -1899,6 +2164,8 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action in ['my_transactions']:
             return [IsAuthenticated()]
+        if self.action in ['list', 'retrieve', 'export']:
+            return [IsAuthenticated(), IsStoreStaffOrAdmin()]
         return [IsAuthenticated(), IsAdmin()]
     
     def get_queryset(self):
@@ -1906,55 +2173,64 @@ class AccountTransactionViewSet(viewsets.ReadOnlyModelViewSet):
         if not user or not user.is_authenticated:
             return AccountTransaction.objects.none()
         
-        if user.is_staff:
-            # Admin can see all
+        from stores.permissions import (
+            PERMISSION_FINANCE_VIEW,
+            get_accessible_stores,
+            get_active_memberships,
+            has_store_permission,
+            is_platform_admin,
+            is_support_user,
+        )
+        if is_platform_admin(user) or is_support_user(user):
             qs = super().get_queryset()
-
-            search = self.request.query_params.get('search')
-            if search:
-                qs = qs.filter(
-                    Q(credit_account__user__username__icontains=search) |
-                    Q(credit_account__user__company_info__company_name__icontains=search)
-                )
-            
-            # Filter by credit account
-            credit_account_id = self.request.query_params.get('credit_account')
-            if credit_account_id:
-                qs = qs.filter(credit_account_id=credit_account_id)
-            
-            # Filter by transaction type
-            transaction_type = self.request.query_params.get('transaction_type')
-            if transaction_type:
-                qs = qs.filter(transaction_type=transaction_type)
-            
-            # Filter by payment status
-            payment_status = self.request.query_params.get('payment_status')
-            if payment_status:
-                qs = qs.filter(payment_status=payment_status)
-            
-            # Filter by date range
-            start_date = self.request.query_params.get('start_date')
-            end_date = self.request.query_params.get('end_date')
-            if start_date:
-                qs = qs.filter(created_at__gte=start_date)
-            if end_date:
-                # Handle end_date inclusive for DateTimeField
-                try:
-                    from datetime import datetime, timedelta
-                    ed = datetime.strptime(end_date, '%Y-%m-%d')
-                    ed_end = ed + timedelta(days=1)
-                    qs = qs.filter(created_at__lt=ed_end)
-                except (ValueError, TypeError):
-                    qs = qs.filter(created_at__lte=end_date)
-            
-            return qs
+        elif get_active_memberships(user).exists():
+            store_ids = [
+                store.id
+                for store in get_accessible_stores(user)
+                if has_store_permission(user, store, PERMISSION_FINANCE_VIEW)
+            ]
+            order_ids = Order.objects.filter(store_id__in=store_ids).values('id')
+            qs = super().get_queryset().filter(order_id__in=order_ids)
         else:
-            # Dealers can only see their own
             try:
                 credit_account = CreditAccount.objects.get(user=user)
                 return AccountTransaction.objects.filter(credit_account=credit_account)
             except CreditAccount.DoesNotExist:
                 return AccountTransaction.objects.none()
+
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(
+                Q(credit_account__user__username__icontains=search) |
+                Q(credit_account__user__company_info__company_name__icontains=search)
+            )
+
+        credit_account_id = self.request.query_params.get('credit_account')
+        if credit_account_id:
+            qs = qs.filter(credit_account_id=credit_account_id)
+
+        transaction_type = self.request.query_params.get('transaction_type')
+        if transaction_type:
+            qs = qs.filter(transaction_type=transaction_type)
+
+        payment_status = self.request.query_params.get('payment_status')
+        if payment_status:
+            qs = qs.filter(payment_status=payment_status)
+
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        if start_date:
+            qs = qs.filter(created_at__gte=start_date)
+        if end_date:
+            try:
+                from datetime import datetime, timedelta
+                ed = datetime.strptime(end_date, '%Y-%m-%d')
+                ed_end = ed + timedelta(days=1)
+                qs = qs.filter(created_at__lt=ed_end)
+            except (ValueError, TypeError):
+                qs = qs.filter(created_at__lte=end_date)
+
+        return qs
 
     @action(detail=False, methods=['get'])
     def export(self, request):

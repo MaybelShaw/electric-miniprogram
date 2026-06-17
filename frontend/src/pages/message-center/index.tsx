@@ -5,18 +5,19 @@ import { notificationService, SubscribeTemplate, NotificationStats } from '../..
 import { Notification } from '../../types'
 import { TokenManager } from '../../utils/request'
 import { requireLogin } from '../../utils/login-guard'
+import EmptyState from '../../components/EmptyState'
 import './index.scss'
 
 const TYPE_META: Record<
   Notification['type'],
-  { label: string; color: string; bg: string }
+  { label: string; className: string }
 > = {
-  payment: { label: '支付', color: '#1989FA', bg: '#E6F3FF' },
-  order: { label: '订单', color: '#07C160', bg: '#E6FFF5' },
-  refund: { label: '退款', color: '#FF976A', bg: '#FFF3E6' },
-  return: { label: '退货', color: '#EE0A24', bg: '#FFF1E6' },
-  statement: { label: '对账', color: '#722ED1', bg: '#F5EDFF' },
-  system: { label: '系统', color: '#646566', bg: '#F2F3F5' }
+  payment: { label: '支付', className: 'payment' },
+  order: { label: '订单', className: 'order' },
+  refund: { label: '退款', className: 'refund' },
+  return: { label: '退货', className: 'return' },
+  statement: { label: '对账', className: 'statement' },
+  system: { label: '系统', className: 'system' }
 }
 
 const formatTime = (value?: string | null) => {
@@ -162,7 +163,7 @@ export default function MessageCenter() {
         <View className='card-header'>
           <View className='header-left'>
             {!item.is_read && <View className='unread-dot' />}
-            <Text className='type-tag' style={{ color: meta.color, backgroundColor: meta.bg }}>
+            <Text className={`type-tag ${meta.className}`}>
               {meta.label}
             </Text>
             <Text className='card-title'>{item.title}</Text>
@@ -224,10 +225,12 @@ export default function MessageCenter() {
         onScrollToLower={() => hasMore && !loading && loadNotifications(page + 1)}
       >
         {notifications.length === 0 && !loading && (
-          <View className='empty'>
-            <Text className='empty-icon'>📭</Text>
-            <Text className='empty-text'>暂时没有消息</Text>
-          </View>
+          <EmptyState
+            className='message-empty'
+            title='暂时没有消息'
+            description='订单、售后与对账提醒会在这里出现'
+            icon='message'
+          />
         )}
 
         {notifications.map(renderCard)}

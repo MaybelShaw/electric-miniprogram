@@ -1,30 +1,48 @@
 @use "sass:color";
 
+// Design tokens: clean cool-white home showroom palette
+$brand-ink: #14191f;
+$brand-forest: #1f272a;
+$brand-teal: #72828a;
+$brand-brass: #9fb2bd;
+$brand-brass-deep: #5f7581;
+$brand-clay: #9f4c3f;
+$brand-mist: #f4f8fa;
+$brand-paper: #ffffff;
+$brand-linen: #e7edf0;
+$brand-warm-grey: #727c83;
+$brand-sage: #788b92;
+$brand-sage-light: #eef4f6;
+$showroom-bg: #f6f9fb;
+$showroom-surface: #ffffff;
+$showroom-surface-warm: #f2f6f8;
+$showroom-line: #dfe7ec;
+
 // Colors
-$primary-color: #1989FA;
-$primary-light: #E6F3FF;
-$secondary-color: #07C160;
-$warning-color: #FF976A;
-$danger-color: #EE0A24;
-$success-color: #07C160;
-$info-color: #1989FA;
-$white: #FFFFFF;
+$primary-color: $brand-forest;
+$primary-light: #eef4f6;
+$secondary-color: $brand-brass;
+$warning-color: #6e7f89;
+$danger-color: $brand-clay;
+$success-color: #58705e;
+$info-color: $brand-sage;
+$white: #ffffff;
 $black: #000000;
 
 // Text Colors
-$text-color-base: #323233;
-$text-color-regular: #646566;
-$text-color-secondary: #969799;
-$text-color-placeholder: #C8C9CC;
+$text-color-base: $brand-ink;
+$text-color-regular: #535d64;
+$text-color-secondary: #818b92;
+$text-color-placeholder: #b5c0c7;
 
 // Background Colors
-$background-color-base: #F7F8FA;
-$background-color-light: #FFFFFF;
-$active-color: #F2F3F5;
+$background-color-base: $showroom-bg;
+$background-color-light: $showroom-surface;
+$active-color: #eef4f7;
 
 // Border Colors
-$border-color: #EBEDF0;
-$border-color-light: #F2F3F5;
+$border-color: $showroom-line;
+$border-color-light: #edf2f4;
 
 // Font Sizes
 $font-size-xs: 20px; // 10px * 2 (Taro px transform)
@@ -43,16 +61,25 @@ $spacing-xl: 48px; // 24px * 2
 $spacing-xxl: 64px; // 32px * 2
 
 // Border Radius
-$border-radius-sm: 4px; // 2px * 2
-$border-radius-md: 8px; // 4px * 2
+$border-radius-sm: 8px; // 4px * 2
+$border-radius-md: 12px; // 6px * 2
 $border-radius-lg: 16px; // 8px * 2
+$border-radius-xl: 22px;
 $border-radius-max: 999px;
 
 // Shadows
-$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
-$shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
-$shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-$shadow-top: 0 -2px 10px rgba(0, 0, 0, 0.05);
+$shadow-sm: 0 10px 28px rgba(20, 25, 31, 0.045);
+$shadow-md: 0 18px 42px rgba(20, 25, 31, 0.075);
+$shadow-lg: 0 26px 58px rgba(20, 25, 31, 0.1);
+$shadow-top: 0 -12px 32px rgba(20, 25, 31, 0.07);
+$hairline: 1px solid $border-color;
+
+// Compatibility aliases kept for older page styles.
+$premium-page-gradient: $showroom-bg;
+$premium-card-gradient: $showroom-surface;
+$premium-dark-gradient: $brand-ink;
+$premium-gold-gradient: $brand-brass;
+$premium-clay-gradient: $brand-clay;
 
 // Component Sizes
 $button-height: 88px; // 44px * 2
@@ -63,8 +90,8 @@ $icon-size-lg: 64px; // 32px * 2
 
 // Product
 $product-thumb-size: 120px;
-$product-card-width: 330px;
-$product-image-height: 330px;
+$product-card-width: 334px;
+$product-image-height: 344px;
 
 // Form
 $form-label-width: 160px;

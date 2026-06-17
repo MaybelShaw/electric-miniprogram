@@ -1,15 +1,17 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .order-card {
-  background: $background-color-light;
+  background: $showroom-surface;
   margin: 0 $spacing-md $spacing-md;
-  border-radius: $spacing-md;
+  border-radius: $border-radius-lg;
   padding: $spacing-lg;
   box-shadow: $shadow-sm;
+  border: 1px solid $border-color;
   transition: all 0.3s;
 
   &:active {
     transform: scale(0.995);
+    box-shadow: $shadow-md;
   }
 
   .order-header {
@@ -18,7 +20,7 @@
     align-items: center;
     margin-bottom: $spacing-md;
     padding-bottom: 20px;
-    border-bottom: 1px solid $border-color;
+    border-bottom: 1px solid rgba($border-color, 0.82);
 
     .order-time {
       font-size: 26px;
@@ -37,49 +39,7 @@
       font-size: 26px;
       font-weight: 600;
       padding: 6px 16px;
-      border-radius: $border-radius-md;
-      background: $background-color-base;
-      color: $text-color-secondary;
-
-      &.pending {
-        background: #fff7e6;
-        color: #fa8c16;
-      }
-
-      &.paid {
-        background: $primary-light;
-        color: $primary-color;
-      }
-
-      &.shipped {
-        background: #e6fffb;
-        color: #13c2c2;
-      }
-
-      &.completed {
-        background: #f6ffed;
-        color: $secondary-color;
-      }
-
-      &.cancelled {
-        background: $background-color-base;
-        color: $text-color-secondary;
-      }
-
-      &.returning {
-        background: #f9f0ff;
-        color: #7232dd;
-      }
-      
-      &.refunding {
-        background: #fff0f0;
-        color: $danger-color;
-      }
-
-      &.refunded {
-        background: #f6ffed;
-        color: $secondary-color;
-      }
+      max-width: 260px;
     }
   }
 
@@ -91,9 +51,10 @@
       width: 160px;
       height: 160px;
       border-radius: $border-radius-lg;
-      background: $background-color-base;
+      background: $showroom-surface-warm;
       flex-shrink: 0;
       object-fit: cover;
+      border: 1px solid $border-color-light;
     }
 
     .product-info {
@@ -133,19 +94,6 @@
         justify-content: space-between;
         align-items: flex-end;
 
-        .product-price {
-          font-size: $font-size-lg;
-          color: $text-color-base;
-          font-weight: bold;
-          font-family: 'DIN Alternate', sans-serif;
-          
-          &::before {
-            content: '¥';
-            font-size: $font-size-sm;
-            margin-right: 2px;
-          }
-        }
-
         .product-quantity {
           font-size: 26px;
           color: $text-color-secondary;
@@ -173,9 +121,7 @@
     .amount {
       font-size: $font-size-xl;
       font-weight: bold;
-      color: $text-color-base;
       margin-left: $spacing-xs;
-      font-family: 'DIN Alternate', sans-serif;
     }
 
     &.refund {
@@ -207,7 +153,7 @@
       .cancel-btn {
         padding: 12px 32px;
         border: 1px solid $border-color;
-        border-radius: 34px;
+        border-radius: $border-radius-md;
         font-size: 26px;
         color: $text-color-base;
         background: transparent;
@@ -215,21 +161,21 @@
 
       .confirm-btn {
         padding: 12px 32px;
-        border: 1px solid $primary-color;
-        border-radius: 34px;
+        border: 1px solid $brand-brass-deep;
+        border-radius: $border-radius-md;
         font-size: 26px;
-        color: $primary-color;
-        background: $background-color-light;
+        color: $brand-brass-deep;
+        background: $showroom-surface-warm;
       }
 
       .pay-btn {
         padding: 12px 32px;
         border: none;
-        border-radius: 34px;
+        border-radius: $border-radius-md;
         font-size: 26px;
         color: $white;
-        background: linear-gradient(135deg, lighten($primary-color, 10%), $primary-color);
-        box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+        background: $brand-ink;
+        box-shadow: 0 8px 18px rgba($brand-ink, 0.16);
       }
     }
   }

@@ -218,7 +218,7 @@ export default function CompanyCertification() {
 
       {existingInfo?.status === 'rejected' && (
         <View className='info-banner error'>
-          <Text>❌ 认证未通过，请修改信息后重新提交</Text>
+          <Text>认证未通过，请修改信息后重新提交</Text>
           {existingInfo.reject_reason && (
             <Text className='reject-reason'>原因：{existingInfo.reject_reason}</Text>
           )}
@@ -227,7 +227,7 @@ export default function CompanyCertification() {
 
       {existingInfo?.status === 'pending' && (
         <View className='info-banner warning'>
-          <Text>⏳ 您的认证申请正在审核中，请耐心等待</Text>
+          <Text>您的认证申请正在审核中，请耐心等待</Text>
         </View>
       )}
 

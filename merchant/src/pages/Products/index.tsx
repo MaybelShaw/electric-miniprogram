@@ -1,15 +1,40 @@
-import { useRef, useState, useEffect } from 'react';
+﻿import { useRef, useState, useEffect } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea, ProFormGroup, ProFormField, ProFormDependency } from '@ant-design/pro-components';
-import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons';
-import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getHaierProducts, getHaierStock, getHaierPrices, exportProducts } from '@/services/api';
+import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions, Space } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, MinusCircleOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getProductActivities, updateProductActivities, getHaierProducts, getHaierStock, getHaierPrices, exportProducts } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
 import { fetchAllPaginated } from '@/utils/request';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
-import type { Product, Brand, Category } from '@/services/types';
+import type { Product, Brand, Category, SpecialZone } from '@/services/types';
+
+type SpecificationItem = {
+  key?: string;
+  value?: string;
+};
+
+const specificationsToItems = (specifications?: Product['specifications']): SpecificationItem[] => {
+  if (!specifications || typeof specifications !== 'object') {
+    return [];
+  }
+  return Object.entries(specifications).map(([key, value]) => ({
+    key,
+    value: value === null || value === undefined ? '' : String(value),
+  }));
+};
+
+const itemsToSpecifications = (items?: SpecificationItem[]): Record<string, string> => {
+  const result: Record<string, string> = {};
+  (items || []).forEach(item => {
+    const key = item.key?.trim();
+    if (!key) return;
+    result[key] = (item.value || '').trim();
+  });
+  return result;
+};
 
 export default function Products() {
   const actionRef = useRef<ActionType>();
@@ -21,6 +46,7 @@ export default function Products() {
   const [form] = Form.useForm();
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
+  const [activityOptions, setActivityOptions] = useState<SpecialZone[]>([]);
   const exportLockRef = useRef(false);
 
   // 加载品牌和分类数据用于筛选
@@ -197,6 +223,8 @@ export default function Products() {
     {
       title: '礼品专区',
       dataIndex: 'show_in_gift_zone',
+      hideInTable: true,
+      hideInSearch: true,
       width: 100,
       valueType: 'select',
       valueEnum: {
@@ -212,6 +240,8 @@ export default function Products() {
     {
       title: '设计师专区',
       dataIndex: 'show_in_designer_zone',
+      hideInTable: true,
+      hideInSearch: true,
       width: 110,
       valueType: 'select',
       valueEnum: {
@@ -227,6 +257,8 @@ export default function Products() {
     {
       title: '爆品专区',
       dataIndex: 'show_in_best_seller_zone',
+      hideInTable: true,
+      hideInSearch: true,
       width: 110,
       valueType: 'select',
       valueEnum: {
@@ -255,7 +287,7 @@ export default function Products() {
     {
       title: '操作',
       valueType: 'option',
-      width: 180,
+      width: 240,
       fixed: 'right',
       render: (_, record) => [
         <Button
@@ -266,6 +298,17 @@ export default function Products() {
           onClick={() => handleEdit(record)}
         >
           编辑
+        </Button>,
+        <Button
+          key="sku"
+          type="link"
+          size="small"
+          icon={<DatabaseOutlined />}
+          onClick={() => {
+            window.location.href = `/admin/product-skus?product=${record.id}`;
+          }}
+        >
+          SKU
         </Button>,
         <Popconfirm
           key="delete"
@@ -289,6 +332,8 @@ export default function Products() {
     try {
       // 获取完整的产品信息
       const res: any = await getProduct(record.id);
+      const activities: any = await getProductActivities(record.id);
+      setActivityOptions(activities.available || []);
       setEditingRecord(res);
       
       // 先打开模态框
@@ -305,6 +350,7 @@ export default function Products() {
           dealer_price: res.dealer_price !== null && res.dealer_price !== undefined ? parseFloat(res.dealer_price) : undefined,
           stock: res.stock,
           description: res.description || '',
+          specification_items: specificationsToItems(res.specifications),
           main_images: res.main_images || [],
           detail_images: res.detail_images || [],
           is_active: res.is_active,
@@ -319,6 +365,7 @@ export default function Products() {
           stock_rebate: res.stock_rebate,
           rebate_money: res.rebate_money,
           tag: res.tag,
+          activity_ids: (activities.selected || []).map((item: SpecialZone) => item.id),
         });
       }, 100);
     } catch (error) {
@@ -338,12 +385,14 @@ export default function Products() {
 
   const handleAdd = () => {
     setEditingRecord(null);
+    setActivityOptions([]);
     form.resetFields();
     form.setFieldsValue({
       is_active: true,
       stock: 0,
       main_images: [],
       detail_images: [],
+      specification_items: [],
       source: 'local',
       show_in_gift_zone: false,
       show_in_designer_zone: false,
@@ -615,14 +664,17 @@ export default function Products() {
               finalData.detail_images = values.detail_images || [];
             }
             
+            const { specification_items, activity_ids, ...productData } = finalData;
             const payload = {
-              ...finalData,
+              ...productData,
+              specifications: itemsToSpecifications(specification_items),
               main_images: normalizeImageList(finalData.main_images),
               detail_images: normalizeImageList(finalData.detail_images),
             };
             
             if (editingRecord) {
               await updateProduct(editingRecord.id, payload);
+              await updateProductActivities(editingRecord.id, activity_ids || []);
               message.success('更新成功');
             } else {
               await createProduct(payload);
@@ -750,9 +802,22 @@ export default function Products() {
             tooltip="上架后用户可见"
             colProps={{ span: 6 }}
           />
+          {editingRecord && (
+            <ProFormSelect
+              name="activity_ids"
+              label="参与活动"
+              mode="multiple"
+              options={activityOptions.map(item => ({
+                label: item.kind === 'platform_activity' ? `平台：${item.title}` : `店铺：${item.title}`,
+                value: item.id,
+              }))}
+              placeholder="请选择商品参与的活动"
+              colProps={{ span: 18 }}
+            />
+          )}
         </ProFormGroup>
 
-        <ProFormGroup title={<span style={{ fontWeight: 'bold', fontSize: '16px' }}>专区展示</span>} colProps={{ span: 24 }}>
+        {false && <ProFormGroup title={<span style={{ fontWeight: 'bold', fontSize: '16px' }}>专区展示</span>} colProps={{ span: 24 }}>
           <ProFormSwitch
             name="show_in_gift_zone"
             label="礼品专区展示"
@@ -768,6 +833,49 @@ export default function Products() {
             label="爆品专区展示"
             colProps={{ span: 6 }}
           />
+        </ProFormGroup>}
+
+        <ProFormGroup title={<span style={{ fontWeight: 'bold', fontSize: '16px' }}>商品参数</span>} colProps={{ span: 24 }}>
+          <Form.Item
+            label="参数配置"
+            style={{ width: '100%' }}
+            tooltip="用于小程序商品详情页展示，如容量、能效等级、安装方式"
+          >
+            <Form.List name="specification_items">
+              {(fields, { add, remove }) => (
+                <div style={{ width: '100%' }}>
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'key']}
+                        rules={[{ required: true, message: '请输入参数名' }]}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input placeholder="参数名，如容量" style={{ width: 220 }} />
+                      </Form.Item>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'value']}
+                        style={{ marginBottom: 0 }}
+                      >
+                        <Input placeholder="参数值，如 520L" style={{ width: 360 }} />
+                      </Form.Item>
+                      <Button
+                        type="text"
+                        danger
+                        icon={<MinusCircleOutlined />}
+                        onClick={() => remove(name)}
+                      />
+                    </Space>
+                  ))}
+                  <Button type="dashed" onClick={() => add()} icon={<PlusOutlined />}>
+                    添加参数
+                  </Button>
+                </div>
+              )}
+            </Form.List>
+          </Form.Item>
         </ProFormGroup>
 
         {/* 海尔相关字段 */}

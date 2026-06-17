@@ -3,12 +3,14 @@ import { View, Text, Input, Button, ScrollView, Image, Video } from '@tarojs/com
 import Taro, { useDidShow } from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
 import { TokenManager } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
 import { authService } from '../../services/auth'
 import { User } from '../../types'
 import cameraIcon from '../../assets/icons/camera.png'
 import pictureIcon from '../../assets/icons/picture.png'
 import orderIcon from '../../assets/icons/order.png'
 import productIcon from '../../assets/icons/product.png'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 interface ExtendedSupportMessage extends SupportMessage {
@@ -241,8 +243,8 @@ export default function SupportChat() {
         sourceType: ['camera'],
       })
       handleMediaSelect(res)
-    } catch (e) {
-      console.log('Camera cancelled or failed', e)
+    } catch {
+      // 用户取消选择时保持当前聊天状态。
     }
   }
 
@@ -254,8 +256,8 @@ export default function SupportChat() {
         sourceType: ['album'],
       })
       handleMediaSelect(res)
-    } catch (e) {
-      console.log('Album cancelled or failed', e)
+    } catch {
+      // 用户取消选择时保持当前聊天状态。
     }
   }
 
@@ -285,7 +287,6 @@ export default function SupportChat() {
       url: '/pages/support-chat/select-order/index',
       events: {
         acceptSelectedOrder: (order) => {
-          console.log('Received order:', order)
           sendOrder(order).catch(err => {
              console.error('Failed to send order:', err)
              Taro.showToast({ title: '发送订单失败', icon: 'none' })
@@ -305,7 +306,6 @@ export default function SupportChat() {
       url: '/pages/support-chat/select-product/index',
       events: {
         acceptSelectedProduct: (product) => {
-          console.log('Received product:', product)
           sendProduct(product).catch(err => {
              console.error('Failed to send product:', err)
              Taro.showToast({ title: '发送商品失败', icon: 'none' })
@@ -323,7 +323,7 @@ export default function SupportChat() {
   const sendOrder = async (order: any) => {
     const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
     const product = primaryItem?.product || order.product || {}
-    const image = primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || ''
+    const image = resolveLocalMediaUrl(primaryItem?.snapshot_image || product.product_image_url || (product.main_images && product.main_images[0]) || '')
     
     const orderInfo = {
       id: order.id,
@@ -339,7 +339,7 @@ export default function SupportChat() {
   }
 
   const sendProduct = async (product: any) => {
-    const image = product.product_image_url || (product.main_images && product.main_images[0]) || ''
+    const image = resolveLocalMediaUrl(product.product_image_url || (product.main_images && product.main_images[0]) || '')
     
     const productInfo = {
       id: product.id,
@@ -457,7 +457,7 @@ export default function SupportChat() {
             <Text className='order-tag'>{getStatusText(msg.order_info.status)}</Text>
           </View>
           <View className='card-content'>
-            <Image src={msg.order_info.image} mode='aspectFill' className='card-img' />
+            <Image src={resolveLocalMediaUrl(msg.order_info.image)} mode='aspectFill' className='card-img' />
             <View className='card-info'>
               <Text className='card-title'>{msg.order_info.product_name}</Text>
               <Text className='card-desc'>¥{msg.order_info.total_amount}</Text>
@@ -470,7 +470,7 @@ export default function SupportChat() {
       return (
         <View className='message-card' onClick={() => Taro.navigateTo({ url: `/pages/product-detail/index?id=${msg.product_info.id}` })}>
           <View className='card-content'>
-            <Image src={msg.product_info.image} mode='aspectFill' className='card-img' />
+            <Image src={resolveLocalMediaUrl(msg.product_info.image)} mode='aspectFill' className='card-img' />
             <View className='card-info'>
               <Text className='card-title'>{msg.product_info.name}</Text>
               <Text className='card-desc'>¥{msg.product_info.price}</Text>
@@ -481,18 +481,21 @@ export default function SupportChat() {
     }
     if (msg.attachment_type === 'image') {
       return (
-        <Image 
-          src={msg.attachment_url || msg.tempFilePath || ''} 
-          mode='widthFix' 
+        <Image
+          src={resolveLocalMediaUrl(msg.attachment_url || msg.tempFilePath)}
+          mode='widthFix'
           className='message-image'
-          onClick={() => Taro.previewImage({ urls: [msg.attachment_url || msg.tempFilePath || ''] })}
+          onClick={() => {
+            const imageUrl = resolveLocalMediaUrl(msg.attachment_url || msg.tempFilePath)
+            if (imageUrl) Taro.previewImage({ urls: [imageUrl] })
+          }}
         />
       )
     }
     if (msg.attachment_type === 'video') {
       return (
         <Video 
-          src={msg.attachment_url || msg.tempFilePath || ''}
+          src={resolveLocalMediaUrl(msg.attachment_url || msg.tempFilePath)}
           className='message-video'
         />
       )
@@ -501,7 +504,7 @@ export default function SupportChat() {
       const payload: any = msg.content_payload || {}
       return (
         <View className='reply-card' onClick={() => handleCardClick(payload)}>
-          {payload.image_url && <Image src={payload.image_url} mode='aspectFill' className='reply-card-image' />}
+          {payload.image_url && <Image src={resolveLocalMediaUrl(payload.image_url)} mode='aspectFill' className='reply-card-image' />}
           <View className='reply-card-body'>
             <Text className='reply-card-title'>{payload.title || msg.content}</Text>
             {payload.description && <Text className='reply-card-desc'>{payload.description}</Text>}
@@ -636,7 +639,7 @@ export default function SupportChat() {
             </View>
           )
         })}
-        <View id="bottom-anchor" style={{ height: showPanel ? 'calc(320px + 120rpx + env(safe-area-inset-bottom))' : 'calc(120rpx + env(safe-area-inset-bottom))' }}></View>
+        <View id='bottom-anchor' className={`bottom-anchor ${showPanel ? 'with-panel' : ''}`}></View>
       </ScrollView>
       
       <View className={`chat-footer ${showPanel ? 'has-panel' : ''}`}>
@@ -656,7 +659,7 @@ export default function SupportChat() {
             </View>
           ) : (
             <View className='media-btn' onClick={handleTogglePanel}>
-              <Text className='plus-icon'>+</Text>
+              <AppIcon name='add' tone='muted' className='plus-icon' />
             </View>
           )}
         </View>

@@ -2,6 +2,7 @@ import { View, Text } from '@tarojs/components'
 import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import { creditService, CreditAccount } from '../../services/credit'
+import AppIcon from '../../components/AppIcon'
 import './index.scss'
 
 export default function CreditAccountPage() {
@@ -117,7 +118,7 @@ export default function CreditAccountPage() {
       {/* 功能菜单 */}
       <View className='menu-list'>
         <View className='menu-item' onTap={goToStatements}>
-          <View className='menu-icon'>📋</View>
+          <AppIcon name='order' tone='gold' className='menu-icon' />
           <View className='menu-content'>
             <Text className='menu-title'>对账单</Text>
             <Text className='menu-desc'>查看账期对账单</Text>
@@ -126,7 +127,7 @@ export default function CreditAccountPage() {
         </View>
 
         <View className='menu-item' onTap={goToTransactions}>
-          <View className='menu-icon'>💳</View>
+          <AppIcon name='pay' tone='primary' className='menu-icon' />
           <View className='menu-content'>
             <Text className='menu-title'>交易记录</Text>
             <Text className='menu-desc'>查看所有交易明细</Text>
@@ -135,7 +136,7 @@ export default function CreditAccountPage() {
         </View>
 
         <View className='menu-item' onTap={() => Taro.navigateTo({ url: '/pages/debt-reconciliation/index' })}>
-          <View className='menu-icon'>📊</View>
+          <AppIcon name='credit' tone='muted' className='menu-icon' />
           <View className='menu-content'>
             <Text className='menu-title'>欠款对账</Text>
             <Text className='menu-desc'>查看账务统计</Text>

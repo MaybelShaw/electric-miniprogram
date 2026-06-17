@@ -12,6 +12,8 @@ venv/
 *.log
 staticfiles/
 backend/media/*
+backend/backend/media/*
+backend/backend/media.rollback-*
 backend/backend/logs/*
 
 # Node/Taro (if present)
@@ -54,6 +56,8 @@ backend/logs/
 
 #wechat
 frontend/project.config.json
+certs/wechatpay/*
+!certs/wechatpay/.gitkeep
 
 #docs
 回调地址配置.md

@@ -59,6 +59,14 @@ Authorization: Bearer <access_token>
   - 说明：用户类型自动设置为 `wechat`，最后登录时间自动更新
   - 限流：5次/分钟
 
+- `POST /wechat/explicit-login/`
+  - 用途：微信手机号显式登录，用 `code` + `phone_code` 换取 `access/refresh` 令牌与用户信息
+  - 权限：AllowAny
+  - 请求体：`{ "code": string, "phone_code": string }`
+  - 响应：`{ "access": string, "refresh": string, "user": User }`
+  - 说明：首次登录必须携带手机号授权；同一手机号已有账号时会复用该账号。未配置微信凭证时直接返回 `503`
+  - 限流：5次/分钟
+
 - `POST /admin/login/`
   - 用途：管理端用户名密码登录
   - 权限：AllowAny
@@ -133,7 +141,7 @@ Authorization: Bearer <access_token>
 - `GET /products/by_brand/?brand=名称`
   - 用途：按品牌获取商品
   - 权限：AllowAny
-  - 查询参数：`brand` (品牌名称)
+  - 查询参数：`brand` (品牌名称)、`store`/`store_id` (店铺ID，可选)、`category_id` (分类树ID，可选，用于店铺首页“类别 -> 品牌 -> 商品”筛选)
   - 响应：商品列表
 
 - `GET /products/recommendations/`
@@ -483,31 +491,47 @@ Content-Type: application/json
   - 查询参数：`days` (统计天数，默认30)
   - 响应：`{ "date": string(ISO), "new_users": number, "total_users": number }[]`
 
-## 供应商集成（管理员）
+## 海尔与易理货集成
 
-- `GET /suppliers/`
-  - 用途：获取供应商列表
-  - 权限：IsAdminOrReadOnly
-  - 响应：`{ "id": number, "name": string, "is_active": boolean, "created_at": string(ISO) }[]`
+- `GET/POST /api/haier/config/`
+  - 用途：维护海尔接口配置
+  - 权限：管理员
 
-- `POST /suppliers/sync/`
-  - 用途：手动触发供应商数据同步
-  - 权限：IsAdminOrReadOnly
-  - 请求体：`{ "supplier_name": string }`
-  - 响应：`{ "status": "syncing", "sync_id": string }`
-  - 说明：异步执行，返回同步任务ID
+- `POST /api/haier/config/{id}/test_connection/`
+  - 用途：测试海尔配置连通性
+  - 权限：管理员
 
-- `GET /suppliers/sync_logs/`
-  - 用途：获取供应商同步日志
-  - 权限：IsAdminOrReadOnly
-  - 查询参数：`supplier` (供应商名称，可选)
-  - 响应：`{ "id": number, "supplier": string, "sync_type": string, "status": string, "message": string, "created_at": string(ISO) }[]`
+- `GET /api/haier/api/products/`
+  - 用途：查询海尔商品
+  - 权限：管理员
 
-- `GET /suppliers/stock/`
-  - 用途：查询供应商库存
-  - 权限：IsAdminOrReadOnly
-  - 查询参数：`supplier` (供应商名称), `product_code` (商品代码)
-  - 响应：`{ "product_code": string, "stock": number, "last_updated": string(ISO) }`
+- `GET /api/haier/api/price/`
+  - 用途：查询海尔价格
+  - 权限：管理员
+
+- `GET /api/haier/api/stock/`
+  - 用途：查询海尔库存
+  - 权限：管理员
+
+- `GET /api/haier/api/order_status/`
+  - 用途：查询海尔订单状态
+  - 权限：管理员
+
+- `GET /api/haier/api/logistics/`
+  - 用途：查询海尔物流
+  - 权限：管理员
+
+- `GET /api/haier/api/logs/`
+  - 用途：查看海尔同步日志
+  - 权限：管理员
+
+- `POST /api/haier/ylh/callback/`
+  - 用途：接收易理货回调
+  - 权限：按回调签名/业务校验
+
+- `POST /api/haier/ylh/orders/create|cancel|update-time|delivery-images|logistics/`
+  - 用途：易理货订单创建、取消、更新时间、配送图片和物流查询
+  - 权限：内部/集成调用
 
 ## 系统健康检查
 
@@ -524,7 +548,7 @@ Content-Type: application/json
   - `200 OK`
   - `{ "access": "...", "refresh": "...", "user": { "id": 1, "username": "用户_xxx", "avatar_url": "..." } }`
 - 购物车 `my_cart`：
-  - `{ "id": 10, "user": 1, "items": [ { "id": 99, "product": { "id": 1, "name": "海尔冰箱", "price": "2999.00" }, "product_id": 1, "quantity": 2 } ] }`
+  - `{ "id": 10, "user": 1, "items": [ { "id": 99, "product": { "id": 1, "name": "海尔冰箱", "price": "2999.00" }, "product_id": 1, "quantity": 2, "store_id": 2, "store_name": "庆勋愉悦家", "is_available": true, "unavailable_reason": "" } ], "store_groups": [ { "store_id": 2, "store_name": "庆勋愉悦家", "store_logo": "", "store_type": "self_operated", "item_count": 1, "total_quantity": 2, "items": [/* 同 items 项结构 */] } ] }`
 
 ## 请求限流
 
@@ -884,7 +908,7 @@ fetch('/api/admin/login/', {
 
 ```javascript
 // 获取商品列表
-fetch('/api/products/?search=冰箱&sort_by=sales', {
+fetch('/api/catalog/products/?search=冰箱&sort_by=sales', {
   headers: {
     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
   }
@@ -965,17 +989,33 @@ fetch('/api/token/refresh/', {
 ---
 
 
-## 当前实现状态（2025-11-18更新）
+## 当前实现状态（2026-06-06 更新）
 
 ### ✅ 已完整实现的功能
 
 #### 用户认证与授权
 - ✅ `POST /api/login/` - 微信小程序登录
+- ✅ `POST /api/wechat/explicit-login/` - 微信手机号显式登录
 - ✅ `POST /api/password_login/` 或 `/api/admin/login/` - 管理员密码登录
 - ✅ `POST /api/token/refresh/` - JWT Token刷新
 - ✅ `GET /api/user/profile/` - 获取用户资料
 - ✅ `PATCH /api/user/profile/` - 更新用户资料
 - ✅ `GET /api/user/statistics/` - 获取用户统计信息
+
+#### 店铺与商家权限
+- ✅ `GET /api/stores/current/` - 当前账号可访问店铺、默认店铺和成员权限
+- ✅ `GET/POST/PATCH/DELETE /api/stores/` - 店铺管理
+- ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表
+- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要
+- ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
+- ✅ `POST /api/stores/members/create_user_member/` - 创建新的商户后台账号并绑定为店铺管理员；接口强制 `is_staff=true`、`role=admin`、`is_superuser=false`，成员角色只允许 `store_admin`；绑定主店铺时按平台管理员处理，绑定普通店铺时仅有本店权限
+- ✅ `GET /api/stores/members/available_users/` - 可绑定后台账号候选
+- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-groups/` - 店铺客户分组，列表响应包含 `member_count`、`active_member_count`、`price_count`
+- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-members/` - 客户分组成员
+- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-prices/` - 客户分组价格表，支持本地商品和海尔商品的整品价/SKU 价，响应包含 `product_source`、`product_price`、`sku_price` 用于后台标识商品来源和展示默认参考价
+- ✅ `GET/POST/PATCH/DELETE /api/stores/payment-configs/` - 店铺支付配置（平台管理员）
+  - 微信分账字段：`profit_sharing_enabled`、`profit_sharing_receiver_type=MERCHANT_ID`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified`。`wechat_mch_id` 复用为合作方分账接收商户号。
+- ✅ `GET/POST/PATCH/DELETE /api/stores/settlement-rules/` - 店铺结算规则（平台管理员）
 
 #### 收货地址管理
 - ✅ `GET /api/addresses/` - 获取地址列表
@@ -987,51 +1027,57 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/addresses/parse/` - 地址智能解析
 
 #### 商品管理
-- ✅ `GET /api/products/` - 获取商品列表（支持搜索、筛选、排序、分页）
-- ✅ `GET /api/products/{id}/` - 获取商品详情
-- ✅ `GET /api/products/by_category/?category=名称` - 按分类获取商品
-- ✅ `GET /api/products/by_brand/?brand=名称` - 按品牌获取商品
-- ✅ `GET /api/products/recommendations/` - 获取推荐商品
-- ✅ `GET /api/products/{id}/related/` - 获取相关商品
-- ✅ `GET /api/products/search_suggestions/` - 搜索建议
-- ✅ `GET /api/products/hot_keywords/` - 热门关键词
-- ✅ `POST /api/products/` - 创建商品（管理员）
-- ✅ `PUT/PATCH /api/products/{id}/` - 更新商品（管理员）
-- ✅ `DELETE /api/products/{id}/` - 删除商品（管理员）
+- ✅ `GET /api/catalog/products/` - 获取商品列表（支持搜索、筛选、排序、分页）
+- ✅ `GET /api/catalog/products/{id}/` - 获取商品详情
+- ✅ `GET/POST/PATCH/DELETE /api/catalog/product-skus/` - 商品 SKU 管理
+- ✅ `GET /api/catalog/products/by_category/?category=名称` - 按分类获取商品
+- ✅ `GET /api/catalog/products/by_brand/?brand=名称` - 按品牌获取商品，支持 `category_id` 限定分类树
+- ✅ `GET /api/catalog/products/recommendations/` - 获取推荐商品
+- ✅ `GET /api/catalog/products/{id}/related/` - 获取相关商品
+- ✅ `GET /api/catalog/products/search_suggestions/` - 搜索建议
+- ✅ `GET /api/catalog/products/hot_keywords/` - 热门关键词
+- ✅ `POST /api/catalog/products/` - 创建商品（管理员）
+- ✅ `PUT/PATCH /api/catalog/products/{id}/` - 更新商品（管理员）
+- ✅ `DELETE /api/catalog/products/{id}/` - 删除商品（管理员）
 
 #### 分类管理
-- ✅ `GET /api/categories/` - 获取分类列表
-- ✅ `GET /api/categories/{id}/` - 获取分类详情
-- ✅ `POST /api/categories/` - 创建分类（管理员）
-- ✅ `PUT/PATCH /api/categories/{id}/` - 更新分类（管理员）
-- ✅ `DELETE /api/categories/{id}/` - 删除分类（管理员）
+- ✅ `GET /api/catalog/categories/` - 获取分类列表
+- ✅ `GET /api/catalog/categories/{id}/` - 获取分类详情
+- ✅ `POST /api/catalog/categories/` - 创建分类（管理员）
+- ✅ `PUT/PATCH /api/catalog/categories/{id}/` - 更新分类（管理员）
+- ✅ `DELETE /api/catalog/categories/{id}/` - 删除分类（管理员）
 
 #### 品牌管理
-- ✅ `GET /api/brands/` - 获取品牌列表
-- ✅ `GET /api/brands/{id}/` - 获取品牌详情
-- ✅ `POST /api/brands/` - 创建品牌（管理员）
-- ✅ `PUT/PATCH /api/brands/{id}/` - 更新品牌（管理员）
-- ✅ `DELETE /api/brands/{id}/` - 删除品牌（管理员，支持force_delete）
+- ✅ `GET /api/catalog/brands/` - 获取品牌列表
+- ✅ `GET /api/catalog/brands/{id}/` - 获取品牌详情
+- ✅ `POST /api/catalog/brands/` - 创建品牌（管理员）
+- ✅ `PUT/PATCH /api/catalog/brands/{id}/` - 更新品牌（管理员）
+- ✅ `DELETE /api/catalog/brands/{id}/` - 删除品牌（管理员，支持force_delete）
 
 #### 媒体图片管理
-- ✅ `GET /api/media-images/` - 获取图片列表
-- ✅ `POST /api/media-images/` - 上传图片（支持压缩和格式转换）
-- ✅ `GET /api/media-images/{id}/` - 获取图片详情
-- ✅ `DELETE /api/media-images/{id}/` - 删除图片
+- ✅ `GET /api/catalog/media-images/` - 获取图片列表
+- ✅ `POST /api/catalog/media-images/` - 上传图片（支持压缩和格式转换）
+- ✅ `GET /api/catalog/media-images/{id}/` - 获取图片详情
+- ✅ `DELETE /api/catalog/media-images/{id}/` - 删除图片
 
-#### 商品收藏
-- ✅ `GET /api/favorites/` - 获取收藏列表
-- ✅ `POST /api/favorites/` - 添加收藏
-- ✅ `POST /api/favorites/toggle/` - 切换收藏状态
-- ✅ `GET /api/favorites/check/?product_ids=1,2,3` - 批量检查收藏状态
-- ✅ `DELETE /api/favorites/{id}/` - 取消收藏
+#### 首页与活动配置
+- ✅ `GET /api/catalog/home-banners/` - 获取首页/专区轮播图
+- ✅ `POST/PATCH/DELETE /api/catalog/home-banners/` - 管理轮播图
+- ✅ `GET /api/catalog/special-zones/` - 获取动态运营专区，支持 `store`、`kind` 过滤
+- ✅ `POST/PATCH/DELETE /api/catalog/special-zones/` - 管理动态运营专区；店铺管理员仅维护本店 `store_activity`
+- ✅ `GET/POST/DELETE /api/catalog/special-zones/{id}/products/` - 获取或维护专区商品绑定
+- ✅ `GET /api/catalog/home-store-cards/` - 获取平台首页橱窗卡片
+- ✅ `POST/PATCH/DELETE /api/catalog/home-store-cards/` - 管理平台首页橱窗卡片（平台管理员）
+  - 响应包含 `store_type` 与 `store_is_main`，前端可据此将主店铺入口返回平台首页，将合作方店铺入口跳转店铺详情页。
 
 #### 搜索日志
-- ✅ `GET /api/search-logs/` - 获取搜索日志（管理员）
-- ✅ `GET /api/search-logs/hot-keywords/` - 获取热门关键词
+- ✅ `GET /api/catalog/search-logs/` - 获取搜索日志（管理员）
+- ✅ `GET /api/catalog/search-logs/hot-keywords/` - 获取热门关键词
 
 #### 购物车管理
 - ✅ `GET /api/cart/my_cart/` - 获取购物车
+  - 响应保留平铺 `items`，并新增 `store_groups`。`store_groups` 按购物车项加入顺序确定店铺顺序：某店铺最早加入的商品越早，该店铺越靠前。
+  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组、判断主店铺入口和失效/缺货提示。
 - ✅ `POST /api/cart/add_item/` - 添加商品
 - ✅ `POST /api/cart/update_item/` - 更新数量
 - ✅ `POST /api/cart/remove_item/` - 移除商品
@@ -1057,6 +1103,24 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/payments/{id}/cancel/` - 取消支付
 - ✅ `POST /api/payments/{id}/expire/` - 支付过期
 - ✅ `POST /api/payments/callback/{provider}/` - 支付回调（支持mock和wechat）
+- ✅ `POST /api/payments/{id}/sync/` - 主动同步支付状态
+- ✅ `GET /api/profit-sharing-entries/` - 分账流水列表（平台管理员，支持 `status`、`checkout_order`、`store`）
+- ✅ `POST /api/profit-sharing-entries/mark_available/` - 到期冻结流水转可分账
+- ✅ `POST /api/profit-sharing-entries/share/` - 手动发起微信分账，请求体 `{ "entry_ids": [1,2], "unfreeze_unsplit": false }`
+- ✅ `POST /api/profit-sharing-entries/{id}/mark_manual_settled/` - 标记人工结算
+- ✅ `GET /api/wechat-profit-sharing-orders/` - 微信分账请求记录
+- ✅ `POST /api/wechat-profit-sharing-orders/{id}/mark_succeeded/` / `mark_failed/` - 第一版人工同步分账结果
+
+#### 发票与退款
+- ✅ `GET/POST/PATCH/DELETE /api/invoices/` - 发票管理
+- ✅ `GET /api/invoices/my_invoices/` - 当前用户发票列表
+- ✅ `POST /api/invoices/{id}/issue/` - 开具发票
+- ✅ `POST /api/invoices/{id}/cancel/` - 取消发票
+- ✅ `POST /api/invoices/{id}/upload_file/` - 上传发票文件
+- ✅ `GET /api/invoices/{id}/download/` - 下载发票文件
+- ✅ `GET/POST/PATCH/DELETE /api/refunds/` - 退款记录管理
+- ✅ `POST /api/refunds/{id}/start/` - 发起退款
+- ✅ `POST /api/refunds/{id}/fail/` - 标记退款失败
 
 #### 折扣系统
 - ✅ `GET /api/discounts/` - 获取折扣列表
@@ -1067,23 +1131,37 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/discounts/batch_set/` - 批量设置折扣（管理员）
 - ✅ `GET /api/discounts/query_user_products/` - 查询用户商品折扣
 
+#### 问题建议工单
+- ✅ `GET /api/support/feedback-tickets/stores/` - 获取可提交问题建议的启用店铺
+- ✅ `GET /api/support/feedback-tickets/` - 获取问题建议工单列表（按当前账号权限过滤）
+- ✅ `POST /api/support/feedback-tickets/` - 创建问题或需求工单
+- ✅ `GET /api/support/feedback-tickets/{id}/` - 获取工单详情与处理记录
+- ✅ `POST /api/support/feedback-tickets/upload-image/` - 上传工单图片附件
+- ✅ `POST /api/support/feedback-tickets/{id}/supplement/` - 用户补充文字或图片
+- ✅ `POST /api/support/feedback-tickets/{id}/reply/` - 后台回复工单
+- ✅ `POST /api/support/feedback-tickets/{id}/close/` - 关闭工单（店铺管理员/平台管理员）
+- ✅ `GET /api/support/feedback-tickets/stats/` - 获取当前账号可见待处理工单数量
+
+#### 客服聊天与模板
+- ✅ `GET /api/support/chat/conversations/` - 客服会话列表
+- ✅ `GET /api/support/chat/` - 获取会话消息
+- ✅ `POST /api/support/chat/` - 发送文本、图片/视频、订单或商品消息
+- ✅ `POST /api/support/chat/auto-reply/` - 用户侧触发自动回复
+- ✅ `POST /api/support/conversations/{id}/auto-reply/` - 后台手动触发自动回复
+- ✅ `GET/POST/PATCH/DELETE /api/support/reply-templates/` - 回复模板管理
+
 #### 数据分析（管理员）
 - ✅ `GET /api/analytics/sales_summary/` - 销售汇总统计
 - ✅ `GET /api/analytics/top_products/` - 热销商品排行
 - ✅ `GET /api/analytics/daily_sales/` - 每日销售统计
 - ✅ `GET /api/analytics/user_growth/` - 用户增长统计
 
-#### 供应商集成（管理员）
-- ✅ `GET /api/suppliers/` - 获取供应商列表
-- ✅ `POST /api/suppliers/` - 创建供应商配置
-- ✅ `GET /api/suppliers/{id}/` - 获取供应商详情
-- ✅ `PUT/PATCH /api/suppliers/{id}/` - 更新供应商配置
-- ✅ `DELETE /api/suppliers/{id}/` - 删除供应商配置
-- ✅ `POST /api/suppliers/{id}/test/` - 测试供应商连接
-- ✅ `POST /api/supplier-sync/sync-products/` - 同步商品
-- ✅ `POST /api/supplier-sync/sync-stock/` - 同步库存
-- ✅ `POST /api/supplier-sync/push-order/` - 推送订单
-- ✅ `GET /api/supplier-sync/logs/` - 获取同步日志
+#### 海尔与易理货集成（管理员/回调）
+- ✅ `GET/POST/PATCH/DELETE /api/haier/config/` - 海尔配置管理
+- ✅ `POST /api/haier/config/{id}/test_connection/` - 测试海尔连接
+- ✅ `GET /api/haier/api/products|price|stock|order_status|logistics|logs/` - 海尔查询与日志接口
+- ✅ `POST /api/haier/ylh/callback/` - 易理货回调
+- ✅ `POST /api/haier/ylh/orders/create|cancel|update-time|delivery-images|logistics/` - 易理货订单接口
 
 #### 用户管理（管理员）
 - ✅ `GET /api/users/` - 获取用户列表
@@ -1129,10 +1207,6 @@ fetch('/api/token/refresh/', {
 - ✅ id, keyword, user
 - ✅ created_at
 
-#### ProductFavorite（商品收藏）模型
-- ✅ id, user, product
-- ✅ created_at
-
 #### InventoryLog（库存日志）模型
 - ✅ id, product, change_type
 - ✅ quantity, reason, created_by
@@ -1155,19 +1229,21 @@ fetch('/api/token/refresh/', {
 
 ### 🎯 API端点总结
 
-**总计**: 80+ 个API端点
+**总计**: 100+ 个API端点
 - 用户认证: 6个
+- 店铺与商家权限: 11个
 - 商品管理: 12个
 - 分类管理: 5个
 - 品牌管理: 5个
 - 媒体管理: 4个
-- 收藏管理: 5个
 - 购物车: 5个
 - 订单管理: 8个
 - 支付管理: 9个
+- 发票与退款: 9个
 - 折扣系统: 6个
 - 数据分析: 4个
-- 供应商集成: 10个
+- 客服聊天与问题建议: 15个
+- 海尔与易理货集成: 10个
 - 用户管理: 7个
 - 系统功能: 4个
 
@@ -1180,10 +1256,10 @@ curl -X POST http://127.0.0.1:8000/api/login/ \
   -d '{"code":"test_code"}'
 
 # 获取商品列表（带搜索和筛选）
-curl "http://127.0.0.1:8000/api/products/?search=冰箱&category=家电&sort_by=sales&page=1&page_size=20"
+curl "http://127.0.0.1:8000/api/catalog/products/?search=冰箱&category=家电&sort_by=sales&page=1&page_size=20"
 
 # 获取商品详情
-curl http://127.0.0.1:8000/api/products/1/
+curl http://127.0.0.1:8000/api/catalog/products/1/
 
 # 创建订单
 curl -X POST http://127.0.0.1:8000/api/orders/create_order/ \
@@ -1196,7 +1272,7 @@ curl http://127.0.0.1:8000/api/cart/my_cart/ \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 上传图片
-curl -X POST http://127.0.0.1:8000/api/media-images/ \
+curl -X POST http://127.0.0.1:8000/api/catalog/media-images/ \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@image.jpg"
 
@@ -1212,7 +1288,8 @@ open http://127.0.0.1:8000/api/docs/
 | IsAuthenticated | 需要登录 | 购物车、订单、收藏、用户资料 |
 | IsAdminOrReadOnly | 管理员可写，其他只读 | 商品、分类、品牌管理 |
 | IsOwnerOrAdmin | 所有者或管理员 | 订单详情、支付记录 |
-| IsAdmin | 仅管理员 | 用户管理、数据分析、供应商 |
+| IsAdmin | 仅管理员 | 用户管理、数据分析、海尔配置 |
+| StoreMember 权限码 | 店铺后台权限 | 商品、订单、发票、客户分组、问题建议 |
 
 ### 🚀 性能优化
 
@@ -1234,6 +1311,6 @@ open http://127.0.0.1:8000/api/docs/
 
 ---
 
-**最后更新时间**: 2025-11-18 17:00  
+**最后更新时间**: 2026-06-06
 **后端版本**: Django 5.2.7 + DRF 3.16.1  
 **当前状态**: ✅ 所有核心功能已完整实现并测试通过

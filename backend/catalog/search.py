@@ -14,6 +14,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 from .models import Product, SearchLog
+from stores.permissions import get_active_memberships, is_platform_admin
 
 
 class ProductSearchService:
@@ -55,6 +56,9 @@ class ProductSearchService:
         show_in_gift_zone: Optional[bool] = None,
         show_in_designer_zone: Optional[bool] = None,
         show_in_best_seller_zone: Optional[bool] = None,
+        show_in_promotion_zone: Optional[bool] = None,
+        special_zone: Optional[int] = None,
+        store_ids: Optional[List[int]] = None,
         sort_by: str = 'relevance',
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
@@ -73,6 +77,9 @@ class ProductSearchService:
             show_in_gift_zone: Filter by gift zone flag
             show_in_designer_zone: Filter by designer zone flag
             show_in_best_seller_zone: Filter by best seller zone flag
+            show_in_promotion_zone: Filter by promotion zone flag
+            special_zone: Filter by dynamic special zone ID
+            store_ids: Filter by accessible store IDs
             sort_by: Sort strategy (relevance, price_asc, price_desc, sales, created, views)
             page: Page number (1-indexed)
             page_size: Number of results per page
@@ -102,13 +109,20 @@ class ProductSearchService:
         except (ValueError, TypeError):
             page_size = cls.DEFAULT_PAGE_SIZE
         
-        is_staff = bool(user and getattr(user, 'is_staff', False))
+        can_view_inactive = bool(
+            user
+            and getattr(user, 'is_authenticated', False)
+            and (is_platform_admin(user) or get_active_memberships(user).exists())
+        )
 
         # Admin can see all products; regular users see only active ones
-        if is_staff:
+        if can_view_inactive:
             queryset = Product.objects.all()
         else:
             queryset = Product.objects.filter(is_active=True)
+
+        if store_ids is not None:
+            queryset = queryset.filter(store_id__in=store_ids)
         
         # Apply keyword search
         if keyword and keyword.strip():
@@ -145,7 +159,7 @@ class ProductSearchService:
                 pass
 
         if is_active is not None:
-            if is_staff:
+            if can_view_inactive:
                 queryset = queryset.filter(is_active=bool(is_active))
             elif bool(is_active) is True:
                 queryset = queryset.filter(is_active=True)
@@ -158,6 +172,23 @@ class ProductSearchService:
 
         if show_in_best_seller_zone is not None:
             queryset = queryset.filter(show_in_best_seller_zone=bool(show_in_best_seller_zone))
+
+        if show_in_promotion_zone is not None:
+            queryset = queryset.filter(show_in_promotion_zone=bool(show_in_promotion_zone))
+
+        if special_zone is not None:
+            try:
+                special_zone_id = int(special_zone)
+                queryset = queryset.filter(
+                    special_zone_links__zone_id=special_zone_id,
+                    special_zone_links__is_active=True,
+                ).distinct()
+                from .models import SpecialZone
+                zone = SpecialZone.objects.filter(id=special_zone_id).first()
+                if zone and zone.kind == SpecialZone.KIND_STORE_ACTIVITY:
+                    queryset = queryset.filter(store_id=zone.store_id)
+            except (ValueError, TypeError):
+                queryset = queryset.none()
         
         # Apply sorting
         queryset = cls._apply_sorting(queryset, sort_by, keyword)

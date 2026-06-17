@@ -1,5 +1,5 @@
-@import '../../styles/variables.scss';
-@import '../../styles/mixins.scss';
+@use '../../styles/variables.scss' as *;
+@use '../../styles/mixins.scss' as *;
 
 .order-confirm {
   min-height: 100vh;
@@ -20,16 +20,17 @@
   .content {
     flex: 1;
     padding-bottom: 200px;
-    padding-top: $spacing-md;
+    padding-top: 20px;
   }
 
   // 收货地址卡片
   .address-card {
-    background: $white;
-    margin: 0 $spacing-md $spacing-md;
-    padding: $spacing-lg $spacing-md;
+    background: $showroom-surface;
+    margin: 0 24px 20px;
+    padding: 26px 24px;
     border-radius: $border-radius-lg;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
+    border: 1px solid $border-color;
     display: flex;
     align-items: center;
     gap: $spacing-md;
@@ -40,16 +41,17 @@
     }
 
     .address-icon {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, lighten-c($primary-color, 45%) 0%, lighten-c($primary-color, 42%) 100%);
+      width: 58px;
+      height: 58px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: $font-size-xxl;
       flex-shrink: 0;
-      color: $primary-color;
+
+      .app-icon {
+        width: 52px;
+        height: 52px;
+      }
     }
 
     .address-content {
@@ -65,7 +67,7 @@
 
         .contact-name {
           font-size: $font-size-lg;
-          font-weight: bold;
+          font-weight: 600;
           color: $text-color-base;
           max-width: 300px;
           overflow: hidden;
@@ -99,20 +101,78 @@
     }
 
     .arrow-right {
-      font-size: $font-size-lg;
-      color: $text-color-placeholder;
+      width: 16px;
+      height: 16px;
+      border-top: 2px solid $text-color-placeholder;
+      border-right: 2px solid $text-color-placeholder;
+      transform: rotate(45deg);
       flex-shrink: 0;
     }
   }
 
   // 商品卡片
 .order-confirm-product-card {
-  background: $white;
-    margin: 0 24px 24px;
+  background: $showroom-surface;
+    margin: 0 24px 20px;
     border-radius: $border-radius-lg;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
+    border: 1px solid $border-color;
     overflow: hidden;
     padding: 8px 0;
+
+    .order-store-group {
+      border-bottom: 1px solid $background-color-base;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .store-header {
+        min-height: 78px;
+        padding: 0 24px;
+        display: flex;
+        align-items: center;
+        background: rgba($showroom-surface-warm, 0.72);
+        border-bottom: 1px solid $border-color;
+
+        .store-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          margin-right: $spacing-sm;
+          background: $showroom-surface;
+          flex-shrink: 0;
+
+          &.fallback {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $white;
+            background: $brand-ink;
+            font-size: $font-size-sm;
+            font-weight: 600;
+          }
+        }
+
+        .store-name {
+          min-width: 0;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: $font-size-md;
+          font-weight: 600;
+          color: $text-color-base;
+        }
+
+        .store-count {
+          margin-left: $spacing-md;
+          font-size: $font-size-sm;
+          color: $text-color-secondary;
+          flex-shrink: 0;
+        }
+      }
+    }
 
     .product-item {
       padding: 24px;
@@ -127,8 +187,8 @@
       .product-image {
         width: 160px;
         height: 160px;
-        border-radius: 16px;
-        background: $background-color-base;
+        border-radius: $border-radius-md;
+        background: $showroom-surface-warm;
         flex-shrink: 0;
         object-fit: cover;
       }
@@ -154,9 +214,9 @@
         .product-spec {
           font-size: $font-size-sm;
           color: $text-color-secondary;
-          background: $background-color-base;
+          background: $showroom-surface-warm;
           padding: 4px 12px;
-          border-radius: $border-radius-md;
+          border-radius: $border-radius-max;
           align-self: flex-start;
           margin-top: 8px;
         }
@@ -180,7 +240,7 @@
             .price-value {
               font-size: 36px;
               color: $danger-color;
-              font-weight: bold;
+              font-weight: 700;
               font-family: 'DIN Alternate', sans-serif;
             }
           }
@@ -188,9 +248,9 @@
           .quantity-text {
             font-size: 26px;
             color: $text-color-secondary;
-            background: $background-color-base;
+            background: $showroom-surface-warm;
             padding: 4px 16px;
-            border-radius: 20px;
+            border-radius: $border-radius-max;
             font-family: 'DIN Alternate', sans-serif;
           }
         }
@@ -200,15 +260,16 @@
 
   // 支付方式卡片
   .payment-card {
-    background: $white;
+    background: $showroom-surface;
     margin: 0 24px 24px;
     padding: 32px 24px;
     border-radius: $border-radius-lg;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
+    border: 1px solid $border-color;
 
     .payment-label {
       font-size: 30px;
-      font-weight: bold;
+      font-weight: 600;
       color: $text-color-base;
       display: block;
       margin-bottom: 24px;
@@ -226,12 +287,12 @@
       gap: 20px;
       padding: 24px;
       border: 2px solid $border-color;
-      border-radius: 16px;
+      border-radius: $border-radius-lg;
       transition: all 0.3s;
 
       &.active {
         border-color: $primary-color;
-        background: lighten-c($primary-color, 48%);
+        background: $brand-sage-light;
       }
 
       .option-radio {
@@ -280,18 +341,19 @@
 
   // 备注卡片
   .note-card {
-    background: $white;
+    background: $showroom-surface;
     margin: 0 24px 24px;
     padding: 32px 24px;
     border-radius: $border-radius-lg;
-    box-shadow: $shadow-sm;
+    box-shadow: none;
+    border: 1px solid $border-color;
     display: flex;
     align-items: center;
     gap: 24px;
 
     .note-label {
       font-size: 30px;
-      font-weight: bold;
+      font-weight: 600;
       color: $text-color-base;
       width: 80px;
       flex-shrink: 0;
@@ -305,8 +367,12 @@
     }
 
     .arrow-right {
-      font-size: $font-size-lg;
-      color: $text-color-placeholder;
+      width: 16px;
+      height: 16px;
+      border-top: 2px solid $text-color-placeholder;
+      border-right: 2px solid $text-color-placeholder;
+      transform: rotate(45deg);
+      flex-shrink: 0;
     }
   }
 
@@ -320,11 +386,12 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba($showroom-surface, 0.96);
     backdrop-filter: blur(10px);
     padding: 16px 32px;
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    box-shadow: $shadow-top;
+    border-top: 1px solid $border-color;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -359,18 +426,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, $danger-color 0%, darken-c($danger-color, 10%) 100%);
+      background: $brand-ink;
       color: $white;
       font-size: 32px;
       font-weight: 600;
-      border-radius: 44px;
+      border-radius: $border-radius-max;
       white-space: nowrap;
-      box-shadow: 0 8px 24px rgba($danger-color, 0.25);
+      box-shadow: 0 12px 26px rgba($brand-ink, 0.14);
       transition: all 0.2s;
 
       &:active {
         transform: scale(0.96);
-        box-shadow: 0 4px 12px rgba($danger-color, 0.2);
+        background: lighten-c($brand-ink, 4%);
       }
     }
   }

@@ -12,6 +12,114 @@ export interface User {
     company_name?: string;
     status?: string;
   } | null;
+  store_roles?: {
+    store: number;
+    store_name: string;
+    store_is_main?: boolean;
+    role: 'platform_admin' | 'store_admin' | 'store_sub_admin' | 'store_staff';
+    permissions?: string[];
+    status: 'active' | 'disabled';
+  }[];
+}
+
+export interface Store {
+  id: number;
+  name: string;
+  code: string;
+  status: 'active' | 'disabled';
+  is_main: boolean;
+  store_type?: 'self_operated' | 'partner' | 'supplier';
+  logo?: string;
+  cover_image?: string;
+  description?: string;
+  show_on_home?: boolean;
+  home_order?: number;
+  contact_phone?: string;
+  address?: string;
+  allow_haier: boolean;
+  show_customer_group_name?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreMember {
+  id: number;
+  user: number;
+  username: string;
+  store: number;
+  store_name: string;
+  store_is_main?: boolean;
+  role: 'platform_admin' | 'store_admin' | 'store_sub_admin' | 'store_staff';
+  permissions?: string[];
+  status: 'active' | 'disabled';
+}
+
+export interface CurrentStoreContext {
+  is_platform_admin: boolean;
+  default_store: Store | null;
+  stores: Store[];
+  memberships: StoreMember[];
+}
+
+export type ProfitSharingEntryStatus =
+  | 'platform_retained'
+  | 'pending_receiver_config'
+  | 'frozen'
+  | 'available'
+  | 'available_for_manual_share'
+  | 'processing'
+  | 'shared'
+  | 'failed'
+  | 'manual_settled'
+  | 'manual_settlement_required'
+  | 'cancelled';
+
+export interface StoreProfitSharingEntry {
+  id: number;
+  checkout_order: number;
+  checkout_number: string;
+  payment: number;
+  order: number;
+  suborder: number;
+  suborder_number: string;
+  store: number;
+  store_name: string;
+  store_type_snapshot: string;
+  gross_amount: string | number;
+  commission_rate_snapshot: string | number;
+  commission_amount: string | number;
+  sharing_amount: string | number;
+  retained_amount: string | number;
+  receiver_type: string;
+  receiver_account: string;
+  receiver_name_snapshot: string;
+  status: ProfitSharingEntryStatus;
+  available_at: string | null;
+  shared_at: string | null;
+  failure_reason: string;
+  logs: Record<string, any>[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type WechatProfitSharingOrderStatus = 'processing' | 'shared' | 'failed' | 'closed';
+
+export interface WechatProfitSharingOrder {
+  id: number;
+  payment: number;
+  checkout_order: number;
+  entry_ids: number[];
+  out_order_no: string;
+  transaction_id: string;
+  receivers: Record<string, any>[];
+  amount: string | number;
+  unfreeze_unsplit: boolean;
+  status: WechatProfitSharingOrderStatus;
+  wechat_response: Record<string, any>;
+  error_message: string;
+  operator: number | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Brand {
@@ -42,6 +150,7 @@ export interface Product {
   stock: number;
   main_images?: string[];
   detail_images?: string[];
+  specifications?: Record<string, string | number | boolean>;
   is_active: boolean;
   sales_count?: number;
   view_count?: number;
@@ -64,6 +173,164 @@ export interface Product {
   show_in_gift_zone?: boolean;
   show_in_designer_zone?: boolean;
   show_in_best_seller_zone?: boolean;
+  show_in_promotion_zone?: boolean;
+  store?: number;
+  display_price?: string | number;
+  discounted_price?: string | number;
+  customer_group_id?: number | null;
+  customer_group_name?: string;
+  show_customer_group_name?: boolean;
+}
+
+export interface ProductSKU {
+  id: number;
+  product: number;
+  product_id?: number;
+  product_name: string;
+  name: string;
+  sku_code: string;
+  specs: Record<string, string | number | boolean>;
+  price: string | number;
+  display_price?: string | number;
+  discounted_price?: string | number;
+  stock: number;
+  image: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroup {
+  id: number;
+  store: number;
+  store_name?: string;
+  name: string;
+  description?: string;
+  status: 'active' | 'disabled';
+  member_count?: number;
+  active_member_count?: number;
+  price_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroupMember {
+  id: number;
+  store: number;
+  store_name?: string;
+  group: number;
+  group_name?: string;
+  user?: number | null;
+  username?: string | null;
+  phone: string;
+  status: 'active' | 'disabled';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreCustomerGroupPrice {
+  id: number;
+  store: number;
+  group: number;
+  group_name?: string;
+  product: number;
+  product_name?: string;
+  product_source?: 'local' | 'haier';
+  product_price?: string | number;
+  sku?: number | null;
+  sku_name?: string | null;
+  sku_code?: string | null;
+  sku_price?: string | number | null;
+  price: string | number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MediaImage {
+  id: number;
+  file?: string;
+  url: string;
+  original_name: string;
+  content_type: string;
+  size: number;
+  created_at: string;
+}
+
+export interface SearchLog {
+  id: number;
+  keyword: string;
+  user_id?: number | null;
+  username?: string | null;
+  created_at: string;
+}
+
+export interface InventoryLog {
+  id: number;
+  product: number;
+  product_name: string;
+  sku?: number | null;
+  sku_name?: string | null;
+  change_type: 'lock' | 'release' | 'adjust';
+  change_type_display: string;
+  quantity: number;
+  reason: string;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  created_at: string;
+}
+
+export interface SpecialZone {
+  id: number;
+  store: number;
+  store_id?: number;
+  title: string;
+  slug: string;
+  kind: 'platform_activity' | 'store_activity' | 'activity' | 'promotion' | 'category' | 'brand' | 'custom';
+  subtitle: string;
+  cover_image: string;
+  is_active: boolean;
+  show_on_home: boolean;
+  home_order: number;
+  description?: string;
+  rules?: string;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SpecialZoneProduct {
+  id: number;
+  zone: number;
+  product: Product;
+  product_id: number;
+  is_active: boolean;
+  order: number;
+  created_at: string;
+}
+
+export interface ProductActivities {
+  available: SpecialZone[];
+  selected: SpecialZone[];
+  can_edit: boolean;
+}
+
+export interface HomeStoreCard {
+  id: number;
+  store: number;
+  store_id?: number;
+  store_name?: string;
+  title: string;
+  subtitle: string;
+  order: number;
+  is_active: boolean;
+  main_product?: Product | null;
+  secondary_products: Product[];
+  categories: Category[];
+  has_inactive_products: boolean;
+  inactive_product_names: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface HaierOrderInfo {
@@ -182,13 +449,16 @@ export interface PaginationResult<T> {
 export interface HomeBanner {
   id: number;
   title: string;
-  position: 'home' | 'gift' | 'designer';
+  position: 'home' | 'gift' | 'designer' | 'best_seller' | 'promotion';
   order: number;
   is_active: boolean;
   image_id: number;
   image_url: string;
   product_id?: number | null;
   product_name?: string;
+  special_zone?: number | null;
+  special_zone_id?: number | null;
+  store?: number;
   created_at: string;
   updated_at: string;
 }
@@ -199,6 +469,7 @@ export interface SpecialZoneCover {
   is_active: boolean;
   image_id: number;
   image_url: string;
+  store?: number;
   created_at: string;
   updated_at: string;
 }
@@ -267,6 +538,44 @@ export interface SupportReplyTemplate {
   sort_order?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export type FeedbackTicketType = 'question' | 'requirement';
+export type FeedbackTicketStatus = 'pending' | 'replied' | 'closed';
+export type FeedbackRecordType = 'user_supplement' | 'merchant_reply' | 'close';
+
+export interface FeedbackTicketReply {
+  id: number;
+  ticket: number;
+  sender: number;
+  sender_username: string;
+  record_type: FeedbackRecordType;
+  record_type_display: string;
+  content: string;
+  attachments: string[];
+  created_at: string;
+}
+
+export interface FeedbackTicket {
+  id: number;
+  ticket_number: string;
+  store: number;
+  store_name: string;
+  user: number;
+  user_username: string;
+  user_phone?: string;
+  ticket_type: FeedbackTicketType;
+  ticket_type_display: string;
+  title: string;
+  content: string;
+  contact_phone: string;
+  attachments: string[];
+  status: FeedbackTicketStatus;
+  status_display: string;
+  last_replied_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  replies: FeedbackTicketReply[];
 }
 
 export interface CaseDetailBlock {

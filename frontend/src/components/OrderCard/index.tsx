@@ -2,7 +2,9 @@ import { View, Image, Text } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import { Order } from '../../types'
 import { formatPrice, getOrderStatusText, formatTime } from '../../utils/format'
-import { BASE_URL } from '../../utils/request'
+import { resolveLocalMediaUrl } from '../../utils/media'
+import PriceText from '../PriceText'
+import StatusBadge from '../StatusBadge'
 import './index.scss'
 
 interface OrderCardProps {
@@ -24,17 +26,8 @@ export default function OrderCard({
   const [timeLeft, setTimeLeft] = useState('')
   const primaryItem = order.items && order.items.length > 0 ? order.items[0] : null
   const displayProduct = primaryItem?.product || order.product
-  const resolveImageUrl = (url?: string) => {
-    if (!url) return ''
-    if (url.startsWith('https://')) return url
-    if (url.startsWith('http://')) return `https://${url.slice(7)}`
-    if (url.startsWith('//')) return `https:${url}`
-    const base = BASE_URL.replace(/\/api\/?$/, '')
-    if (url.startsWith('/')) return `${base}${url}`
-    return `${base}/${url}`
-  }
-  const displayImage = resolveImageUrl(primaryItem?.snapshot_image) ||
-    resolveImageUrl(displayProduct?.main_images?.[0]) ||
+  const displayImage = resolveLocalMediaUrl(primaryItem?.snapshot_image) ||
+    resolveLocalMediaUrl(displayProduct?.main_images?.[0]) ||
     '/assets/icons/product.png'
   const specsText = primaryItem?.sku_specs ? Object.values(primaryItem.sku_specs).join(' / ') : ''
   const resolveNumber = (value: any) => {
@@ -121,7 +114,7 @@ export default function OrderCard({
   const getStatusClass = () => {
     if (order.return_info) {
       if (order.return_info.status === 'rejected') return 'cancelled';
-      return 'returning'; // You might need to add this class to OrderCard.scss too
+      return 'returning';
     }
     if (order.refund_pending) {
       return 'refunding'
@@ -132,6 +125,16 @@ export default function OrderCard({
     return order.status;
   }
 
+  const getStatusVariant = () => {
+    const statusClass = getStatusClass()
+    if (statusClass === 'pending') return 'warning'
+    if (statusClass === 'paid' || statusClass === 'shipped') return 'primary'
+    if (statusClass === 'completed' || statusClass === 'refunded') return 'success'
+    if (statusClass === 'returning' || statusClass === 'refunding') return 'info'
+    if (statusClass === 'cancelled') return 'muted'
+    return 'default'
+  }
+
   return (
     <View className='order-card' onClick={handleCardClick}>
       <View className='order-header'>
@@ -140,7 +143,9 @@ export default function OrderCard({
         ) : (
           <Text className='order-time'>{formatTime(order.created_at)}</Text>
         )}
-        <Text className={`order-status ${getStatusClass()}`}>{getDisplayStatus()}</Text>
+        <StatusBadge variant={getStatusVariant()} className={`order-status ${getStatusClass()}`}>
+          {getDisplayStatus()}
+        </StatusBadge>
       </View>
       
       <View className='order-content'>
@@ -158,13 +163,15 @@ export default function OrderCard({
           </View>
           {specsText ? <View className='product-spec'>{specsText}</View> : null}
           <View className='product-bottom'>
-            <View className='product-price'>
-              {formatPrice(
+            <PriceText
+              className='product-price'
+              size='sm'
+              value={
                 primaryItem
                   ? primaryItem.unit_price
                   : (order.product?.price || 0)
-              )}
-            </View>
+              }
+            />
             <View className='product-quantity'>x{order.quantity || 0}</View>
           </View>
         </View>
@@ -172,12 +179,12 @@ export default function OrderCard({
 
       <View className='order-total'>
         <Text className='label'>实付款</Text>
-        <Text className='amount'>{formatPrice(order.actual_amount || order.total_amount)}</Text>
+        <PriceText className='amount' size='md' value={order.actual_amount || order.total_amount} />
       </View>
       {refundedAmount > 0 && (
         <View className='order-total refund'>
           <Text className='label'>已退款</Text>
-          <Text className='amount'>{formatPrice(refundedAmount)}</Text>
+        <PriceText className='amount' size='sm' value={refundedAmount} />
         </View>
       )}
       

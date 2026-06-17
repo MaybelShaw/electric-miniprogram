@@ -4,6 +4,8 @@ import Taro from '@tarojs/taro'
 import { orderService } from '../../services/order'
 import { paymentService } from '../../services/payment'
 import { Order } from '../../types'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
 import OrderCard from '../../components/OrderCard'
 import { openWechatConfirmReceipt, resolveTransactionIdFromPayment } from '../../utils/wechat-confirm-receipt'
 import './index.scss'
@@ -224,9 +226,7 @@ export default function OrderList() {
           </View>
         )}
         {!error && !loading && (!orders || orders.length === 0) ? (
-          <View className='empty'>
-            <Text className='empty-text'>暂无订单</Text>
-          </View>
+          <EmptyState title='暂无订单' icon='order' />
         ) : (
           orders && orders.map(order => (
             <OrderCard
@@ -239,7 +239,7 @@ export default function OrderList() {
             />
           ))
         )}
-        {loading && <View className='loading-text'>加载中...</View>}
+        {loading && <LoadingState text='加载中...' />}
         {!hasMore && orders && orders.length > 0 && <View className='loading-text'>没有更多了</View>}
       </ScrollView>
     </View>

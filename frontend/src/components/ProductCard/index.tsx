@@ -1,14 +1,18 @@
 import { View, Image, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Product } from '../../types'
-import { formatPrice } from '../../utils/format'
+import { resolveLocalMediaUrl } from '../../utils/media'
+import AppIcon from '../AppIcon'
+import PriceText from '../PriceText'
 import './index.scss'
 
 interface ProductCardProps {
   product: Product
+  variant?: 'grid' | 'list' | 'compact'
+  onAddCart?: (product: Product, event: any) => void
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, variant = 'grid', onAddCart }: ProductCardProps) {
   // 跳转商品详情
   const goToDetail = () => {
     Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}` })
@@ -28,32 +32,46 @@ export default function ProductCard({ product }: ProductCardProps) {
   }
 
   const tagText = getTagText(product.tag)
+  const productImage = resolveLocalMediaUrl(product.main_images?.[0])
+  const stock = Number(product.stock ?? 0)
+  const stockText = Number.isFinite(stock) ? `库存 ${Math.max(stock, 0)}` : '库存待同步'
 
   return (
-    <View className='product-card' onClick={goToDetail}>
-      {/* 商品图片 */}
+    <View className={`product-card product-card--${variant}`} onClick={goToDetail}>
       <View className='product-image-wrapper'>
-        <Image 
-          className='product-image' 
-          src={product.main_images?.[0] || 'https://via.placeholder.com/330x330/FFFFFF/CCCCCC?text=No+Image'} 
-          mode='aspectFill' 
-        />
+        {productImage ? (
+          <Image
+            className='product-image'
+            src={productImage}
+            mode='aspectFill'
+          />
+        ) : (
+          <View className='product-image-placeholder'>
+            <AppIcon name='package' tone='muted' />
+            <Text>暂无图片</Text>
+          </View>
+        )}
       </View>
 
-      {/* 商品信息 */}
       <View className='product-info'>
-        {/* 商品名称 */}
+        {(product.brand || tagText) ? (
+          <View className='product-meta-row'>
+            {product.brand ? <Text className='product-brand'>{product.brand}</Text> : null}
+            {tagText ? <Text className='product-tag'>{tagText}</Text> : null}
+          </View>
+        ) : null}
         <View className='product-name'>
-          {tagText && <Text className='product-tag'>{tagText}</Text>}
           <Text>{product.name}</Text>
         </View>
-        
-        {/* 价格 */}
+
         <View className='product-bottom'>
-          <View className='price-wrapper'>
-            <Text className='currency'>¥</Text>
-            <Text className='current-price'>{Number(sellingPrice)}</Text>
-          </View>
+          <PriceText value={sellingPrice} size={variant === 'compact' ? 'sm' : 'md'} />
+          <Text className={`product-stock ${stock <= 0 ? 'product-stock--empty' : ''}`}>{stockText}</Text>
+          {onAddCart ? (
+            <View className='product-add-btn' onClick={(event) => onAddCart(product, event)}>
+              <AppIcon name='add' tone='primary' />
+            </View>
+          ) : null}
         </View>
       </View>
     </View>

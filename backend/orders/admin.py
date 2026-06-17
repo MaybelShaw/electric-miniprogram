@@ -1,6 +1,10 @@
 from django.contrib import admin
 from .models import (
+    CheckoutOrder,
     Order,
+    OrderItem,
+    SubOrder,
+    SubOrderItem,
     Cart,
     CartItem,
     Discount,
@@ -10,7 +14,10 @@ from .models import (
     Payment,
     Refund,
     OrderShippingAction,
+    StoreProfitSharingEntry,
+    WechatProfitSharingOrder,
     OrderStatusHistory,
+    OrderShippingSync,
 )
 
 # Register your models here.
@@ -18,6 +25,21 @@ from .models import (
 class DiscountTargetInline(admin.TabularInline):
     model = DiscountTarget
     extra = 0
+
+
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+    fields = ("product", "sku", "product_name", "quantity", "unit_price", "actual_amount", "created_at")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(CheckoutOrder)
+class CheckoutOrderAdmin(admin.ModelAdmin):
+    list_display = ("checkout_number", "user", "status", "payment_status", "total_amount", "actual_amount", "created_at")
+    list_filter = ("status", "payment_status", "created_at")
+    search_fields = ("checkout_number", "payment_number", "user__username", "snapshot_phone")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Discount)
@@ -31,8 +53,32 @@ class DiscountAdmin(admin.ModelAdmin):
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ("order_number", "user", "product", "quantity", "total_amount", "status", "created_at")
-    list_filter = ("status",)
+    list_filter = ("store", "status", "order_type", "created_at")
     search_fields = ("order_number", "user__username")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [OrderItemInline]
+
+
+@admin.register(OrderItem)
+class OrderItemAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "product_name", "sku", "quantity", "unit_price", "actual_amount", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("order__order_number", "product_name", "sku_code")
+
+
+@admin.register(SubOrder)
+class SubOrderAdmin(admin.ModelAdmin):
+    list_display = ("suborder_number", "checkout_order", "legacy_order", "store", "product", "status", "actual_amount", "created_at")
+    list_filter = ("store", "status", "created_at")
+    search_fields = ("suborder_number", "checkout_order__checkout_number", "legacy_order__order_number")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(SubOrderItem)
+class SubOrderItemAdmin(admin.ModelAdmin):
+    list_display = ("id", "suborder", "product_name", "sku", "quantity", "unit_price", "actual_amount", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("suborder__suborder_number", "product_name", "sku_code")
 
 
 @admin.register(Cart)
@@ -62,10 +108,28 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ("id", "order", "amount", "method", "status", "created_at", "expires_at")
-    list_filter = ("status", "method", "created_at")
+    list_display = ("id", "order", "amount", "method", "status", "profit_sharing_required", "profit_sharing_status", "created_at", "expires_at")
+    list_filter = ("status", "method", "profit_sharing_required", "profit_sharing_status", "created_at")
     search_fields = ("id", "order__order_number", "order__user__username")
     list_select_related = ("order", "order__user")
+
+
+@admin.register(StoreProfitSharingEntry)
+class StoreProfitSharingEntryAdmin(admin.ModelAdmin):
+    list_display = ("id", "checkout_order", "suborder", "store", "status", "sharing_amount", "available_at", "shared_at")
+    list_filter = ("status", "store_type_snapshot", "created_at", "available_at")
+    search_fields = ("id", "checkout_order__checkout_number", "suborder__suborder_number", "store__name", "receiver_account")
+    list_select_related = ("checkout_order", "payment", "suborder", "store")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(WechatProfitSharingOrder)
+class WechatProfitSharingOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "out_order_no", "checkout_order", "payment", "amount", "unfreeze_unsplit", "status", "created_at")
+    list_filter = ("status", "unfreeze_unsplit", "created_at")
+    search_fields = ("out_order_no", "checkout_order__checkout_number", "payment__id", "transaction_id")
+    list_select_related = ("checkout_order", "payment", "operator")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Refund)
@@ -82,6 +146,14 @@ class OrderStatusHistoryAdmin(admin.ModelAdmin):
     list_filter = ("from_status", "to_status", "created_at")
     search_fields = ("order__order_number", "operator__username", "note")
     list_select_related = ("order", "operator", "order__user")
+
+
+@admin.register(OrderShippingSync)
+class OrderShippingSyncAdmin(admin.ModelAdmin):
+    list_display = ("id", "order", "status", "retry_count", "next_retry_at", "created_at", "updated_at")
+    list_filter = ("status", "created_at", "next_retry_at")
+    search_fields = ("order__order_number", "error")
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(OrderShippingAction)

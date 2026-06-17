@@ -1,4 +1,4 @@
-@import '../../styles/variables.scss';
+@use '../../styles/variables.scss' as *;
 
 .brand-list-page {
   min-height: 100vh;
@@ -15,10 +15,11 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: #fff;
+      background: $showroom-surface;
       padding: $spacing-md;
-      border-radius: $spacing-md;
-      box-shadow: $shadow-sm;
+      border-radius: $border-radius-lg;
+      border: 1px solid rgba($border-color, 0.9);
+      box-shadow: none;
       transition: all 0.3s ease;
       height: 100%; // Ensure equal height in grid
       box-sizing: border-box;
