@@ -7,9 +7,23 @@ from django.db import migrations, models
 
 def remove_category_unique_constraint(apps, schema_editor):
     Category = apps.get_model('catalog', 'Category')
+    constraint_name = 'unique_category_level_parent_name'
+    if schema_editor.connection.vendor == 'postgresql':
+        schema_editor.execute(
+            'ALTER TABLE %s DROP CONSTRAINT IF EXISTS %s'
+            % (
+                schema_editor.quote_name(Category._meta.db_table),
+                schema_editor.quote_name(constraint_name),
+            )
+        )
+        schema_editor.execute(
+            'DROP INDEX IF EXISTS %s' % schema_editor.quote_name(constraint_name)
+        )
+        return
+
     constraint = models.UniqueConstraint(
         fields=('level', 'parent', 'name'),
-        name='unique_category_level_parent_name',
+        name=constraint_name,
     )
     with schema_editor.connection.cursor() as cursor:
         constraints = schema_editor.connection.introspection.get_constraints(

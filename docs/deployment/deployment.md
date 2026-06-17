@@ -257,7 +257,7 @@
 - CORS 报错：确保生产 `CORS_ALLOWED_ORIGINS` 包含前端域名（`backend/backend/settings/production.py:23-26`）。
 - 强制 HTTPS：生产 Nginx 暴露 `80/443`，`80` 会返回 `301` 跳转到同域名 HTTPS；`backend.settings.production` 默认开启 `SECURE_SSL_REDIRECT=True`，并通过 `SECURE_PROXY_SSL_HEADER` 信任 Nginx 传入的 `X-Forwarded-Proto`。
 - 数据库健康检查未通过：等待 `db` 的 `pg_isready` 通过后端再启动（Compose `depends_on` 已配置健康依赖）。
-- 迁移时报 `constraint "unique_category_level_parent_name" of relation "catalog_category" does not exist`：更新到包含 `catalog.0037` 兼容修复的版本后重新构建并启动 `backend`。该迁移会先检查旧约束是否存在，存在才删除，随后继续添加店铺字段与新约束；重试前仍应先执行 `bash deploy/backup_production.sh`。
+- 迁移时报 `constraint "unique_category_level_parent_name" of relation "catalog_category" does not exist`：更新到包含 `catalog.0037` 兼容修复的版本后重新构建并启动 `backend`。该迁移会幂等删除旧约束，并清理可能残留的同名唯一索引，随后继续添加店铺字段与新约束；重试前仍应先执行 `bash deploy/backup_production.sh`。
 - 端口冲突：调整宿主映射或停止占用端口的进程。
 
 ## 安全建议
