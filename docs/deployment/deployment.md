@@ -222,14 +222,16 @@
   ```bash
   docker compose -f docker/docker-compose.prod.yaml exec db psql -U electric -d electric_miniprogram
   ```
-- 备份：
+- 备份数据库与媒体文件（推荐）：
   ```bash
-  docker compose -f docker/docker-compose.prod.yaml exec db pg_dump -U electric electric_miniprogram > backup.sql
+  bash deploy/backup_production.sh
   ```
-- 恢复：
+  默认生成到 `/var/backups/electric-miniprogram/<timestamp>/`，包含 `database.dump`、`media.tar.gz`、`manifest.txt`。
+- 从备份回溯数据库与媒体文件：
   ```bash
-  cat backup.sql | docker compose -f docker/docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
+  bash deploy/restore_production.sh /var/backups/electric-miniprogram/<timestamp> --yes
   ```
+  恢复脚本会先停止 `backend/nginx/merchant-build`，清空 PostgreSQL `public` schema 后导入 `database.dump`，并把当前媒体目录移动到 `backend/backend/media.rollback-<timestamp>` 后再恢复备份媒体。
 - 创建管理员：
   ```bash
   docker compose -f docker/docker-compose.prod.yaml exec backend uv run python manage.py createsuperuser
@@ -318,9 +320,9 @@ server {
   - 前端验证：访问预发布入口，确认主要页面与功能可用。
 
 ### 生产升级（最小停机流程）
-- 1. 备份数据库：
+- 1. 备份数据库与媒体文件：
   ```bash
-  docker compose -f docker/docker-compose.prod.yaml exec -T db pg_dump -U electric electric_miniprogram > backup-$(date +%F-%H%M).sql
+  bash deploy/backup_production.sh
   ```
 - 2. 构建生产镜像：
   ```bash
@@ -364,9 +366,9 @@ server {
     docker compose -f docker/docker-compose.prod.yaml build backend nginx merchant-build
     docker compose -f docker/docker-compose.prod.yaml up -d
     ```
-  - 如数据库迁移导致问题，使用备份文件恢复：
+  - 如数据库迁移或媒体文件写入导致问题，使用备份快照恢复：
     ```bash
-    cat backup-<timestamp>.sql | docker compose -f docker/docker-compose.prod.yaml exec -T db psql -U electric -d electric_miniprogram
+    bash deploy/restore_production.sh /var/backups/electric-miniprogram/<timestamp> --yes
     ```
 
 ### 版本与镜像
