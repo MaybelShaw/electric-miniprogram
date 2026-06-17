@@ -1,8 +1,9 @@
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Count, Q
 
 from .models import (
     Store,
@@ -43,23 +44,11 @@ class PublicPartnerStoreListAPIView(generics.ListAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        platform_id = self.request.query_params.get("platform") or self.request.query_params.get("platform_store")
-        platform = None
-        if platform_id not in (None, ""):
-            try:
-                platform = Store.objects.get(id=int(platform_id), status=Store.STATUS_ACTIVE)
-            except (Store.DoesNotExist, ValueError, TypeError):
-                return Store.objects.none()
-        else:
-            platform = Store.objects.filter(is_main=True, status=Store.STATUS_ACTIVE).first()
-
         qs = Store.objects.filter(
             status=Store.STATUS_ACTIVE,
             store_type=Store.TYPE_PARTNER,
             show_on_home=True,
         )
-        if platform is not None:
-            qs = qs.filter(platform_store=platform)
         return qs.order_by("home_order", "id")
 
 
@@ -208,6 +197,63 @@ class StoreMemberViewSet(viewsets.ModelViewSet):
         self._ensure_can_manage_member(instance.store, instance.role)
         instance.delete()
 
+    @action(detail=False, methods=["post"])
+    def create_user_member(self, request):
+        data = request.data
+        username = (data.get("username") or "").strip()
+        password = data.get("password") or ""
+        phone = (data.get("phone") or "").strip()
+        email = (data.get("email") or "").strip()
+        status_value = data.get("status") or StoreMember.STATUS_ACTIVE
+        store_id = data.get("store")
+        role = data.get("role") or StoreMember.ROLE_STORE_ADMIN
+
+        if role != StoreMember.ROLE_STORE_ADMIN:
+            raise ValidationError({"role": "只能创建店铺管理员。"})
+        if status_value not in dict(StoreMember.STATUS_CHOICES):
+            raise ValidationError({"status": "成员状态无效。"})
+        if not username:
+            raise ValidationError({"username": "请输入用户名。"})
+        if not password:
+            raise ValidationError({"password": "请输入密码。"})
+        if not store_id:
+            raise ValidationError({"store": "请选择店铺。"})
+
+        try:
+            store = Store.objects.get(pk=store_id)
+        except (Store.DoesNotExist, ValueError, TypeError):
+            raise ValidationError({"store": "店铺不存在。"})
+
+        self._ensure_can_manage_member(store, StoreMember.ROLE_STORE_ADMIN)
+
+        from users.models import User
+
+        if User.objects.filter(username=username).exists():
+            raise ValidationError({"username": "用户名已存在。"})
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                phone=phone or None,
+                email=email or None,
+                role="admin",
+                is_staff=True,
+                is_superuser=False,
+            )
+            serializer = self.get_serializer(
+                data={
+                    "user": user.id,
+                    "store": store.id,
+                    "role": StoreMember.ROLE_STORE_ADMIN,
+                    "status": status_value,
+                }
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=["get"])
     def available_users(self, request):
         if not is_platform_admin(request.user):
@@ -259,7 +305,20 @@ class StoreCustomerGroupViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         stores = _stores_with_customer_group_permission(self.request.user)
-        qs = StoreCustomerGroup.objects.select_related("store").filter(store__in=stores).order_by("store_id", "id")
+        qs = (
+            StoreCustomerGroup.objects.select_related("store")
+            .filter(store__in=stores)
+            .annotate(
+                member_count=Count("members", distinct=True),
+                active_member_count=Count(
+                    "members",
+                    filter=Q(members__status=StoreCustomerGroupMember.STATUS_ACTIVE),
+                    distinct=True,
+                ),
+                price_count=Count("prices", distinct=True),
+            )
+            .order_by("store_id", "id")
+        )
         store_id = self.request.query_params.get("store") or self.request.query_params.get("store_id")
         if store_id not in (None, ""):
             qs = qs.filter(store_id=store_id)

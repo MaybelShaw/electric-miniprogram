@@ -44,8 +44,7 @@ def _get_best_discount_rule(user, product):
 def resolve_base_price(user, product, sku=None):
     """Resolve base price for a user and optional SKU.
 
-    Store customer group prices take precedence for local products. Haier products
-    intentionally keep the existing price behavior.
+    Store customer group prices take precedence for both local and Haier products.
     """
     try:
         from stores.pricing import resolve_customer_group_price

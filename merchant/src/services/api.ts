@@ -22,6 +22,7 @@ export const updateStore = (id: number, data: any) => request.patch(`/stores/${i
 export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
 export const getStoreMemberCandidates = (params?: any) => request.get('/stores/members/available_users/', { params });
 export const createStoreMember = (data: any) => request.post('/stores/members/', data);
+export const createStoreMemberUser = (data: any) => request.post('/stores/members/create_user_member/', data);
 export const updateStoreMember = (id: number, data: any) => request.patch(`/stores/members/${id}/`, data);
 export const deleteStoreMember = (id: number) => request.delete(`/stores/members/${id}/`);
 export const getStoreCustomerGroups = (params?: any) => request.get('/stores/customer-groups/', { params });

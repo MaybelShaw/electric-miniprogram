@@ -12,6 +12,14 @@ export interface User {
     company_name?: string;
     status?: string;
   } | null;
+  store_roles?: {
+    store: number;
+    store_name: string;
+    store_is_main?: boolean;
+    role: 'platform_admin' | 'store_admin' | 'store_sub_admin' | 'store_staff';
+    permissions?: string[];
+    status: 'active' | 'disabled';
+  }[];
 }
 
 export interface Store {
@@ -21,7 +29,6 @@ export interface Store {
   status: 'active' | 'disabled';
   is_main: boolean;
   store_type?: 'self_operated' | 'partner' | 'supplier';
-  platform_store?: number | null;
   logo?: string;
   cover_image?: string;
   description?: string;
@@ -41,6 +48,7 @@ export interface StoreMember {
   username: string;
   store: number;
   store_name: string;
+  store_is_main?: boolean;
   role: 'platform_admin' | 'store_admin' | 'store_sub_admin' | 'store_staff';
   permissions?: string[];
   status: 'active' | 'disabled';
@@ -199,6 +207,9 @@ export interface StoreCustomerGroup {
   name: string;
   description?: string;
   status: 'active' | 'disabled';
+  member_count?: number;
+  active_member_count?: number;
+  price_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -224,9 +235,12 @@ export interface StoreCustomerGroupPrice {
   group_name?: string;
   product: number;
   product_name?: string;
+  product_source?: 'local' | 'haier';
+  product_price?: string | number;
   sku?: number | null;
   sku_name?: string | null;
   sku_code?: string | null;
+  sku_price?: string | number | null;
   price: string | number;
   created_at: string;
   updated_at: string;

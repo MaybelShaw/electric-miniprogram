@@ -7,7 +7,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Drawer, Form, Input, InputNumber, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { Alert, Button, Drawer, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined } from '@ant-design/icons';
 import {
@@ -38,7 +38,7 @@ import type {
 } from '@/services/types';
 import { getSelectedStoreId } from '@/utils/store';
 
-type Option = { label: string; value: number };
+type Option = { label: string; value: number; title?: string };
 type GroupFormValues = {
   store?: number;
   name: string;
@@ -62,6 +62,11 @@ const statusTag = (status: 'active' | 'disabled') => (
   <Tag color={status === 'active' ? 'green' : 'default'}>{status === 'active' ? '启用' : '停用'}</Tag>
 );
 
+const formatMoney = (value?: string | number | null) => {
+  if (value === undefined || value === null || value === '') return '-';
+  return `¥${value}`;
+};
+
 export default function CustomerGroups() {
   const actionRef = useRef<ActionType>();
   const [groupForm] = Form.useForm<GroupFormValues>();
@@ -81,6 +86,8 @@ export default function CustomerGroups() {
   const [skuOptions, setSkuOptions] = useState<Option[]>([]);
   const [productSearchLoading, setProductSearchLoading] = useState(false);
   const [displaySwitchLoading, setDisplaySwitchLoading] = useState(false);
+  const [batchPhones, setBatchPhones] = useState('');
+  const [batchImporting, setBatchImporting] = useState(false);
 
   const isPlatformAdmin = Boolean(storeContext?.is_platform_admin);
   const storeOptions = useMemo(
@@ -171,6 +178,7 @@ export default function CustomerGroups() {
   const openMembers = (group: StoreCustomerGroup) => {
     setMemberGroup(group);
     memberForm.resetFields();
+    setBatchPhones('');
     loadMembers(group);
   };
 
@@ -188,6 +196,49 @@ export default function CustomerGroups() {
       await loadMembers(memberGroup);
     } catch (error) {
       message.error('添加成员失败');
+    }
+  };
+
+  const parsePhones = (value: string) => {
+    const phones = value
+      .split(/[\s,，;；]+/)
+      .map(item => item.trim())
+      .filter(Boolean);
+    return Array.from(new Set(phones));
+  };
+
+  const handleBatchCreateMembers = async () => {
+    if (!memberGroup) return;
+    const phones = parsePhones(batchPhones);
+    if (phones.length === 0) {
+      message.warning('请先粘贴手机号');
+      return;
+    }
+    setBatchImporting(true);
+    let successCount = 0;
+    const failed: string[] = [];
+    for (const phone of phones) {
+      try {
+        await createStoreCustomerGroupMember({
+          store: memberGroup.store,
+          group: memberGroup.id,
+          phone,
+          status: 'active',
+        });
+        successCount += 1;
+      } catch (error) {
+        failed.push(phone);
+      }
+    }
+    setBatchImporting(false);
+    if (successCount > 0) {
+      message.success(`已加入 ${successCount} 个成员`);
+      setBatchPhones(failed.join('\n'));
+      await loadMembers(memberGroup);
+      actionRef.current?.reload();
+    }
+    if (failed.length > 0) {
+      message.warning(`有 ${failed.length} 个手机号未导入，请检查是否已在本店其他分组或格式不正确`);
     }
   };
 
@@ -236,8 +287,12 @@ export default function CustomerGroups() {
         page: 1,
         page_size: 30,
       });
-      const products = getList<Product>(res).filter(product => product.source !== 'haier');
-      setProductOptions(products.map(product => ({ label: `${product.name} (#${product.id})`, value: product.id })));
+      const products = getList<Product>(res);
+      setProductOptions(products.map(product => ({
+        label: `${product.name} (#${product.id}) · 默认价 ${formatMoney(product.price)}`,
+        title: `${product.name} (#${product.id})`,
+        value: product.id,
+      })));
     } catch (error) {
       setProductOptions([]);
     } finally {
@@ -253,7 +308,11 @@ export default function CustomerGroups() {
     try {
       const res: any = await getProductSkus({ product: productId, store: priceGroup.store, is_active: true, page: 1, page_size: 100 });
       const skus = getList<ProductSKU>(res);
-      setSkuOptions(skus.map(sku => ({ label: `${sku.name} ${sku.sku_code ? `(${sku.sku_code})` : ''}`, value: sku.id })));
+      setSkuOptions(skus.map(sku => ({
+        label: `${sku.name || '默认规格'}${sku.sku_code ? ` (${sku.sku_code})` : ''} · 默认价 ${formatMoney(sku.price)}`,
+        title: `${sku.name || '默认规格'}${sku.sku_code ? ` (${sku.sku_code})` : ''}`,
+        value: sku.id,
+      })));
     } catch (error) {
       setSkuOptions([]);
     }
@@ -277,7 +336,11 @@ export default function CustomerGroups() {
   const openEditPrice = async (record: StoreCustomerGroupPrice) => {
     setEditingPrice(record);
     if (!productOptions.some(option => option.value === record.product)) {
-      setProductOptions(prev => [{ label: record.product_name || `商品 #${record.product}`, value: record.product }, ...prev]);
+      setProductOptions(prev => [{
+        label: `${record.product_name || `商品 #${record.product}`} · 默认价 ${formatMoney(record.product_price)}`,
+        title: record.product_name || `商品 #${record.product}`,
+        value: record.product,
+      }, ...prev]);
     }
     await loadSkus(record.product);
     priceForm.setFieldsValue({
@@ -336,6 +399,20 @@ export default function CustomerGroups() {
     { title: '分组名称', dataIndex: 'name', width: 180 },
     { title: '说明', dataIndex: 'description', hideInSearch: true, ellipsis: true },
     {
+      title: '成员',
+      dataIndex: 'member_count',
+      hideInSearch: true,
+      width: 120,
+      render: (_, record) => `${record.active_member_count || 0}/${record.member_count || 0}`,
+    },
+    {
+      title: '价格规则',
+      dataIndex: 'price_count',
+      hideInSearch: true,
+      width: 110,
+      render: (_, record) => record.price_count || 0,
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       width: 100,
@@ -389,11 +466,24 @@ export default function CustomerGroups() {
   ];
 
   const priceColumns: ColumnsType<StoreCustomerGroupPrice> = [
-    { title: '商品', dataIndex: 'product_name', render: (_, record) => record.product_name || `商品 #${record.product}` },
+    {
+      title: '商品',
+      dataIndex: 'product_name',
+      width: 360,
+      ellipsis: true,
+      render: (_, record) => record.product_name || `商品 #${record.product}`,
+    },
+    {
+      title: '参考价',
+      dataIndex: 'product_price',
+      width: 120,
+      render: (_, record) => formatMoney(record.sku ? record.sku_price : record.product_price),
+    },
     {
       title: 'SKU',
       dataIndex: 'sku_name',
-      width: 180,
+      width: 220,
+      ellipsis: true,
       render: (_, record) => record.sku ? `${record.sku_name || 'SKU'}${record.sku_code ? ` (${record.sku_code})` : ''}` : '整品默认',
     },
     { title: '分组价', dataIndex: 'price', width: 120, render: value => `¥${value}` },
@@ -507,6 +597,20 @@ export default function CustomerGroups() {
             </Form.Item>
             <Button type="primary" htmlType="submit">加入分组</Button>
           </Form>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Input.TextArea
+              value={batchPhones}
+              onChange={event => setBatchPhones(event.target.value)}
+              placeholder="批量粘贴手机号，支持换行、逗号或空格分隔"
+              rows={4}
+            />
+            <Space>
+              <Button loading={batchImporting} onClick={handleBatchCreateMembers}>
+                批量加入
+              </Button>
+              <span style={{ color: '#666' }}>已在本店其他分组的手机号会导入失败，并保留在输入框中。</span>
+            </Space>
+          </Space>
           <Table<StoreCustomerGroupMember>
             rowKey="id"
             loading={membersLoading}
@@ -517,53 +621,87 @@ export default function CustomerGroups() {
         </Space>
       </Drawer>
 
-      <Drawer
+      <Modal
         title={priceGroup ? `${priceGroup.name} - 产品价格表` : '产品价格表'}
         open={Boolean(priceGroup)}
-        onClose={() => {
+        onCancel={() => {
           setPriceGroup(null);
           setPrices([]);
           resetPriceForm();
         }}
-        width={860}
+        width={1120}
+        centered
+        footer={null}
+        destroyOnClose
+        styles={{ body: { paddingTop: 16 } }}
       >
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
-          <Form form={priceForm} layout="inline" onFinish={handleSavePrice}>
-            <Form.Item name="product" rules={[{ required: true, message: '请选择商品' }]} style={{ minWidth: 260 }}>
-              <Select
-                showSearch
-                filterOption={false}
-                placeholder="搜索本店非海尔商品"
-                loading={productSearchLoading}
-                options={productOptions}
-                onSearch={keyword => searchProducts(keyword)}
-                onFocus={() => searchProducts(undefined)}
-                onChange={productId => {
-                  priceForm.setFieldValue('sku', undefined);
-                  loadSkus(productId);
-                }}
-              />
-            </Form.Item>
-            <Form.Item name="sku" style={{ minWidth: 220 }}>
-              <Select allowClear placeholder="不选则配置整品价" options={skuOptions} />
-            </Form.Item>
-            <Form.Item name="price" rules={[{ required: true, message: '请输入价格' }]}>
-              <InputNumber min={0} precision={2} addonBefore="¥" placeholder="分组价" />
-            </Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">{editingPrice ? '保存价格' : '添加价格'}</Button>
-              {editingPrice && <Button onClick={resetPriceForm}>取消编辑</Button>}
-            </Space>
+          <Alert
+            type="info"
+            showIcon
+            message="分组价会影响用户端展示价和下单锁价；海尔商品分组价不会修改海尔同步基础价。"
+          />
+          <Form form={priceForm} layout="vertical" onFinish={handleSavePrice}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(420px, 1.6fr) minmax(260px, 1fr) 160px 180px',
+                gap: '12px 16px',
+                alignItems: 'end',
+              }}
+            >
+              <Form.Item name="product" label="商品" rules={[{ required: true, message: '请选择商品' }]} style={{ marginBottom: 0 }}>
+                <Select
+                  showSearch
+                  filterOption={false}
+                  placeholder="搜索本店商品"
+                  loading={productSearchLoading}
+                  options={productOptions}
+                  optionLabelProp="title"
+                  style={{ width: '100%' }}
+                  onSearch={keyword => searchProducts(keyword)}
+                  onFocus={() => searchProducts(undefined)}
+                  onChange={productId => {
+                    priceForm.setFieldValue('sku', undefined);
+                    loadSkus(productId);
+                  }}
+                />
+              </Form.Item>
+              <Form.Item name="sku" label="SKU" style={{ marginBottom: 0 }}>
+                <Select
+                  allowClear
+                  placeholder="可留空"
+                  options={skuOptions}
+                  optionLabelProp="title"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+              <Form.Item name="price" label="分组价" rules={[{ required: true, message: '请输入价格' }]} style={{ marginBottom: 0 }}>
+                <InputNumber min={0} precision={2} addonBefore="¥" placeholder="分组价" style={{ width: '100%' }} />
+              </Form.Item>
+              <Form.Item label=" " colon={false} style={{ marginBottom: 0 }}>
+                <Space>
+                  <Button type="primary" htmlType="submit">{editingPrice ? '保存价格' : '添加价格'}</Button>
+                  {editingPrice && <Button onClick={resetPriceForm}>取消编辑</Button>}
+                </Space>
+              </Form.Item>
+            </div>
           </Form>
+          <div style={{ color: '#666' }}>
+            SKU 留空表示配置整品统一分组价；选择某个 SKU 时，只覆盖该 SKU 的分组价。
+          </div>
           <Table<StoreCustomerGroupPrice>
             rowKey="id"
             loading={pricesLoading}
             columns={priceColumns}
             dataSource={prices}
             pagination={false}
+            size="middle"
+            tableLayout="fixed"
+            scroll={{ x: 1090, y: 420 }}
           />
         </Space>
-      </Drawer>
+      </Modal>
     </>
   );
 }

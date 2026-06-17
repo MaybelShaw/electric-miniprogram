@@ -54,14 +54,6 @@ class Store(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, verbose_name="状态")
     is_main = models.BooleanField(default=False, verbose_name="是否主店")
     store_type = models.CharField(max_length=32, choices=TYPE_CHOICES, default=TYPE_SELF_OPERATED, verbose_name="店铺类型")
-    platform_store = models.ForeignKey(
-        "self",
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name="partner_stores",
-        verbose_name="所属平台店铺",
-    )
     logo = models.CharField(max_length=512, blank=True, default="", verbose_name="店铺Logo")
     cover_image = models.CharField(max_length=512, blank=True, default="", verbose_name="封面图")
     description = models.TextField(blank=True, default="", verbose_name="店铺简介")
@@ -88,7 +80,7 @@ class Store(models.Model):
         indexes = [
             models.Index(fields=["code"]),
             models.Index(fields=["status"]),
-            models.Index(fields=["store_type", "platform_store"]),
+            models.Index(fields=["store_type"], name="stores_stor_store_t_93515a_idx"),
             models.Index(fields=["show_on_home", "home_order"]),
         ]
 
@@ -96,10 +88,6 @@ class Store(models.Model):
         errors = {}
         if self.is_main and self.store_type != self.TYPE_SELF_OPERATED:
             errors["store_type"] = "主店必须是自营店铺。"
-        if self.platform_store_id and self.platform_store_id == self.id:
-            errors["platform_store"] = "店铺不能归属于自身。"
-        if self.store_type == self.TYPE_PARTNER and not self.platform_store_id:
-            errors["platform_store"] = "合作方店铺必须归属于一个平台店铺。"
         if self.allow_haier and not self.is_main:
             errors["allow_haier"] = "只有主店可以启用海尔能力。"
         if errors:
@@ -323,8 +311,6 @@ class StoreCustomerGroupPrice(models.Model):
             errors["price"] = "分组价格不能小于 0。"
         if self.group_id and self.product_id and self.group.store_id != self.product.store_id:
             errors["product"] = "商品必须属于客户分组所在店铺。"
-        if self.product_id and getattr(self.product, "source", "") == "haier":
-            errors["product"] = "海尔商品不支持客户分组价格。"
         if self.sku_id and self.product_id and self.sku.product_id != self.product_id:
             errors["sku"] = "SKU 必须属于当前商品。"
         if errors:

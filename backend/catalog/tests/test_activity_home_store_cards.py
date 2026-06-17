@@ -16,7 +16,6 @@ class ActivityHomeStoreCardTests(TestCase):
             name="Partner",
             code="partner",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.main_store,
             show_on_home=True,
         )
         self.other_store = Store.objects.create(name="Other", code="other")

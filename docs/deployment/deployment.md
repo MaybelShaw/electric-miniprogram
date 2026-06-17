@@ -35,6 +35,8 @@
    - 将微信支付私钥、公钥或平台证书放到仓库外的安全来源后，复制到本地 `certs/wechatpay/`；该目录除 `.gitkeep` 外已被 `.gitignore` 忽略。
    - 在 `backend/.env` 写入本地联调变量，证书路径使用容器内路径 `/etc/electric-miniprogram/certs/wechatpay/...`，例如 `WECHAT_PAY_PRIVATE_KEY_PATH=/etc/electric-miniprogram/certs/wechatpay/apiclient_key.pem`。
    - `docker/docker-compose.dev.yaml` 会只读挂载 `certs/wechatpay`，并可通过 `ELECTRIC_DEV_ENV_FILE` 指向其他本地 env 文件；默认仍保留 `SKIP_WECHAT_PAY_CONFIG_CHECK=1`，允许未配置微信支付时启动开发后端。
+   - 首次加入证书或修改 Compose 挂载后，仅 `restart backend` 不会刷新容器挂载，需执行 `docker compose -f docker/docker-compose.dev.yaml up -d --force-recreate backend`。
+   - `WECHAT_PAY_NOTIFY_URL` 和 `WECHAT_PAY_REFUND_NOTIFY_URL` 不能保留 `https://your.domain/...`，真实联调需填写微信可访问的 HTTPS 公网地址（例如内网穿透域名）并指向 `/api/payments/callback/wechat/`、`/api/payments/refund-callback/wechat/`。
 
 ## 生产环境部署
 1. 准备外部 `env_file`：`/etc/electric-miniprogram/.env.production`

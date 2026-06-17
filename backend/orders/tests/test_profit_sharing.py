@@ -27,13 +27,11 @@ class ProfitSharingTests(TestCase):
             name="Partner Ready",
             code="partner-ready-profit",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.main_store,
         )
         self.partner_pending = Store.objects.create(
             name="Partner Pending",
             code="partner-pending-profit",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.main_store,
         )
         StorePaymentConfig.objects.create(
             store=self.partner_ready,

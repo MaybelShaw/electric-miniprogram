@@ -16,13 +16,11 @@ class ProductSKUManagementAPITests(TestCase):
             name="志邦门店",
             code="zhibang-sku",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.other_store = Store.objects.create(
             name="其他门店",
             code="other-sku",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.platform_admin = get_user_model().objects.create_superuser(
             username="sku-platform-admin",

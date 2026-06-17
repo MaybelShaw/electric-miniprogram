@@ -51,7 +51,7 @@ def get_customer_group_membership(user, store: Store):
 
 
 def resolve_customer_group_price(user, product, sku=None):
-    if not product or getattr(product, "source", "") == "haier":
+    if not product:
         return None
 
     membership = get_customer_group_membership(user, getattr(product, "store", None))
@@ -72,7 +72,7 @@ def resolve_customer_group_price(user, product, sku=None):
 
 
 def get_customer_group_price_context(user, product):
-    if not product or getattr(product, "source", "") == "haier":
+    if not product:
         return {
             "customer_group_id": None,
             "customer_group_name": "",

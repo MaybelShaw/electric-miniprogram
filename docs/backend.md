@@ -99,19 +99,19 @@
 
 ## 店铺与数据隔离
 - `stores.Store` 是真实经营主体模型；庆勋愉悦家自身也是一个 `Store`，合作方入驻店铺也是 `Store`，不是“主店挂载子店铺”的组织层级。
-- `Store.is_main=true` 表示默认平台入口店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`；合作方店铺通过 `platform_store` 指向庆勋愉悦家平台入口店铺，表达入驻展示和结算关系。
+- `Store.is_main=true` 表示唯一主平台店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`。当前模型固定为一个主店铺 + 多个合作店铺，不再维护额外的平台归属字段。
 - `Store.logo`、`cover_image`、`description`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示。
 - `stores.StoreMember` 绑定用户、店铺和角色；业务可见角色为 `platform_admin` 与 `store_admin`。历史 `store_sub_admin`、`store_staff` 数据保留兼容，但权限按店铺管理员处理，后台不再新增或展示这两个角色。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
-- 平台管理员只认超级用户或主平台店铺有效 `StoreMember(role='platform_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
+- 平台管理员只认超级用户、主平台店铺有效 `StoreMember(role='platform_admin')` 或主平台店铺有效 `StoreMember(role='store_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
 - 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。
-- 店铺成员接口允许平台管理员管理全部成员；店铺管理员可管理本店店铺管理员账号。支付配置、结算规则接口仅平台管理员可访问。
-- 公开接口 `GET /api/stores/public/partners/?platform=<store_id>` 返回某个平台下 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
+- 店铺成员接口允许平台管理员管理全部成员；普通店铺管理员只能管理本店店铺管理员账号。`POST /api/stores/members/create_user_member/` 用于创建新的商户后台账号并绑定为店铺管理员，后端强制 `is_staff=true`、`role=admin`、`is_superuser=false`，且成员角色只允许 `store_admin`。当绑定到主平台店铺时，该账号按平台管理员处理；绑定到普通店铺时只具备本店权限。支付配置、结算规则接口仅平台管理员可访问。
+- 公开接口 `GET /api/stores/public/partners/` 返回 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
 - 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区和商品摘要，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
 - `Store.show_customer_group_name` 字段保留用于后台配置和接口兼容；当前小程序用户端不展示客户分组名称，只使用后端计算后的最终价格。
-- `stores.StoreCustomerGroup` 表示店铺自己的客户分组；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
-- `stores.StoreCustomerGroupPrice` 保存分组产品价格表，支持整品价格和 SKU 价格；海尔商品不允许配置分组价格，未配置分组价时回退商品/SKU默认价。
+- `stores.StoreCustomerGroup` 表示店铺自己的客户分组；列表响应包含 `member_count`、`active_member_count`、`price_count` 统计字段，方便后台快速判断配置完整度；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
+- `stores.StoreCustomerGroupPrice` 保存分组产品价格表，支持本地商品和海尔商品的整品价格、SKU 价格；未配置分组价时回退商品/SKU 默认价，海尔商品分组价只影响本系统展示价和下单锁价，不修改海尔同步基础价。
 - 客户分组权限码为 `customer_groups.manage`：平台管理员和店铺管理员拥有；历史店铺角色按店铺管理员兼容。
 
 ## 核心模块
@@ -145,7 +145,7 @@
   - `GET /current/` 当前账号店铺上下文，包含可访问店铺、默认店铺、平台管理员标记、成员关系和权限码。
   - `GET/POST/PATCH/DELETE /` 店铺管理；非平台管理员仅可更新本店 `show_customer_group_name` 展示开关。
   - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要。
-  - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`GET /members/available_users/` 返回可绑定后台账号候选。
+  - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`POST /members/create_user_member/` 创建新的商户后台账号并绑定为店铺管理员；`GET /members/available_users/` 返回可绑定后台账号候选。
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
   - `GET/POST/PATCH/DELETE /customer-group-prices/` 客户分组价格，支持按 `store`、`group`、`product` 过滤。

@@ -25,7 +25,6 @@ class CheckoutSubOrderTests(TestCase):
             name="Partner Store",
             code="partner-store",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.main_store,
         )
         self.address = Address.objects.create(
             user=self.user,

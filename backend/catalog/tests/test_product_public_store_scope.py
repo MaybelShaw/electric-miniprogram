@@ -54,7 +54,6 @@ class ProductPublicStoreScopeTests(TestCase):
             name="Partner store",
             code="partner-store",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.store,
         )
         partner_major = Category.objects.create(
             name="Partner category",

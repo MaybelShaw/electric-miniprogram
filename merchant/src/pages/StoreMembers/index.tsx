@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ProTable, ModalForm, ProFormSelect } from '@ant-design/pro-components';
+import { ProTable, ModalForm, ProFormSelect, ProFormText } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Form, Popconfirm, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createStoreMember, deleteStoreMember, getCurrentStoreContext, getStoreMemberCandidates, getStoreMembers, getStores, updateStoreMember } from '@/services/api';
-import type { CurrentStoreContext, Store, StoreMember, User } from '@/services/types';
+import { createStoreMemberUser, deleteStoreMember, getCurrentStoreContext, getStoreMembers, getStores, updateStoreMember } from '@/services/api';
+import type { CurrentStoreContext, Store, StoreMember } from '@/services/types';
 import { fetchAllPaginated } from '@/utils/request';
 
 export default function StoreMembers() {
@@ -12,6 +12,7 @@ export default function StoreMembers() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<StoreMember | null>(null);
   const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useState<number | undefined>();
   const [form] = Form.useForm();
   const isPlatformAdmin = Boolean(storeContext?.is_platform_admin);
   const roleOptions = isPlatformAdmin
@@ -46,15 +47,34 @@ export default function StoreMembers() {
     return record.role !== 'platform_admin';
   };
 
+  const isMainStore = (storeId?: number) => {
+    if (!storeId) return false;
+    return storeContext?.stores.some(store => store.id === storeId && store.is_main) || false;
+  };
+
+  const getRoleLabel = (record: Pick<StoreMember, 'role' | 'store_is_main'>) => {
+    if (record.role === 'platform_admin' || (record.role === 'store_admin' && record.store_is_main)) {
+      return '平台管理员';
+    }
+    return '店铺管理员';
+  };
+
   const openCreate = () => {
     setEditingRecord(null);
     form.resetFields();
-    form.setFieldsValue({ role: 'store_admin', status: 'active' });
+    const defaultStoreId = storeContext?.default_store?.id;
+    setSelectedStoreId(defaultStoreId);
+    form.setFieldsValue({
+      store: defaultStoreId,
+      role: 'store_admin',
+      status: 'active',
+    });
     setModalVisible(true);
   };
 
   const openEdit = (record: StoreMember) => {
     setEditingRecord(record);
+    setSelectedStoreId(record.store);
     form.setFieldsValue(record);
     setModalVisible(true);
   };
@@ -73,6 +93,7 @@ export default function StoreMembers() {
         store_sub_admin: { text: '店铺管理员' },
         store_staff: { text: '店铺管理员' },
       },
+      renderText: (_, record) => getRoleLabel(record),
     },
     {
       title: '状态',
@@ -122,18 +143,27 @@ export default function StoreMembers() {
       />
 
       <ModalForm
-        title={editingRecord ? '编辑店铺成员' : '新增店铺成员'}
+        title={editingRecord ? '编辑店铺成员' : '新增店铺管理员'}
         open={modalVisible}
         form={form}
         width={560}
         modalProps={{ destroyOnClose: true }}
-        onOpenChange={setModalVisible}
+        onOpenChange={(open) => {
+          setModalVisible(open);
+          if (!open) {
+            setSelectedStoreId(undefined);
+          }
+        }}
         onFinish={async (values) => {
           if (editingRecord) {
             await updateStoreMember(editingRecord.id, values);
             message.success('更新成功');
           } else {
-            await createStoreMember(values);
+            await createStoreMemberUser({
+              ...values,
+              store: values.store || storeContext?.default_store?.id,
+              role: 'store_admin',
+            });
             message.success('创建成功');
           }
           setModalVisible(false);
@@ -141,22 +171,47 @@ export default function StoreMembers() {
           return true;
         }}
       >
-        <ProFormSelect
-          name="user"
-          label="用户"
-          disabled={Boolean(editingRecord)}
-          rules={[{ required: true, message: '请选择用户' }]}
-          showSearch
-          request={async () => {
-            const users = await fetchAllPaginated<User>(getStoreMemberCandidates, {}, 100);
-            return users.map(user => ({ label: `${user.username} (#${user.id})`, value: user.id }));
-          }}
-        />
+        {editingRecord ? (
+          <ProFormText name="username" label="用户" disabled />
+        ) : (
+          <>
+            <ProFormText
+              name="username"
+              label="用户名"
+              rules={[{ required: true, message: '请输入用户名' }]}
+              placeholder="用于登录商户后台"
+            />
+            <ProFormText
+              name="phone"
+              label="手机号"
+              rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号' }]}
+              placeholder="请输入手机号"
+            />
+            <ProFormText
+              name="email"
+              label="邮箱"
+              rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
+              placeholder="可选"
+            />
+            <ProFormText.Password
+              name="password"
+              label="初始密码"
+              rules={[{ required: true, message: '请输入初始密码' }]}
+              placeholder="用于首次登录"
+            />
+          </>
+        )}
         <ProFormSelect
           name="store"
           label="店铺"
-          disabled={Boolean(editingRecord)}
+          disabled={Boolean(editingRecord) || !isPlatformAdmin}
           rules={[{ required: true, message: '请选择店铺' }]}
+          fieldProps={{
+            onChange: (value) => {
+              setSelectedStoreId(value as number);
+              form.setFieldValue('role', 'store_admin');
+            },
+          }}
           request={async () => {
             const stores = await fetchAllPaginated<Store>(getStores, {}, 100);
             return stores.map(store => ({ label: `${store.name} (${store.code})`, value: store.id }));
@@ -165,8 +220,13 @@ export default function StoreMembers() {
         <ProFormSelect
           name="role"
           label="角色"
+          disabled={!editingRecord}
           rules={[{ required: true, message: '请选择角色' }]}
-          options={roleOptions}
+          options={
+            editingRecord
+              ? roleOptions
+              : [{ label: isMainStore(selectedStoreId) ? '平台管理员' : '店铺管理员', value: 'store_admin' }]
+          }
         />
         <ProFormSelect
           name="status"

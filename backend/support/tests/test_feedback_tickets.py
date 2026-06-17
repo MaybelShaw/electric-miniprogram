@@ -15,14 +15,12 @@ class FeedbackTicketTests(TestCase):
             code="zhibang-feedback",
             status=Store.STATUS_ACTIVE,
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.other_store = Store.objects.create(
             name="Other",
             code="other-feedback",
             status=Store.STATUS_ACTIVE,
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.user = User.objects.create_user(username="customer", password="password", phone="13800000000")
         self.other_user = User.objects.create_user(username="other-customer", password="password")

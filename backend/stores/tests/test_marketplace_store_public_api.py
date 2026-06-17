@@ -30,33 +30,29 @@ class MarketplaceStorePublicAPITest(TestCase):
             stock=10,
         )
 
-    def test_platform_store_and_partner_store_membership_semantics(self):
+    def test_main_store_and_partner_store_semantics(self):
         platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
         partner = Store.objects.create(
             name="Zhibang",
             code="zhibang",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
         )
 
         self.assertTrue(platform.is_main)
         self.assertEqual(platform.store_type, Store.TYPE_SELF_OPERATED)
-        self.assertIsNone(platform.platform_store)
-        self.assertEqual(partner.platform_store, platform)
+        self.assertFalse(partner.is_main)
+        self.assertEqual(partner.store_type, Store.TYPE_PARTNER)
 
     def test_only_one_main_store_but_many_partner_stores_are_allowed(self):
-        platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
         Store.objects.create(
             name="Zhibang",
             code="zhibang",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
         )
         Store.objects.create(
             name="Haier",
             code="haier",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
         )
 
         duplicate_main = Store(
@@ -72,25 +68,21 @@ class MarketplaceStorePublicAPITest(TestCase):
         self.assertEqual(Store.objects.filter(store_type=Store.TYPE_PARTNER).count(), 2)
 
     def test_partner_store_cannot_enable_haier_capability(self):
-        platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
         partner = Store(
             name="Zhibang",
             code="zhibang",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             allow_haier=True,
         )
 
         with self.assertRaises(ValidationError):
             partner.full_clean()
 
-    def test_public_partners_returns_only_visible_active_partners_for_platform(self):
-        platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
+    def test_public_partners_returns_only_visible_active_partners(self):
         visible_second = Store.objects.create(
             name="Second",
             code="second",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=True,
             home_order=20,
         )
@@ -98,7 +90,6 @@ class MarketplaceStorePublicAPITest(TestCase):
             name="First",
             code="first",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=True,
             home_order=10,
         )
@@ -106,42 +97,41 @@ class MarketplaceStorePublicAPITest(TestCase):
             name="Hidden",
             code="hidden",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=False,
         )
         Store.objects.create(
             name="Disabled",
             code="disabled",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=True,
             status=Store.STATUS_DISABLED,
         )
-        other_platform = Store.objects.create(
+        Store.objects.create(
             name="Other platform",
             code="other-platform",
             store_type=Store.TYPE_SELF_OPERATED,
         )
-        Store.objects.create(
+        visible_other_partner = Store.objects.create(
             name="Other partner",
             code="other-partner",
             store_type=Store.TYPE_PARTNER,
-            platform_store=other_platform,
             show_on_home=True,
+            home_order=30,
         )
 
-        response = self.client.get(f"/api/stores/public/partners/?platform={platform.id}")
+        response = self.client.get("/api/stores/public/partners/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([item["id"] for item in response.data["results"]], [visible_first.id, visible_second.id])
+        self.assertEqual(
+            [item["id"] for item in response.data["results"]],
+            [visible_first.id, visible_second.id, visible_other_partner.id],
+        )
 
     def test_public_store_detail_aggregates_only_selected_store_data(self):
-        platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
         partner = Store.objects.create(
             name="Zhibang",
             code="zhibang",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=True,
             description="Partner store",
         )
@@ -149,7 +139,6 @@ class MarketplaceStorePublicAPITest(TestCase):
             name="Other",
             code="other",
             store_type=Store.TYPE_PARTNER,
-            platform_store=platform,
             show_on_home=True,
         )
         product = self.create_store_product(partner, "Zhibang product")

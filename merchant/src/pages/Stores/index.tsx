@@ -18,7 +18,7 @@ export default function Stores() {
     form.setFieldsValue({
       status: 'active',
       store_type: 'partner',
-      show_on_home: false,
+      show_on_home: true,
       home_order: 0,
       allow_haier: false,
       is_main: false,
@@ -127,16 +127,6 @@ export default function Stores() {
             { label: '合作方店铺', value: 'partner' },
             { label: '供应商', value: 'supplier' },
           ]}
-        />
-        <ProFormSelect
-          name="platform_store"
-          label="所属平台店铺"
-          allowClear
-          request={async () => {
-            const res: any = await getStores({ page: 1, page_size: 200, store_type: 'self_operated' });
-            const stores = Array.isArray(res) ? res : res.results || [];
-            return stores.map((store: Store) => ({ label: store.name, value: store.id }));
-          }}
         />
         <ProFormText name="logo" label="店铺Logo" />
         <ProFormText name="cover_image" label="封面图" />

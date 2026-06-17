@@ -59,6 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
                 {
                     'store': membership.store_id,
                     'store_name': membership.store.name,
+                    'store_is_main': membership.store.is_main,
                     'role': membership.role,
                     'permissions': get_membership_permissions(membership),
                     'status': membership.status,

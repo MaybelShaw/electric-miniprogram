@@ -62,7 +62,7 @@ def is_platform_admin(user) -> bool:
         return True
     return StoreMember.objects.filter(
         user=user,
-        role=StoreMember.ROLE_PLATFORM_ADMIN,
+        role__in=[StoreMember.ROLE_PLATFORM_ADMIN, StoreMember.ROLE_STORE_ADMIN],
         status=StoreMember.STATUS_ACTIVE,
         store__is_main=True,
         store__status=Store.STATUS_ACTIVE,

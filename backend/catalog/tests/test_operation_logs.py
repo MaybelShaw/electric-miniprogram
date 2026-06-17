@@ -16,13 +16,11 @@ class CatalogOperationLogAPITests(TestCase):
             name="志邦运营店",
             code="zhibang-logs",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.other_store = Store.objects.create(
             name="其他运营店",
             code="other-logs",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.platform_admin = get_user_model().objects.create_superuser(
             username="logs-platform-admin",

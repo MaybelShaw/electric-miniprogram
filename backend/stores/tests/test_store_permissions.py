@@ -33,13 +33,11 @@ class StoreMarketplacePermissionTest(TestCase):
             name="Zhibang",
             code="zhibang",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.other_partner = Store.objects.create(
             name="Other",
             code="other",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
 
     def create_user(self, username, **kwargs):
@@ -70,14 +68,17 @@ class StoreMarketplacePermissionTest(TestCase):
         self.assertFalse(is_platform_admin(user))
         self.assertEqual(list(get_accessible_stores(user)), [self.partner])
 
-    def test_platform_store_admin_does_not_implicitly_manage_partner_stores(self):
+    def test_main_store_admin_is_platform_admin(self):
         user = self.create_user("self-operated-admin", is_staff=True, role="admin")
         StoreMember.objects.create(user=user, store=self.platform, role=StoreMember.ROLE_STORE_ADMIN)
 
         self.client.force_authenticate(user)
-        response = self.client.get("/api/catalog/products/", {"store": self.partner.id})
+        response = self.client.get("/api/stores/current/")
 
-        self.assertEqual(response.status_code, 403)
+        self.assertTrue(is_platform_admin(user))
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.data["is_platform_admin"])
+        self.assertIn(self.partner.code, [store["code"] for store in response.data["stores"]])
 
     def test_partner_admin_cannot_read_other_store_operations_data(self):
         user = self.create_user("partner-admin", is_staff=True, role="admin")
@@ -266,6 +267,101 @@ class StoreMarketplacePermissionTest(TestCase):
 
         self.assertEqual(create_response.status_code, 201, create_response.content)
         self.assertEqual(platform_response.status_code, 403)
+
+    def test_store_admin_can_create_new_store_admin_user_for_own_store(self):
+        admin = self.create_user("partner-member-admin", is_staff=True, role="admin")
+        StoreMember.objects.create(user=admin, store=self.partner, role=StoreMember.ROLE_STORE_ADMIN)
+
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/stores/members/create_user_member/",
+            {
+                "username": "created-store-admin",
+                "password": "password123",
+                "phone": "13800000000",
+                "store": self.partner.id,
+                "status": StoreMember.STATUS_ACTIVE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        user = User.objects.get(username="created-store-admin")
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        self.assertEqual(user.role, "admin")
+        self.assertFalse(is_platform_admin(user))
+        self.assertTrue(
+            StoreMember.objects.filter(
+                user=user,
+                store=self.partner,
+                role=StoreMember.ROLE_STORE_ADMIN,
+                status=StoreMember.STATUS_ACTIVE,
+            ).exists()
+        )
+
+    def test_new_store_member_user_creation_rejects_platform_role(self):
+        admin = self.create_user("partner-member-role-admin", is_staff=True, role="admin")
+        StoreMember.objects.create(user=admin, store=self.partner, role=StoreMember.ROLE_STORE_ADMIN)
+
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/stores/members/create_user_member/",
+            {
+                "username": "created-platform-admin",
+                "password": "password123",
+                "store": self.partner.id,
+                "role": StoreMember.ROLE_PLATFORM_ADMIN,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertFalse(User.objects.filter(username="created-platform-admin").exists())
+
+    def test_store_admin_cannot_create_new_member_user_for_other_store(self):
+        admin = self.create_user("partner-member-cross-store-admin", is_staff=True, role="admin")
+        StoreMember.objects.create(user=admin, store=self.partner, role=StoreMember.ROLE_STORE_ADMIN)
+
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/stores/members/create_user_member/",
+            {
+                "username": "created-other-store-admin",
+                "password": "password123",
+                "store": self.other_partner.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertFalse(User.objects.filter(username="created-other-store-admin").exists())
+
+    def test_main_store_admin_can_create_new_member_user_for_any_store(self):
+        admin = self.create_user("main-store-member-admin", is_staff=True, role="admin")
+        StoreMember.objects.create(user=admin, store=self.platform, role=StoreMember.ROLE_STORE_ADMIN)
+
+        self.client.force_authenticate(admin)
+        response = self.client.post(
+            "/api/stores/members/create_user_member/",
+            {
+                "username": "created-by-main-store-admin",
+                "password": "password123",
+                "store": self.other_partner.id,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        user = User.objects.get(username="created-by-main-store-admin")
+        self.assertFalse(user.is_superuser)
+        self.assertTrue(
+            StoreMember.objects.filter(
+                user=user,
+                store=self.other_partner,
+                role=StoreMember.ROLE_STORE_ADMIN,
+            ).exists()
+        )
 
     def test_store_staff_with_staff_flag_still_sees_only_own_store_payments_and_invoices(self):
         user = self.create_user("legacy-staff", is_staff=True, role="admin")

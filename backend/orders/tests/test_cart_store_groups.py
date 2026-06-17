@@ -22,7 +22,6 @@ class CartStoreGroupTests(TestCase):
             name="Partner Store",
             code="partner-cart-store",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.main_store,
         )
         self.main_product = self._create_product(self.main_store, "Main Product")
         self.partner_product = self._create_product(self.partner_store, "Partner Product")

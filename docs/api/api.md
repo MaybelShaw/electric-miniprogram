@@ -1008,10 +1008,11 @@ fetch('/api/token/refresh/', {
 - ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表
 - ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要
 - ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
+- ✅ `POST /api/stores/members/create_user_member/` - 创建新的商户后台账号并绑定为店铺管理员；接口强制 `is_staff=true`、`role=admin`、`is_superuser=false`，成员角色只允许 `store_admin`；绑定主店铺时按平台管理员处理，绑定普通店铺时仅有本店权限
 - ✅ `GET /api/stores/members/available_users/` - 可绑定后台账号候选
-- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-groups/` - 店铺客户分组
+- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-groups/` - 店铺客户分组，列表响应包含 `member_count`、`active_member_count`、`price_count`
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-members/` - 客户分组成员
-- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-prices/` - 客户分组价格表
+- ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-prices/` - 客户分组价格表，支持本地商品和海尔商品的整品价/SKU 价，响应包含 `product_source`、`product_price`、`sku_price` 用于后台标识商品来源和展示默认参考价
 - ✅ `GET/POST/PATCH/DELETE /api/stores/payment-configs/` - 店铺支付配置（平台管理员）
   - 微信分账字段：`profit_sharing_enabled`、`profit_sharing_receiver_type=MERCHANT_ID`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified`。`wechat_mch_id` 复用为合作方分账接收商户号。
 - ✅ `GET/POST/PATCH/DELETE /api/stores/settlement-rules/` - 店铺结算规则（平台管理员）

@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+from unittest.mock import patch
 from rest_framework.test import APIClient
 
 from catalog.models import Brand, Category, Product, ProductSKU
@@ -24,13 +25,11 @@ class StoreCustomerGroupPricingTests(TestCase):
             name="Store A",
             code="store-a",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.store_b = Store.objects.create(
             name="Store B",
             code="store-b",
             store_type=Store.TYPE_PARTNER,
-            platform_store=self.platform,
         )
         self.user = User.objects.create_user(username="buyer", password="password", phone="13800000000")
         self.admin = User.objects.create_user(username="store-admin", password="password", is_staff=True, role="admin")
@@ -139,19 +138,43 @@ class StoreCustomerGroupPricingTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(Decimal(str(response.data["skus"][0]["display_price"])), Decimal("95.00"))
 
-    def test_haier_product_does_not_accept_group_price(self):
+    def test_haier_product_uses_customer_group_price(self):
         group = StoreCustomerGroup.objects.create(store=self.store_a, name="Haier group")
         StoreCustomerGroupMember.objects.create(store=self.store_a, group=group, user=self.user)
         product = self.create_product(self.store_a, "Haier", "300.00", source=Product.SOURCE_HAIER)
-        price = StoreCustomerGroupPrice(group=group, product=product, price=Decimal("1.00"))
-
-        with self.assertRaises(ValidationError):
-            price.full_clean()
+        StoreCustomerGroupPrice.objects.create(group=group, product=product, price=Decimal("280.00"))
 
         self.client.force_authenticate(self.user)
         response = self.client.get(f"/api/catalog/products/{product.id}/", {"store_id": self.store_a.id})
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertIsNone(response.data["customer_group_id"])
+        self.assertEqual(response.data["customer_group_id"], group.id)
+        self.assertEqual(Decimal(str(response.data["display_price"])), Decimal("280.00"))
+
+    @patch("orders.services.check_haier_stock")
+    def test_haier_order_locks_customer_group_price(self, check_haier_stock):
+        group = StoreCustomerGroup.objects.create(store=self.store_a, name="Haier order group")
+        StoreCustomerGroupMember.objects.create(store=self.store_a, group=group, user=self.user)
+        product = self.create_product(self.store_a, "Haier order", "300.00", source=Product.SOURCE_HAIER)
+        StoreCustomerGroupPrice.objects.create(group=group, product=product, price=Decimal("260.00"))
+        address = self.create_address()
+        check_haier_stock.return_value = {
+            "available": True,
+            "stock": 10,
+            "warehouse_code": "WH",
+            "warehouse_grade": "A",
+            "timeliness_data": {},
+        }
+
+        order = create_order_with_split(
+            self.user,
+            items=[{"product_id": product.id, "quantity": 2}],
+            address_id=address.id,
+        )
+        item = order.items.first()
+
+        self.assertEqual(item.unit_price, Decimal("260.00"))
+        self.assertEqual(item.actual_amount, Decimal("520.00"))
+        self.assertEqual(order.actual_amount, Decimal("520.00"))
 
     def test_order_locks_customer_group_price(self):
         group = StoreCustomerGroup.objects.create(store=self.store_a, name="Order group")
@@ -187,6 +210,40 @@ class StoreCustomerGroupPricingTests(TestCase):
 
         self.assertEqual(own_response.status_code, 201, own_response.content)
         self.assertEqual(other_response.status_code, 403)
+
+    def test_customer_group_list_includes_member_and_price_counts(self):
+        group = StoreCustomerGroup.objects.create(store=self.store_a, name="Count group")
+        disabled_user = User.objects.create_user(username="disabled-buyer", password="password", phone="13900000000")
+        StoreCustomerGroupMember.objects.create(store=self.store_a, group=group, user=self.user)
+        StoreCustomerGroupMember.objects.create(
+            store=self.store_a,
+            group=group,
+            user=disabled_user,
+            status=StoreCustomerGroupMember.STATUS_DISABLED,
+        )
+        product = self.create_product(self.store_a, "Count product", "100.00")
+        sku = ProductSKU.objects.create(product=product, name="Large", sku_code="COUNT-L", price=Decimal("120.00"), stock=5)
+        StoreCustomerGroupPrice.objects.create(group=group, product=product, price=Decimal("80.00"))
+        StoreCustomerGroupPrice.objects.create(group=group, product=product, sku=sku, price=Decimal("90.00"))
+        self.client.force_authenticate(self.admin)
+
+        response = self.client.get("/api/stores/customer-groups/", {"store": self.store_a.id})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        rows = response.data["results"] if isinstance(response.data, dict) else response.data
+        row = next(item for item in rows if item["id"] == group.id)
+        self.assertEqual(row["member_count"], 2)
+        self.assertEqual(row["active_member_count"], 1)
+        self.assertEqual(row["price_count"], 2)
+
+        price_response = self.client.get("/api/stores/customer-group-prices/", {"group": group.id})
+        self.assertEqual(price_response.status_code, 200, price_response.content)
+        price_rows = price_response.data["results"] if isinstance(price_response.data, dict) else price_response.data
+        product_price_row = next(item for item in price_rows if item["sku"] is None)
+        sku_price_row = next(item for item in price_rows if item["sku"] == sku.id)
+        self.assertEqual(Decimal(str(product_price_row["product_price"])), Decimal("100.00"))
+        self.assertEqual(product_price_row["product_source"], Product.SOURCE_LOCAL)
+        self.assertEqual(Decimal(str(sku_price_row["sku_price"])), Decimal("120.00"))
 
     def test_store_admin_can_toggle_group_name_display_only(self):
         self.client.force_authenticate(self.admin)
