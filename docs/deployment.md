@@ -111,7 +111,7 @@
    - PostgreSQL 数据仍使用 Compose 命名卷 `postgres_data`，兼容原有数据库数据。
    - Django 静态文件使用 Compose 命名卷 `staticfiles`，由后端 `collectstatic` 写入并由 Nginx 只读挂载。
    - 商户后台构建产物使用 Compose 命名卷 `merchant_dist`，由 `merchant-build` 写入并由 Nginx 只读挂载。
-   - 生产上传媒体文件挂载到宿主机 `/var/lib/electric-miniprogram/media`，Nginx 通过 `/media/` 只读访问。首次上线前请创建目录并设置 Docker 可写权限。
+   - 生产上传媒体文件沿用旧目录，挂载宿主机项目内 `backend/backend/media` 到容器 `/app/backend/media`，Nginx 通过 `/media/` 只读访问，避免历史上传图片迁移。
 
 ## 环境变量说明
 - 开发最小集：

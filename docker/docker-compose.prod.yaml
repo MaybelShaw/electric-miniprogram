@@ -22,7 +22,7 @@ services:
     working_dir: /app
     volumes:
       - staticfiles:/app/backend/staticfiles
-      - /var/lib/electric-miniprogram/media:/app/backend/media
+      - ../backend/backend/media:/app/backend/media
       - /etc/electric-miniprogram/certs/wechatpay:/etc/electric-miniprogram/certs/wechatpay:ro
     env_file:
       # 默认读取服务器路径；本地可通过 ELECTRIC_ENV_FILE 覆盖
@@ -62,7 +62,7 @@ services:
     volumes:
       - merchant_dist:/usr/share/nginx/html:ro
       - staticfiles:/var/www/backend/backend/staticfiles:ro
-      - /var/lib/electric-miniprogram/media:/var/www/backend/backend/media:ro
+      - ../backend/backend/media:/var/www/backend/backend/media:ro
       # 证书请放在宿主机 /etc/electric-miniprogram/certs/nginx 下
       - /etc/electric-miniprogram/certs/nginx:/etc/nginx/certs:ro
     restart: unless-stopped
