@@ -381,7 +381,7 @@ server {
 - 生产运行容器不再挂载源码目录；只有证书、媒体文件、静态文件卷和商户后台产物卷在运行期挂载。
 
 ## 生产待处理事项优先级
-- P0/P1：小程序生产 API 基址。生产构建必须显式设置 `TARO_APP_API_BASE_URL` 为线上 HTTPS API 域名；当前代码缺失该变量时会回退到 `http://127.0.0.1:8000/api`，上线前需修复为生产构建失败或 CI 强校验。
+- 已完成：小程序生产构建缺省 API 基址为 `https://www.qxelectric.cn/api`，如需发布到其他域名可显式设置 `TARO_APP_API_BASE_URL` 覆盖。
 - P1：生产调试开关。生产 `.env.production` 应显式关闭 `WECHAT_PAY_DEBUG`、`INTEGRATIONS_API_DEBUG`、`INTEGRATIONS_CALLBACK_DEBUG`，后续代码应把这些开关默认值改为 `False`。
 
 ## 生产自检补充

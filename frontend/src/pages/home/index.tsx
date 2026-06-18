@@ -268,7 +268,7 @@ function Home() {
         </View>
 
         <View className='curation-section'>
-          <SectionHeader title='灵感专区' subtitle='按礼赠、设计与热销场景快速进入' />
+          <SectionHeader title='灵感专区' />
           <View className='curation-list'>
             <View className='curation-item curation-item--primary' onClick={() => handleZoneClick('designer')}>
               <View className='curation-visual'>

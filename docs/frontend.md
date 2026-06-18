@@ -42,8 +42,8 @@
 
 ## 环境配置
 - 后端 API 基址通过环境变量控制：`frontend/src/utils/request.ts:3`
-  - `TARO_APP_API_BASE_URL`（默认 `http://127.0.0.1:8000/api`）
-- 生产小程序构建必须显式设置 `TARO_APP_API_BASE_URL` 为线上 HTTPS API 地址，例如 `https://www.qxelectric.cn/api`。当前生产配置缺失该变量时仍会回退到本地地址，这是待修风险；上线构建前应通过脚本或 CI 明确校验该变量。
+  - 开发默认 `http://127.0.0.1:8000/api`，生产默认 `https://www.qxelectric.cn/api`
+- 生产小程序构建默认使用 `https://www.qxelectric.cn/api`，仍可通过 `TARO_APP_API_BASE_URL` 覆盖到其他 HTTPS API 地址。
 - 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:61`
 
 ## 请求封装详解
@@ -186,7 +186,7 @@
   - 401 自动刷新：`frontend/src/utils/request.ts:93`
 - 错误与限流提示：`frontend/src/utils/request.ts:108`
 - 本地/Docker 开发默认请求 `http://127.0.0.1:8000/api`，不回退到线上域名；需要连接其他环境时显式设置 `TARO_APP_API_BASE_URL`。
-- 生产构建不得使用默认本地 API。若后续代码尚未改为“生产缺失变量即失败”，发布清单中必须人工确认 `TARO_APP_API_BASE_URL` 已设置为线上 HTTPS 域名。
+- 生产构建默认请求 `https://www.qxelectric.cn/api`；发布到其他域名时显式设置 `TARO_APP_API_BASE_URL`。
 - 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 处理；默认允许远程媒体以展示 CDN/OSS 商品图，若环境需要收紧，可显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=false`。
 
 ## 数据与缓存
