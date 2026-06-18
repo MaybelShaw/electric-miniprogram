@@ -46,7 +46,10 @@
 
   .cart-list {
     flex: 1;
-    padding: 12px 0 150px;
+
+    .cart-list-content {
+      padding: 12px 0 118px;
+    }
 
     .cart-item {
       display: flex;
@@ -350,13 +353,13 @@
     bottom: 0;
     left: 0;
     right: 0;
-    min-height: 116px;
+    min-height: 92px;
     background: rgba($showroom-surface, 0.96);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 30px calc(14px + env(safe-area-inset-bottom));
+    padding: 10px 24px;
     box-shadow: $shadow-top;
     border-top: 1px solid $border-color;
     z-index: 100;

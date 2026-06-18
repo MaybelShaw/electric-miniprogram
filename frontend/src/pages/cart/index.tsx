@@ -290,77 +290,79 @@ export default function CartPage() {
   return (
     <View className='cart'>
       <ScrollView className='cart-list' scrollY>
-        {cartGroups.map(group => {
-          const availableStoreItems = group.items.filter(isItemAvailable)
-          const storeChecked = availableStoreItems.length > 0 && availableStoreItems.every(item => item.selected)
-          const storeIndeterminate = availableStoreItems.some(item => item.selected) && !storeChecked
+        <View className='cart-list-content'>
+          {cartGroups.map(group => {
+            const availableStoreItems = group.items.filter(isItemAvailable)
+            const storeChecked = availableStoreItems.length > 0 && availableStoreItems.every(item => item.selected)
+            const storeIndeterminate = availableStoreItems.some(item => item.selected) && !storeChecked
 
-          return (
-            <View key={group.store_id} className='cart-store-group'>
-              <View className='store-header'>
-                <View
-                  className={`checkbox ${storeChecked ? 'checked' : ''} ${storeIndeterminate ? 'indeterminate' : ''}`}
-                  onClick={() => handleSelectStore(group.store_id)}
-                />
-                <View className='store-info' onClick={() => goToStore(group)}>
-                  {group.store_logo ? (
-                    <Image className='store-logo' src={resolveLocalMediaUrl(group.store_logo)} mode='aspectFill' />
-                  ) : (
-                    <View className='store-logo fallback'>{group.store_name.charAt(0)}</View>
-                  )}
-                  <Text className='store-name'>{group.store_name}</Text>
-                </View>
-                <Text className='store-count'>{group.items.length} 件</Text>
-              </View>
-
-              {group.items.map(item => {
-                const available = isItemAvailable(item)
-                return (
-                  <View key={item.id} className={`cart-item ${available ? '' : 'unavailable'}`}>
-                    <View
-                      className={`checkbox ${item.selected ? 'checked' : ''}`}
-                      onClick={() => handleSelectItem(item.id)}
-                    />
-                    <Image
-                      className='product-image'
-                      src={resolveLocalMediaUrl(item.sku?.image || item.product.main_images[0])}
-                      mode='aspectFill'
-                      onClick={() => goToDetail(item.product.id)}
-                    />
-                    <View className='product-info'>
-                      <View className='product-name' onClick={() => goToDetail(item.product.id)}>
-                        {item.product.name}
-                      </View>
-                      {((item.sku_specs && Object.keys(item.sku_specs).length > 0) || (item.sku?.specs && Object.keys(item.sku.specs).length > 0)) && (
-                        <View className='product-spec'>{Object.values(item.sku_specs || item.sku?.specs || {}).join(' / ')}</View>
-                      )}
-                      {!available && (
-                        <View className='unavailable-reason'>{item.unavailable_reason || '商品暂不可结算'}</View>
-                      )}
-                      <View className='product-bottom'>
-                        <View className='product-price'>
-                          {formatPrice(getItemPrice(item))}
-                        </View>
-                        <QuantityStepper
-                          value={item.quantity}
-                          onChange={(value) => handleUpdateQuantity(item.id, item.product_id, value, item.sku_id)}
-                        />
-                      </View>
-                    </View>
-                    <View className='delete-btn' onClick={() => handleRemoveItem(item.id, item.product_id, item.sku_id)}>
-                      删除
-                    </View>
+            return (
+              <View key={group.store_id} className='cart-store-group'>
+                <View className='store-header'>
+                  <View
+                    className={`checkbox ${storeChecked ? 'checked' : ''} ${storeIndeterminate ? 'indeterminate' : ''}`}
+                    onClick={() => handleSelectStore(group.store_id)}
+                  />
+                  <View className='store-info' onClick={() => goToStore(group)}>
+                    {group.store_logo ? (
+                      <Image className='store-logo' src={resolveLocalMediaUrl(group.store_logo)} mode='aspectFill' />
+                    ) : (
+                      <View className='store-logo fallback'>{group.store_name.charAt(0)}</View>
+                    )}
+                    <Text className='store-name'>{group.store_name}</Text>
                   </View>
-                )
-              })}
+                  <Text className='store-count'>{group.items.length} 件</Text>
+                </View>
 
-              <View className='store-summary'>
-                <Text>本店小计</Text>
-                <Text className='store-subtotal'>{formatPrice(getStoreSubtotal(group.items))}</Text>
+                {group.items.map(item => {
+                  const available = isItemAvailable(item)
+                  return (
+                    <View key={item.id} className={`cart-item ${available ? '' : 'unavailable'}`}>
+                      <View
+                        className={`checkbox ${item.selected ? 'checked' : ''}`}
+                        onClick={() => handleSelectItem(item.id)}
+                      />
+                      <Image
+                        className='product-image'
+                        src={resolveLocalMediaUrl(item.sku?.image || item.product.main_images[0])}
+                        mode='aspectFill'
+                        onClick={() => goToDetail(item.product.id)}
+                      />
+                      <View className='product-info'>
+                        <View className='product-name' onClick={() => goToDetail(item.product.id)}>
+                          {item.product.name}
+                        </View>
+                        {((item.sku_specs && Object.keys(item.sku_specs).length > 0) || (item.sku?.specs && Object.keys(item.sku.specs).length > 0)) && (
+                          <View className='product-spec'>{Object.values(item.sku_specs || item.sku?.specs || {}).join(' / ')}</View>
+                        )}
+                        {!available && (
+                          <View className='unavailable-reason'>{item.unavailable_reason || '商品暂不可结算'}</View>
+                        )}
+                        <View className='product-bottom'>
+                          <View className='product-price'>
+                            {formatPrice(getItemPrice(item))}
+                          </View>
+                          <QuantityStepper
+                            value={item.quantity}
+                            onChange={(value) => handleUpdateQuantity(item.id, item.product_id, value, item.sku_id)}
+                          />
+                        </View>
+                      </View>
+                      <View className='delete-btn' onClick={() => handleRemoveItem(item.id, item.product_id, item.sku_id)}>
+                        删除
+                      </View>
+                    </View>
+                  )
+                })}
+
+                <View className='store-summary'>
+                  <Text>本店小计</Text>
+                  <Text className='store-subtotal'>{formatPrice(getStoreSubtotal(group.items))}</Text>
+                </View>
               </View>
-            </View>
-          )
-        })}
+            )
+          })}
+        </View>
       </ScrollView>
 
       <View className='cart-footer'>
