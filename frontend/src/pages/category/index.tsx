@@ -202,8 +202,9 @@ export default function CategoryPage() {
   }
   
   const handleSearch = () => {
-    if (!searchValue.trim()) return
-    Taro.navigateTo({ url: `/pages/search/index?keyword=${searchValue}` })
+    const keyword = searchValue.trim()
+    if (!keyword) return
+    Taro.navigateTo({ url: `/pages/search/index?keyword=${encodeURIComponent(keyword)}` })
   }
 
   return (

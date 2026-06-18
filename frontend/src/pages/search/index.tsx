@@ -9,6 +9,14 @@ import ProductCard from '../../components/ProductCard'
 import SearchBar from '../../components/SearchBar'
 import './index.scss'
 
+const decodeKeyword = (value: string) => {
+  try {
+    return decodeURIComponent(value)
+  } catch (error) {
+    return value
+  }
+}
+
 export default function Search() {
   const [keyword, setKeyword] = useState('')
   const [products, setProducts] = useState<Product[]>([])
@@ -20,16 +28,21 @@ export default function Search() {
     const instance = Taro.getCurrentInstance()
     const kw = instance.router?.params?.keyword
     if (kw) {
-      setKeyword(kw)
-      handleSearch(kw)
+      const decodedKeyword = decodeKeyword(kw).trim()
+      setKeyword(decodedKeyword)
+      handleSearch(decodedKeyword)
     }
   }, [])
 
   const handleSearch = async (kw?: string, pageNum = 1) => {
-    const searchKeyword = kw || keyword
-    if (!searchKeyword.trim()) {
+    const searchKeyword = (kw ?? keyword).trim()
+    if (!searchKeyword) {
       Taro.showToast({ title: '请输入搜索关键词', icon: 'none' })
       return
+    }
+
+    if (pageNum === 1) {
+      setKeyword(searchKeyword)
     }
 
     setSearching(true)
@@ -43,7 +56,7 @@ export default function Search() {
       if (pageNum === 1) {
         setProducts(res.results)
       } else {
-        setProducts([...products, ...res.results])
+        setProducts(prev => [...prev, ...res.results])
       }
       setHasMore(res.has_next || false)
       setPage(pageNum)
