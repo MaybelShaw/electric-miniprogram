@@ -43,7 +43,7 @@ export default function StoreProfilePage() {
       }
 
       setStore(detail.store)
-      Taro.setNavigationBarTitle({ title: `${detail.store.name}我的` })
+      Taro.setNavigationBarTitle({ title: '我的' })
     } catch {
       Taro.showToast({ title: '加载店铺失败', icon: 'none' })
     }
@@ -107,22 +107,8 @@ export default function StoreProfilePage() {
   }
 
   const avatarUrl = user ? resolveLocalMediaUrl(user.avatar_url) : ''
-  const storeLogo = resolveLocalMediaUrl(store?.logo)
-
   return (
     <View className='store-profile-page'>
-      <View className='store-card'>
-        {storeLogo ? (
-          <Image className='store-logo' src={storeLogo} mode='aspectFit' />
-        ) : (
-          <View className='store-logo store-logo--fallback'><AppIcon name='store' tone='gold' /></View>
-        )}
-        <View className='store-copy'>
-          <Text className='store-name'>{store?.name || '店铺'}</Text>
-          {!!store?.contact_phone && <Text className='store-meta'>{store.contact_phone}</Text>}
-        </View>
-      </View>
-
       <View className='user-card'>
         {user ? (
           <>

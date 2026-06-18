@@ -50,9 +50,6 @@ export default function StoreShowcaseCard({
             )}
           </View>
           <View className='store-showcase-title-block'>
-            <Text className='store-showcase-kicker'>
-              {isChuangyi ? 'CURATED HOME STUDIO' : 'PARTNER BRAND'}
-            </Text>
             <Text className='store-showcase-title'>{store.name}</Text>
           </View>
         </View>

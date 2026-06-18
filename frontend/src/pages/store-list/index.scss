@@ -2,7 +2,7 @@
 
 .store-list-page {
   height: 100vh;
-  background: $background-color-base;
+  background: linear-gradient(180deg, #eef4f6 0%, $background-color-base 280px, $background-color-base 100%);
   overflow: hidden;
 
   .store-list-scroll {
@@ -10,11 +10,11 @@
   }
 
   .store-list {
-    padding: 24px 24px 48px;
+    padding: 28px 24px 60px;
   }
 
   .store-list-card {
-    margin-bottom: 24px;
+    margin-bottom: 28px;
   }
 
   .status-text {

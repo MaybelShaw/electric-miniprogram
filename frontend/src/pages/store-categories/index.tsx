@@ -35,7 +35,7 @@ export default function StoreCategoriesPage() {
 
       setStore(detail.store)
       setCategories(detail.categories || [])
-      Taro.setNavigationBarTitle({ title: `${detail.store.name}分类` })
+      Taro.setNavigationBarTitle({ title: '分类' })
     } catch {
       Taro.showToast({ title: '加载分类失败', icon: 'none' })
     } finally {
@@ -52,10 +52,6 @@ export default function StoreCategoriesPage() {
   return (
     <View className='store-categories-page'>
       <ScrollView className='store-categories-scroll' scrollY>
-        <View className='store-categories-hero'>
-          <Text className='store-name'>{store?.name || '店铺分类'}</Text>
-        </View>
-
         <View className='category-grid'>
           {categories.map(category => (
             <View key={category.id} className='category-card' onClick={() => goToCategory(category)}>

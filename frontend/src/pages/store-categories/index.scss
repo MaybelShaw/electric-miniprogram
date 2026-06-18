@@ -3,46 +3,29 @@
 .store-categories-page {
   height: 100vh;
   overflow: hidden;
-  background: $background-color-base;
+  background: linear-gradient(180deg, #eef4f6 0%, $background-color-base 260px, $background-color-base 100%);
 
   .store-categories-scroll {
     height: 100%;
-    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+    padding-bottom: calc(132px + env(safe-area-inset-bottom));
     box-sizing: border-box;
-  }
-
-  .store-categories-hero {
-    margin: $spacing-md $spacing-md 0;
-    padding: 30px 28px;
-    border: 1px solid $border-color;
-    border-radius: $border-radius-lg;
-    background: $showroom-surface;
-    box-shadow: $shadow-sm;
-  }
-
-  .store-name {
-    display: block;
-    font-size: 38px;
-    font-weight: 700;
-    color: $text-color-base;
-    line-height: 1.25;
   }
 
   .category-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: $spacing-md $spacing-sm;
-    margin: $spacing-md;
-    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+    gap: 24px 18px;
+    margin: 28px 24px 30px;
+    padding-bottom: calc(132px + env(safe-area-inset-bottom));
   }
 
   .category-card {
-    padding: $spacing-md $spacing-sm;
-    border: 1px solid $border-color;
-    border-radius: $border-radius-lg;
-    background: $showroom-surface;
+    padding: 20px 18px 24px;
+    border: 1px solid rgba($border-color, 0.9);
+    border-radius: $border-radius-xl;
+    background: linear-gradient(180deg, #ffffff 0%, $brand-mist 100%);
     text-align: center;
-    box-shadow: $shadow-sm;
+    box-shadow: 0 12px 30px rgba($brand-ink, 0.045);
 
     &:active {
       opacity: 0.92;
@@ -53,8 +36,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 180px;
-    border-radius: 14px;
+    height: 196px;
+    border-radius: $border-radius-lg;
     background: $showroom-surface-warm;
     overflow: hidden;
   }
@@ -80,10 +63,13 @@
   .category-name {
     display: block;
     margin-top: 16px;
-    font-size: 28px;
+    font-size: 29px;
     font-weight: 600;
     color: $text-color-base;
     line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .status-text {

@@ -8,10 +8,10 @@
   z-index: 20;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
-  border-top: 1px solid $border-color;
-  background: rgba($showroom-surface, 0.98);
-  box-shadow: 0 -10px 24px rgba(20, 25, 31, 0.08);
+  padding: 14px 28px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba($border-color, 0.72);
+  background: rgba($showroom-surface, 0.96);
+  box-shadow: 0 -18px 46px rgba($brand-ink, 0.1);
 }
 
 .store-bottom-nav__item {
@@ -20,14 +20,16 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  gap: 4px;
+  min-height: 82px;
+  gap: 6px;
   color: $text-color-secondary;
   font-size: 20px;
   line-height: 1.2;
+  position: relative;
 
   .app-icon {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
   }
 
   &:active {
@@ -38,6 +40,20 @@
 .store-bottom-nav__item--active {
   color: $primary-color;
   font-weight: 600;
+  background: $brand-mist;
+  border-radius: $border-radius-lg;
+
+  &::before {
+    content: '';
+    width: 42px;
+    height: 3px;
+    border-radius: $border-radius-max;
+    background: $secondary-color;
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
 
 .store-bottom-nav__label {
