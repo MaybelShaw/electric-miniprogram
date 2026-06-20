@@ -150,7 +150,7 @@
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。
   - `GET/POST/PATCH/DELETE /customer-group-prices/` 客户分组价格，支持按 `store`、`group`、`product` 过滤。
-  - `GET/POST/PATCH/DELETE /payment-configs/` 店铺支付配置（平台管理员）。合作方微信分账复用 `wechat_mch_id` 作为 `MERCHANT_ID` 接收方账号，并通过 `profit_sharing_enabled`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified` 标记是否可手动分账；不读取合作方证书。
+  - `GET/POST/PATCH/DELETE /payment-configs/` 店铺支付配置（平台管理员）。`wechat_mch_id` 保留为合作店铺未来服务商子商户号或线下结算参考；当前店铺分账不调用微信分账，不读取合作方证书，旧 `profit_sharing_*` 字段仅兼容历史配置。
   - `GET/POST/PATCH/DELETE /settlement-rules/` 店铺结算规则（平台管理员）。
 - 商品目录：
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
@@ -261,13 +261,13 @@
       - 字段：`status(reason/tracking_number/evidence_images/created_at/updated_at/processed_by/processed_note/processed_at)`
       - 状态：`requested | approved | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
-    - 微信分账：支付记录新增 `profit_sharing_required`、`profit_sharing_status`、`profit_sharing_unfrozen`。订单包含合作方店铺子单时，微信 JSAPI 下单传 `settle_info.profit_sharing=true`；只含主店铺子单时保持普通支付。
+    - 微信支付：统一使用平台/主店铺商户号普通收款，JSAPI 下单不传 `settle_info.profit_sharing=true`，不要求微信分账权限。
+    - 店铺分账：支付成功后按子单生成 `StoreProfitSharingEntry` 内部店铺分账流水；合作店铺流水默认进入冻结期，到期后可转为可结算并由平台管理员标记人工结算。
   - `POST /payments/callback/{provider}/` 支付回调 `backend/orders/urls.py:12`
-  - `GET /profit-sharing-entries/` 分账流水列表（平台管理员），支持 `status`、`checkout_order`、`store` 过滤。
-  - `POST /profit-sharing-entries/mark_available/` 将已到冻结期的分账流水转为可分账。
-  - `POST /profit-sharing-entries/share/` 手动发起微信分账；请求体 `{ "entry_ids": [1,2], "unfreeze_unsplit": false }`。
-  - `POST /profit-sharing-entries/{id}/mark_manual_settled/` 将异常或超期流水标记为人工结算。
-  - `GET /wechat-profit-sharing-orders/` 微信分账请求记录列表（平台管理员）；`POST /wechat-profit-sharing-orders/{id}/mark_succeeded|mark_failed/` 用于第一版人工同步或 mock 联调。
+  - `GET /profit-sharing-entries/` 店铺分账流水列表（平台管理员），支持 `status`、`checkout_order`、`store` 过滤。
+  - `POST /profit-sharing-entries/mark_available/` 将已到冻结期的店铺分账流水转为可结算。
+  - `POST /profit-sharing-entries/share/` 微信分账已停用，接口返回 `410 Gone`。
+  - `POST /profit-sharing-entries/{id}/mark_manual_settled/` 将异常或到期流水标记为人工结算。
   - `GET/POST/... /discounts/` 折扣管理 `backend/orders/views.py:980`
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`

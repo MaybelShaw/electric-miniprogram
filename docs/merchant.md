@@ -61,7 +61,7 @@
   - `/credit-accounts` 信用账户
   - `/account-statements` 账务对账单
   - `/account-transactions` 账务交易记录
-  - `/profit-sharing` 手动分账（平台管理员在主店铺上下文）
+  - `/profit-sharing` 店铺分账（平台管理员在主店铺上下文）
   - `/invoices` 发票管理
   - `/home-banners` 轮播图管理
   - `/home-store-cards` 首页卡片管理（平台管理员）
@@ -162,12 +162,12 @@
   - 导出为 Excel（Blob 下载） `merchant/src/pages/AccountStatements/index.tsx:147`
   - 详情抽屉（基本信息 + 财务汇总 + 交易明细） `merchant/src/pages/AccountStatements/index.tsx:332`
 - 交易记录：列表与筛选（付款状态、日期范围） `merchant/src/services/api.ts:90`
-- 手动分账：
+- 店铺分账：
   - 页面位置：`merchant/src/pages/ProfitSharing/index.tsx`，菜单入口 `/admin/profit-sharing`，仅平台管理员在主店铺上下文可见；平台管理员切换到合作店铺时隐藏入口，直接访问返回 403，且页面会在店铺上下文加载并校验通过后才请求分账表格数据。
-  - 分账流水表支持按状态、结算单 ID、店铺筛选，展示子单实付、抽佣、分账金额、接收方、可分账时间、失败原因。
-  - 平台管理员可批量更新到期冻结流水、对同一支付单下的可分账/失败流水发起微信分账，默认不解冻剩余未分资金。
-  - 异常流水可标记人工结算；微信分账请求记录支持第一版联调或人工核对后的“标记成功/标记失败”。
-  - 接口：`GET /api/profit-sharing-entries/`、`POST /api/profit-sharing-entries/mark_available/`、`POST /api/profit-sharing-entries/share/`、`POST /api/profit-sharing-entries/{id}/mark_manual_settled/`、`GET /api/wechat-profit-sharing-orders/`、`POST /api/wechat-profit-sharing-orders/{id}/mark_succeeded|mark_failed/`。
+  - 分账流水表支持按状态、结算单 ID、店铺筛选，展示子单实付、平台抽佣、店铺应结算金额、收款账号、可结算时间、失败原因。
+  - 平台管理员可更新到期冻结流水，并将可结算、异常或旧待配置流水标记为人工结算。
+  - 当前不再调用微信分账，也不展示微信分账请求记录。
+  - 接口：`GET /api/profit-sharing-entries/`、`POST /api/profit-sharing-entries/mark_available/`、`POST /api/profit-sharing-entries/{id}/mark_manual_settled/`；旧 `POST /api/profit-sharing-entries/share/` 返回 `410 Gone`。
 - 发票管理：
   - 列表：展示发票请求，支持按状态/发票类型/抬头筛选
   - 订单详情：点击订单号可快速查看关联订单的详细信息（商品、金额、收货信息等）
@@ -263,13 +263,10 @@
 - 交易记录：
   - 列表：`GET /account-transactions/`
   - 我的交易：`GET /account-transactions/my_transactions/`（前端用户端）
-- 微信分账：
+- 店铺分账：
   - 流水列表：`GET /profit-sharing-entries/`
   - 更新到期流水：`POST /profit-sharing-entries/mark_available/`
-  - 发起分账：`POST /profit-sharing-entries/share/`
   - 人工结算：`POST /profit-sharing-entries/{id}/mark_manual_settled/`
-  - 微信分账请求记录：`GET /wechat-profit-sharing-orders/`
-  - 人工同步结果：`POST /wechat-profit-sharing-orders/{id}/mark_succeeded/`、`POST /wechat-profit-sharing-orders/{id}/mark_failed/`
 - 订单：
   - 发货/完成/取消：`PATCH /orders/{id}/ship|complete|cancel/`
     - 发货请求体：`{ "tracking_number": "SF1234567890" }`
@@ -301,8 +298,8 @@
 
 ## 多商户后台权限边界
 - 商家后台通过 `merchant/src/utils/permissions.ts` 集中判断平台管理员与店铺经营用户的可访问路由。
-- 平台管理员可看到平台级用户、认证、信用账户、店铺成员、支付配置、结算规则和跨店经营菜单，并可使用顶部店铺选择器切换经营店铺；手动分账仅在当前选择店铺为主店铺时显示和操作。
-- 微信分账第一版在商户后台提供 `/admin/profit-sharing` 页面：平台管理员在店铺支付配置中维护合作方 `wechat_mch_id`、分账接收方名称、已添加/已校验标记；支付后可查看分账流水，手动发起微信分账、失败重试或标记人工结算。
+- 平台管理员可看到平台级用户、认证、信用账户、店铺成员、支付配置、结算规则和跨店经营菜单，并可使用顶部店铺选择器切换经营店铺；店铺分账仅在当前选择店铺为主店铺时显示和操作。
+- 店铺分账在商户后台提供 `/admin/profit-sharing` 页面：支付后可查看合作店铺分账流水、更新到期冻结流水，并将线下或人工处理完成的流水标记为人工结算；当前不再发起微信分账。
 - 自营店铺管理员和合作方管理员只显示本店经营菜单：销售统计、对账单、交易记录、首页轮播、动态专区、品牌、分类、商品、订单、发票、客户分组、店铺成员和问题建议。
 - 非平台管理员手动访问 `/admin/users`、`/admin/credit-accounts`、`/admin/discounts`、认证审核、支付配置、结算规则等平台页面时，会回到 `/admin/sales-stats`。
 - 普通店铺用户不显示跨店选择器；平台管理员切换店铺时，请求层显式注入 `store_id`，不覆盖调用方已经传入的 `store` 或 `store_id`。

@@ -1,5 +1,5 @@
 import request from '@/utils/request';
-import type { CurrentStoreContext, StoreProfitSharingEntry, WechatProfitSharingOrder } from './types';
+import type { CurrentStoreContext, StoreProfitSharingEntry } from './types';
 import { withSelectedStoreId } from '@/utils/storeScope';
 
 // 登录
@@ -164,21 +164,13 @@ export const failRefund = (id: number, data?: any) => request.post(`/refunds/${i
 export const getAccountTransactions = (params?: any) => request.get('/account-transactions/', { params });
 export const exportAccountTransactions = (params?: any) => request.get('/account-transactions/export/', { params, responseType: 'blob' });
 
-// 微信分账管理
+// 店铺分账管理
 export const getProfitSharingEntries = (params?: any): Promise<any> =>
   request.get('/profit-sharing-entries/', { params });
 export const markProfitSharingEntriesAvailable = (): Promise<{ updated: number }> =>
   request.post('/profit-sharing-entries/mark_available/', {});
-export const shareProfitSharingEntries = (data: { entry_ids: number[]; unfreeze_unsplit?: boolean }): Promise<WechatProfitSharingOrder> =>
-  request.post('/profit-sharing-entries/share/', data);
 export const markProfitSharingEntryManualSettled = (id: number, data?: { note?: string }): Promise<StoreProfitSharingEntry> =>
   request.post(`/profit-sharing-entries/${id}/mark_manual_settled/`, data || {});
-export const getWechatProfitSharingOrders = (params?: any): Promise<any> =>
-  request.get('/wechat-profit-sharing-orders/', { params });
-export const markWechatProfitSharingOrderSucceeded = (id: number, data?: { wechat_response?: Record<string, any> }): Promise<WechatProfitSharingOrder> =>
-  request.post(`/wechat-profit-sharing-orders/${id}/mark_succeeded/`, data || {});
-export const markWechatProfitSharingOrderFailed = (id: number, data?: { error_message?: string }): Promise<WechatProfitSharingOrder> =>
-  request.post(`/wechat-profit-sharing-orders/${id}/mark_failed/`, data || {});
 
 // 统计分析
 export const getRegionalSales = (params?: any) => request.get('/analytics/regional_sales/', { params });

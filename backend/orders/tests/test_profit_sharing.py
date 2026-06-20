@@ -1,6 +1,4 @@
 from decimal import Decimal
-from unittest.mock import patch
-
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -75,11 +73,11 @@ class ProfitSharingTests(TestCase):
         payment = Payment.create_for_order(order, method="wechat", ttl_minutes=10)
         return order, payment
 
-    def test_payment_for_partner_checkout_requires_profit_sharing(self):
+    def test_payment_for_partner_checkout_uses_plain_wechat_payment(self):
         _, payment = self._create_checkout_payment()
 
-        self.assertTrue(payment.profit_sharing_required)
-        self.assertEqual(payment.profit_sharing_status, "pending")
+        self.assertFalse(payment.profit_sharing_required)
+        self.assertEqual(payment.profit_sharing_status, "not_required")
 
     def test_payment_success_creates_profit_sharing_entries(self):
         order, payment = self._create_checkout_payment()
@@ -91,54 +89,24 @@ class ProfitSharingTests(TestCase):
         statuses = {entry.store_id: entry.status for entry in entries}
         self.assertEqual(statuses[self.main_store.id], "platform_retained")
         self.assertEqual(statuses[self.partner_ready.id], "frozen")
-        self.assertEqual(statuses[self.partner_pending.id], "pending_receiver_config")
+        self.assertEqual(statuses[self.partner_pending.id], "frozen")
 
         ready_entry = entries.get(store=self.partner_ready)
         self.assertEqual(ready_entry.receiver_account, "1900000001")
         self.assertEqual(ready_entry.sharing_amount, Decimal("200.00"))
 
         payment.refresh_from_db()
-        self.assertEqual(payment.profit_sharing_status, "pending_receiver_config")
+        self.assertEqual(payment.profit_sharing_status, "not_required")
 
-    def test_refresh_receiver_config_moves_pending_entry(self):
+    def test_mark_available_moves_due_frozen_entries(self):
         order, payment = self._create_checkout_payment()
         PaymentService.process_payment_success(payment.id, transaction_id="tx-profit-002", operator=self.user)
+        entry = StoreProfitSharingEntry.objects.get(checkout_order=order.checkout_order, store=self.partner_pending)
+        entry.available_at = entry.created_at
+        entry.save(update_fields=["available_at", "updated_at"])
 
-        StorePaymentConfig.objects.create(
-            store=self.partner_pending,
-            wechat_mch_id="1900000002",
-            is_active=True,
-            profit_sharing_enabled=True,
-            profit_sharing_receiver_name="Partner Pending",
-            profit_sharing_receiver_added=True,
-            profit_sharing_receiver_verified=True,
-        )
-
-        updated = ProfitSharingService.refresh_entries_for_store(self.partner_pending)
+        updated = ProfitSharingService.mark_available()
 
         self.assertEqual(updated, 1)
         entry = StoreProfitSharingEntry.objects.get(checkout_order=order.checkout_order, store=self.partner_pending)
-        self.assertEqual(entry.status, "frozen")
-        self.assertEqual(entry.receiver_account, "1900000002")
-
-    @patch("orders.profit_sharing.ProfitSharingService.request_wechat_share")
-    def test_manual_share_records_wechat_order(self, mock_request):
-        mock_request.return_value = {"state": "PROCESSING"}
-        order, payment = self._create_checkout_payment()
-        PaymentService.process_payment_success(payment.id, transaction_id="tx-profit-003", operator=self.user)
-        entry = StoreProfitSharingEntry.objects.get(checkout_order=order.checkout_order, store=self.partner_ready)
-        entry.status = "available"
-        entry.save(update_fields=["status", "updated_at"])
-
-        share_order = ProfitSharingService.start_manual_share(
-            payment,
-            [entry],
-            operator=self.platform_admin,
-            unfreeze_unsplit=False,
-        )
-
-        self.assertEqual(share_order.amount, Decimal("200.00"))
-        self.assertEqual(share_order.receivers[0]["account"], "1900000001")
-        entry.refresh_from_db()
-        self.assertEqual(entry.status, "processing")
-        mock_request.assert_called_once()
+        self.assertEqual(entry.status, "available")

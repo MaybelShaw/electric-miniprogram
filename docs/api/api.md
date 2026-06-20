@@ -1014,7 +1014,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-members/` - 客户分组成员
 - ✅ `GET/POST/PATCH/DELETE /api/stores/customer-group-prices/` - 客户分组价格表，支持本地商品和海尔商品的整品价/SKU 价，响应包含 `product_source`、`product_price`、`sku_price` 用于后台标识商品来源和展示默认参考价
 - ✅ `GET/POST/PATCH/DELETE /api/stores/payment-configs/` - 店铺支付配置（平台管理员）
-  - 微信分账字段：`profit_sharing_enabled`、`profit_sharing_receiver_type=MERCHANT_ID`、`profit_sharing_receiver_name`、`profit_sharing_receiver_added`、`profit_sharing_receiver_verified`。`wechat_mch_id` 复用为合作方分账接收商户号。
+  - `wechat_mch_id` 保留为合作店铺未来服务商子商户号或线下结算参考；当前店铺分账不调用微信分账，旧 `profit_sharing_*` 字段仅兼容历史配置。
 - ✅ `GET/POST/PATCH/DELETE /api/stores/settlement-rules/` - 店铺结算规则（平台管理员）
 
 #### 收货地址管理
@@ -1104,12 +1104,10 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/payments/{id}/expire/` - 支付过期
 - ✅ `POST /api/payments/callback/{provider}/` - 支付回调（支持mock和wechat）
 - ✅ `POST /api/payments/{id}/sync/` - 主动同步支付状态
-- ✅ `GET /api/profit-sharing-entries/` - 分账流水列表（平台管理员，支持 `status`、`checkout_order`、`store`）
-- ✅ `POST /api/profit-sharing-entries/mark_available/` - 到期冻结流水转可分账
-- ✅ `POST /api/profit-sharing-entries/share/` - 手动发起微信分账，请求体 `{ "entry_ids": [1,2], "unfreeze_unsplit": false }`
+- ✅ `GET /api/profit-sharing-entries/` - 店铺分账流水列表（平台管理员，支持 `status`、`checkout_order`、`store`）
+- ✅ `POST /api/profit-sharing-entries/mark_available/` - 到期冻结流水转可结算
 - ✅ `POST /api/profit-sharing-entries/{id}/mark_manual_settled/` - 标记人工结算
-- ✅ `GET /api/wechat-profit-sharing-orders/` - 微信分账请求记录
-- ✅ `POST /api/wechat-profit-sharing-orders/{id}/mark_succeeded/` / `mark_failed/` - 第一版人工同步分账结果
+- ⚠️ `POST /api/profit-sharing-entries/share/` - 微信分账已停用，返回 `410 Gone`
 
 #### 发票与退款
 - ✅ `GET/POST/PATCH/DELETE /api/invoices/` - 发票管理

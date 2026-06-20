@@ -77,7 +77,7 @@ export const adminMenuItems = [
       { key: '/admin/credit-accounts', icon: <CreditCardOutlined />, label: '信用账户' },
       { key: '/admin/account-statements', icon: <AccountBookOutlined />, label: '对账单' },
       { key: '/admin/account-transactions', icon: <AccountBookOutlined />, label: '交易记录' },
-      { key: '/admin/profit-sharing', icon: <AccountBookOutlined />, label: '手动分账' },
+      { key: '/admin/profit-sharing', icon: <AccountBookOutlined />, label: '店铺分账' },
     ],
   },
   {

@@ -501,16 +501,6 @@ class Payment(models.Model):
 
     @staticmethod
     def requires_profit_sharing(order):
-        from stores.models import Store
-
-        checkout_order = getattr(order, 'checkout_order', None)
-        if checkout_order_id := getattr(checkout_order, 'id', None):
-            return SubOrder.objects.filter(
-                checkout_order_id=checkout_order_id,
-                store__store_type=Store.TYPE_PARTNER,
-            ).exists()
-        if getattr(order, 'store', None):
-            return order.store.store_type == Store.TYPE_PARTNER
         return False
 
 

@@ -102,26 +102,6 @@ export interface StoreProfitSharingEntry {
   updated_at: string;
 }
 
-export type WechatProfitSharingOrderStatus = 'processing' | 'shared' | 'failed' | 'closed';
-
-export interface WechatProfitSharingOrder {
-  id: number;
-  payment: number;
-  checkout_order: number;
-  entry_ids: number[];
-  out_order_no: string;
-  transaction_id: string;
-  receivers: Record<string, any>[];
-  amount: string | number;
-  unfreeze_unsplit: boolean;
-  status: WechatProfitSharingOrderStatus;
-  wechat_response: Record<string, any>;
-  error_message: string;
-  operator: number | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Brand {
   id: number;
   name: string;

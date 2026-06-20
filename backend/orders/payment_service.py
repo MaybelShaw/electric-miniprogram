@@ -183,8 +183,6 @@ class PaymentService:
             "payer": {"openid": openid},
             "attach": json.dumps({"payment_id": payment.id}),
         }
-        if getattr(payment, 'profit_sharing_required', False):
-            body["settle_info"] = {"profit_sharing": True}
         if client_ip:
             body["scene_info"] = {"payer_client_ip": client_ip}
 

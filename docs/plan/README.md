@@ -38,7 +38,6 @@
 
 例如：
 
-- `2026-05-05-service-provider-profit-sharing.md`
 - `2026-06-07-order-refund-permission.md`
 - `2026-06-07-merchant-dashboard-cleanup.md`
 
@@ -55,8 +54,6 @@
 如果任务较大，可以先拆成多个子计划文件；每个子计划在各自完成后单独删除或归档。
 
 ## 当前计划
-
-- [微信支付分账与利润结算](./2026-05-05-service-provider-profit-sharing.md)
 
 ## 已归档计划
 

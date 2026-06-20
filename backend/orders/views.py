@@ -12,7 +12,6 @@ from .models import (
     ReturnRequest,
     OrderShippingAction,
     StoreProfitSharingEntry,
-    WechatProfitSharingOrder,
 )
 from .serializers import (
     OrderSerializer,
@@ -30,7 +29,6 @@ from .serializers import (
     ReturnRequestCreateSerializer,
     OrderShippingActionSerializer,
     StoreProfitSharingEntrySerializer,
-    WechatProfitSharingOrderSerializer,
 )
 from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
@@ -2266,7 +2264,7 @@ class StoreProfitSharingEntryViewSet(viewsets.ReadOnlyModelViewSet):
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         if not is_platform_admin(request.user):
-            self.permission_denied(request, message='仅平台管理员可管理微信分账')
+            self.permission_denied(request, message='仅平台管理员可管理店铺分账')
 
     def get_queryset(self):
         qs = (
@@ -2292,34 +2290,10 @@ class StoreProfitSharingEntryViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['post'])
     def share(self, request):
-        ids = request.data.get('entry_ids') or []
-        if not isinstance(ids, list) or not ids:
-            return Response({'detail': 'entry_ids 必须是非空数组'}, status=status.HTTP_400_BAD_REQUEST)
-        entries = list(
-            StoreProfitSharingEntry.objects
-            .select_related('payment', 'checkout_order', 'suborder')
-            .filter(id__in=ids)
+        return Response(
+            {'detail': '微信分账已停用，请使用人工结算记录店铺分账。'},
+            status=status.HTTP_410_GONE,
         )
-        if len(entries) != len(set(ids)):
-            return Response({'detail': '部分分账流水不存在'}, status=status.HTTP_404_NOT_FOUND)
-        payment_ids = {entry.payment_id for entry in entries}
-        if len(payment_ids) != 1:
-            return Response({'detail': '一次只能处理同一支付单下的分账流水'}, status=status.HTTP_400_BAD_REQUEST)
-        payment = entries[0].payment
-        unfreeze_unsplit = bool(request.data.get('unfreeze_unsplit', False))
-        try:
-            share_order = ProfitSharingService.start_manual_share(
-                payment,
-                entries,
-                operator=request.user,
-                unfreeze_unsplit=unfreeze_unsplit,
-            )
-        except ValueError as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as exc:
-            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
-        return Response(WechatProfitSharingOrderSerializer(share_order).data, status=status.HTTP_201_CREATED)
-
     @action(detail=True, methods=['post'])
     def mark_manual_settled(self, request, pk=None):
         entry = self.get_object()
@@ -2335,44 +2309,6 @@ class StoreProfitSharingEntryViewSet(viewsets.ReadOnlyModelViewSet):
         entry.save(update_fields=['status', 'logs', 'updated_at'])
         ProfitSharingService.update_payment_status(entry.payment)
         return Response(self.get_serializer(entry).data)
-
-
-@extend_schema(tags=['ProfitSharing'])
-class WechatProfitSharingOrderViewSet(viewsets.ReadOnlyModelViewSet):
-    serializer_class = WechatProfitSharingOrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def initial(self, request, *args, **kwargs):
-        super().initial(request, *args, **kwargs)
-        if not is_platform_admin(request.user):
-            self.permission_denied(request, message='仅平台管理员可管理微信分账')
-
-    def get_queryset(self):
-        qs = (
-            WechatProfitSharingOrder.objects
-            .select_related('payment', 'checkout_order', 'operator')
-            .prefetch_related('entries')
-            .order_by('-created_at')
-        )
-        status_param = self.request.query_params.get('status')
-        if status_param:
-            qs = qs.filter(status=status_param)
-        return qs
-
-    @action(detail=True, methods=['post'])
-    def mark_succeeded(self, request, pk=None):
-        share_order = self.get_object()
-        ProfitSharingService.mark_share_succeeded(share_order, response=request.data.get('wechat_response'))
-        share_order.refresh_from_db()
-        return Response(self.get_serializer(share_order).data)
-
-    @action(detail=True, methods=['post'])
-    def mark_failed(self, request, pk=None):
-        share_order = self.get_object()
-        error_message = request.data.get('error_message') or 'manual_failed'
-        ProfitSharingService.mark_share_failed(share_order, error_message)
-        share_order.refresh_from_db()
-        return Response(self.get_serializer(share_order).data)
 
 @extend_schema(tags=['Payments'])
 class RefundCallbackView(APIView):

@@ -358,7 +358,7 @@ server {
 - 微信支付证书与密钥：
   - 生产/预发 Compose 已将宿主机 `/etc/electric-miniprogram/certs/wechatpay` 只读挂载到容器同路径。
   - `.env.production` 中的 `WECHAT_PAY_PRIVATE_KEY_PATH`、`WECHAT_PAY_PUBLIC_KEY_PATH` 或 `WECHAT_PAY_PLATFORM_CERT_PATH` 应指向容器内 `/etc/electric-miniprogram/certs/wechatpay/...`。
-  - 微信支付分账复用同一套平台/主店商户号、API v3 密钥、私钥和公钥/平台证书；合作方店铺的 `wechat_mch_id` 只作为分账接收方商户号，不需要挂载合作方证书。
+  - 当前微信支付仅使用平台/主店铺商户号普通收款，不调用微信分账；合作方店铺的 `wechat_mch_id` 仅作为未来服务商子商户号或线下结算参考，不需要挂载合作方证书。
 
 ### 回滚策略
 - 若升级后出现异常：
