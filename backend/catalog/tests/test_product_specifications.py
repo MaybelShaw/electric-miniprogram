@@ -5,7 +5,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from catalog.models import Brand, Category, Product
-from stores.models import Store
+from stores.models import Store, StoreMember
 
 
 class ProductSpecificationsAPITests(TestCase):
@@ -98,6 +98,43 @@ class ProductSpecificationsAPITests(TestCase):
 
         self.assertEqual(response.status_code, 400, response.content)
         self.assertIn("specifications", response.data["errors"])
+
+    def test_partner_store_cannot_create_haier_product(self):
+        partner = Store.objects.create(
+            name="Partner store",
+            code="partner-product-source",
+            store_type=Store.TYPE_PARTNER,
+        )
+        major = Category.objects.create(name="Partner appliance", level=Category.LEVEL_MAJOR, store=partner)
+        category = Category.objects.create(
+            name="Partner refrigerator",
+            level=Category.LEVEL_MINOR,
+            parent=major,
+            store=partner,
+        )
+        brand = Brand.objects.create(name="Partner brand", store=partner)
+        partner_admin = get_user_model().objects.create_user(username="partner-catalog-admin", password="password")
+        StoreMember.objects.create(user=partner_admin, store=partner, role=StoreMember.ROLE_STORE_ADMIN)
+        self.client.force_authenticate(partner_admin)
+
+        response = self.client.post(
+            "/api/catalog/products/",
+            {
+                "store_id": partner.id,
+                "name": "Partner Haier product",
+                "category_id": category.id,
+                "brand_id": brand.id,
+                "price": "3999.00",
+                "stock": 10,
+                "is_active": True,
+                "source": Product.SOURCE_HAIER,
+                "product_code": "HAIER-PARTNER-001",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("source", str(response.data))
 
     def test_non_dealer_receives_specifications_without_dealer_price(self):
         product = Product.objects.create(

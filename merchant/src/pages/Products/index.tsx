@@ -2,19 +2,29 @@
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea, ProFormGroup, ProFormField, ProFormDependency } from '@ant-design/pro-components';
 import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions, Space } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, MinusCircleOutlined, DatabaseOutlined } from '@ant-design/icons';
-import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getProductActivities, updateProductActivities, getHaierProducts, getHaierStock, getHaierPrices, exportProducts } from '@/services/api';
+import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getProductActivities, updateProductActivities, getHaierProducts, getHaierStock, getHaierPrices, exportProducts, getCurrentStoreContext } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
 import { fetchAllPaginated } from '@/utils/request';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
-import type { Product, Brand, Category, SpecialZone } from '@/services/types';
+import type { Product, Brand, Category, SpecialZone, CurrentStoreContext } from '@/services/types';
+import { getSelectedStoreId } from '@/utils/store';
 
 type SpecificationItem = {
   key?: string;
   value?: string;
 };
+
+const LOCAL_PRODUCT_SOURCE_OPTIONS = [
+  { label: '本地商品', value: 'local' },
+];
+
+const HAIER_PRODUCT_SOURCE_OPTIONS = [
+  ...LOCAL_PRODUCT_SOURCE_OPTIONS,
+  { label: '海尔商品', value: 'haier' },
+];
 
 const specificationsToItems = (specifications?: Product['specifications']): SpecificationItem[] => {
   if (!specifications || typeof specifications !== 'object') {
@@ -47,7 +57,18 @@ export default function Products() {
   const [exportParams, setExportParams] = useState<Record<string, any>>({});
   const [exporting, setExporting] = useState(false);
   const [activityOptions, setActivityOptions] = useState<SpecialZone[]>([]);
+  const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
   const exportLockRef = useRef(false);
+  const selectedStoreId = getSelectedStoreId();
+  const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId)
+    || storeContext?.default_store
+    || storeContext?.stores[0];
+  const canUseHaierSource = currentStore?.allow_haier === true;
+  const productSourceOptions = canUseHaierSource ? HAIER_PRODUCT_SOURCE_OPTIONS : LOCAL_PRODUCT_SOURCE_OPTIONS;
+  const productSourceValueEnum = {
+    local: { text: '本地', status: 'Default' },
+    ...(canUseHaierSource ? { haier: { text: '海尔', status: 'Processing' } } : {}),
+  };
 
   // 加载品牌和分类数据用于筛选
   useEffect(() => {
@@ -64,6 +85,12 @@ export default function Products() {
       }
     };
     loadFilters();
+  }, []);
+
+  useEffect(() => {
+    getCurrentStoreContext()
+      .then(setStoreContext)
+      .catch(() => setStoreContext(null));
   }, []);
 
   const handleExport = async () => {
@@ -145,10 +172,7 @@ export default function Products() {
       dataIndex: 'source',
       width: 100,
       valueType: 'select',
-      valueEnum: {
-        local: { text: '本地', status: 'Default' },
-        haier: { text: '海尔', status: 'Processing' },
-      },
+      valueEnum: productSourceValueEnum,
       render: (_, record) => (
         <Tag color={record.source === 'haier' ? 'blue' : 'default'}>
           {record.source === 'haier' ? '海尔' : '本地'}
@@ -667,6 +691,7 @@ export default function Products() {
             const { specification_items, activity_ids, ...productData } = finalData;
             const payload = {
               ...productData,
+              source: canUseHaierSource ? productData.source : 'local',
               specifications: itemsToSpecifications(specification_items),
               main_images: normalizeImageList(finalData.main_images),
               detail_images: normalizeImageList(finalData.detail_images),
@@ -693,7 +718,7 @@ export default function Products() {
         }}
       >
         {/* 海尔产品提示 */}
-        {editingRecord?.source === 'haier' && (
+        {canUseHaierSource && editingRecord?.source === 'haier' && (
           <ProFormGroup colProps={{ span: 24 }}>
             <Alert
               message="海尔产品"
@@ -759,14 +784,11 @@ export default function Products() {
           <ProFormSelect
             name="source"
             label="商品来源"
-            options={[
-              { label: '本地商品', value: 'local' },
-              { label: '海尔商品', value: 'haier' },
-            ]}
+            options={productSourceOptions}
             placeholder="请选择商品来源"
             colProps={{ span: 6 }}
-            readonly={editingRecord?.source === 'haier'}
-            tooltip="海尔商品来源不可修改"
+            readonly={!canUseHaierSource || editingRecord?.source === 'haier'}
+            tooltip={canUseHaierSource ? '海尔商品来源不可修改' : '当前店铺仅支持本地商品'}
           />
           
           <ProFormDigit
@@ -882,7 +904,7 @@ export default function Products() {
         <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.source !== currentValues.source}>
           {({ getFieldValue }) => {
             const source = getFieldValue('source');
-            if (source === 'haier') {
+            if (canUseHaierSource && source === 'haier') {
               return (
                 <ProFormGroup title={<span style={{ fontWeight: 'bold', fontSize: '16px' }}>海尔数据同步</span>} colProps={{ span: 24 }}>
                   <ProFormField

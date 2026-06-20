@@ -74,6 +74,7 @@
 ## 页面与操作流程
 - 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
   - 统计功能已分离至独立页面“用户统计”
+- 店铺管理：新增/编辑店铺时，店铺 Logo 与封面图使用图片上传控件，上传后仍保存为 `logo`、`cover_image` URL 字段；图片上传复用 `POST /api/catalog/media-images/`。
 - 店铺成员：页面位置 `merchant/src/pages/StoreMembers/index.tsx`，菜单入口 `/admin/store-members`
   - 新增成员时不再从已有用户候选中选择，而是在弹窗内填写用户名、手机号、邮箱和初始密码，提交后创建新的商户后台账号并绑定为店铺管理员。
   - 新建账号用于后台登录，后端强制 `is_staff=true`、`role=admin`、`is_superuser=false`，成员角色固定为 `store_admin`；绑定主店铺时在界面上显示为“平台管理员”，绑定普通店铺时显示为“店铺管理员”。
@@ -102,6 +103,8 @@
   - API支持：`GET /analytics/regional_sales/`、`GET /analytics/product_region_distribution/`
 - 品牌/品类/商品：CRUD，删除支持强制删除参数（品牌） `merchant/src/services/api.ts:20`
 - 新增/编辑商品表单中的“品牌/品项”下拉数据来自 `GET /api/catalog/brands/` 与 `GET /api/catalog/categories/?level=item`（接口默认分页）。实现位置：`merchant/src/pages/Products/index.tsx:1`
+- 产品管理会根据当前选中店铺的 `allow_haier` 控制商品来源：未启用海尔能力的加盟/合作方店铺只显示“本地商品”，隐藏“海尔商品”选项和海尔同步区域，提交时也固定为 `source=local`。
+- SKU 管理：新增/编辑 SKU 时，`image` 主图字段使用图片上传控件，上传后保存图片 URL。
 - 下拉等“需要全量数据”的场景使用 `fetchAllPaginated` 拉取全部分页数据：`merchant/src/utils/request.ts:10`
 - 若数据库已有更多条目但下拉仅显示 20 条，优先在浏览器 Network 检查是否实际请求了下一页，或确认服务器已更新到最新前端构建产物（可通过重启对应容器/进程生效）
   - **海尔商品查询**：在创建/编辑海尔来源的商品时，支持输入海尔产品编码并点击“查询”按钮，自动调用海尔API获取商品详情。
@@ -191,6 +194,7 @@
     - 模板类型：`auto`（自动回复）, `quick`（快捷回复）
     - 内容类型：`text`（纯文本）, `card`（图文卡片）, `quick_buttons`（快捷按钮）
     - 内容负载：`content_payload` 存储结构化数据（卡片信息或按钮列表）
+    - 图文卡片模板的卡片图片使用图片上传控件，上传后写入 `content_payload.image_url`。
 - 模板列表：默认展示全部模板类型，可按”模板类型”筛选。
 - 模板入口：左侧栏”模板管理”（/support/templates）。
   - 模板类型：纯文本、图文卡片、快捷按钮（内容由 `content_type` 与 `content_payload` 决定）。

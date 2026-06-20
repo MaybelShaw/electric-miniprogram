@@ -156,6 +156,7 @@
   - `GET/POST/... /products/` 商品 CRUD `backend/catalog/urls.py:6`
     - 字段与校验补充：
       - `category_id`：商品必须挂在“子品类（minor）”或“品项（item）”下，否则返回 `400`，错误键为 `category_id`，错误信息“商品必须关联到子品类或品项”（`backend/catalog/serializers.py:409`，与 `Product.clean` 保持一致）。
+      - `source`：商品来源支持 `local` 和 `haier`；只有启用 `allow_haier` 的店铺可创建或更新为海尔商品，加盟/合作方店铺提交 `source=haier` 会返回 `400 Bad Request`。
       - `product_code`：海尔产品编码，数据库层面为唯一索引。
         - 海尔商品（`source=haier`）必须填写且唯一；缺失将返回 `400 Bad Request`，错误信息“海尔商品必须设置产品编码”。
         - 本地商品（`source=local`）可为空；当提交空白时后端会保存为 `NULL`，不参与唯一约束。

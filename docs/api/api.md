@@ -1038,6 +1038,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET /api/catalog/products/hot_keywords/` - 热门关键词
 - ✅ `POST /api/catalog/products/` - 创建商品（管理员）
 - ✅ `PUT/PATCH /api/catalog/products/{id}/` - 更新商品（管理员）
+- 商品来源限制：创建或更新商品为 `source=haier` 时，商品所属店铺必须启用 `allow_haier`；加盟/合作方店铺仅支持 `source=local`，提交海尔来源会返回 `400 Bad Request`。
 - ✅ `DELETE /api/catalog/products/{id}/` - 删除商品（管理员）
 
 #### 分类管理

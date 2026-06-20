@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from django.db.models import Q, Count, Max, F
 from django.core.exceptions import ValidationError
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.core.files.base import ContentFile
 from rest_framework.permissions import IsAuthenticated
@@ -180,6 +181,30 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAdminOrReadOnly]
+
+    def _validate_source_for_store(self, store, source):
+        if source == Product.SOURCE_HAIER and not getattr(store, 'allow_haier', False):
+            raise DRFValidationError({'source': '当前店铺仅支持本地商品'})
+
+    def perform_create(self, serializer):
+        store = get_requested_store(self.request, required=True)
+        self._check_store_permission(store)
+        source = serializer.validated_data.get('source', Product.SOURCE_LOCAL)
+        self._validate_source_for_store(store, source)
+        serializer.save(store=store)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        store = getattr(instance, 'store', None)
+        if store is not None:
+            self._check_store_permission(store)
+        target_store = serializer.validated_data.get('store', store)
+        if target_store is not None and target_store != store:
+            self._check_store_permission(target_store)
+        source = serializer.validated_data.get('source', instance.source)
+        if target_store is not None:
+            self._validate_source_for_store(target_store, source)
+        serializer.save()
 
     def _can_view_inactive_products(self):
         user = getattr(self.request, 'user', None)
