@@ -23,6 +23,7 @@ from .shipping_action_service import get_shipping_capabilities, is_haier_order
 from catalog.models import Product
 from users.models import Address
 from catalog.serializers import ProductSerializer, ProductSKUSerializer
+from stores.models import Store
 from stores.permissions import is_platform_admin, is_support_user
 from drf_spectacular.utils import extend_schema_field
 
@@ -550,6 +551,8 @@ class CartItemSerializer(serializers.ModelSerializer):
         product = obj.product
         if not product.is_active:
             return "商品已下架"
+        if product.store.store_type == Store.TYPE_PARTNER:
+            return "合作店铺商品仅展示，暂不支持购买"
         if obj.sku_id:
             if not obj.sku or not obj.sku.is_active:
                 return "规格已下架"

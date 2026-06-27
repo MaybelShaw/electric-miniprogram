@@ -1007,6 +1007,7 @@ fetch('/api/token/refresh/', {
 - ✅ `GET/POST/PATCH/DELETE /api/stores/` - 店铺管理
 - ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表
 - ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要
+  - 合作方店铺当前仅用于公开展示，商品可展示价格、图片和详情，但不能进入购物车、下单、支付或产生新的店铺分账流水。
 - ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
 - ✅ `POST /api/stores/members/create_user_member/` - 创建新的商户后台账号并绑定为店铺管理员；接口强制 `is_staff=true`、`role=admin`、`is_superuser=false`，成员角色只允许 `store_admin`；绑定主店铺时按平台管理员处理，绑定普通店铺时仅有本店权限
 - ✅ `GET /api/stores/members/available_users/` - 可绑定后台账号候选
@@ -1072,20 +1073,22 @@ fetch('/api/token/refresh/', {
   - 响应包含 `store_type` 与 `store_is_main`，前端可据此将主店铺入口返回平台首页，将合作方店铺入口跳转店铺详情页。
 
 #### 搜索日志
-- ✅ `GET /api/catalog/search-logs/` - 获取搜索日志（管理员）
+- ✅ `GET /api/catalog/search-logs/` - 获取搜索日志（平台管理员）
 - ✅ `GET /api/catalog/search-logs/hot-keywords/` - 获取热门关键词
 
 #### 购物车管理
 - ✅ `GET /api/cart/my_cart/` - 获取购物车
   - 响应保留平铺 `items`，并新增 `store_groups`。`store_groups` 按购物车项加入顺序确定店铺顺序：某店铺最早加入的商品越早，该店铺越靠前。
-  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组、判断主店铺入口和失效/缺货提示。
+  - 每个购物车项包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`is_available`、`unavailable_reason`，前端可据此展示店铺分组、判断主店铺入口和失效/缺货提示；历史合作店铺购物车项会返回不可结算原因“合作店铺商品仅展示，暂不支持购买”。
 - ✅ `POST /api/cart/add_item/` - 添加商品
 - ✅ `POST /api/cart/update_item/` - 更新数量
+  - 合作店铺商品（`store_type=partner`）仅展示，添加或更新购买数量会返回 `400 Bad Request`。
 - ✅ `POST /api/cart/remove_item/` - 移除商品
 - ✅ `POST /api/cart/clear/` - 清空购物车
 
 #### 订单管理
 - ✅ `POST /api/orders/create_order/` - 创建订单
+  - 合作店铺商品（`store_type=partner`）仅展示，创建单商品订单或批量结算时会返回 `400 Bad Request`，错误信息为“合作店铺商品仅展示，暂不支持购买”。
 - ✅ `GET /api/orders/my_orders/` - 获取我的订单
 - ✅ `GET /api/orders/` - 获取订单列表（支持筛选）
 - ✅ `GET /api/orders/{id}/` - 获取订单详情
@@ -1109,6 +1112,7 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/profit-sharing-entries/mark_available/` - 到期冻结流水转可结算
 - ✅ `POST /api/profit-sharing-entries/{id}/mark_manual_settled/` - 标记人工结算
 - ⚠️ `POST /api/profit-sharing-entries/share/` - 微信分账已停用，返回 `410 Gone`
+  - 合作店铺商品当前不允许新下单，因此不会产生新的合作店铺分账流水；历史流水仍可查询和人工结算。
 
 #### 发票与退款
 - ✅ `GET/POST/PATCH/DELETE /api/invoices/` - 发票管理
@@ -1288,7 +1292,7 @@ open http://127.0.0.1:8000/api/docs/
 | IsAdminOrReadOnly | 管理员可写，其他只读 | 商品、分类、品牌管理 |
 | IsOwnerOrAdmin | 所有者或管理员 | 订单详情、支付记录 |
 | IsAdmin | 仅管理员 | 用户管理、数据分析、海尔配置 |
-| StoreMember 权限码 | 店铺后台权限 | 商品、订单、发票、客户分组、问题建议 |
+| StoreMember 权限码 | 店铺后台权限 | 自营店铺可用商品、订单、发票、客户分组、问题建议；合作店铺仅展示配置 |
 
 ### 🚀 性能优化
 

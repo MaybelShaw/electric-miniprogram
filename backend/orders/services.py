@@ -1,5 +1,6 @@
 from .models import CheckoutOrder, Order, Cart, CartItem, OrderItem, Discount, SubOrder, SubOrderItem
 from catalog.models import Product, InventoryLog
+from stores.models import Store
 from django.utils import timezone
 from .models import DiscountTarget
 from users.models import Address
@@ -96,6 +97,8 @@ def get_best_active_discount(user, product, base_price=None):
 def validate_orderable_product(product, sku=None):
     if not getattr(product, 'is_active', False):
         raise ValueError('商品已下架')
+    if product.store.store_type == Store.TYPE_PARTNER:
+        raise ValueError('合作店铺商品仅展示，暂不支持购买')
     if sku is not None and not getattr(sku, 'is_active', False):
         raise ValueError('商品规格已下架')
 

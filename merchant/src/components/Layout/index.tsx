@@ -29,7 +29,12 @@ import { useEffect, useState, useRef } from 'react';
 import { removeToken } from '@/utils/auth';
 import { getCurrentStoreContext, getFeedbackTicketStats, getSupportTickets } from '@/services/api';
 import type { CurrentStoreContext } from '@/services/types';
-import { canAccessAdminRoute, STORE_DEFAULT_ROUTE } from '@/utils/permissions';
+import {
+  canAccessAdminRoute,
+  getStoreDefaultRoute,
+  PARTNER_DISPLAY_ONLY_BLOCKED_ROUTES,
+  PARTNER_DISPLAY_ONLY_ROUTE,
+} from '@/utils/permissions';
 import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
 import './index.css';
 
@@ -138,7 +143,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   useEffect(() => {
     if (isSupportLayout || !storeContext || storeContext.is_platform_admin) return;
     if (!canAccessAdminRoute(location.pathname, storeContext)) {
-      navigate(STORE_DEFAULT_ROUTE, { replace: true });
+      navigate(getStoreDefaultRoute(storeContext.default_store?.store_type), { replace: true });
     }
   }, [isSupportLayout, location.pathname, navigate, storeContext]);
 
@@ -197,8 +202,19 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
 
   const currentStore = storeContext?.stores.find(store => store.id === selectedStoreId) || storeContext?.default_store || storeContext?.stores[0];
   const allowProfitSharing = currentStore?.is_main === true;
+  const isPartnerDisplayOnlyStore = currentStore?.store_type === 'partner';
+  useEffect(() => {
+    if (!storeContext?.is_platform_admin || !isPartnerDisplayOnlyStore) return;
+    if (PARTNER_DISPLAY_ONLY_BLOCKED_ROUTES.has(location.pathname)) {
+      navigate(PARTNER_DISPLAY_ONLY_ROUTE, { replace: true });
+    }
+  }, [isPartnerDisplayOnlyStore, location.pathname, navigate, storeContext?.is_platform_admin]);
+
   const filterPlatformMenuItems = (items: any[]): any[] => items
     .map((item: any) => {
+      if (isPartnerDisplayOnlyStore && PARTNER_DISPLAY_ONLY_BLOCKED_ROUTES.has(item.key)) {
+        return null;
+      }
       if (item.key === '/admin/profit-sharing') {
         return allowProfitSharing ? item : null;
       }

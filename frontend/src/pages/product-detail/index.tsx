@@ -31,6 +31,7 @@ export default function ProductDetail() {
   const [scrollIntoView, setScrollIntoView] = useState('')
   const [navOpacity, setNavOpacity] = useState(0)
   const [hasAutoResumed, setHasAutoResumed] = useState(false)
+  const isDisplayOnlyProduct = product?.store_type === 'partner'
 
   useEffect(() => {
     // 确保显示分享菜单
@@ -95,6 +96,7 @@ export default function ProductDetail() {
 
     const intent = router.params?.auth_action || router.params?.intent
     if (intent !== 'buy' && intent !== 'cart') return
+    if (product.store_type === 'partner') return
 
     setHasAutoResumed(true)
     handleShowQuantityPopup(intent as TransactionAction)
@@ -195,6 +197,10 @@ export default function ProductDetail() {
     }
 
     if (!product) return
+    if (isDisplayOnlyProduct) {
+      Taro.showToast({ title: '该店铺商品仅展示', icon: 'none' })
+      return
+    }
 
     setActionType(type)
     setQuantity(1) // 重置数量为1
@@ -541,18 +547,26 @@ export default function ProductDetail() {
           </View>
         </View>
         <View className='footer-right'>
-          <View 
-            className={`action-btn cart-btn ${availableStock === 0 ? 'disabled' : ''}`}
-            onClick={() => availableStock > 0 && handleShowQuantityPopup('cart')}
-          >
-            加入购物车
-          </View>
-          <View 
-            className={`action-btn buy-btn ${availableStock === 0 ? 'disabled' : ''}`}
-            onClick={() => availableStock > 0 && handleShowQuantityPopup('buy')}
-          >
-            {availableStock === 0 ? '已售罄' : '立即购买'}
-          </View>
+          {isDisplayOnlyProduct ? (
+            <View className='action-btn buy-btn disabled'>
+              仅展示
+            </View>
+          ) : (
+            <>
+              <View
+                className={`action-btn cart-btn ${availableStock === 0 ? 'disabled' : ''}`}
+                onClick={() => availableStock > 0 && handleShowQuantityPopup('cart')}
+              >
+                加入购物车
+              </View>
+              <View
+                className={`action-btn buy-btn ${availableStock === 0 ? 'disabled' : ''}`}
+                onClick={() => availableStock > 0 && handleShowQuantityPopup('buy')}
+              >
+                {availableStock === 0 ? '已售罄' : '立即购买'}
+              </View>
+            </>
+          )}
         </View>
       </BottomActionBar>
 

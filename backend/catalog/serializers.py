@@ -344,6 +344,8 @@ class ProductSerializer(serializers.ModelSerializer):
     store_id = serializers.PrimaryKeyRelatedField(queryset=Store.objects.all(), source='store', required=False)
     category_id = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all(), source='category')
     brand_id = serializers.PrimaryKeyRelatedField(queryset=Brand.objects.all(), source='brand')
+    store_type = serializers.CharField(source='store.store_type', read_only=True)
+    store_is_main = serializers.BooleanField(source='store.is_main', read_only=True)
     discounted_price = serializers.SerializerMethodField()
     display_price = serializers.SerializerMethodField()
     originalPrice = serializers.SerializerMethodField()

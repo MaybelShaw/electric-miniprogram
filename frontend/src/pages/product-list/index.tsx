@@ -176,6 +176,10 @@ export default function ProductListPage() {
   
   const handleAddToCart = async (e, product: Product) => {
       e.stopPropagation()
+      if (product.store_type === 'partner') {
+        Taro.showToast({ title: '该店铺商品仅展示', icon: 'none' })
+        return
+      }
       if (product.skus && product.skus.length > 0) {
         Taro.navigateTo({ url: `/pages/product-detail/index?id=${product.id}&intent=cart` })
         return
@@ -205,6 +209,8 @@ export default function ProductListPage() {
       ? Number(product.discounted_price)
       : basePrice
   }
+
+  const isDisplayOnlyProduct = (product: Product) => product.store_type === 'partner'
 
   return (
     <View className='product-list-page'>
@@ -288,11 +294,15 @@ export default function ProductListPage() {
                         <View className='price'>
                           {formatPrice(getSellingPrice(product))}
                         </View>
-                        <Text className='sales'>已售{formatSalesCount(product.sales_count)}</Text>
+                        <Text className='sales'>
+                          {isDisplayOnlyProduct(product) ? '仅展示' : `已售${formatSalesCount(product.sales_count)}`}
+                        </Text>
                       </View>
-                      <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>
-                        <AppIcon name='add' tone='primary' />
-                      </View>
+                      {!isDisplayOnlyProduct(product) && (
+                        <View className='action-btn' onClick={(e) => handleAddToCart(e, product)}>
+                          <AppIcon name='add' tone='primary' />
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>

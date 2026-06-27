@@ -24,6 +24,11 @@ class CheckoutSubOrderTests(TestCase):
         self.partner_store = Store.objects.create(
             name="Partner Store",
             code="partner-store",
+            store_type=Store.TYPE_SELF_OPERATED,
+        )
+        self.display_partner_store = Store.objects.create(
+            name="Display Partner Store",
+            code="display-partner-store",
             store_type=Store.TYPE_PARTNER,
         )
         self.address = Address.objects.create(
@@ -76,6 +81,12 @@ class CheckoutSubOrderTests(TestCase):
             sku_code="B-DEFAULT",
             specs={"size": "std"},
             price=Decimal("300.00"),
+            stock=10,
+        )
+        self.display_partner_product = self._create_product(
+            self.display_partner_store,
+            "Display Partner Product",
+            Decimal("300.00"),
             stock=10,
         )
 
@@ -204,6 +215,23 @@ class CheckoutSubOrderTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("已下架", response.json()["detail"])
+
+    def test_checkout_rejects_partner_display_product(self):
+        client = APIClient()
+        client.force_authenticate(self.user)
+
+        response = client.post(
+            reverse("order-create-batch-orders"),
+            {
+                "address_id": self.address.id,
+                "items": [{"product_id": self.display_partner_product.id, "quantity": 1}],
+                "payment_method": "online",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("仅展示", response.json()["detail"])
 
     def test_checkout_rejects_inactive_sku(self):
         self.store_a_sku_red.is_active = False

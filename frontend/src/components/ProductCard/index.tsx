@@ -34,7 +34,8 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
   const tagText = getTagText(product.tag)
   const productImage = resolveLocalMediaUrl(product.main_images?.[0])
   const stock = Number(product.stock ?? 0)
-  const stockText = Number.isFinite(stock) ? `库存 ${Math.max(stock, 0)}` : '库存待同步'
+  const isDisplayOnly = product.store_type === 'partner'
+  const stockText = isDisplayOnly ? '仅展示' : Number.isFinite(stock) ? `库存 ${Math.max(stock, 0)}` : '库存待同步'
 
   return (
     <View className={`product-card product-card--${variant}`} onClick={goToDetail}>
@@ -66,8 +67,8 @@ export default function ProductCard({ product, variant = 'grid', onAddCart }: Pr
 
         <View className='product-bottom'>
           <PriceText value={sellingPrice} size={variant === 'compact' ? 'sm' : 'md'} />
-          <Text className={`product-stock ${stock <= 0 ? 'product-stock--empty' : ''}`}>{stockText}</Text>
-          {onAddCart ? (
+          <Text className={`product-stock ${!isDisplayOnly && stock <= 0 ? 'product-stock--empty' : ''}`}>{stockText}</Text>
+          {onAddCart && !isDisplayOnly ? (
             <View className='product-add-btn' onClick={(event) => onAddCart(product, event)}>
               <AppIcon name='add' tone='primary' />
             </View>

@@ -1906,6 +1906,8 @@ class CartViewSet(viewsets.ViewSet):
                 from catalog.models import ProductSKU
                 sku = ProductSKU.objects.get(id=sku_id, product=product)
                 stock_to_check = sku.stock
+            from .services import validate_orderable_product
+            validate_orderable_product(product, sku)
             
             if quantity > stock_to_check:
                 logger.warning(f"[购物车更新] 库存不足: quantity={quantity}, stock={stock_to_check}")

@@ -73,3 +73,23 @@ class CartStoreGroupTests(TestCase):
         item = response.json()["store_groups"][0]["items"][0]
         self.assertFalse(item["is_available"])
         self.assertTrue(item["unavailable_reason"])
+
+    def test_partner_store_product_is_display_only_in_cart(self):
+        CartItem.objects.create(cart=self.cart, product=self.partner_product, quantity=1)
+
+        response = self.client.get(reverse("cart-my-cart"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        item = response.json()["store_groups"][0]["items"][0]
+        self.assertFalse(item["is_available"])
+        self.assertIn("仅展示", item["unavailable_reason"])
+
+    def test_cannot_add_partner_store_product_to_cart(self):
+        response = self.client.post(
+            reverse("cart-add-item"),
+            {"product_id": self.partner_product.id, "quantity": 1},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("仅展示", response.json()["detail"])

@@ -42,6 +42,8 @@ export interface Product {
   id: number
   store?: number
   store_id?: number
+  store_type?: StoreType
+  store_is_main?: boolean
   name: string
   description: string
   category: string  // 分类名称

@@ -105,10 +105,11 @@
 - `stores.StoreMember` 绑定用户、店铺和角色；业务可见角色为 `platform_admin` 与 `store_admin`。历史 `store_sub_admin`、`store_staff` 数据保留兼容，但权限按店铺管理员处理，后台不再新增或展示这两个角色。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
 - 平台管理员只认超级用户、主平台店铺有效 `StoreMember(role='platform_admin')` 或主平台店铺有效 `StoreMember(role='store_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
-- 平台管理员可跨店查看和代配置；自营店铺管理员和合作方店铺管理员只能访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。
+- 平台管理员可跨店查看和代配置，并可查看搜索日志；自营店铺管理员可访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。合作方店铺当前仅作为前台展示店铺使用，后台只保留本店商品、分类、品牌、专区、轮播图、客户分组、店铺成员和问题建议等展示配置入口，不提供订单、发票、销售统计、账务、折扣、库存日志、信用账户或店铺分账经营入口。
 - 店铺成员接口允许平台管理员管理全部成员；普通店铺管理员只能管理本店店铺管理员账号。`POST /api/stores/members/create_user_member/` 用于创建新的商户后台账号并绑定为店铺管理员，后端强制 `is_staff=true`、`role=admin`、`is_superuser=false`，且成员角色只允许 `store_admin`。当绑定到主平台店铺时，该账号按平台管理员处理；绑定到普通店铺时只具备本店权限。支付配置、结算规则接口仅平台管理员可访问。
 - 公开接口 `GET /api/stores/public/partners/` 返回 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺。
 - 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区和商品摘要，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
+- 合作方店铺商品只用于小程序公开展示，商品列表和详情会返回价格、图片、规格等展示信息，但后端禁止加入购物车、更新购物车购买数量和创建订单；历史购物车项会以 `is_available=false` 和“合作店铺商品仅展示，暂不支持购买”提示前端排除结算。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
 - `Store.show_customer_group_name` 字段保留用于后台配置和接口兼容；当前小程序用户端不展示客户分组名称，只使用后端计算后的最终价格。
 - `stores.StoreCustomerGroup` 表示店铺自己的客户分组；列表响应包含 `member_count`、`active_member_count`、`price_count` 统计字段，方便后台快速判断配置完整度；`StoreCustomerGroupMember` 通过手机号或已注册用户绑定客户，约束为同一小程序用户在同一店铺只能属于一个分组，但可以分别属于多个店铺的各一个分组。
@@ -215,7 +216,7 @@
 - 订单与支付：
   - `GET /cart/my_cart/` 获取购物车 `backend/orders/views.py:1661`
     - 响应保留原平铺 `items`，并新增 `store_groups`，每组包含 `store_id`、`store_name`、`store_logo`、`store_type`、`store_is_main`、`item_count`、`total_quantity` 和该店铺下的 `items`。
-    - 店铺顺序按购物车项加入顺序确定：某店铺最早加入的商品越早，该店铺越靠前；`store_is_main` 用于前端将主店铺入口返回平台首页；单个购物车项返回 `is_available` 与 `unavailable_reason`，用于前端拦截已下架、规格下架或库存不足商品。
+    - 店铺顺序按购物车项加入顺序确定：某店铺最早加入的商品越早，该店铺越靠前；`store_is_main` 用于前端将主店铺入口返回平台首页；单个购物车项返回 `is_available` 与 `unavailable_reason`，用于前端拦截已下架、规格下架、库存不足或合作店铺仅展示商品。
   - `GET/POST/... /orders/` 订单 CRUD `backend/orders/urls.py:3`
   - `GET /orders/my_orders/` 我的订单 `backend/orders/views.py:113`
     - 查询参数：`status`（支持单状态如 `paid` 或多状态逗号分隔如 `returning,refunding,refunded`）。当传入 `returning` 时，除订单本身状态为 `returning` 外，还会包含存在退货申请且状态为 `requested|approved|in_transit|received` 的订单；当传入 `completed` 时，将排除上述处于退货流程中的订单。
@@ -231,6 +232,7 @@
       - `payment_method` 支付方式：`online | credit`（默认 `online`）。当为 `credit` 时将直接记录采购到信用账户并将订单置为 `paid`，不创建支付记录；当为 `online` 时创建对应支付记录。
       - `method` 在线支付渠道：`wechat | alipay | bank`（仅当 `payment_method=online` 时有效，默认 `wechat`）
     - 结算拆单：后端创建 `CheckoutOrder` 作为一次结算和支付聚合，并按 `store_id + product_id` 生成子单；同一 SPU 下的多个 SKU 会保留在同一子单的明细中。
+    - 合作店铺限制：`store_type=partner` 的商品仅展示，`add_item`、`update_item`、`create_order` 和 `create_batch_orders` 均会拒绝购买，返回“合作店铺商品仅展示，暂不支持购买”。
     - 响应兼容：`order` 仍返回支付主单，`payment` 绑定该主单；`order.child_orders` 返回可发货、售后、退款的子单摘要。
   - `PATCH /orders/{id}/cancel|ship|complete|confirm_receipt/` 状态流转 `backend/orders/views.py:313`
     - 跨店结算后，履约操作应使用列表或 `child_orders` 中返回的子单 `id`，不要对支付主单做发货或售后操作。
@@ -267,7 +269,7 @@
       - 状态：`requested | approved | in_transit | received | rejected`
   - `GET/POST/... /payments/` 支付管理 `backend/orders/views.py:787`
     - 微信支付：统一使用平台/主店铺商户号普通收款，JSAPI 下单不传 `settle_info.profit_sharing=true`，不要求微信分账权限。
-    - 店铺分账：支付成功后按子单生成 `StoreProfitSharingEntry` 内部店铺分账流水；合作店铺流水默认进入冻结期，到期后可转为可结算并由平台管理员标记人工结算。
+    - 店铺分账：支付成功后按子单生成 `StoreProfitSharingEntry` 内部店铺分账流水；合作店铺商品当前不能新下单，因此不会产生新的合作店铺分账流水。历史流水保留，可继续由平台管理员查看、更新到期状态或标记人工结算。
   - `POST /payments/{id}/sync/` 同步支付状态（查单）`backend/orders/views.py`
     - 用途：主动同步第三方支付状态（如微信支付查单）
     - 响应：`{ id, status, logs, ... }`
