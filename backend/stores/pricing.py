@@ -3,6 +3,13 @@ from decimal import Decimal
 from .models import Store, StoreCustomerGroupMember, StoreCustomerGroupPrice
 
 
+EMPTY_CUSTOMER_GROUP_CONTEXT = {
+    "customer_group_id": None,
+    "customer_group_name": "",
+    "show_customer_group_name": False,
+}
+
+
 def _normalized_phone(user) -> str:
     return (getattr(user, "phone", "") or "").strip()
 
@@ -73,18 +80,10 @@ def resolve_customer_group_price(user, product, sku=None):
 
 def get_customer_group_price_context(user, product):
     if not product:
-        return {
-            "customer_group_id": None,
-            "customer_group_name": "",
-            "show_customer_group_name": False,
-        }
+        return EMPTY_CUSTOMER_GROUP_CONTEXT.copy()
     membership = get_customer_group_membership(user, getattr(product, "store", None))
     if not membership:
-        return {
-            "customer_group_id": None,
-            "customer_group_name": "",
-            "show_customer_group_name": False,
-        }
+        return EMPTY_CUSTOMER_GROUP_CONTEXT.copy()
     return {
         "customer_group_id": membership.group_id,
         "customer_group_name": membership.group.name,

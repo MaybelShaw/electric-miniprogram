@@ -394,15 +394,18 @@ class PaymentService:
     @staticmethod
     def _extract_payment_from_attach(attach) -> Optional[int]:
         """解析回调 attach 中的 payment_id."""
+        def _to_int(value) -> Optional[int]:
+            try:
+                return int(value)
+            except Exception:
+                return None
+
         if attach is None:
             return None
         if isinstance(attach, dict):
             pid = attach.get('payment_id') or attach.get('paymentId')
             if pid:
-                try:
-                    return int(pid)
-                except Exception:
-                    return None
+                return _to_int(pid)
         if isinstance(attach, str):
             try:
                 parsed = json.loads(attach)
@@ -413,10 +416,7 @@ class PaymentService:
             if attach.isdigit():
                 return int(attach)
             if 'payment_id=' in attach:
-                try:
-                    return int(attach.split('payment_id=')[-1].split('&')[0])
-                except Exception:
-                    return None
+                return _to_int(attach.split('payment_id=')[-1].split('&')[0])
         return None
 
     @staticmethod

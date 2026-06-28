@@ -190,6 +190,13 @@ def get_requested_store(request, *, required=False, allow_public=False):
     return None
 
 
+def _filter_main_store(queryset, filter_key):
+    main_store = Store.objects.filter(is_main=True).first()
+    if main_store:
+        return queryset.filter(**{filter_key: main_store.id})
+    return queryset
+
+
 def filter_queryset_by_store(queryset, request, field="store", allow_public_all=False):
     user = getattr(request, "user", None)
     method = getattr(request, "method", "GET")
@@ -212,19 +219,13 @@ def filter_queryset_by_store(queryset, request, field="store", allow_public_all=
         if safe_method and allow_public_all and not getattr(user, "is_staff", False):
             return queryset
         if safe_method and not getattr(user, "is_staff", False):
-            main_store = Store.objects.filter(is_main=True).first()
-            if main_store:
-                return queryset.filter(**{filter_key: main_store.id})
-            return queryset
+            return _filter_main_store(queryset, filter_key)
         return queryset.none()
 
     if safe_method and allow_public_all:
         return queryset
 
-    main_store = Store.objects.filter(is_main=True).first()
-    if main_store:
-        return queryset.filter(**{filter_key: main_store.id})
-    return queryset
+    return _filter_main_store(queryset, filter_key)
 
 
 def validate_store_scope(instance_store, related_store, field_name):

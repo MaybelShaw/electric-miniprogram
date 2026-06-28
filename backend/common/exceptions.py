@@ -407,11 +407,12 @@ def _log_exception(exc, context, response):
     """
     request = context.get('request')
     view = context.get('view')
+    status_code = response.status_code if response else None
     
     # Determine log level based on status code
-    if response and response.status_code >= 500:
+    if status_code and status_code >= 500:
         log_level = logging.ERROR
-    elif response and response.status_code >= 400:
+    elif status_code and status_code >= 400:
         log_level = logging.WARNING
     else:
         log_level = logging.INFO
@@ -425,8 +426,7 @@ def _log_exception(exc, context, response):
     client_meta = {}
     if (
         request
-        and response
-        and response.status_code == status.HTTP_401_UNAUTHORIZED
+        and status_code == status.HTTP_401_UNAUTHORIZED
         and request.path.startswith('/api/support/chat/')
     ):
         client_meta = {
@@ -450,7 +450,7 @@ def _log_exception(exc, context, response):
             'request_path': request.path if request else None,
             'request_method': request.method if request else None,
             'view_name': view.__class__.__name__ if view else None,
-            'status_code': response.status_code if response else None,
+            'status_code': status_code,
             **client_meta,
         }
     )

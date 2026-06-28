@@ -71,37 +71,34 @@ def is_media_referenced(media: MediaImage) -> bool:
     from orders.models import OrderItem
 
     media_id = media.id
-    if HomeBanner.objects.filter(image_id=media_id).exists():
-        return True
-    if SpecialZoneCover.objects.filter(image_id=media_id).exists():
-        return True
-    if Case.objects.filter(cover_image_id=media_id).exists():
-        return True
-    if CaseDetailBlock.objects.filter(image_id=media_id).exists():
+    direct_references = (
+        HomeBanner.objects.filter(image_id=media_id),
+        SpecialZoneCover.objects.filter(image_id=media_id),
+        Case.objects.filter(cover_image_id=media_id),
+        CaseDetailBlock.objects.filter(image_id=media_id),
+    )
+    if any(reference.exists() for reference in direct_references):
         return True
 
     media_paths = collect_media_paths(media)
     if not media_paths:
         return False
 
-    for logo in Category.objects.exclude(logo='').values_list('logo', flat=True):
-        if normalize_media_path(logo) in media_paths:
-            return True
-    for logo in Brand.objects.exclude(logo='').values_list('logo', flat=True):
-        if normalize_media_path(logo) in media_paths:
-            return True
-    for sku_image in ProductSKU.objects.exclude(image='').values_list('image', flat=True):
-        if normalize_media_path(sku_image) in media_paths:
-            return True
-    for snapshot in OrderItem.objects.exclude(snapshot_image='').values_list('snapshot_image', flat=True):
-        if normalize_media_path(snapshot) in media_paths:
-            return True
+    referenced_paths = (
+        Category.objects.exclude(logo='').values_list('logo', flat=True),
+        Brand.objects.exclude(logo='').values_list('logo', flat=True),
+        ProductSKU.objects.exclude(image='').values_list('image', flat=True),
+        OrderItem.objects.exclude(snapshot_image='').values_list('snapshot_image', flat=True),
+    )
+    if any(normalize_media_path(path) in media_paths for paths in referenced_paths for path in paths):
+        return True
 
-    for product in Product.objects.only('main_images', 'detail_images', 'product_image_url', 'product_page_urls'):
-        for url in iter_product_image_urls(product):
-            if normalize_media_path(url) in media_paths:
-                return True
-    return False
+    products = Product.objects.only('main_images', 'detail_images', 'product_image_url', 'product_page_urls')
+    return any(
+        normalize_media_path(url) in media_paths
+        for product in products
+        for url in iter_product_image_urls(product)
+    )
 
 
 def cleanup_media_image(media: MediaImage | None) -> None:

@@ -276,17 +276,17 @@
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
 - 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
   - 直接聊天 Chat：
-    - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:156`
+    - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:412`
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
       - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
       - 说明：系统为每个用户自动维护一个会话。
-    - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:227`
+    - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:389`
       - 触发时会更新 `last_user_entered_at` 以记录用户进入会话时间
       - 空闲触发基准优先使用 `last_user_entered_at`，为空时依次回退到 `last_user_message_at/updated_at/created_at`
       - 默认返回 `debug` 字段，包含触发判定信息
       - 同时在服务端日志输出 `SUPPORT_AUTO_REPLY_DEBUG`，便于排查触发条件（控制台与 `backend/logs/app.log`）
       - 日限额与日统计按照北京时间（Asia/Shanghai）计算
-    - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:191`
+    - `POST /support/chat/` 发送消息（支持文本、图片、视频、订单、商品）`backend/support/views.py:437`
       - 请求方式：`multipart/form-data`
       - 表单字段：
         - `content` 文本（可选；当未上传附件时必填）

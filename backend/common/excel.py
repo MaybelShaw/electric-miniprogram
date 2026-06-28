@@ -18,6 +18,15 @@ def build_excel_response(
     from openpyxl.utils import get_column_letter
     from django.utils import timezone
 
+    def _cell_value(value):
+        if value is None:
+            return ""
+        if isinstance(value, datetime) and timezone.is_aware(value):
+            return timezone.localtime(value).replace(tzinfo=None)
+        if isinstance(value, time) and value.tzinfo is not None:
+            return value.replace(tzinfo=None)
+        return value
+
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Sheet1"
@@ -43,11 +52,7 @@ def build_excel_response(
     data_row = row_index + 1
     for row in rows:
         for col_idx, value in enumerate(row, start=1):
-            cell_value = "" if value is None else value
-            if isinstance(cell_value, datetime) and timezone.is_aware(cell_value):
-                cell_value = timezone.localtime(cell_value).replace(tzinfo=None)
-            elif isinstance(cell_value, time) and cell_value.tzinfo is not None:
-                cell_value = cell_value.replace(tzinfo=None)
+            cell_value = _cell_value(value)
             ws.cell(row=data_row, column=col_idx, value=cell_value)
             max_lens[col_idx - 1] = max(max_lens[col_idx - 1], len(str(cell_value)))
         data_row += 1

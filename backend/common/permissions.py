@@ -56,33 +56,32 @@ class IsOwnerOrAdmin(permissions.BasePermission):
             is_platform_admin = None
             is_support_user = None
 
-        if request.user and (
-            (is_platform_admin and is_platform_admin(request.user))
-            or (is_support_user and is_support_user(request.user))
+        user = request.user
+
+        def _order_attr(name):
+            if not hasattr(obj, 'order'):
+                return None
+            try:
+                return getattr(obj.order, name)
+            except Exception:
+                return None
+
+        if user and (
+            (is_platform_admin and is_platform_admin(user))
+            or (is_support_user and is_support_user(user))
         ):
             return True
 
         store = getattr(obj, 'store', None)
-        if store is None and hasattr(obj, 'order'):
-            try:
-                store = obj.order.store
-            except Exception:
-                store = None
-        if store is not None and can_access_store and can_access_store(request.user, store):
+        if store is None:
+            store = _order_attr('store')
+        if store is not None and can_access_store and can_access_store(user, store):
             return True
-        
-        # Get the owner from the object
+
         owner = getattr(obj, 'user', None)
-        
-        # If object doesn't have direct user field, try to get it from related object
-        if owner is None and hasattr(obj, 'order'):
-            try:
-                owner = obj.order.user
-            except Exception:
-                owner = None
-        
-        # Check if current user is the owner
-        return owner == request.user
+        if owner is None:
+            owner = _order_attr('user')
+        return owner == user
 
 
 class IsAdminOrReadOnly(permissions.BasePermission):

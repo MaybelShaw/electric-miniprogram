@@ -152,6 +152,20 @@ def upload_shipping_info(
     if delivery_mode == 2 and is_all_delivered is None:
         return False, {}, 'missing_is_all_delivered'
 
+    def _build_shipping_item(tracking, company, desc, contact=None):
+        shipping_item: Dict[str, object] = {'item_desc': desc}
+        if tracking:
+            shipping_item['tracking_no'] = tracking
+        if company:
+            shipping_item['express_company'] = company
+        if contact:
+            shipping_item['contact'] = contact
+        elif company and str(company).upper().startswith('SF'):
+            masked_contact = _mask_contact(getattr(order, 'snapshot_phone', '') or '')
+            if masked_contact:
+                shipping_item['contact'] = {'receiver_contact': masked_contact}
+        return shipping_item
+
     shipping_items: list[Dict[str, object]] = []
     if shipping_list:
         if not isinstance(shipping_list, list):
@@ -173,38 +187,14 @@ def upload_shipping_info(
             desc = _sanitize_text(item.get('item_desc') or item_desc or _build_item_desc(order) or '', 120).strip()
             if not desc:
                 return False, {}, 'missing_item_desc'
-            shipping_item: Dict[str, object] = {
-                'item_desc': desc,
-            }
-            if tracking:
-                shipping_item['tracking_no'] = tracking
-            if company:
-                shipping_item['express_company'] = company
-            if item.get('contact'):
-                shipping_item['contact'] = item.get('contact')
-            elif company and str(company).upper().startswith('SF'):
-                contact = _mask_contact(getattr(order, 'snapshot_phone', '') or '')
-                if contact:
-                    shipping_item['contact'] = {'receiver_contact': contact}
-            shipping_items.append(shipping_item)
+            shipping_items.append(_build_shipping_item(tracking, company, desc, item.get('contact')))
     else:
         desc = _sanitize_text(item_desc or _build_item_desc(order) or '', 120).strip()
         if not desc:
             return False, {}, 'missing_item_desc'
-        shipping_item: Dict[str, object] = {
-            'item_desc': desc,
-        }
         tracking_no = _sanitize_text(tracking_no)
         express_company = _sanitize_text(express_company)
-        if tracking_no:
-            shipping_item['tracking_no'] = tracking_no
-        if express_company:
-            shipping_item['express_company'] = express_company
-        if express_company and str(express_company).upper().startswith('SF'):
-            contact = _mask_contact(getattr(order, 'snapshot_phone', '') or '')
-            if contact:
-                shipping_item['contact'] = {'receiver_contact': contact}
-        shipping_items = [shipping_item]
+        shipping_items = [_build_shipping_item(tracking_no, express_company, desc)]
 
     if delivery_mode == 1 and len(shipping_items) != 1:
         return False, {}, 'delivery_mode_mismatch'
@@ -223,13 +213,20 @@ def upload_shipping_info(
         payload['is_all_delivered'] = bool(is_all_delivered)
 
     def _should_retry(last_err: str, last_resp: Dict) -> bool:
-        if isinstance(last_err, str) and last_err.startswith('http_status_'):
-            return True
-        if last_err in {'missing_access_token'}:
-            return True
-        if isinstance(last_resp, dict) and last_resp.get('errcode') in (-1, 10060012, 10060019):
-            return True
-        return False
+        return (
+            (isinstance(last_err, str) and last_err.startswith('http_status_'))
+            or last_err in {'missing_access_token'}
+            or (isinstance(last_resp, dict) and last_resp.get('errcode') in (-1, 10060012, 10060019))
+        )
+
+    def _mark_sync_succeeded(resp: Dict):
+        OrderShippingSync.objects.create(
+            order=order,
+            status='succeeded',
+            payload=payload,
+            response=resp,
+            error='',
+        )
 
     max_attempts = max(1, int(retry_times or 1))
     client = WeChatMiniProgramClient()
@@ -264,24 +261,12 @@ def upload_shipping_info(
         last_resp = resp or {}
         last_err = err or ''
         if ok:
-            OrderShippingSync.objects.create(
-                order=order,
-                status='succeeded',
-                payload=payload,
-                response=last_resp,
-                error='',
-            )
+            _mark_sync_succeeded(last_resp)
             return True, last_resp, ''
 
         # treat "未更新" as idempotent success
         if isinstance(last_resp, dict) and last_resp.get('errcode') == 10060023:
-            OrderShippingSync.objects.create(
-                order=order,
-                status='succeeded',
-                payload=payload,
-                response=last_resp,
-                error='',
-            )
+            _mark_sync_succeeded(last_resp)
             return True, last_resp, ''
 
         if attempt >= max_attempts - 1 or not _should_retry(last_err, last_resp):

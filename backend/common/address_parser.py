@@ -124,9 +124,7 @@ class AddressParser:
             full_address = f"{province}{city}{district}"
             result = jio.parse_location(full_address)
             
-            if result and result.get('province') and result.get('city'):
-                return True
-            return False
+            return bool(result and result.get('province') and result.get('city'))
         except Exception as e:
             logger.error(f"地址验证失败: {str(e)}")
             return False
@@ -143,9 +141,7 @@ class AddressParser:
         """
         try:
             phones = jio.extract_phone_number(text)
-            if phones:
-                return phones[0]
-            return None
+            return phones[0] if phones else None
         except Exception as e:
             logger.error(f"手机号提取失败: {str(e)}")
             return None
@@ -162,9 +158,7 @@ class AddressParser:
         """
         try:
             id_cards = jio.extract_id_card(text)
-            if id_cards:
-                return id_cards[0]
-            return None
+            return id_cards[0] if id_cards else None
         except Exception as e:
             logger.error(f"身份证号提取失败: {str(e)}")
             return None

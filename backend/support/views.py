@@ -46,9 +46,11 @@ def _can_close_feedback_ticket(user, ticket):
 
 
 def _collect_feedback_images(request):
-    files = []
-    for key in ('images', 'image', 'attachments', 'attachment'):
-        files.extend(request.FILES.getlist(key))
+    files = [
+        file
+        for key in ('images', 'image', 'attachments', 'attachment')
+        for file in request.FILES.getlist(key)
+    ]
     if not files and request.FILES:
         files = list(request.FILES.values())
 
@@ -186,6 +188,36 @@ def _normalize_auto_reply_time(reference_time, now=None):
     return resolved_now
 
 
+def _bad_request(message):
+    return Response({'detail': message}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _resolve_conversation_by_id(conversation_id, request_user, is_support):
+    try:
+        cid = int(conversation_id)
+    except ValueError:
+        return None, _bad_request('invalid conversation_id')
+    try:
+        conv = SupportConversation.objects.select_related('user').get(id=cid)
+    except SupportConversation.DoesNotExist:
+        return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
+    if not is_support and conv.user_id != request_user.id:
+        return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+    return conv, None
+
+
+def _resolve_conversation_by_user_id(user_id_raw, ensure_conversation):
+    try:
+        uid = int(user_id_raw)
+    except ValueError:
+        return None, _bad_request('invalid user_id')
+    try:
+        target_user = User.objects.get(id=uid)
+    except User.DoesNotExist:
+        return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
+    return ensure_conversation(target_user), None
+
+
 def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user_entered_at, now_override=None):
     templates = SupportReplyTemplate.objects.filter(
         enabled=True,
@@ -210,6 +242,29 @@ def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user
         return None, debug
     debug['sender_id'] = sender.id
 
+    def _record(template_debug, result):
+        template_debug['result'] = result
+        debug['templates'].append(template_debug)
+
+    def _finish(template_debug, result, msg=None):
+        _record(template_debug, result)
+        debug['result'] = result
+        return msg, debug
+
+    def _idle_skip_reason(template):
+        if not last_user_entered_at or not template.idle_minutes:
+            return 'skipped_missing_idle_conditions'
+        if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
+            return 'skipped_idle_not_reached'
+        if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
+            return 'skipped_auto_reply_recent'
+        return None
+
+    def _send_or_rate_limit(template, template_debug):
+        if _is_auto_reply_rate_limited(conversation, template, now):
+            return _finish(template_debug, 'rate_limited')
+        return _finish(template_debug, 'sent', _send_template_message(conversation, sender, template, now))
+
     for template in templates:
         template_debug = {
             'id': template.id,
@@ -220,78 +275,24 @@ def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user
         }
         if template.trigger_event == SupportReplyTemplate.TRIGGER_FIRST:
             if not had_user_messages:
-                if _is_auto_reply_rate_limited(conversation, template, now):
-                    template_debug['result'] = 'rate_limited'
-                    debug['templates'].append(template_debug)
-                    debug['result'] = 'rate_limited'
-                    return None, debug
-                msg = _send_template_message(conversation, sender, template, now)
-                template_debug['result'] = 'sent'
-                debug['templates'].append(template_debug)
-                debug['result'] = 'sent'
-                return msg, debug
-            template_debug['result'] = 'skipped_had_user_messages'
-            debug['templates'].append(template_debug)
+                return _send_or_rate_limit(template, template_debug)
+            _record(template_debug, 'skipped_had_user_messages')
             continue
         if template.trigger_event == SupportReplyTemplate.TRIGGER_IDLE:
-            if not last_user_entered_at or not template.idle_minutes:
-                template_debug['result'] = 'skipped_missing_idle_conditions'
-                debug['templates'].append(template_debug)
+            skip_reason = _idle_skip_reason(template)
+            if skip_reason:
+                _record(template_debug, skip_reason)
                 continue
-            if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
-                template_debug['result'] = 'skipped_idle_not_reached'
-                debug['templates'].append(template_debug)
-                continue
-            if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
-                template_debug['result'] = 'skipped_auto_reply_recent'
-                debug['templates'].append(template_debug)
-                continue
-            if _is_auto_reply_rate_limited(conversation, template, now):
-                template_debug['result'] = 'rate_limited'
-                debug['templates'].append(template_debug)
-                debug['result'] = 'rate_limited'
-                return None, debug
-            msg = _send_template_message(conversation, sender, template, now)
-            template_debug['result'] = 'sent'
-            debug['templates'].append(template_debug)
-            debug['result'] = 'sent'
-            return msg, debug
+            return _send_or_rate_limit(template, template_debug)
         if template.trigger_event == SupportReplyTemplate.TRIGGER_BOTH:
             if not had_user_messages:
-                if _is_auto_reply_rate_limited(conversation, template, now):
-                    template_debug['result'] = 'rate_limited'
-                    debug['templates'].append(template_debug)
-                    debug['result'] = 'rate_limited'
-                    return None, debug
-                msg = _send_template_message(conversation, sender, template, now)
-                template_debug['result'] = 'sent'
-                debug['templates'].append(template_debug)
-                debug['result'] = 'sent'
-                return msg, debug
-            if not last_user_entered_at or not template.idle_minutes:
-                template_debug['result'] = 'skipped_missing_idle_conditions'
-                debug['templates'].append(template_debug)
+                return _send_or_rate_limit(template, template_debug)
+            skip_reason = _idle_skip_reason(template)
+            if skip_reason:
+                _record(template_debug, skip_reason)
                 continue
-            if now - last_user_entered_at < timedelta(minutes=template.idle_minutes):
-                template_debug['result'] = 'skipped_idle_not_reached'
-                debug['templates'].append(template_debug)
-                continue
-            if conversation.last_auto_reply_at and now - conversation.last_auto_reply_at < timedelta(minutes=template.idle_minutes):
-                template_debug['result'] = 'skipped_auto_reply_recent'
-                debug['templates'].append(template_debug)
-                continue
-            if _is_auto_reply_rate_limited(conversation, template, now):
-                template_debug['result'] = 'rate_limited'
-                debug['templates'].append(template_debug)
-                debug['result'] = 'rate_limited'
-                return None, debug
-            msg = _send_template_message(conversation, sender, template, now)
-            template_debug['result'] = 'sent'
-            debug['templates'].append(template_debug)
-            debug['result'] = 'sent'
-            return msg, debug
-        template_debug['result'] = 'skipped_unknown_trigger'
-        debug['templates'].append(template_debug)
+            return _send_or_rate_limit(template, template_debug)
+        _record(template_debug, 'skipped_unknown_trigger')
     debug['result'] = 'no_match'
     return None, debug
 
@@ -337,31 +338,12 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         is_support = _is_support_backend_user(request.user)
 
         if conversation_id:
-            try:
-                cid = int(conversation_id)
-            except ValueError:
-                return None, Response({'detail': 'invalid conversation_id'}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                conv = SupportConversation.objects.select_related('user').get(id=cid)
-            except SupportConversation.DoesNotExist:
-                return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
-            if not is_support and conv.user_id != request.user.id:
-                return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-            return conv, None
+            return _resolve_conversation_by_id(conversation_id, request.user, is_support)
 
         if user_id_raw:
             if not is_support:
                 return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-            try:
-                uid = int(user_id_raw)
-            except ValueError:
-                return None, Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
-            from users.models import User
-            try:
-                target_user = User.objects.get(id=uid)
-            except User.DoesNotExist:
-                return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-            return self._ensure_conversation(target_user), None
+            return _resolve_conversation_by_user_id(user_id_raw, self._ensure_conversation)
 
         return self._ensure_conversation(request.user), None
 
@@ -577,29 +559,10 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         user_id_raw = request.data.get('user_id')
 
         if explicit_conversation_id:
-            try:
-                cid = int(explicit_conversation_id)
-            except ValueError:
-                return None, Response({'detail': 'invalid conversation_id'}, status=status.HTTP_400_BAD_REQUEST)
-            try:
-                conv = SupportConversation.objects.select_related('user').get(id=cid)
-            except SupportConversation.DoesNotExist:
-                return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
-            if not is_support and conv.user_id != request.user.id:
-                return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-            return conv, None
+            return _resolve_conversation_by_id(explicit_conversation_id, request.user, is_support)
 
         if user_id_raw and is_support:
-            try:
-                uid = int(user_id_raw)
-            except ValueError:
-                return None, Response({'detail': 'invalid user_id'}, status=status.HTTP_400_BAD_REQUEST)
-            from users.models import User
-            try:
-                target_user = User.objects.get(id=uid)
-            except User.DoesNotExist:
-                return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-            return self._ensure_conversation(target_user), None
+            return _resolve_conversation_by_user_id(user_id_raw, self._ensure_conversation)
 
         return self._ensure_conversation(request.user), None
 

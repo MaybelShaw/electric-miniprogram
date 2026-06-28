@@ -282,8 +282,7 @@ class AttachmentFileValidator(ImageFileValidator):
         # Try using python-magic if available
         try:
             import magic
-            mime_type = magic.from_buffer(header, mime=True)
-            return mime_type
+            return magic.from_buffer(header, mime=True)
         except ImportError:
             pass
         
@@ -298,18 +297,13 @@ class AttachmentFileValidator(ImageFileValidator):
             file.seek(0)
             img = Image.open(file)
             file.seek(0)
-            
-            # Map PIL format to MIME type
-            format_to_mime = {
+            return {
                 'JPEG': 'image/jpeg',
                 'PNG': 'image/png',
                 'GIF': 'image/gif',
                 'WEBP': 'image/webp',
                 'BMP': 'image/bmp',
-            }
-            return format_to_mime.get(img.format)
-        except ImportError:
-            pass
+            }.get(img.format)
         except Exception:
             pass
         

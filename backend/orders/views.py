@@ -82,11 +82,9 @@ from .profit_sharing import ProfitSharingService
 
 
 def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
-    errcode = None
-    errmsg = None
-    if isinstance(resp, dict):
-        errcode = resp.get('errcode')
-        errmsg = resp.get('errmsg')
+    resp = resp if isinstance(resp, dict) else {}
+    errcode = resp.get('errcode')
+    errmsg = resp.get('errmsg')
 
     errcode_map = {
         -1: '系统繁忙，请稍后再试',
@@ -142,12 +140,7 @@ def _wechat_shipping_error_message(err: str | None, resp: Dict | None) -> str:
     if errmsg:
         lowered = str(errmsg).lower()
         if 'not utf8' in lowered or 'data format error' in lowered:
-            rid = None
-            if 'rid' in lowered:
-                try:
-                    rid = str(errmsg).split('rid:')[-1].strip()
-                except Exception:
-                    rid = None
+            rid = str(errmsg).split('rid:')[-1].strip() if 'rid' in lowered else None
             suffix = f"（rid: {rid}）" if rid else ''
             return f"发货数据格式错误（请检查物流单号/商品描述/联系方式是否包含非 UTF-8 字符）{suffix}"
         return f"微信返回错误：{errmsg}"

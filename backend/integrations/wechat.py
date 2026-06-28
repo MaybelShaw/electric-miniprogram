@@ -6,11 +6,31 @@ import json
 from typing import Tuple
 
 import requests
-import json
 from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+
+def _response_json(resp) -> dict:
+    if not resp.content:
+        return {}
+    try:
+        return resp.json()
+    except ValueError:
+        try:
+            return json.loads(resp.content.decode('utf-8'))
+        except Exception:
+            return {}
+
+
+def _wechat_result(resp) -> Tuple[bool, dict, str]:
+    data = _response_json(resp)
+    if resp.status_code >= 300:
+        return False, data, f'http_status_{resp.status_code}'
+    if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):
+        return False, data, data.get('errmsg') or 'wechat_error'
+    return True, data, ''
 
 
 class WeChatMiniProgramClient:
@@ -103,12 +123,7 @@ class WeChatMiniProgramClient:
                 headers={'Content-Type': 'application/json; charset=utf-8'},
                 timeout=8,
             )
-            data = resp.json() if resp.content else {}
-            if resp.status_code >= 300:
-                return False, data, f'http_status_{resp.status_code}'
-            if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):
-                return False, data, data.get('errmsg') or 'wechat_error'
-            return True, data, ''
+            return _wechat_result(resp)
         except Exception as exc:
             logger.error('WeChat upload shipping info failed: %s', exc)
             return False, {}, str(exc)
@@ -125,21 +140,8 @@ class WeChatMiniProgramClient:
                 json={},
                 timeout=8,
             )
-            data = {}
-            if resp.content:
-                resp.encoding = 'utf-8'
-                try:
-                    data = resp.json()
-                except ValueError:
-                    try:
-                        data = json.loads(resp.content.decode('utf-8'))
-                    except Exception:
-                        data = {}
-            if resp.status_code >= 300:
-                return False, data, f'http_status_{resp.status_code}'
-            if isinstance(data, dict) and data.get('errcode') not in (None, 0, '0'):
-                return False, data, data.get('errmsg') or 'wechat_error'
-            return True, data, ''
+            resp.encoding = 'utf-8'
+            return _wechat_result(resp)
         except Exception as exc:
             logger.error('WeChat get delivery company list failed: %s', exc)
             return False, {}, str(exc)

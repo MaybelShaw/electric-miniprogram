@@ -20,6 +20,13 @@ def _is_absolute_url(url: str) -> bool:
     return url.startswith('http://') or url.startswith('https://')
 
 
+def _url_suffix(parsed) -> str:
+    suffix = f'?{parsed.query}' if parsed.query else ''
+    if parsed.fragment:
+        suffix = f'{suffix}#{parsed.fragment}' if suffix else f'#{parsed.fragment}'
+    return suffix
+
+
 LEGACY_MEDIA_BASE_URL = 'https://img.qxelectric.cn/media/'
 LEGACY_MEDIA_PATH_PREFIXES = ('images/images/',)
 
@@ -34,12 +41,7 @@ def _legacy_media_url(url: str) -> str:
         media_path = media_path[len(media_prefix) + 1:]
     if not any(media_path.startswith(prefix) for prefix in LEGACY_MEDIA_PATH_PREFIXES):
         return ''
-    suffix = ''
-    if parsed.query:
-        suffix = f'{suffix}?{parsed.query}'
-    if parsed.fragment:
-        suffix = f'{suffix}#{parsed.fragment}' if suffix else f'#{parsed.fragment}'
-    return f'{LEGACY_MEDIA_BASE_URL}{media_path}{suffix}'
+    return f'{LEGACY_MEDIA_BASE_URL}{media_path}{_url_suffix(parsed)}'
 
 
 def _resolve_media_url(url: str) -> str:
@@ -246,16 +248,11 @@ class BrandSerializer(serializers.ModelSerializer):
         parsed = urlparse(logo)
         if parsed.scheme or parsed.netloc:
             path = parsed.path or ''
-            suffix = ''
-            if parsed.query:
-                suffix = f"{suffix}?{parsed.query}"
-            if parsed.fragment:
-                suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
             # Only strip host for our media paths or same-host URLs; keep external URLs unchanged
             request = self.context.get('request')
             request_host = request.get_host() if request else None
             if path and (path.startswith(settings.MEDIA_URL) or parsed.netloc == request_host):
-                return f"{path}{suffix}"
+                return f"{path}{_url_suffix(parsed)}"
             return logo
         if logo.startswith('/'):
             return logo
@@ -436,15 +433,10 @@ class ProductSerializer(serializers.ModelSerializer):
         if parsed.scheme or parsed.netloc:
             path = parsed.path or ''
             if path:
-                suffix = ''
-                if parsed.query:
-                    suffix = f"?{parsed.query}"
-                if parsed.fragment:
-                    suffix = f"{suffix}#{parsed.fragment}" if suffix else f"#{parsed.fragment}"
                 request = self.context.get('request')
                 request_host = request.get_host() if request else None
                 if path.startswith(settings.MEDIA_URL) or (request_host and parsed.netloc == request_host):
-                    return f"{path}{suffix}"
+                    return f"{path}{_url_suffix(parsed)}"
                 return url
         if url.startswith('/'):
             return url
