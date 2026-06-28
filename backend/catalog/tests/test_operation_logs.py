@@ -65,6 +65,14 @@ class CatalogOperationLogAPITests(TestCase):
         self.assertEqual(list_response.status_code, 403, list_response.content)
         self.assertEqual(hot_response.status_code, 200, hot_response.content)
 
+    def test_store_admin_cannot_read_search_logs(self):
+        SearchLog.objects.create(keyword="冰箱", user=self.customer)
+        self.client.force_authenticate(self.partner_admin)
+
+        response = self.client.get("/api/catalog/search-logs/")
+
+        self.assertEqual(response.status_code, 403, response.content)
+
     def test_store_admin_can_only_read_own_inventory_logs(self):
         own_log = InventoryLog.objects.create(
             product=self.product,
