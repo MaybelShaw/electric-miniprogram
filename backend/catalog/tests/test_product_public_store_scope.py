@@ -54,6 +54,7 @@ class ProductPublicStoreScopeTests(TestCase):
             name="Partner store",
             code="partner-store",
             store_type=Store.TYPE_PARTNER,
+            show_on_home=True,
         )
         partner_major = Category.objects.create(
             name="Partner category",
@@ -73,6 +74,33 @@ class ProductPublicStoreScopeTests(TestCase):
             brand=partner_brand,
             store=self.partner_store,
             price=Decimal("1999.00"),
+            stock=8,
+            is_active=True,
+        )
+        self.hidden_partner_store = Store.objects.create(
+            name="Hidden partner store",
+            code="hidden-partner-store",
+            store_type=Store.TYPE_PARTNER,
+            show_on_home=False,
+        )
+        hidden_partner_major = Category.objects.create(
+            name="Hidden partner category",
+            level=Category.LEVEL_MAJOR,
+            store=self.hidden_partner_store,
+        )
+        hidden_partner_category = Category.objects.create(
+            name="Hidden partner item",
+            level=Category.LEVEL_MINOR,
+            parent=hidden_partner_major,
+            store=self.hidden_partner_store,
+        )
+        hidden_partner_brand = Brand.objects.create(name="Hidden partner brand", store=self.hidden_partner_store)
+        self.hidden_partner_product = Product.objects.create(
+            name="Hidden partner product",
+            category=hidden_partner_category,
+            brand=hidden_partner_brand,
+            store=self.hidden_partner_store,
+            price=Decimal("2999.00"),
             stock=8,
             is_active=True,
         )
@@ -132,6 +160,23 @@ class ProductPublicStoreScopeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["id"], self.partner_product.id)
+
+    def test_hidden_partner_store_products_are_not_public(self):
+        list_response = self.client.get("/api/catalog/products/?page=1&page_size=20")
+        detail_response = self.client.get(f"/api/catalog/products/{self.hidden_partner_product.id}/")
+        category_response = self.client.get(
+            "/api/catalog/products/by_category/",
+            {"category": self.hidden_partner_product.category.name, "store": self.hidden_partner_store.id},
+        )
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertNotIn(
+            self.hidden_partner_product.id,
+            [item["id"] for item in list_response.data["results"]],
+        )
+        self.assertEqual(detail_response.status_code, 404)
+        self.assertEqual(category_response.status_code, 200)
+        self.assertEqual(category_response.data["results"], [])
 
     def test_public_product_detail_hides_internal_procurement_fields(self):
         response = self.client.get(f"/api/catalog/products/{self.product.id}/")

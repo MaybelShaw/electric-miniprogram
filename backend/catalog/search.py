@@ -14,6 +14,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from decimal import Decimal
 from typing import Dict, List, Optional, Any
 from .models import Product, SearchLog
+from stores.models import Store
 from stores.permissions import get_active_memberships, is_platform_admin
 
 
@@ -119,7 +120,10 @@ class ProductSearchService:
         if can_view_inactive:
             queryset = Product.objects.all()
         else:
-            queryset = Product.objects.filter(is_active=True)
+            queryset = Product.objects.filter(is_active=True).exclude(
+                store__store_type=Store.TYPE_PARTNER,
+                store__show_on_home=False,
+            )
 
         if store_ids is not None:
             queryset = queryset.filter(store_id__in=store_ids)

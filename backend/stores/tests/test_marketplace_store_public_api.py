@@ -188,3 +188,16 @@ class MarketplaceStorePublicAPITest(TestCase):
         self.assertEqual(category_response.status_code, 200)
         self.assertEqual([item["name"] for item in category_response.data["products"]], ["Zhibang product"])
         self.assertEqual([item["name"] for item in category_response.data["brands"]], ["Zhibang product brand"])
+
+    def test_public_store_detail_hides_partner_when_not_shown_on_home(self):
+        partner = Store.objects.create(
+            name="Hidden partner",
+            code="hidden-partner-detail",
+            store_type=Store.TYPE_PARTNER,
+            show_on_home=False,
+        )
+        self.create_store_product(partner, "Hidden product")
+
+        response = self.client.get(f"/api/stores/public/{partner.id}/detail/")
+
+        self.assertEqual(response.status_code, 404)

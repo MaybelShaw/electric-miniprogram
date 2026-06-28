@@ -91,6 +91,30 @@ class StoreScopedCreateMixin:
         instance.delete()
 
 
+def _is_backoffice_catalog_user(request):
+    user = getattr(request, 'user', None)
+    return bool(
+        user
+        and getattr(user, 'is_authenticated', False)
+        and (
+            is_platform_admin(user)
+            or is_support_user(user)
+            or get_active_memberships(user).exists()
+        )
+    )
+
+
+def _hide_hidden_partner_store_queryset(qs, request, field='store'):
+    if request.method not in permissions.SAFE_METHODS or _is_backoffice_catalog_user(request):
+        return qs
+    return qs.exclude(
+        **{
+            f'{field}__store_type': Store.TYPE_PARTNER,
+            f'{field}__show_on_home': False,
+        }
+    )
+
+
 class PlatformAdminOrReadOnly(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method in permissions.SAFE_METHODS:
@@ -222,6 +246,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         """Get base queryset with is_active filter support and optimized queries."""
         qs = super().get_queryset()
         qs = filter_queryset_by_store(qs, self.request, allow_public_all=True)
+        qs = _hide_hidden_partner_store_queryset(qs, self.request)
         
         # Optimize queries by prefetching related objects
         qs = qs.select_related('category', 'brand')
@@ -371,6 +396,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
                 request,
                 allow_public_all=True,
             )
+            store_scoped_products = _hide_hidden_partner_store_queryset(store_scoped_products, request)
             store_ids = list(store_scoped_products.values_list('store_id', flat=True).distinct())
         
         # Parse pagination parameters
@@ -1021,6 +1047,7 @@ class CategoryViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Mode
     def get_queryset(self):
         qs = super().get_queryset()
         qs = filter_queryset_by_store(qs, self.request)
+        qs = _hide_hidden_partner_store_queryset(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -1112,6 +1139,7 @@ class BrandViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.ModelVi
         """
         qs = super().get_queryset()
         qs = filter_queryset_by_store(qs, self.request)
+        qs = _hide_hidden_partner_store_queryset(qs, self.request)
         # 名称模糊搜索
         search = self.request.query_params.get('search')
         if search:
@@ -1619,6 +1647,7 @@ class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             main_store = Store.objects.filter(is_main=True).first()
             if main_store:
                 qs = qs.filter(store=main_store)
+        qs = _hide_hidden_partner_store_queryset(qs, self.request)
         return self._visible_home_zones(qs)
 
     def _requested_store_id(self):
@@ -1700,6 +1729,7 @@ class SpecialZoneViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             store_id = parse_int(request.query_params.get('store') or request.query_params.get('store_id'))
             if store_id is not None:
                 products = products.filter(store_id=store_id)
+            products = _hide_hidden_partner_store_queryset(products, request)
             serializer = ProductSerializer(products, many=True, context=self.get_serializer_context())
             return Response(serializer.data)
 
@@ -1756,6 +1786,7 @@ class HomeStoreCardViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
             is_store_member = bool(user and user.is_authenticated and get_active_memberships(user).exists())
             if not (user and user.is_authenticated and (is_platform_admin(user) or is_store_member)):
                 qs = qs.filter(is_active=True)
+                qs = _hide_hidden_partner_store_queryset(qs, self.request)
             store_id = parse_int(self.request.query_params.get('store') or self.request.query_params.get('store_id'))
             if store_id is not None:
                 if is_store_member and store_id not in list(get_accessible_stores(user).values_list('id', flat=True)):
@@ -1833,6 +1864,7 @@ class HomeBannerViewSet(BrowseThrottleMixin, viewsets.ModelViewSet):
         from stores.permissions import get_active_memberships
         is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
         if self.request and self.request.method == 'GET' and not is_platform_admin(self.request.user) and not is_store_member:
+            qs = _hide_hidden_partner_store_queryset(qs, self.request)
             return qs.filter(is_active=True)
         return qs
 
@@ -1966,6 +1998,7 @@ class SpecialZoneCoverViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, views
         from stores.permissions import get_active_memberships
         is_store_member = self.request.user.is_authenticated and get_active_memberships(self.request.user).exists()
         if self.request and self.request.method == 'GET' and not is_platform_admin(self.request.user) and not is_store_member:
+            qs = _hide_hidden_partner_store_queryset(qs, self.request)
             return qs.filter(is_active=True)
         return qs
 

@@ -57,7 +57,10 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get_queryset(self):
-        return Store.objects.filter(status=Store.STATUS_ACTIVE)
+        return Store.objects.filter(status=Store.STATUS_ACTIVE).exclude(
+            store_type=Store.TYPE_PARTNER,
+            show_on_home=False,
+        )
 
     def retrieve(self, request, *args, **kwargs):
         store = self.get_object()
