@@ -12,20 +12,30 @@
   }
 
   .category-hero {
-    padding: 28px 24px 0;
+    padding: 22px 24px 0;
   }
 
   .category-hero-main {
-    padding: 32px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    min-height: 112px;
+    padding: 24px 26px;
     border: 1px solid rgba($border-color, 0.9);
-    border-radius: $border-radius-xl;
+    border-radius: $border-radius-lg;
     background: $showroom-surface;
-    box-shadow: 0 14px 36px rgba($brand-ink, 0.055);
+    box-shadow: 0 12px 30px rgba($brand-ink, 0.05);
+  }
+
+  .category-copy {
+    flex: 1;
+    min-width: 0;
   }
 
   .category-kicker {
     display: block;
-    font-size: 22px;
+    font-size: 21px;
     font-weight: 600;
     color: $brand-brass-deep;
     line-height: 1.4;
@@ -34,32 +44,43 @@
 
   .category-title {
     display: block;
-    margin-top: 8px;
-    font-size: 44px;
+    margin-top: 6px;
+    font-size: 38px;
     font-weight: 700;
     color: $text-color-base;
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .category-summary {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+    font-size: 22px;
+    color: $text-color-secondary;
+    line-height: 1.2;
+    text-align: right;
   }
 
   .store-category-section {
-    margin: 34px 24px 0;
-    padding: 30px 26px;
-    border: 1px solid rgba($border-color, 0.9);
-    border-radius: $border-radius-xl;
-    background: $showroom-surface;
-    box-shadow: 0 14px 36px rgba($brand-ink, 0.045);
+    margin: 28px 24px 0;
   }
 
   .section-header {
     display: flex;
-    align-items: flex-start;
+    align-items: flex-end;
     justify-content: space-between;
-    margin-bottom: 28px;
+    gap: 20px;
+    margin-bottom: 20px;
   }
 
   .section-kicker {
     display: block;
-    font-size: 23px;
+    font-size: 22px;
     font-weight: 600;
     color: $brand-brass-deep;
     line-height: 1.4;
@@ -69,10 +90,22 @@
   .section-title {
     display: block;
     margin-top: 4px;
-    font-size: 34px;
+    font-size: 32px;
     font-weight: 700;
     color: $text-color-base;
     line-height: 1.25;
+  }
+
+  .section-count {
+    flex-shrink: 0;
+    padding-bottom: 3px;
+    font-size: 22px;
+    color: $text-color-secondary;
+    line-height: 1.3;
+  }
+
+  .brand-filter-section {
+    margin-top: 20px;
   }
 
   .brand-scroll {
@@ -82,76 +115,73 @@
 
   .brand-track {
     display: flex;
-    gap: 18px;
-    padding-bottom: 4px;
+    gap: 12px;
+    padding: 0 24px 4px;
   }
 
-  .brand-card {
-    width: 246px;
+  .brand-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 260px;
+    height: 64px;
+    padding: 0 20px;
     flex-shrink: 0;
-    padding: $spacing-sm;
     border: 1px solid rgba($border-color, 0.9);
-    border-radius: $border-radius-xl;
-    background: linear-gradient(180deg, #ffffff 0%, $brand-mist 100%);
-    text-align: center;
+    border-radius: $border-radius-max;
+    background: $showroom-surface;
+    box-shadow: 0 8px 20px rgba($brand-ink, 0.035);
 
     &:active {
       opacity: 0.92;
     }
 
     &.active {
-      border-color: rgba($secondary-color, 0.88);
-      box-shadow: $shadow-sm;
+      border-color: $brand-ink;
+      background: $brand-ink;
+      box-shadow: 0 10px 26px rgba($brand-ink, 0.12);
+
+      .brand-chip-name {
+        color: $white;
+      }
+
+      .brand-chip-icon {
+        background: rgba($white, 0.12);
+      }
     }
   }
 
-  .brand-media {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 132px;
-    border-radius: $border-radius-lg;
+  .brand-chip-logo,
+  .brand-chip-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: $border-radius-sm;
     background: $showroom-surface-warm;
-    overflow: hidden;
   }
 
-  .brand-image {
-    width: 100%;
-    height: 100%;
-  }
-
-  .brand-fallback {
+  .brand-chip-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
+    overflow: hidden;
+
+    .app-icon {
+      width: 28px;
+      height: 28px;
+    }
   }
 
-  .brand-name {
-    display: block;
-    margin-top: 12px;
-    font-size: 25px;
+  .brand-chip-name {
+    display: inline-block;
+    min-width: 0;
+    font-size: 24px;
     font-weight: 600;
     color: $text-color-base;
     line-height: 1.3;
-    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .brand-copy {
-    display: -webkit-box;
-    margin-top: 6px;
-    font-size: 20px;
-    color: $text-color-secondary;
-    line-height: 1.45;
-    text-align: center;
-    overflow: hidden;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
   }
 
   .product-section {
@@ -161,7 +191,7 @@
   .product-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: $spacing-md $spacing-sm;
+    gap: 18px 14px;
   }
 
   .product-list .product-card {

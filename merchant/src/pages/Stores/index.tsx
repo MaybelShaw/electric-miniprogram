@@ -3,6 +3,7 @@ import { ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFor
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Form, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
+import ImageUrlUpload from '@/components/ImageUrlUpload';
 import { createStore, getStores, updateStore } from '@/services/api';
 import type { Store } from '@/services/types';
 
@@ -128,8 +129,12 @@ export default function Stores() {
             { label: '供应商', value: 'supplier' },
           ]}
         />
-        <ProFormText name="logo" label="店铺Logo" />
-        <ProFormText name="cover_image" label="封面图" />
+        <Form.Item name="logo" label="店铺Logo">
+          <ImageUrlUpload buttonText="上传Logo" previewWidth={72} previewHeight={72} objectFit="contain" />
+        </Form.Item>
+        <Form.Item name="cover_image" label="封面图">
+          <ImageUrlUpload buttonText="上传封面图" previewWidth={160} previewHeight={90} />
+        </Form.Item>
         <ProFormTextArea name="description" label="店铺简介" />
         <ProFormText name="contact_phone" label="联系电话" />
         <ProFormText name="address" label="地址" />

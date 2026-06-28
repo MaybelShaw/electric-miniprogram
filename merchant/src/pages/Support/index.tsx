@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { ProTable, ProDescriptions, ModalForm, ProFormText, ProFormTextArea, ProFormSelect, ProFormSwitch, ProFormDigit, ProFormDependency, ProFormList } from '@ant-design/pro-components';
 import { Button, message, Drawer, List, Avatar, Input, Divider, Upload, Image as AntImage, Modal, Select, Tag, Form, Popconfirm, Space } from 'antd';
 import { EyeOutlined, SendOutlined, UserOutlined, PaperClipOutlined, ShoppingOutlined, FileTextOutlined, PlusOutlined } from '@ant-design/icons';
+import ImageUrlUpload from '@/components/ImageUrlUpload';
 import { getConversations, getProducts, getOrders, getSupportReplyTemplates, createSupportReplyTemplate, updateSupportReplyTemplate, deleteSupportReplyTemplate } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import type { SupportConversation, SupportReplyTemplate } from '@/services/types';
@@ -652,7 +653,9 @@ export default function Support() {
                     <>
                       <ProFormText name={['card_payload', 'title']} label="卡片标题" rules={[{ required: true, message: '请输入卡片标题' }]} />
                       <ProFormTextArea name={['card_payload', 'description']} label="卡片描述" />
-                      <ProFormText name={['card_payload', 'image_url']} label="图片链接" placeholder="https://..." />
+                      <Form.Item name={['card_payload', 'image_url']} label="卡片图片">
+                        <ImageUrlUpload buttonText="上传卡片图片" previewWidth={120} previewHeight={80} />
+                      </Form.Item>
                       <ProFormSelect
                         name={['card_payload', 'link_type']}
                         label="跳转类型"

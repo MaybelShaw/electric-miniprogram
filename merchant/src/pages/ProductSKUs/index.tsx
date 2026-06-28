@@ -3,6 +3,7 @@ import { ProTable, ModalForm, ProFormDigit, ProFormSelect, ProFormSwitch, ProFor
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Form, Input, Popconfirm, Space, Tag, message } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import ImageUrlUpload from '@/components/ImageUrlUpload';
 import { createProductSku, deleteProductSku, getProductSkus, getProducts, updateProductSku } from '@/services/api';
 import type { Product, ProductSKU } from '@/services/types';
 import { fetchAllPaginated } from '@/utils/request';
@@ -188,7 +189,9 @@ export default function ProductSKUs() {
         </Form.Item>
         <ProFormDigit name="price" label="售价" rules={[{ required: true, message: '请输入售价' }]} fieldProps={{ min: 0, precision: 2 }} />
         <ProFormDigit name="stock" label="库存" rules={[{ required: true, message: '请输入库存' }]} fieldProps={{ min: 0, precision: 0 }} />
-        <ProFormText name="image" label="SKU主图" />
+        <Form.Item name="image" label="SKU主图">
+          <ImageUrlUpload buttonText="上传SKU主图" previewWidth={120} previewHeight={120} />
+        </Form.Item>
         <ProFormSwitch name="is_active" label="启用" />
       </ModalForm>
     </>
