@@ -41,7 +41,6 @@ import './index.css';
 const { Header, Sider, Content, Footer } = AntLayout;
 
 export const adminMenuItems = [
-  { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
   {
     key: '/admin/platform-group',
     icon: <UserOutlined />,
@@ -95,6 +94,7 @@ export const adminMenuItems = [
       { key: '/admin/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
     ],
   },
+  { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
 ];
 
 export const supportMenuItems = [
