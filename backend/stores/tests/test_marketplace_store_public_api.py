@@ -97,6 +97,13 @@ class MarketplaceStorePublicAPITest(TestCase):
             name="Hidden",
             code="hidden",
             store_type=Store.TYPE_PARTNER,
+            is_visible=False,
+            show_on_home=True,
+        )
+        Store.objects.create(
+            name="Not on home",
+            code="not-on-home",
+            store_type=Store.TYPE_PARTNER,
             show_on_home=False,
         )
         Store.objects.create(
@@ -189,12 +196,27 @@ class MarketplaceStorePublicAPITest(TestCase):
         self.assertEqual([item["name"] for item in category_response.data["products"]], ["Zhibang product"])
         self.assertEqual([item["name"] for item in category_response.data["brands"]], ["Zhibang product brand"])
 
-    def test_public_store_detail_hides_partner_when_not_shown_on_home(self):
+    def test_public_store_detail_allows_partner_when_not_shown_on_home(self):
+        partner = Store.objects.create(
+            name="Not home partner",
+            code="not-home-partner-detail",
+            store_type=Store.TYPE_PARTNER,
+            show_on_home=False,
+        )
+        self.create_store_product(partner, "Hidden product")
+
+        response = self.client.get(f"/api/stores/public/{partner.id}/detail/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["store"]["id"], partner.id)
+
+    def test_public_store_detail_hides_partner_when_not_visible(self):
         partner = Store.objects.create(
             name="Hidden partner",
             code="hidden-partner-detail",
             store_type=Store.TYPE_PARTNER,
-            show_on_home=False,
+            is_visible=False,
+            show_on_home=True,
         )
         self.create_store_product(partner, "Hidden product")
 

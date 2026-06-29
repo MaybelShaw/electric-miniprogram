@@ -122,7 +122,7 @@ class ProductSearchService:
         else:
             queryset = Product.objects.filter(is_active=True).exclude(
                 store__store_type=Store.TYPE_PARTNER,
-                store__show_on_home=False,
+                store__is_visible=False,
             )
 
         if store_ids is not None:

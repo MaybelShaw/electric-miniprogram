@@ -47,6 +47,7 @@ class PublicPartnerStoreListAPIView(generics.ListAPIView):
         qs = Store.objects.filter(
             status=Store.STATUS_ACTIVE,
             store_type=Store.TYPE_PARTNER,
+            is_visible=True,
             show_on_home=True,
         )
         return qs.order_by("home_order", "id")
@@ -59,7 +60,7 @@ class PublicStoreDetailAPIView(generics.RetrieveAPIView):
     def get_queryset(self):
         return Store.objects.filter(status=Store.STATUS_ACTIVE).exclude(
             store_type=Store.TYPE_PARTNER,
-            show_on_home=False,
+            is_visible=False,
         )
 
     def retrieve(self, request, *args, **kwargs):

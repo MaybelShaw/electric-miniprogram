@@ -32,6 +32,7 @@ export interface Store {
   logo?: string;
   cover_image?: string;
   description?: string;
+  is_visible?: boolean;
   show_on_home?: boolean;
   home_order?: number;
   contact_phone?: string;

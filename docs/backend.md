@@ -101,13 +101,13 @@
 ## 店铺与数据隔离
 - `stores.Store` 是真实经营主体模型；庆勋愉悦家自身也是一个 `Store`，合作方入驻店铺也是 `Store`，不是“主店挂载子店铺”的组织层级。
 - `Store.is_main=true` 表示唯一主平台店铺；`store_type` 支持 `self_operated`、`partner`、`supplier`。当前模型固定为一个主店铺 + 多个合作店铺，不再维护额外的平台归属字段。
-- `Store.logo`、`cover_image`、`description`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示；合作店铺 `show_on_home=false` 时，公开侧不返回该店铺入口、店铺详情、商品、分类、品牌、轮播、专区等信息。
+- `Store.logo`、`cover_image`、`description`、`is_visible`、`show_on_home`、`home_order`、`contact_phone`、`address` 用于小程序公开展示；合作店铺 `is_visible=false` 时，公开侧不返回该店铺入口、店铺详情、商品、分类、品牌、轮播、专区等信息；`show_on_home=false` 仅隐藏首页/公开店铺列表入口。
 - `stores.StoreMember` 绑定用户、店铺和角色；业务可见角色为 `platform_admin` 与 `store_admin`。历史 `store_sub_admin`、`store_staff` 数据保留兼容，但权限按店铺管理员处理，后台不再新增或展示这两个角色。
 - `GET /api/stores/current/` 返回当前账号可访问店铺、默认店铺、平台管理员标记和店铺成员关系。
 - 平台管理员只认超级用户、主平台店铺有效 `StoreMember(role='platform_admin')` 或主平台店铺有效 `StoreMember(role='store_admin')`；普通 `is_staff` 或 `role='admin'` 不再自动代表平台管理员。
 - 平台管理员可跨店查看和代配置，并可查看搜索日志；自营店铺管理员可访问自己店铺下的商品、分类、品牌、专区、轮播图、订单、销售统计、账务数据、客户分组和问题建议。合作方店铺当前仅作为前台展示店铺使用，后台只保留本店商品、分类、品牌、专区、轮播图、客户分组、店铺成员和问题建议等展示配置入口，不提供订单、发票、销售统计、账务、折扣、库存日志、信用账户或店铺分账经营入口。
 - 店铺成员接口允许平台管理员管理全部成员；普通店铺管理员只能管理本店店铺管理员账号。`POST /api/stores/members/create_user_member/` 用于创建新的商户后台账号并绑定为店铺管理员，后端强制 `is_staff=true`、`role=admin`、`is_superuser=false`，且成员角色只允许 `store_admin`。当绑定到主平台店铺时，该账号按平台管理员处理；绑定到普通店铺时只具备本店权限。支付配置、结算规则接口仅平台管理员可访问。
-- 公开接口 `GET /api/stores/public/partners/` 返回 `status=active`、`store_type=partner`、`show_on_home=true` 的合作方店铺；隐藏合作店铺的公开详情和商品信息会被过滤。
+- 公开接口 `GET /api/stores/public/partners/` 返回 `status=active`、`store_type=partner`、`is_visible=true`、`show_on_home=true` 的合作方店铺；`is_visible=false` 的合作店铺公开详情和商品信息会被过滤。
 - 公开接口 `GET /api/stores/public/{id}/detail/` 返回指定店铺公开信息、图片轮播、一级分类、当前分类下可见品牌、动态专区和商品摘要，数据只来自该真实店铺；传入 `category_id` 时商品与品牌都会收敛到该分类树下。
 - 合作方店铺商品只用于小程序公开展示，商品列表和详情会返回价格、图片、规格等展示信息，但后端禁止加入购物车、更新购物车购买数量和创建订单；历史购物车项会以 `is_available=false` 和“合作店铺商品仅展示，暂不支持购买”提示前端排除结算。
 - 只有主店允许启用海尔能力，合作方店铺开启 `allow_haier` 会触发模型校验错误。
@@ -146,7 +146,7 @@
 - 店铺与权限（前缀 `/api/stores/`）：
   - `GET /current/` 当前账号店铺上下文，包含可访问店铺、默认店铺、平台管理员标记、成员关系和权限码。
   - `GET/POST/PATCH/DELETE /` 店铺管理；非平台管理员仅可更新本店 `show_customer_group_name` 展示开关。
-  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要。合作店铺 `show_on_home=false` 时公开详情返回 404。
+  - `GET /public/partners/` 公开合作方店铺列表；`GET /public/{id}/detail/` 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要。合作店铺 `is_visible=false` 时公开详情返回 404；`show_on_home=false` 时仅不出现在公开合作方店铺列表。
   - `GET/POST/PATCH/DELETE /members/` 店铺成员管理；`POST /members/create_user_member/` 创建新的商户后台账号并绑定为店铺管理员；`GET /members/available_users/` 返回可绑定后台账号候选。
   - `GET/POST/PATCH/DELETE /customer-groups/` 店铺客户分组。
   - `GET/POST/PATCH/DELETE /customer-group-members/` 客户分组成员，支持按 `store`、`group`、`phone` 过滤。

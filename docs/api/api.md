@@ -1005,8 +1005,8 @@ fetch('/api/token/refresh/', {
 #### 店铺与商家权限
 - ✅ `GET /api/stores/current/` - 当前账号可访问店铺、默认店铺和成员权限
 - ✅ `GET/POST/PATCH/DELETE /api/stores/` - 店铺管理
-- ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表（仅 `show_on_home=true` 的启用合作店铺）
-- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要；合作店铺 `show_on_home=false` 时返回 404，公开商品/分类/品牌/轮播/专区接口也会过滤该店铺数据
+- ✅ `GET /api/stores/public/partners/` - 公开合作方店铺列表（仅 `is_visible=true`、`show_on_home=true` 的启用合作店铺）
+- ✅ `GET /api/stores/public/{id}/detail/` - 公开店铺详情、图片轮播、一级分类、分类下品牌、专区和商品摘要；合作店铺 `is_visible=false` 时返回 404，公开商品/分类/品牌/轮播/专区接口也会过滤该店铺数据；`show_on_home=false` 只影响公开店铺入口列表
   - 合作方店铺当前仅用于公开展示，商品可展示价格、图片和详情，但不能进入购物车、下单、支付或产生新的店铺分账流水。
 - ✅ `GET/POST/PATCH/DELETE /api/stores/members/` - 店铺成员管理
 - ✅ `POST /api/stores/members/create_user_member/` - 创建新的商户后台账号并绑定为店铺管理员；接口强制 `is_staff=true`、`role=admin`、`is_superuser=false`，成员角色只允许 `store_admin`；绑定主店铺时按平台管理员处理，绑定普通店铺时仅有本店权限

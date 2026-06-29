@@ -24,6 +24,8 @@ def get_main_store_pk():
         defaults["store_type"] = Store.TYPE_SELF_OPERATED
     if "show_on_home" in column_names:
         defaults["show_on_home"] = True
+    if "is_visible" in column_names:
+        defaults["is_visible"] = True
 
     store, _ = Store.objects.only("id").get_or_create(code=Store.MAIN_STORE_CODE, defaults=defaults)
     return store.pk
@@ -57,6 +59,7 @@ class Store(models.Model):
     logo = models.CharField(max_length=512, blank=True, default="", verbose_name="店铺Logo")
     cover_image = models.CharField(max_length=512, blank=True, default="", verbose_name="封面图")
     description = models.TextField(blank=True, default="", verbose_name="店铺简介")
+    is_visible = models.BooleanField(default=True, verbose_name="展示")
     show_on_home = models.BooleanField(default=False, verbose_name="首页展示")
     home_order = models.IntegerField(default=0, verbose_name="首页排序")
     contact_phone = models.CharField(max_length=32, blank=True, default="", verbose_name="联系电话")
@@ -81,6 +84,7 @@ class Store(models.Model):
             models.Index(fields=["code"]),
             models.Index(fields=["status"]),
             models.Index(fields=["store_type"], name="stores_stor_store_t_93515a_idx"),
+            models.Index(fields=["is_visible"]),
             models.Index(fields=["show_on_home", "home_order"]),
         ]
 

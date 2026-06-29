@@ -110,7 +110,7 @@ def _hide_hidden_partner_store_queryset(qs, request, field='store'):
     return qs.exclude(
         **{
             f'{field}__store_type': Store.TYPE_PARTNER,
-            f'{field}__show_on_home': False,
+            f'{field}__is_visible': False,
         }
     )
 

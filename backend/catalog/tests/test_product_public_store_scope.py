@@ -81,6 +81,13 @@ class ProductPublicStoreScopeTests(TestCase):
             name="Hidden partner store",
             code="hidden-partner-store",
             store_type=Store.TYPE_PARTNER,
+            is_visible=False,
+            show_on_home=True,
+        )
+        self.not_home_partner_store = Store.objects.create(
+            name="Not home partner store",
+            code="not-home-partner-store",
+            store_type=Store.TYPE_PARTNER,
             show_on_home=False,
         )
         hidden_partner_major = Category.objects.create(
@@ -101,6 +108,27 @@ class ProductPublicStoreScopeTests(TestCase):
             brand=hidden_partner_brand,
             store=self.hidden_partner_store,
             price=Decimal("2999.00"),
+            stock=8,
+            is_active=True,
+        )
+        not_home_partner_major = Category.objects.create(
+            name="Not home partner category",
+            level=Category.LEVEL_MAJOR,
+            store=self.not_home_partner_store,
+        )
+        not_home_partner_category = Category.objects.create(
+            name="Not home partner item",
+            level=Category.LEVEL_MINOR,
+            parent=not_home_partner_major,
+            store=self.not_home_partner_store,
+        )
+        not_home_partner_brand = Brand.objects.create(name="Not home partner brand", store=self.not_home_partner_store)
+        self.not_home_partner_product = Product.objects.create(
+            name="Not home partner product",
+            category=not_home_partner_category,
+            brand=not_home_partner_brand,
+            store=self.not_home_partner_store,
+            price=Decimal("3999.00"),
             stock=8,
             is_active=True,
         )
@@ -137,7 +165,12 @@ class ProductPublicStoreScopeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertCountEqual(
             [item["id"] for item in response.data["results"]],
-            [self.product.id, self.partner_product.id, self.same_brand_other_category_product.id],
+            [
+                self.product.id,
+                self.partner_product.id,
+                self.not_home_partner_product.id,
+                self.same_brand_other_category_product.id,
+            ],
         )
 
     def test_by_brand_can_be_limited_to_category_tree(self):
@@ -177,6 +210,17 @@ class ProductPublicStoreScopeTests(TestCase):
         self.assertEqual(detail_response.status_code, 404)
         self.assertEqual(category_response.status_code, 200)
         self.assertEqual(category_response.data["results"], [])
+
+    def test_partner_store_products_remain_public_when_only_hidden_from_home(self):
+        list_response = self.client.get("/api/catalog/products/?page=1&page_size=20")
+        detail_response = self.client.get(f"/api/catalog/products/{self.not_home_partner_product.id}/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertIn(
+            self.not_home_partner_product.id,
+            [item["id"] for item in list_response.data["results"]],
+        )
+        self.assertEqual(detail_response.status_code, 200)
 
     def test_public_product_detail_hides_internal_procurement_fields(self):
         response = self.client.get(f"/api/catalog/products/{self.product.id}/")

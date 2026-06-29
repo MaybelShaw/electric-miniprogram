@@ -19,6 +19,7 @@ export default function Stores() {
     form.setFieldsValue({
       status: 'active',
       store_type: 'partner',
+      is_visible: true,
       show_on_home: true,
       home_order: 0,
       allow_haier: false,
@@ -58,6 +59,7 @@ export default function Stores() {
       },
       width: 100,
     },
+    { title: '展示', dataIndex: 'is_visible', valueType: 'switch', width: 90, hideInSearch: true },
     { title: '首页展示', dataIndex: 'show_on_home', valueType: 'switch', width: 100, hideInSearch: true },
     { title: '排序', dataIndex: 'home_order', width: 80, hideInSearch: true },
     { title: '联系电话', dataIndex: 'contact_phone', hideInSearch: true },
@@ -139,6 +141,7 @@ export default function Stores() {
         <ProFormText name="contact_phone" label="联系电话" />
         <ProFormText name="address" label="地址" />
         <ProFormDigit name="home_order" label="首页排序" fieldProps={{ min: 0 }} />
+        <ProFormSwitch name="is_visible" label="展示" />
         <ProFormSwitch name="show_on_home" label="首页展示" />
         <ProFormSwitch name="allow_haier" label="启用海尔能力" />
         <ProFormSwitch name="is_main" label="主店" disabled={Boolean(editingRecord)} />
