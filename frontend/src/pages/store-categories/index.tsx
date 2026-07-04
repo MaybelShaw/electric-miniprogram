@@ -86,21 +86,6 @@ export default function StoreCategoriesPage() {
 
   return (
     <View className='store-categories-page'>
-      <View className='store-strip'>
-        <View className='store-logo-wrap'>
-          {resolveLocalMediaUrl(store?.logo) ? (
-            <Image className='store-logo' src={resolveLocalMediaUrl(store?.logo)} mode='aspectFit' />
-          ) : (
-            <AppIcon name='store' tone='gold' />
-          )}
-        </View>
-        <View className='store-copy'>
-          <Text className='store-kicker'>店铺分类</Text>
-          <Text className='store-name'>{store?.name || '加盟店铺'}</Text>
-          {!!store?.description && <Text className='store-description'>{store.description}</Text>}
-        </View>
-      </View>
-
       <View className='category-content'>
         <ScrollView className='category-sidebar' scrollY>
           {majorCategories.map(category => (
@@ -115,22 +100,6 @@ export default function StoreCategoriesPage() {
         </ScrollView>
 
         <ScrollView className='sub-category-container' scrollY>
-          {activeMajor && (
-            <View className='current-major-card' onClick={() => goToCategory(activeMajor)}>
-              <View className='current-major-copy'>
-                <Text className='current-major-title'>全部{activeMajor.name}</Text>
-                <Text className='current-major-desc'>查看该品类下的全部商品</Text>
-              </View>
-              <View className='current-major-icon'>
-                {resolveLocalMediaUrl(activeMajor.logo) ? (
-                  <Image className='current-major-image' src={resolveLocalMediaUrl(activeMajor.logo)} mode='aspectFit' />
-                ) : (
-                  <AppIcon name='package' tone='primary' />
-                )}
-              </View>
-            </View>
-          )}
-
           {subCategories.map(subCat => (
             <View key={subCat.id} className='sub-category-section'>
               <View className='section-title' onClick={() => goToCategory(subCat)}>

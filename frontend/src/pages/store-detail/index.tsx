@@ -49,13 +49,6 @@ function getStockLabel(product?: Product | null) {
   return `库存 ${stock}`
 }
 
-function getCategoryCopy(category: DisplayCategory) {
-  if (category.children?.length) {
-    return `${category.children.length} 个子类`
-  }
-  return ''
-}
-
 export default function StoreDetailPage() {
   const router = useRouter()
   const storeId = Number(router.params.id || router.params.store_id || 0)
@@ -251,7 +244,6 @@ export default function StoreDetailPage() {
                 </View>
 
                 <View className='store-copy'>
-                  <Text className='store-kicker'>店铺首页</Text>
                   <Text className='store-name'>{store.name}</Text>
                   {!!store.description && <Text className='store-description'>{store.description}</Text>}
                 </View>
@@ -299,7 +291,6 @@ export default function StoreDetailPage() {
                       )}
                     </View>
                     <Text className='category-name'>{category.name}</Text>
-                    {getCategoryCopy(category) ? <Text className='category-copy'>{getCategoryCopy(category)}</Text> : null}
                   </View>
                 ))}
               </View>
@@ -370,7 +361,6 @@ export default function StoreDetailPage() {
         <View className='store-section product-section'>
           <View className='section-header'>
             <View>
-              <Text className='section-kicker'>商品列表</Text>
               <Text className='section-title'>{currentFocusLabel}</Text>
             </View>
           </View>

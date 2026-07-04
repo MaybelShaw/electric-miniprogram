@@ -223,12 +223,12 @@
 - 入驻店铺列表页 `/pages/store-list/index` 展示当前平台下 `is_visible=true`、`show_on_home=true` 且启用中的合作方店铺；`is_visible=false` 的合作店铺在小程序公开侧同时隐藏店铺详情、商品、分类、品牌、轮播和专区信息，`show_on_home=false` 仅隐藏首页/列表入口。
 - 店铺详情页 `/pages/store-detail/index?id=<store_id>` 是多店铺共用模板，展示该真实经营店铺的公司名称、Logo、封面、图片轮播、产品类别入口、产品大图、价格、库存、动态专区和商品摘要；品牌分类不在首页默认堆叠展示。
 - 店铺列表、店铺首页、店铺分类、分类商品页和店铺我的页统一使用主平台首页延展出的高端家居展厅风格：冷白背景、深色照片叠层、悬浮品牌信息卡、大幅商品陈列、浅雾面卡片、细边框和灰蓝/金属感强调色；仅调整视觉呈现，不改变接口、路由或业务流程。
-- 店铺详情页、店铺分类页和店铺我的页使用店铺内部底部导航 `首页 / 分类 / 我的`；三项均保留当前 `store_id` 上下文。店铺分类页顶部保留轻量店铺信息条用于确认当前店铺上下文，店铺我的页不在页面正文或导航栏重复展示店铺名称。店铺上下文不提供独立购物车页面或底部购物车入口，平台购物车仍为 `/pages/cart/index`。全局平台 TabBar 不因店铺模板而改变。
+- 店铺详情页、店铺分类页和店铺我的页使用店铺内部底部导航 `首页 / 分类 / 我的`；三项均保留当前 `store_id` 上下文。店铺分类页直接展示分类目录，不在页面正文重复展示店铺 Logo、店铺名称或“店铺分类”标题；店铺我的页不在页面正文或导航栏重复展示店铺名称。店铺上下文不提供独立购物车页面或底部购物车入口，平台购物车仍为 `/pages/cart/index`。全局平台 TabBar 不因店铺模板而改变。
 - 平台购物车按店铺分组展示；点击合作方店铺进入对应店铺首页，点击主店铺（`store_is_main=true`）返回平台首页 `/pages/home/index`。
 - 合作方店铺商品只承担展示作用，店铺详情、店铺分类、商品列表和商品详情仍展示价格与商品信息，但不提供加购、购买或结算能力。
 - 所有主店铺入口都回到平台首页；店铺上下文页只用于合作方店铺，若旧链接打开主店铺店铺页，会自动返回平台首页。
 - “新品上新”不作为底部导航入口，统一由店铺后台的动态运营专区配置成活动卡片。
-- 店铺分类页 `/pages/store-categories/index?store_id=<store_id>` 对齐主店分类心智：顶部是轻量店铺信息条，主体是左侧一级品类、右侧子品类/品项的目录式布局；数据通过 `getCategories({ level: 'major', store })` 与 `getCategories({ parent_id, store })` 加载，只展示当前店铺分类。点击“全部当前品类”、子品类或品项进入 `/pages/store-category/index?store_id=<store_id>&category_id=<category_id>`。
+- 店铺分类页 `/pages/store-categories/index?store_id=<store_id>` 对齐主店分类心智：主体直接是左侧一级品类、右侧子品类/品项的目录式布局；数据通过 `getCategories({ level: 'major', store })` 与 `getCategories({ parent_id, store })` 加载，只展示当前店铺分类。点击子品类、子品类右侧“全部”或品项进入 `/pages/store-category/index?store_id=<store_id>&category_id=<category_id>`。
 - “产品类别 -> 品牌 -> 商品”流程：店铺首页和店铺分类页只负责品类导航；进入分类商品页后调用公开店铺详情接口并传入 `category_id`，顶部以紧凑店铺/分类信息条展示当前上下文和商品数量，品牌分类以横向筛选 chip 展示；品牌列表只包含该分类树下有上架商品的品牌，点击品牌后调用 `getProductsByBrand` 并携带 `store` 与 `category_id`，点击“全部”回到当前分类全部商品。
 - 店铺详情内进入专区时携带 `store_id`：`/pages/special-zone/index?zone_id=<id>&store_id=<store_id>`，专区页和商品列表页会按该店铺上下文查询数据。
 - 进入合作方店铺详情只改变前台浏览上下文，不代表用户获得该店铺后台权限。
