@@ -78,8 +78,16 @@ export const adminMenuItems = [
       { key: '/admin/media-images', icon: <PictureOutlined />, label: '媒体库' },
       { key: '/admin/search-logs', icon: <FileSearchOutlined />, label: '搜索日志' },
       { key: '/admin/inventory-logs', icon: <HistoryOutlined />, label: '库存日志' },
+    ],
+  },
+  {
+    key: '/admin/support-group',
+    icon: <CustomerServiceOutlined />,
+    label: '客服管理',
+    children: [
       { key: '/admin/support-chats', icon: <CustomerServiceOutlined />, label: '客服聊天' },
       { key: '/admin/support-templates', icon: <BookOutlined />, label: '自动回复' },
+      { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
     ],
   },
   {
@@ -103,7 +111,6 @@ export const adminMenuItems = [
       { key: '/admin/discounts', icon: <PercentageOutlined />, label: '折扣管理' },
     ],
   },
-  { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
 ];
 
 interface LayoutProps {
@@ -249,6 +256,13 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
       : filterPlatformMenuItems(menuItems);
 
   const itemsWithBadge = visibleMenuItems.map(item => {
+    if (item.children) {
+      return { ...item, children: item.children.map(addBadgeToMenuItem) };
+    }
+    return addBadgeToMenuItem(item);
+  });
+
+  function addBadgeToMenuItem(item: any) {
     if (item.key === '/admin/support-chats' && unreadCount > 0) {
       return {
         ...item,
@@ -272,7 +286,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
       };
     }
     return item;
-  });
+  }
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>

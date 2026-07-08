@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { message } from 'antd';
-import { getChatMessages, sendChatMessage, triggerConversationAutoReply } from '@/services/api';
+import { getChatMessages, sendChatMessage } from '@/services/api';
 import type { SupportMessage } from '@/services/types';
 import { getUser } from '@/utils/auth';
 
@@ -88,13 +88,6 @@ export function useSupportChat(
   const fetchMessages = async (uid: number | null, after: string | null, isInitial = false) => {
     if (!uid) return;
     try {
-      if (conversationId) {
-        try {
-          await triggerConversationAutoReply(conversationId);
-        } catch (error) {
-          console.error('Auto reply trigger error:', error);
-        }
-      }
       const params: any = {};
       if (after) {
         params.after = after;
