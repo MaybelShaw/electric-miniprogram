@@ -12,6 +12,8 @@ export const ROUTE_PERMISSION_MAP: Record<string, string> = {
   '/admin/product-skus': 'catalog.manage',
   '/admin/customer-groups': 'customer_groups.manage',
   '/admin/inventory-logs': 'catalog.manage',
+  '/admin/support-chats': 'dashboard.view',
+  '/admin/support-templates': 'dashboard.view',
   '/admin/feedback-tickets': 'dashboard.view',
   '/admin/orders': 'orders.view',
   '/admin/invoices': 'invoices.manage',

@@ -57,6 +57,7 @@ class SupportReplyTemplate(models.Model):
     ]
 
     id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='support_reply_templates', verbose_name='店铺')
     template_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_QUICK, verbose_name='模板类型')
     title = models.CharField(max_length=120, verbose_name='模板标题')
     content = models.TextField(verbose_name='回复内容')
@@ -82,6 +83,7 @@ class SupportReplyTemplate(models.Model):
         verbose_name_plural = '客服回复模板'
         ordering = ['sort_order', 'id']
         indexes = [
+            models.Index(fields=['store', 'template_type', 'enabled'], name='support_tpl_store_type_idx'),
             models.Index(fields=['template_type', 'enabled'], name='support_tpl_type_idx'),
             models.Index(fields=['trigger_event'], name='support_tpl_trigger_idx'),
         ]

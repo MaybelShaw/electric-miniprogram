@@ -31,8 +31,8 @@ interface OfflineMessage {
 export default function SupportChat() {
   const router = useRouter()
   const storeId = router.params?.store_id || router.params?.store
-  const chatCacheKey = `chat_messages_${storeId || 'main'}`
-  const offlineQueueKey = `offline_queue_${storeId || 'main'}`
+  const chatCacheKey = `chat_messages_v2_${storeId || 'main'}`
+  const offlineQueueKey = `offline_queue_v2_${storeId || 'main'}`
   const [messages, setMessages] = useState<ExtendedSupportMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
@@ -627,8 +627,8 @@ export default function SupportChat() {
                   <Text>{isMe ? '我' : '服'}</Text>
                 </View>
                 <View className='content'>
-                  {!isMe && msg.sender_username && (
-                    <Text className='sender-name'>{msg.sender_username}</Text>
+                  {!isMe && (
+                    <Text className='sender-name'>商家客服</Text>
                   )}
                   <View className='bubble'>
                     {renderMessageBody(msg)}

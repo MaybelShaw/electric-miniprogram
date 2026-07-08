@@ -29,8 +29,8 @@ class SupportConversationAdmin(admin.ModelAdmin):
 
 @admin.register(SupportReplyTemplate)
 class SupportReplyTemplateAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "template_type", "content_type", "enabled", "is_pinned", "sort_order", "updated_at")
-    list_filter = ("template_type", "content_type", "enabled", "is_pinned", "trigger_event")
+    list_display = ("id", "store", "title", "template_type", "content_type", "enabled", "is_pinned", "sort_order", "updated_at")
+    list_filter = ("store", "template_type", "content_type", "enabled", "is_pinned", "trigger_event")
     search_fields = ("title", "content", "group_name")
     readonly_fields = ("usage_count", "last_used_at", "created_at", "updated_at")
 

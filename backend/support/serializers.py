@@ -203,10 +203,14 @@ class SupportConversationSerializer(serializers.ModelSerializer):
 
 
 class SupportReplyTemplateSerializer(serializers.ModelSerializer):
+    store_name = serializers.CharField(source='store.name', read_only=True)
+
     class Meta:
         model = SupportReplyTemplate
         fields = [
             'id',
+            'store',
+            'store_name',
             'template_type',
             'title',
             'content',
@@ -229,6 +233,8 @@ class SupportReplyTemplateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
+            'store',
+            'store_name',
             'created_at',
             'updated_at',
         ]

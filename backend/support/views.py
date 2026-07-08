@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -256,6 +257,7 @@ def _resolve_conversation_by_user_id(user_id_raw, store, ensure_conversation):
 
 def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user_entered_at, now_override=None):
     templates = SupportReplyTemplate.objects.filter(
+        store=conversation.store,
         enabled=True,
         template_type=SupportReplyTemplate.TYPE_AUTO,
     ).order_by('sort_order', 'id')
@@ -375,7 +377,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         conversation_id = request.query_params.get('conversation_id') or request.query_params.get('ticket_id')
         user_id_raw = request.query_params.get('user_id')
         is_support = _is_support_backend_user(request.user)
-        store, store_error = _resolve_support_store(request)
+        source = request.data if getattr(request, 'method', 'GET') == 'POST' else request.query_params
+        store, store_error = _resolve_support_store(request, source=source)
         if store_error:
             return None, store_error
 
@@ -467,7 +470,12 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if error:
             return error
 
-        qs = conversation.messages.select_related('order', 'product', 'sender').order_by('created_at')
+        qs = conversation.messages.select_related('order', 'product', 'sender', 'template').order_by('created_at')
+        qs = qs.filter(
+            Q(template__isnull=True)
+            | ~Q(template__template_type=SupportReplyTemplate.TYPE_AUTO)
+            | Q(template__store=conversation.store)
+        )
         after = request.query_params.get('after')
         limit = request.query_params.get('limit')
 
@@ -564,7 +572,7 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             except ValueError:
                 return Response({'detail': 'invalid template_id'}, status=status.HTTP_400_BAD_REQUEST)
             try:
-                template = SupportReplyTemplate.objects.get(id=tid, enabled=True)
+                template = SupportReplyTemplate.objects.get(id=tid, store=conversation.store, enabled=True)
             except SupportReplyTemplate.DoesNotExist:
                 return Response({'detail': 'template not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -924,13 +932,38 @@ class SupportReplyTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = SupportReplyTemplateSerializer
     queryset = SupportReplyTemplate.objects.all()
 
+    def _can_manage_templates(self, user):
+        return _is_support_backend_user(user) or _is_store_backend_user(user)
+
+    def _resolve_template_store(self):
+        source = self.request.data.copy() if getattr(self.request, 'method', 'GET') in {'POST', 'PUT', 'PATCH'} else self.request.query_params.copy()
+        if not (source.get('store') or source.get('store_id')):
+            query_store = self.request.query_params.get('store') or self.request.query_params.get('store_id')
+            if query_store:
+                source['store_id'] = query_store
+        store, error = _resolve_support_store(self.request, source=source)
+        if error:
+            if getattr(error, 'status_code', None) == status.HTTP_403_FORBIDDEN:
+                raise PermissionDenied()
+            raise serializers.ValidationError({'store': error.data.get('detail', 'invalid store')})
+        if not store:
+            raise serializers.ValidationError({'store': 'store not found'})
+        return store
+
     def get_queryset(self):
         user = self.request.user
         is_support = _is_support_backend_user(user)
-        if not is_support:
+        if not self._can_manage_templates(user):
             return SupportReplyTemplate.objects.none()
 
-        qs = super().get_queryset()
+        qs = super().get_queryset().select_related('store')
+        if not is_support:
+            qs = qs.filter(store_id__in=get_accessible_stores(user).values('id'))
+
+        if self.request.query_params.get('store') or self.request.query_params.get('store_id'):
+            store = self._resolve_template_store()
+            qs = qs.filter(store=store)
+
         template_type = self.request.query_params.get('type')
         enabled = self.request.query_params.get('enabled')
         group_name = self.request.query_params.get('group')
@@ -957,24 +990,27 @@ class SupportReplyTemplateViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         user = request.user
-        if not _is_support_backend_user(user):
+        if not self._can_manage_templates(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().list(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         user = request.user
-        if not _is_support_backend_user(user):
+        if not self._can_manage_templates(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
 
+    def perform_create(self, serializer):
+        serializer.save(store=self._resolve_template_store())
+
     def update(self, request, *args, **kwargs):
         user = request.user
-        if not _is_support_backend_user(user):
+        if not self._can_manage_templates(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         user = request.user
-        if not _is_support_backend_user(user):
+        if not self._can_manage_templates(user):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)

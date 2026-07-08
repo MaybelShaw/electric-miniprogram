@@ -10,15 +10,16 @@ interface RoleGuardProps {
 
 const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) => {
   const user = getUser();
+  const loginPath = allowedRoles.includes('admin') ? "/admin/login" : "/support/login";
 
   if (!user) {
-    return <Navigate to={allowedRoles.includes('support') ? "/support/login" : "/admin/login"} replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   const hasStoreBackendAccess = allowedRoles.includes('admin') && isStoreBackendUser(user);
 
   if (!allowedRoles.includes(user.role) && !hasStoreBackendAccess) {
-    return <Navigate to={allowedRoles.includes('support') ? "/support/login" : "/admin/login"} replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   return <>{children}</>;

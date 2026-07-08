@@ -43,7 +43,7 @@ export default function Support() {
   const templateActionRef = useRef<ActionType>();
   const [templateForm] = Form.useForm();
   const location = useLocation();
-  const isTemplateManageView = location.pathname.includes('/support/templates');
+  const isTemplateManageView = location.pathname.includes('/support/templates') || location.pathname.includes('/support-templates');
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -459,6 +459,12 @@ export default function Support() {
       title: '标题',
       dataIndex: 'title',
       ellipsis: true
+    },
+    {
+      title: '店铺',
+      dataIndex: 'store_name',
+      search: false,
+      width: 140
     },
     {
       title: '模板类型',

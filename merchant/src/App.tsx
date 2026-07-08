@@ -1,6 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
-import Layout, { adminMenuItems, supportMenuItems } from './components/Layout';
+import Layout, { adminMenuItems } from './components/Layout';
 import RoleGuard from './components/RoleGuard';
 import Users from './pages/Users';
 import UserStats from './pages/UserStats';
@@ -38,7 +38,7 @@ const RootRedirect = () => {
   if (!user) return <Navigate to="/admin/login" replace />;
   
   if (user.role === 'support') {
-    return <Navigate to="/support" replace />;
+    return <Navigate to="/admin/support-chats" replace />;
   }
   return <Navigate to="/admin" replace />;
 };
@@ -52,20 +52,31 @@ const AdminDefaultRedirect = () => {
   return <Navigate to={PLATFORM_DEFAULT_ROUTE.replace('/admin/', '')} replace />;
 };
 
+const LegacySupportRedirect = () => {
+  const location = useLocation();
+  if (location.pathname.includes('/templates')) {
+    return <Navigate to="/admin/support-templates" replace />;
+  }
+  if (location.pathname.includes('/feedback-tickets')) {
+    return <Navigate to="/admin/feedback-tickets" replace />;
+  }
+  return <Navigate to="/admin/support-chats" replace />;
+};
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* Login Routes */}
         <Route path="/admin/login" element={<Login role="admin" />} />
-        <Route path="/support/login" element={<Login role="support" />} />
+        <Route path="/support/login" element={<Navigate to="/admin/login" replace />} />
         <Route path="/login" element={<Navigate to="/admin/login" replace />} />
         
         {/* Admin Routes */}
         <Route
           path="/admin/*"
           element={
-            <RoleGuard allowedRoles={['admin']}>
+            <RoleGuard allowedRoles={['admin', 'support']}>
               <Layout menuItems={adminMenuItems} title="商户管理">
                 <Routes>
                   <Route path="/" element={<AdminDefaultRedirect />} />
@@ -95,6 +106,8 @@ function App() {
                   <Route path="special-zones" element={<SpecialZones />} />
                   <Route path="special-zone-covers" element={<SpecialZoneCovers />} />
                   <Route path="cases" element={<Cases />} />
+                  <Route path="support-chats" element={<Support />} />
+                  <Route path="support-templates" element={<Support />} />
                   <Route path="feedback-tickets" element={<FeedbackTickets />} />
                 </Routes>
               </Layout>
@@ -102,24 +115,7 @@ function App() {
           }
         />
 
-        {/* Support Routes */}
-        <Route
-          path="/support/*"
-          element={
-            <RoleGuard allowedRoles={['support']}>
-              <Layout menuItems={supportMenuItems} title="客服系统">
-                <Routes>
-                  <Route path="/" element={<Navigate to="tickets" replace />} />
-                  <Route path="orders" element={<Orders />} />
-                  <Route path="invoices" element={<Invoices />} />
-                  <Route path="tickets" element={<Support />} />
-                  <Route path="feedback-tickets" element={<FeedbackTickets />} />
-                  <Route path="templates" element={<Support />} />
-                </Routes>
-              </Layout>
-            </RoleGuard>
-          }
-        />
+        <Route path="/support/*" element={<LegacySupportRedirect />} />
 
         {/* Root Redirect */}
         <Route path="/" element={<RootRedirect />} />

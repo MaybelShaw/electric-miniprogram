@@ -69,7 +69,7 @@
   - `/special-zone-covers` 专区封面
   - `/cases` 案例管理
   - `/feedback-tickets` 问题建议工单
-  - 客服后台 `/support/tickets` 为聊天会话，`/support/feedback-tickets` 为问题建议工单，`/support/templates` 为回复模板。
+  - 客服聊天已合并到商户管理后台：`/admin/support-chats` 为聊天会话，`/admin/support-templates` 为自动回复，`/admin/feedback-tickets` 为问题建议工单；旧 `/support/*` 路由仅做兼容跳转。
 
 ## 页面与操作流程
 - 用户管理：列表、创建/编辑、设为管理员/取消管理员 `merchant/src/services/api.ts:8`
@@ -190,13 +190,13 @@
   - 发送消息：支持文本、**图片**与**视频**附件，以及关联**订单**或**商品**（`POST /support/chat/`）。
   - 触发自动回复：支持手动触发用户会话的自动回复（`POST /support/chat/auto-reply/`），用于测试或强制触发。
   - 快捷回复：支持按关键词/分组检索模板，支持置顶排序与预览。
-  - 模板管理：支持列表筛选、新增、编辑、删除、启用/停用、分组与置顶配置。
+  - 模板管理：支持列表筛选、新增、编辑、删除、启用/停用、分组与置顶配置；模板按店铺隔离，店铺管理员只维护本店模板。
     - 模板类型：`auto`（自动回复）, `quick`（快捷回复）
     - 内容类型：`text`（纯文本）, `card`（图文卡片）, `quick_buttons`（快捷按钮）
     - 内容负载：`content_payload` 存储结构化数据（卡片信息或按钮列表）
     - 图文卡片模板的卡片图片使用图片上传控件，上传后写入 `content_payload.image_url`。
 - 模板列表：默认展示全部模板类型，可按”模板类型”筛选。
-- 模板入口：左侧栏”模板管理”（/support/templates）。
+- 模板入口：左侧栏“自动回复”（/admin/support-templates）。
   - 模板类型：纯文本、图文卡片、快捷按钮（内容由 `content_type` 与 `content_payload` 决定）。
 - 自动回复：触发条件支持”首次联系””长时间未联系”或同时设置，长时间未联系需填写分钟数。
   - 空闲判定：基于用户上次进入会话时间（`last_user_entered_at`），为空时回退到最近的用户消息/会话更新时间。
@@ -213,6 +213,7 @@
     - 图片/视频：图片使用 `AntImage`；视频由浏览器原生播放器处理。
 - 权限：
   - 店铺管理员可查看并回复本店客服会话；平台客服/平台管理员可查看全部会话。
+  - 店铺管理员可查看和维护本店回复模板；平台客服/平台管理员可查看和维护全部店铺模板。
   - 后台打开会话后通过 `conversation_id` 拉取和发送消息，避免同一用户多店会话串线。
   - 消息支持已读/未读状态（后端支持，前端暂未展示）。
 
@@ -220,7 +221,7 @@
 - 页面位置：`merchant/src/pages/FeedbackTickets/index.tsx`
 - 菜单入口：
   - 平台后台：`/admin/feedback-tickets`
-  - 客服后台：`/support/feedback-tickets`
+  - 商户管理后台：`/admin/feedback-tickets`
 - 能力概览：
   - 列表展示问题/需求工单，支持按编号、标题关键词、类型、状态筛选。
   - 详情抽屉展示用户提交内容、图片附件和全部处理记录。

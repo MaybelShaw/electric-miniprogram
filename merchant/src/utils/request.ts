@@ -92,7 +92,7 @@ request.interceptors.response.use(
       removeToken();
       // Redirect based on current path to keep context
       if (window.location.pathname.startsWith('/support')) {
-        window.location.href = '/support/login';
+        window.location.href = '/admin/login';
       } else {
         window.location.href = '/admin/login';
       }

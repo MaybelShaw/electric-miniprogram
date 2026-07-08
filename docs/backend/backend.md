@@ -285,10 +285,11 @@
 - 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
   - 聊天会话现在按店铺隔离：`SupportConversation.store` 标记会话所属店铺，历史会话迁移到主店。
   - 用户从店铺页、店铺商品或店铺订单进入客服时，前端传 `store_id`；个人中心客服没有店铺上下文，默认主店。
-  - 店铺管理员可在商家后台查看和回复本店聊天会话；平台客服/平台管理员可查看全部会话。回复模板仍仅平台客服/平台管理员维护。
+  - 店铺管理员可在商家后台查看和回复本店聊天会话，并维护本店回复模板；平台客服/平台管理员可查看全部会话和模板。
+  - 自动回复模板按店铺隔离：触发时只读取当前会话店铺的启用模板，主店话术不会串到非主店。
   - 直接聊天 Chat（直接聊天优先，兼容工单）：
     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:412`
-      - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
+      - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅后台账号）
       - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
       - 说明：系统按 `用户 + 店铺` 自动维护会话（`SupportConversation`）；未传 `store_id` 时默认主店。
     - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:389`
@@ -303,10 +304,10 @@
         - `content` 文本（可选；当未上传附件时必填）
         - `attachment` 文件（可选；支持图片或视频）
         - `attachment_type` 类型（可选；`image|video`，未提供时将根据 `Content-Type` 自动判定）
-        - `user_id` 目标用户ID（仅客服/管理员）
+        - `user_id` 目标用户ID（仅后台账号）
         - `order_id` 关联订单ID（可选；仅允许关联当前会话用户的订单）
         - `product_id` 关联商品ID（可选；与 `order_id` 互斥）
-        - `template_id` 快捷回复模板（仅客服/管理员，启用模板可用）
+        - `template_id` 快捷回复模板（仅当前会话店铺下启用模板可用）
       - 返回字段：`{ id, ticket, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
         - `order_info`：当关联了订单时返回 `{ id, order_number, status, quantity, total_amount, product_id, product_name, image }`
         - `product_info`：当关联了商品时返回 `{ id, name, price, image }`
@@ -315,7 +316,7 @@
       - 附件存储路径：`support/attachments/%Y/%m/%d/`（`backend/support/models.py:33`），上传后可通过返回的 `attachment_url` 直接访问。
       - 附件类型字段：`attachment_type` 支持 `image|video` 并建立索引（`backend/support/models.py:34`）。
   - 自动回复与模板：
-    - `GET/POST/PATCH/DELETE /support/reply-templates/` 客服模板管理（仅客服/管理员）
+    - `GET/POST/PATCH/DELETE /support/reply-templates/` 客服模板管理（店铺管理员仅本店；平台客服/平台管理员全部）
       - 字段：`template_type(auto|quick)`、`title`、`content`、`content_type(text|card|quick_buttons)`、`content_payload`、`group_name`、`is_pinned`、`enabled`
       - 自动回复字段：`trigger_event(first_contact|idle_contact)`、`idle_minutes`、`daily_limit`、`user_cooldown_days`
       - idle_contact 计算基于用户上次进入会话时间（`last_user_entered_at`），为空时回退到最近的用户消息/会话更新时间

@@ -502,6 +502,8 @@ export type SupportTicket = SupportConversation; // Alias for backward compatibi
 
 export interface SupportReplyTemplate {
   id: number;
+  store: number;
+  store_name?: string;
   template_type: 'auto' | 'quick';
   title: string;
   content: string;

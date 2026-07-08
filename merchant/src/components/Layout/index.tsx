@@ -26,7 +26,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
-import { removeToken } from '@/utils/auth';
+import { getUser, removeToken } from '@/utils/auth';
 import { getCurrentStoreContext, getFeedbackTicketStats, getSupportTickets } from '@/services/api';
 import type { CurrentStoreContext } from '@/services/types';
 import {
@@ -39,6 +39,13 @@ import { getSelectedStoreId, setSelectedStoreId } from '@/utils/store';
 import './index.css';
 
 const { Header, Sider, Content, Footer } = AntLayout;
+const SUPPORT_ADMIN_ROUTE_KEYS = new Set([
+  '/admin/orders',
+  '/admin/invoices',
+  '/admin/support-chats',
+  '/admin/support-templates',
+  '/admin/feedback-tickets',
+]);
 
 export const adminMenuItems = [
   {
@@ -71,6 +78,8 @@ export const adminMenuItems = [
       { key: '/admin/media-images', icon: <PictureOutlined />, label: '媒体库' },
       { key: '/admin/search-logs', icon: <FileSearchOutlined />, label: '搜索日志' },
       { key: '/admin/inventory-logs', icon: <HistoryOutlined />, label: '库存日志' },
+      { key: '/admin/support-chats', icon: <CustomerServiceOutlined />, label: '客服聊天' },
+      { key: '/admin/support-templates', icon: <BookOutlined />, label: '自动回复' },
     ],
   },
   {
@@ -97,14 +106,6 @@ export const adminMenuItems = [
   { key: '/admin/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
 ];
 
-export const supportMenuItems = [
-  { key: '/support/orders', icon: <ShoppingCartOutlined />, label: '订单管理' },
-  { key: '/support/invoices', icon: <FileTextOutlined />, label: '发票管理' },
-  { key: '/support/tickets', icon: <CustomerServiceOutlined />, label: '消息' },
-  { key: '/support/feedback-tickets', icon: <CustomerServiceOutlined />, label: '问题建议' },
-  { key: '/support/templates', icon: <BookOutlined />, label: '模板管理' },
-];
-
 interface LayoutProps {
   children: React.ReactNode;
   menuItems?: any[];
@@ -119,8 +120,9 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   const [storeContext, setStoreContext] = useState<CurrentStoreContext | null>(null);
   const [selectedStoreId, setSelectedStoreIdState] = useState<number | null>(getSelectedStoreId());
   const lastCountRef = useRef<number | null>(null);
+  const isSupportUser = getUser()?.role === 'support';
 
-  const isSupportLayout = title === '客服系统' || menuItems.some(item => item.key === '/support/tickets');
+  const isSupportLayout = false;
 
   useEffect(() => {
     if (isSupportLayout) return;
@@ -148,7 +150,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
   }, [isSupportLayout, location.pathname, navigate, storeContext]);
 
   useEffect(() => {
-    if (!isSupportLayout) return;
+    if (!storeContext) return;
 
     const pollTickets = async () => {
       try {
@@ -162,7 +164,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
             description: `您有 ${count} 条待处理消息`,
             placement: 'bottomRight',
             onClick: () => {
-              navigate('/support/tickets');
+              navigate('/admin/support-chats');
             }
           });
         }
@@ -178,7 +180,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     const intervalId = setInterval(pollTickets, 5000); // Poll every 5 seconds
 
     return () => clearInterval(intervalId);
-  }, [isSupportLayout, navigate]);
+  }, [navigate, storeContext]);
 
   useEffect(() => {
     const pollFeedback = async () => {
@@ -224,9 +226,19 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
     })
     .filter(Boolean);
 
+  const filterSupportMenuItems = (items: any[]): any[] => items
+    .map((item: any) => {
+      if (!item.children) return SUPPORT_ADMIN_ROUTE_KEYS.has(item.key) ? item : null;
+      const children = filterSupportMenuItems(item.children);
+      return children.length > 0 ? { ...item, children } : null;
+    })
+    .filter(Boolean);
+
   const visibleMenuItems: any[] = !isSupportLayout && !storeContext
     ? []
-    : storeContext && !storeContext.is_platform_admin
+    : isSupportUser
+      ? filterSupportMenuItems(menuItems)
+      : storeContext && !storeContext.is_platform_admin
       ? menuItems
         .map(item => {
           if (!item.children) return canAccessAdminRoute(item.key, storeContext) ? item : null;
@@ -237,7 +249,7 @@ export default function Layout({ children, menuItems = adminMenuItems, title = '
       : filterPlatformMenuItems(menuItems);
 
   const itemsWithBadge = visibleMenuItems.map(item => {
-    if (item.key === '/support/tickets' && unreadCount > 0) {
+    if (item.key === '/admin/support-chats' && unreadCount > 0) {
       return {
         ...item,
         label: (

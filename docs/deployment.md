@@ -3,7 +3,7 @@
 ## 概述
 - 服务组成：后端 `Django + DRF`、商户前端 `Vite + React`、数据库 `PostgreSQL 17`、反向代理 `Nginx`。
 - Compose 文件：开发 `docker/docker-compose.dev.yaml`，预发布 `docker/docker-compose.preprod.yaml`，生产 `docker/docker-compose.prod.yaml`。
-- Nginx 配置：`deploy/nginx.conf`，转发 `/api` 到后端，提供静态资源，并将 `/merchant/admin` 与 `/merchant/support` 通过重写交由前端 SPA 处理。
+- Nginx 配置：`deploy/nginx.conf`，转发 `/api` 到后端，提供静态资源，并将 `/merchant/admin` 交由前端 SPA 处理；`/merchant/support` 保留为旧客服入口兼容路径，前端会跳转到商户管理后台客服页面。
 
 ## 前置准备
 - 安装 Docker Desktop（或兼容的 Docker 环境）。
@@ -99,12 +99,12 @@
 4. 访问：
    - 统一入口：`http://localhost`
    - 管理入口：`http://localhost/merchant/admin`
-   - 客服入口：`http://localhost/merchant/support`
+   - 客服入口已合并到商户后台：`http://localhost/merchant/admin`
    - 后端 API：`http://localhost/api/`
 5. Nginx 路由（`deploy/nginx.conf`）：
    - `/api/` → `backend:8000`（`deploy/nginx.conf:6-11`）
    - `/merchant/admin` → 重写为 `/admin`，由前端 SPA 处理（`deploy/nginx.conf:13-15`）
-   - `/merchant/support` → 重写为 `/support`，由前端 SPA 处理（`deploy/nginx.conf:16-18`）
+   - `/merchant/support` → 旧入口兼容，前端会重定向到 `/admin/support-chats`
    - `/static/` → 后端静态目录（`deploy/nginx.conf:35-37`）
    - `/` → 商户前端构建产物（`deploy/nginx.conf:39-42`）
 6. 持久化目录：
