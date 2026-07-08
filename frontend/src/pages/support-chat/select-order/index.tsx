@@ -9,6 +9,7 @@ export default function SelectOrder() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const instance = Taro.getCurrentInstance()
+  const storeId = instance.router?.params?.store_id || instance.router?.params?.store
 
   useEffect(() => {
     loadOrders()
@@ -17,7 +18,7 @@ export default function SelectOrder() {
   const loadOrders = async () => {
     try {
       setLoading(true)
-      const data = await fetchAllPaginated<any>('/orders/my_orders/', {}, 100, true)
+      const data = await fetchAllPaginated<any>('/orders/my_orders/', storeId ? { store: storeId } : {}, 100, true)
       setOrders(data)
     } catch (e) {
       console.error(e)

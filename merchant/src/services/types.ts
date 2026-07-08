@@ -488,6 +488,8 @@ export interface SupportMessage {
 
 export interface SupportConversation {
   id: number;
+  store: number;
+  store_name: string;
   user: number;
   user_username: string;
   created_at: string;

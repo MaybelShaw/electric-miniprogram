@@ -532,7 +532,10 @@ export default function ProductDetail() {
             <Text className='icon-text'>首页</Text>
           </View>
 
-          <View className='icon-btn contact-btn' onClick={() => Taro.navigateTo({ url: '/pages/support-chat/index' })}>
+          <View className='icon-btn contact-btn' onClick={() => {
+            const supportStoreId = product?.store_id || product?.store
+            Taro.navigateTo({ url: `/pages/support-chat/index${supportStoreId ? `?store_id=${supportStoreId}` : ''}` })
+          }}>
             <View className='icon-wrapper'>
               <AppIcon name='service' tone='muted' />
             </View>

@@ -89,7 +89,11 @@ export function useSupportChat(
     if (!uid) return;
     try {
       if (conversationId) {
-        await triggerConversationAutoReply(conversationId);
+        try {
+          await triggerConversationAutoReply(conversationId);
+        } catch (error) {
+          console.error('Auto reply trigger error:', error);
+        }
       }
       const params: any = {};
       if (after) {
@@ -97,6 +101,9 @@ export function useSupportChat(
       }
       if (ticketId) {
         params.ticket_id = ticketId;
+      }
+      if (conversationId) {
+        params.conversation_id = conversationId;
       }
       
       const res: any = await getChatMessages(uid, params);
@@ -123,7 +130,11 @@ export function useSupportChat(
             // order_by('created_at') in backend handles this.
             const newLastFetchedAt = lastMsg.created_at;
             
-            const storageKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${uid}`;
+            const storageKey = ticketId
+              ? `chat_messages_ticket_${ticketId}`
+              : conversationId
+                ? `chat_messages_conversation_${conversationId}`
+                : `chat_messages_user_${uid}`;
             localStorage.setItem(storageKey, JSON.stringify({
               messages: newMsgs,
               lastFetchedAt: newLastFetchedAt
@@ -179,7 +190,11 @@ export function useSupportChat(
     setMessages(prev => [...prev, tempMsg]);
 
     try {
-      const res: any = await sendChatMessage(userId, content, attachment, attachmentType, { ...extra, ticket_id: ticketId || undefined });
+      const res: any = await sendChatMessage(userId, content, attachment, attachmentType, {
+        ...extra,
+        ticket_id: ticketId || undefined,
+        conversation_id: conversationId || undefined,
+      });
       // Success
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -188,7 +203,11 @@ export function useSupportChat(
         // Update cache immediately
          const lastMsg = newMsgs[newMsgs.length - 1];
          if (lastMsg) {
-            const storageKey = ticketId ? `chat_messages_ticket_${ticketId}` : `chat_messages_user_${userId}`;
+            const storageKey = ticketId
+              ? `chat_messages_ticket_${ticketId}`
+              : conversationId
+                ? `chat_messages_conversation_${conversationId}`
+                : `chat_messages_user_${userId}`;
             localStorage.setItem(storageKey, JSON.stringify({
               messages: newMsgs,
               lastFetchedAt: lastMsg.created_at
@@ -207,7 +226,11 @@ export function useSupportChat(
       
       if (!attachment && !extra) {
         // Add to offline queue
-        const queueKey = ticketId ? `offline_queue_ticket_${ticketId}` : `offline_queue_user_${userId}`;
+        const queueKey = ticketId
+          ? `offline_queue_ticket_${ticketId}`
+          : conversationId
+            ? `offline_queue_conversation_${conversationId}`
+            : `offline_queue_user_${userId}`;
         const queue: OfflineMessage[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
         queue.push({ content, tempId, timestamp: Date.now() });
         localStorage.setItem(queueKey, JSON.stringify(queue));
@@ -222,7 +245,11 @@ export function useSupportChat(
   // Retry offline messages
   const retryOfflineMessages = async () => {
     if (!userId) return;
-    const queueKey = ticketId ? `offline_queue_ticket_${ticketId}` : `offline_queue_user_${userId}`;
+    const queueKey = ticketId
+      ? `offline_queue_ticket_${ticketId}`
+      : conversationId
+        ? `offline_queue_conversation_${conversationId}`
+        : `offline_queue_user_${userId}`;
     const queue: OfflineMessage[] = JSON.parse(localStorage.getItem(queueKey) || '[]');
     if (queue.length === 0) return;
 
@@ -233,7 +260,10 @@ export function useSupportChat(
 
     for (const item of queue) {
       try {
-        const res: any = await sendChatMessage(userId, item.content, undefined, undefined, { ticket_id: ticketId || undefined });
+        const res: any = await sendChatMessage(userId, item.content, undefined, undefined, {
+          ticket_id: ticketId || undefined,
+          conversation_id: conversationId || undefined,
+        });
         // Update the specific message in the list from error/sending to sent
         setMessages(prev => prev.map(m => 
             (m.local_id === item.tempId || (m.content === item.content && m.status === 'error')) 

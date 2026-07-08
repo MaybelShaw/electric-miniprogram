@@ -1152,6 +1152,7 @@ fetch('/api/token/refresh/', {
 - ✅ `POST /api/support/chat/auto-reply/` - 用户侧触发自动回复
 - ✅ `POST /api/support/conversations/{id}/auto-reply/` - 后台手动触发自动回复
 - ✅ `GET/POST/PATCH/DELETE /api/support/reply-templates/` - 回复模板管理
+- 说明：聊天接口支持 `store`/`store_id` 和 `conversation_id`；会话按店铺隔离，店铺管理员只能查看和回复本店会话，平台客服/平台管理员可查看全部。
 
 #### 数据分析（管理员）
 - ✅ `GET /api/analytics/sales_summary/` - 销售汇总统计

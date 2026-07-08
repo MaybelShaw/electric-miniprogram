@@ -28,7 +28,7 @@ export default function Support() {
   const [messageContent, setMessageContent] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentConversation?.user || null, null);
+  const { messages: chatMessages, sendMessage, loading: chatLoading } = useSupportChat(currentConversation?.user || null, currentConversation?.id || null);
   const messageListRef = useRef<HTMLDivElement>(null);
   
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -406,6 +406,12 @@ export default function Support() {
       width: 150,
     },
     {
+      title: '店铺',
+      dataIndex: 'store_name',
+      width: 140,
+      search: false,
+    },
+    {
       title: '最新消息',
       dataIndex: 'last_message',
       ellipsis: true,
@@ -725,6 +731,7 @@ export default function Support() {
               <>
                 <ProDescriptions column={2} dataSource={currentConversation}>
                   <ProDescriptions.Item label="用户" dataIndex="user_username" />
+                  <ProDescriptions.Item label="店铺" dataIndex="store_name" />
                   <ProDescriptions.Item label="最后活跃" dataIndex="updated_at" valueType="dateTime" />
                 </ProDescriptions>
 

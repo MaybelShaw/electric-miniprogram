@@ -261,8 +261,9 @@ export const sendChatMessage = (
   content: string,
   attachment?: File,
   attachmentType?: 'image' | 'video',
-  extra?: { order_id?: number, product_id?: number, ticket_id?: number, template_id?: number }
+  extra?: { order_id?: number, product_id?: number, ticket_id?: number, conversation_id?: number, template_id?: number }
 ) => {
+  const conversationId = extra?.conversation_id || extra?.ticket_id;
   if (!attachment) {
     return request.post('/support/chat/', { 
       user_id: userId, 
@@ -270,7 +271,7 @@ export const sendChatMessage = (
       order_id: extra?.order_id,
       product_id: extra?.product_id,
       template_id: extra?.template_id,
-      conversation_id: extra?.ticket_id // Compatible with ticket_id param
+      conversation_id: conversationId
     });
   }
   
@@ -290,8 +291,8 @@ export const sendChatMessage = (
   if (extra?.template_id) {
     formData.append('template_id', String(extra.template_id));
   }
-  if (extra?.ticket_id) {
-    formData.append('conversation_id', String(extra.ticket_id));
+  if (conversationId) {
+    formData.append('conversation_id', String(conversationId));
   }
   
   return request.post('/support/chat/', formData);

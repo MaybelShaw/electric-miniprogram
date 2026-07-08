@@ -283,11 +283,14 @@
   - `POST /orders/{id}/request_invoice/` 申请发票（仅订单所有者，订单需 `completed`）`backend/orders/views.py:362`
   - `GET/POST/... /invoices/` 发票管理（普通用户仅看到自己的；管理员可开具/取消）`backend/orders/urls.py:9`
 - 客服 Support（前缀 `/api/support/` 与 `/api/v1/support/`）：
+  - 聊天会话现在按店铺隔离：`SupportConversation.store` 标记会话所属店铺，历史会话迁移到主店。
+  - 用户从店铺页、店铺商品或店铺订单进入客服时，前端传 `store_id`；个人中心客服没有店铺上下文，默认主店。
+  - 店铺管理员可在商家后台查看和回复本店聊天会话；平台客服/平台管理员可查看全部会话。回复模板仍仅平台客服/平台管理员维护。
   - 直接聊天 Chat（直接聊天优先，兼容工单）：
     - `GET /support/chat/` 获取当前用户的会话消息 `backend/support/views.py:412`
       - 查询参数：`after`（ISO 时间）、`limit`（条数）、`user_id`（仅客服/管理员）
       - 返回字段：消息数组 `{ id, conversation, sender, sender_username, role, content, content_type, content_payload, template, attachment_type, attachment_url, order_info, product_info, created_at }`
-      - 说明：系统为每个用户自动维护一个会话（`SupportConversation`），无需手动创建。
+      - 说明：系统按 `用户 + 店铺` 自动维护会话（`SupportConversation`）；未传 `store_id` 时默认主店。
     - `POST /support/chat/auto-reply/` 触发当前用户的自动回复 `backend/support/views.py:389`
       - 触发时会更新 `last_user_entered_at` 以记录用户进入会话时间
       - 空闲触发基准优先使用 `last_user_entered_at`，为空时依次回退到 `last_user_message_at/updated_at/created_at`
@@ -341,7 +344,7 @@
     - 相关模型：`FeedbackTicket`、`FeedbackTicketReply`（`backend/support/models.py`）。
   - 环境差异：
     - 开发与生产环境均注册聊天、回复模板和问题建议工单端点 `backend/support/urls.py`。
-    - 聊天中客服/管理员可查看全部会话；普通用户仅能看到自己的会话消息。
+    - 聊天中店铺管理员仅可查看本店会话；平台客服/平台管理员可查看全部会话；普通用户仅能看到自己的会话消息。
     - 问题建议工单按用户、店铺成员、平台管理员和 support 角色分别隔离。
 
 > 聊天说明：为简化实现，后端通过轮询/增量拉取的方式支持聊天体验。前端实现建议：

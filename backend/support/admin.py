@@ -12,8 +12,8 @@ class SupportMessageInline(admin.TabularInline):
 
 @admin.register(SupportConversation)
 class SupportConversationAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "updated_at", "last_user_message_at", "last_support_message_at")
-    list_filter = ("updated_at", "last_user_message_at", "last_support_message_at")
+    list_display = ("id", "store", "user", "updated_at", "last_user_message_at", "last_support_message_at")
+    list_filter = ("store", "updated_at", "last_user_message_at", "last_support_message_at")
     search_fields = ("user__username", "user__phone", "user__openid")
     readonly_fields = (
         "created_at",

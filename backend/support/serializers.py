@@ -156,6 +156,7 @@ class SupportMessageSerializer(serializers.ModelSerializer):
 
 class SupportConversationSerializer(serializers.ModelSerializer):
     user_username = serializers.CharField(source='user.username', read_only=True)
+    store_name = serializers.CharField(source='store.name', read_only=True)
     last_message = serializers.SerializerMethodField()
     last_message_at = serializers.SerializerMethodField()
 
@@ -163,6 +164,8 @@ class SupportConversationSerializer(serializers.ModelSerializer):
         model = SupportConversation
         fields = [
             'id',
+            'store',
+            'store_name',
             'user',
             'user_username',
             'created_at',
@@ -172,6 +175,8 @@ class SupportConversationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id',
+            'store',
+            'store_name',
             'user',
             'user_username',
             'created_at',

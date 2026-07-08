@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { View, Text, Input, Button, ScrollView, Image, Video } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { supportService, SupportMessage } from '../../services/support'
 import { TokenManager } from '../../utils/request'
 import { resolveLocalMediaUrl } from '../../utils/media'
@@ -25,10 +25,14 @@ interface OfflineMessage {
   content: string
   tempId: string
   timestamp: number
-  extra?: { order_id?: number, product_id?: number }
+  extra?: { order_id?: number, product_id?: number, store_id?: number | string }
 }
 
 export default function SupportChat() {
+  const router = useRouter()
+  const storeId = router.params?.store_id || router.params?.store
+  const chatCacheKey = `chat_messages_${storeId || 'main'}`
+  const offlineQueueKey = `offline_queue_${storeId || 'main'}`
   const [messages, setMessages] = useState<ExtendedSupportMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,7 +64,7 @@ export default function SupportChat() {
 
   // Load messages from cache and initial fetch
   useEffect(() => {
-    const cacheKey = 'chat_messages'
+    const cacheKey = chatCacheKey
     const cachedData = Taro.getStorageSync(cacheKey)
     
     if (cachedData) {
@@ -79,7 +83,7 @@ export default function SupportChat() {
     }
     
     return () => stopPolling()
-  }, [])
+  }, [chatCacheKey])
 
   // Polling
   useEffect(() => {
@@ -90,7 +94,7 @@ export default function SupportChat() {
   useDidShow(() => {
     const triggerAndFetch = async () => {
       try {
-        const autoReply = await supportService.triggerAutoReply()
+        const autoReply = await supportService.triggerAutoReply(false, storeId)
         const autoReplyMessage = autoReply?.message
         if (autoReply?.triggered && autoReplyMessage) {
           const normalizedMessage: ExtendedSupportMessage = { ...autoReplyMessage, status: 'sent' }
@@ -102,7 +106,7 @@ export default function SupportChat() {
             newMsgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
             const lastMsg = newMsgs[newMsgs.length - 1]
             if (lastMsg) {
-              Taro.setStorageSync('chat_messages', {
+              Taro.setStorageSync(chatCacheKey, {
                 messages: newMsgs,
                 lastFetchedAt: lastMsg.created_at
               })
@@ -176,6 +180,9 @@ export default function SupportChat() {
       if (resolvedAfter) {
         params.after = resolvedAfter
       }
+      if (storeId) {
+        params.store_id = storeId
+      }
       
       const res = await supportService.getMessages(params)
       
@@ -194,7 +201,7 @@ export default function SupportChat() {
             const lastMsg = newMsgs[newMsgs.length - 1]
             const newLastFetchedAt = lastMsg.created_at
             
-            Taro.setStorageSync('chat_messages', {
+            Taro.setStorageSync(chatCacheKey, {
               messages: newMsgs,
               lastFetchedAt: newLastFetchedAt
             })
@@ -284,7 +291,7 @@ export default function SupportChat() {
 
   const handleOrder = () => {
     Taro.navigateTo({
-      url: '/pages/support-chat/select-order/index',
+      url: `/pages/support-chat/select-order/index${storeId ? `?store_id=${storeId}` : ''}`,
       events: {
         acceptSelectedOrder: (order) => {
           sendOrder(order).catch(err => {
@@ -303,7 +310,7 @@ export default function SupportChat() {
 
   const handleProduct = () => {
     Taro.navigateTo({
-      url: '/pages/support-chat/select-product/index',
+      url: `/pages/support-chat/select-product/index${storeId ? `?store_id=${storeId}` : ''}`,
       events: {
         acceptSelectedProduct: (product) => {
           sendProduct(product).catch(err => {
@@ -335,7 +342,7 @@ export default function SupportChat() {
       image: image
     }
     
-    await sendContent('', undefined, { order_id: order.id }, { order_info: orderInfo })
+    await sendContent('', undefined, { order_id: order.id, store_id: storeId }, { order_info: orderInfo })
   }
 
   const sendProduct = async (product: any) => {
@@ -348,7 +355,7 @@ export default function SupportChat() {
       image: image
     }
     
-    await sendContent('', undefined, { product_id: product.id }, { product_info: productInfo })
+    await sendContent('', undefined, { product_id: product.id, store_id: storeId }, { product_info: productInfo })
   }
   
   const handleInputFocus = () => {
@@ -364,7 +371,7 @@ export default function SupportChat() {
   const sendContent = async (
     contentStr?: string, 
     attachment?: { path: string, type: 'image' | 'video' },
-    extra?: { order_id?: number, product_id?: number },
+    extra?: { order_id?: number, product_id?: number, store_id?: number | string },
     optimisticData?: { order_info?: any, product_info?: any }
   ) => {
     const content = contentStr !== undefined ? contentStr : inputValue.trim()
@@ -401,7 +408,7 @@ export default function SupportChat() {
     })
 
     try {
-      const res = await supportService.sendMessage(content, attachment, extra)
+      const res = await supportService.sendMessage(content, attachment, { ...extra, ...(storeId ? { store_id: storeId } : {}) })
       
       setMessages(prev => {
         const newMsgs = prev.map(m => 
@@ -410,7 +417,7 @@ export default function SupportChat() {
         
         const lastMsg = newMsgs[newMsgs.length - 1]
         if (lastMsg) {
-          Taro.setStorageSync('chat_messages', {
+          Taro.setStorageSync(chatCacheKey, {
             messages: newMsgs,
             lastFetchedAt: lastMsg.created_at
           })
@@ -425,10 +432,9 @@ export default function SupportChat() {
       ))
       
       if (!attachment) {
-        const queueKey = 'offline_queue'
-        const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
+        const queue: OfflineMessage[] = Taro.getStorageSync(offlineQueueKey) || []
         queue.push({ content, tempId, timestamp: Date.now(), extra })
-        Taro.setStorageSync(queueKey, queue)
+        Taro.setStorageSync(offlineQueueKey, queue)
         
         Taro.showToast({ title: '发送失败，已保存到离线队列', icon: 'none' })
       } else {
@@ -536,15 +542,14 @@ export default function SupportChat() {
   }
 
   const retryOfflineMessages = async () => {
-    const queueKey = 'offline_queue'
-    const queue: OfflineMessage[] = Taro.getStorageSync(queueKey) || []
+    const queue: OfflineMessage[] = Taro.getStorageSync(offlineQueueKey) || []
     if (queue.length === 0) return
 
     const newQueue: OfflineMessage[] = []
 
     for (const item of queue) {
       try {
-        const res = await supportService.sendMessage(item.content, undefined, item.extra)
+        const res = await supportService.sendMessage(item.content, undefined, { ...item.extra, ...(storeId ? { store_id: storeId } : {}) })
         
         setMessages(prev => {
           const newMsgs = prev.map(m => 
@@ -553,7 +558,7 @@ export default function SupportChat() {
           // Also update cache
           const lastMsg = newMsgs[newMsgs.length - 1]
            if (lastMsg) {
-             Taro.setStorageSync('chat_messages', {
+             Taro.setStorageSync(chatCacheKey, {
                messages: newMsgs,
                lastFetchedAt: lastMsg.created_at
              })
@@ -566,7 +571,7 @@ export default function SupportChat() {
       }
     }
     
-    Taro.setStorageSync(queueKey, newQueue)
+    Taro.setStorageSync(offlineQueueKey, newQueue)
     if (newQueue.length < queue.length) {
       Taro.showToast({ title: '离线消息已发送', icon: 'success' })
     }

@@ -10,6 +10,7 @@ export default function SelectProduct() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const instance = Taro.getCurrentInstance()
+  const storeId = instance.router?.params?.store_id || instance.router?.params?.store
 
   useEffect(() => {
     loadProducts()
@@ -18,7 +19,7 @@ export default function SelectProduct() {
   const loadProducts = async () => {
     try {
       setLoading(true)
-      const data = await fetchAllPaginated<any>('/catalog/products/', {}, 100, true)
+      const data = await fetchAllPaginated<any>('/catalog/products/', storeId ? { store: storeId } : {}, 100, true)
       setProducts(data)
     } catch (e) {
       console.error(e)

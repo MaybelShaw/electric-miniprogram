@@ -8,6 +8,7 @@ from django.utils import timezone
 
 class SupportConversation(models.Model):
     id = models.BigAutoField(primary_key=True)
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, related_name='support_conversations', verbose_name='店铺')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='support_conversations', verbose_name='用户')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
@@ -23,6 +24,8 @@ class SupportConversation(models.Model):
         ordering = ['-updated_at', '-id']
         indexes = [
             models.Index(fields=['user'], name='support_conv_user_idx'),
+            models.Index(fields=['user', 'store'], name='support_conv_user_store_idx'),
+            models.Index(fields=['store', 'updated_at'], name='support_conv_store_updated_idx'),
             models.Index(fields=['updated_at'], name='support_conv_updated_idx'),
         ]
 

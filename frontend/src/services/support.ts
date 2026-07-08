@@ -34,22 +34,23 @@ export interface SupportMessage {
 
 export const supportService = {
   // 获取聊天记录
-  getMessages: (params?: { after?: string; limit?: number }) => 
+  getMessages: (params?: { after?: string; limit?: number; store_id?: number | string }) => 
     http.get<SupportMessage[]>('/support/chat/', params),
 
-  triggerAutoReply: (markEntered?: boolean) =>
+  triggerAutoReply: (markEntered?: boolean, storeId?: number | string) =>
     http.post<{ triggered: boolean; message?: SupportMessage }>(
       '/support/chat/auto-reply/',
-      markEntered ? { mark_entered: true } : {}
+      { ...(markEntered ? { mark_entered: true } : {}), ...(storeId ? { store_id: storeId } : {}) }
     ),
   
   // 发送消息
-  sendMessage: (content?: string, attachment?: { path: string, type: 'image' | 'video' }, extra?: { order_id?: number, product_id?: number }) => {
+  sendMessage: (content?: string, attachment?: { path: string, type: 'image' | 'video' }, extra?: { order_id?: number, product_id?: number, store_id?: number | string }) => {
     if (!attachment) {
       return http.post<SupportMessage>('/support/chat/', { 
         content,
         order_id: extra?.order_id,
-        product_id: extra?.product_id
+        product_id: extra?.product_id,
+        store_id: extra?.store_id
       })
     }
 
@@ -61,6 +62,7 @@ export const supportService = {
       if (content) formData.content = content
       if (extra?.order_id) formData.order_id = extra.order_id
       if (extra?.product_id) formData.product_id = extra.product_id
+      if (extra?.store_id) formData.store_id = extra.store_id
       
       Taro.uploadFile({
         url: `${BASE_URL}/support/chat/`,

@@ -26,7 +26,7 @@ from .serializers import (
     SupportReplyTemplateSerializer,
 )
 from stores.models import Store
-from stores.permissions import can_manage_store, get_accessible_stores, is_platform_admin, is_support_user
+from stores.permissions import can_manage_store, get_accessible_stores, get_default_store, is_platform_admin, is_support_user
 from users.models import User
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,42 @@ FEEDBACK_MAX_IMAGES = 9
 
 def _is_support_backend_user(user):
     return is_platform_admin(user) or is_support_user(user)
+
+
+def _is_store_backend_user(user):
+    return bool(user and getattr(user, 'is_authenticated', False) and get_accessible_stores(user).exists())
+
+
+def _default_support_store(user=None):
+    if user and _is_store_backend_user(user):
+        store = get_default_store(user)
+        if store:
+            return store
+    return Store.objects.filter(is_main=True, status=Store.STATUS_ACTIVE).first() or Store.objects.filter(status=Store.STATUS_ACTIVE).order_by('id').first()
+
+
+def _resolve_support_store(request, *, source=None):
+    source = source or request.query_params
+    store_id = source.get('store') or source.get('store_id')
+    if not store_id:
+        return _default_support_store(request.user), None
+    try:
+        store = Store.objects.get(id=int(store_id), status=Store.STATUS_ACTIVE)
+    except (Store.DoesNotExist, ValueError, TypeError):
+        return None, _bad_request('invalid store_id')
+    if _is_support_backend_user(request.user) or not _is_store_backend_user(request.user):
+        return store, None
+    if not can_manage_store(request.user, store):
+        return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+    return store, None
+
+
+def _can_access_conversation(user, conversation):
+    return (
+        _is_support_backend_user(user)
+        or conversation.user_id == getattr(user, 'id', None)
+        or can_manage_store(user, conversation.store)
+    )
 
 
 def _can_reply_feedback_ticket(user, ticket):
@@ -198,15 +234,15 @@ def _resolve_conversation_by_id(conversation_id, request_user, is_support):
     except ValueError:
         return None, _bad_request('invalid conversation_id')
     try:
-        conv = SupportConversation.objects.select_related('user').get(id=cid)
+        conv = SupportConversation.objects.select_related('user', 'store').get(id=cid)
     except SupportConversation.DoesNotExist:
         return None, Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
-    if not is_support and conv.user_id != request_user.id:
+    if not is_support and not _can_access_conversation(request_user, conv):
         return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
     return conv, None
 
 
-def _resolve_conversation_by_user_id(user_id_raw, ensure_conversation):
+def _resolve_conversation_by_user_id(user_id_raw, store, ensure_conversation):
     try:
         uid = int(user_id_raw)
     except ValueError:
@@ -215,7 +251,7 @@ def _resolve_conversation_by_user_id(user_id_raw, ensure_conversation):
         target_user = User.objects.get(id=uid)
     except User.DoesNotExist:
         return None, Response({'detail': 'user not found'}, status=status.HTTP_404_NOT_FOUND)
-    return ensure_conversation(target_user), None
+    return ensure_conversation(target_user, store), None
 
 
 def _maybe_send_auto_reply_with_debug(conversation, had_user_messages, last_user_entered_at, now_override=None):
@@ -324,32 +360,41 @@ class SupportChatViewSet(viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SupportMessageSerializer
 
-    def _ensure_conversation(self, user):
+    def _ensure_conversation(self, user, store=None):
+        store = store or _default_support_store(user)
+        if not store:
+            return None
         conversation = (
-            SupportConversation.objects.filter(user=user).order_by('-updated_at', '-id').first()
+            SupportConversation.objects.filter(user=user, store=store).order_by('-updated_at', '-id').first()
         )
         if conversation:
             return conversation
-        return SupportConversation.objects.create(user=user)
+        return SupportConversation.objects.create(user=user, store=store)
 
     def _resolve_conversation(self, request):
         conversation_id = request.query_params.get('conversation_id') or request.query_params.get('ticket_id')
         user_id_raw = request.query_params.get('user_id')
         is_support = _is_support_backend_user(request.user)
+        store, store_error = _resolve_support_store(request)
+        if store_error:
+            return None, store_error
 
         if conversation_id:
             return _resolve_conversation_by_id(conversation_id, request.user, is_support)
 
         if user_id_raw:
-            if not is_support:
+            if not (is_support or _is_store_backend_user(request.user)):
                 return None, Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-            return _resolve_conversation_by_user_id(user_id_raw, self._ensure_conversation)
+            return _resolve_conversation_by_user_id(user_id_raw, store, self._ensure_conversation)
 
-        return self._ensure_conversation(request.user), None
+        conversation = self._ensure_conversation(request.user, store)
+        if not conversation:
+            return None, Response({'detail': 'store not found'}, status=status.HTTP_404_NOT_FOUND)
+        return conversation, None
 
     @action(detail=False, methods=['get'])
     def conversations(self, request):
-        if not _is_support_backend_user(request.user):
+        if not (_is_support_backend_user(request.user) or _is_store_backend_user(request.user)):
             return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         last_message_prefetch = Prefetch(
@@ -359,10 +404,18 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         )
 
         qs = (
-            SupportConversation.objects.select_related('user')
+            SupportConversation.objects.select_related('user', 'store')
             .prefetch_related(last_message_prefetch)
             .order_by('-updated_at', '-id')
         )
+        if not _is_support_backend_user(request.user):
+            qs = qs.filter(store_id__in=get_accessible_stores(request.user).values('id'))
+
+        store, store_error = _resolve_support_store(request)
+        if store_error:
+            return store_error
+        if request.query_params.get('store') or request.query_params.get('store_id'):
+            qs = qs.filter(store=store)
 
         user_id_raw = request.query_params.get('user_id')
         if user_id_raw:
@@ -463,13 +516,13 @@ class SupportChatViewSet(viewsets.GenericViewSet):
         if order_id and product_id:
             return Response({'detail': 'only one of order_id or product_id allowed'}, status=status.HTTP_400_BAD_REQUEST)
 
-        is_support = _is_support_backend_user(request.user)
         sender = request.user
-        role = 'support' if is_support else 'user'
 
         conversation, error = self._resolve_conversation_from_body(request, explicit_conversation_id)
         if error:
             return error
+        is_support = _is_support_backend_user(request.user)
+        role = 'user' if conversation.user_id == request.user.id else 'support'
 
         previous_last_user_entered_at = conversation.last_user_entered_at
         base_entered_at = previous_last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
@@ -487,6 +540,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
                 order_obj = Order.objects.get(id=oid, user_id=conversation.user_id)
             except Order.DoesNotExist:
                 return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
+            if getattr(order_obj, 'store_id', None) != conversation.store_id:
+                return Response({'detail': 'order not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if product_id:
             try:
@@ -496,6 +551,8 @@ class SupportChatViewSet(viewsets.GenericViewSet):
             try:
                 product_obj = Product.objects.get(id=pid)
             except Product.DoesNotExist:
+                return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
+            if getattr(product_obj, 'store_id', None) != conversation.store_id:
                 return Response({'detail': 'product not found'}, status=status.HTTP_404_NOT_FOUND)
 
         template = None
@@ -557,14 +614,20 @@ class SupportChatViewSet(viewsets.GenericViewSet):
     def _resolve_conversation_from_body(self, request, explicit_conversation_id=None):
         is_support = _is_support_backend_user(request.user)
         user_id_raw = request.data.get('user_id')
+        store, store_error = _resolve_support_store(request, source=request.data)
+        if store_error:
+            return None, store_error
 
         if explicit_conversation_id:
             return _resolve_conversation_by_id(explicit_conversation_id, request.user, is_support)
 
-        if user_id_raw and is_support:
-            return _resolve_conversation_by_user_id(user_id_raw, self._ensure_conversation)
+        if user_id_raw and (is_support or _is_store_backend_user(request.user)):
+            return _resolve_conversation_by_user_id(user_id_raw, store, self._ensure_conversation)
 
-        return self._ensure_conversation(request.user), None
+        conversation = self._ensure_conversation(request.user, store)
+        if not conversation:
+            return None, Response({'detail': 'store not found'}, status=status.HTTP_404_NOT_FOUND)
+        return conversation, None
 
 
 class SupportConversationAutoReplyView(APIView):

@@ -591,7 +591,7 @@ class StoreMarketplacePermissionTest(TestCase):
         self.assertEqual(upload_response.status_code, 201, upload_response.content)
         self.assertTrue(MediaImage.objects.filter(id=media.id).exists())
 
-    def test_store_admin_with_staff_flag_cannot_access_support_backend(self):
+    def test_store_admin_with_staff_flag_can_access_own_support_conversations_not_templates(self):
         user = self.create_user("legacy-support-store-admin", is_staff=True, role="admin")
         StoreMember.objects.create(user=user, store=self.partner, role=StoreMember.ROLE_STORE_ADMIN)
 
@@ -599,7 +599,7 @@ class StoreMarketplacePermissionTest(TestCase):
         conversations_response = self.client.get("/api/support/chat/conversations/")
         templates_response = self.client.get("/api/support/reply-templates/")
 
-        self.assertEqual(conversations_response.status_code, 403)
+        self.assertEqual(conversations_response.status_code, 200)
         self.assertEqual(templates_response.status_code, 403)
 
     def test_store_admin_with_staff_flag_cannot_access_integrations_backend(self):
