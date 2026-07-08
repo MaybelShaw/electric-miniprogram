@@ -72,7 +72,7 @@
 
   .store-brand-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 22px;
   }
 
@@ -118,15 +118,21 @@
   .store-copy {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 124px;
   }
 
   .store-name {
-    display: block;
-    margin-top: 6px;
-    font-size: 44px;
+    display: -webkit-box;
+    font-size: 42px;
     font-weight: 700;
     color: $text-color-base;
-    line-height: 1.15;
+    line-height: 1.22;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .store-description {

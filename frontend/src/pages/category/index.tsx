@@ -62,7 +62,6 @@ export default function CategoryPage() {
   const loadMajorCategories = async () => {
     try {
       const data = await productService.getCategories({ level: 'major' })
-      // 添加"全部商品"选项
       const allOption: Category = { id: -1, name: '全部商品', order: 0, level: 'major' }
       const categories = [allOption, ...data]
       setMajorCategories(categories)
@@ -81,24 +80,11 @@ export default function CategoryPage() {
     setLoading(true)
     try {
       if (parentId === -1) {
-        // 加载全部商品页面的特殊数据：热门品牌、热门分类
         try {
           const [brands, minors] = await Promise.all([
             productService.getBrands(),
             productService.getCategories({ level: 'minor' })
           ])
-
-          const allProductsGroup: Category = {
-            id: -100,
-            name: '所有商品',
-            order: 0,
-            children: [{
-              id: -1,
-              name: '全部商品',
-              order: 0,
-              logo: ''
-            }]
-          }
 
           const brandsGroup: Category = {
             id: -200,
@@ -114,7 +100,6 @@ export default function CategoryPage() {
             } as any))
           }
 
-          // 过滤掉"全部商品"本身，只显示真实的分类
           const categoriesGroup: Category = {
             id: -300,
             name: '热门分类',
@@ -126,21 +111,10 @@ export default function CategoryPage() {
             }))
           }
 
-          setSubCategories([allProductsGroup, brandsGroup, categoriesGroup])
+          setSubCategories([brandsGroup, categoriesGroup])
         } catch (err) {
           console.error('Failed to load all products data', err)
-          // Fallback
-          setSubCategories([{
-            id: -100,
-            name: '全部',
-            order: 0,
-            children: [{
-              id: -1,
-              name: '全部商品',
-              order: 0,
-              logo: ''
-            }]
-          }])
+          setSubCategories([])
         }
         return
       }
@@ -163,15 +137,6 @@ export default function CategoryPage() {
   }
 
   const handleItemClick = (item: Category & { isBrand?: boolean, isCategory?: boolean }, minorId: number) => {
-    // 处理"全部商品"点击
-    if (item.id === -1) {
-      Taro.navigateTo({
-        url: '/pages/product-list/index?title=全部商品'
-      })
-      return
-    }
-
-    // 处理品牌点击
     if (item.isBrand) {
       Taro.navigateTo({
         url: `/pages/product-list/index?brand=${encodeURIComponent(item.name)}&title=${encodeURIComponent(item.name)}`
@@ -179,10 +144,7 @@ export default function CategoryPage() {
       return
     }
 
-    // 处理热门分类点击 (二级分类)
     if (item.isCategory) {
-      // 如果点击的是热门分类中的二级分类，跳转到商品列表并筛选该二级分类
-      // 需要同时传递 parent_id 作为 majorId，以便 product-list 页面正确加载左侧菜单
       const majorId = item.parent_id || ''
       Taro.navigateTo({
         url: `/pages/product-list/index?majorId=${majorId}&minorId=${item.id}&title=${encodeURIComponent(item.name)}`
@@ -232,34 +194,6 @@ export default function CategoryPage() {
         <ScrollView className='sub-category-container' scrollY>
           {subCategories.length > 0 ? (
             subCategories.map(subCat => {
-              // 特殊处理"所有商品"分类，显示为 Banner 样式
-              if (subCat.id === -100 && subCat.children && subCat.children.length > 0) {
-                const item = subCat.children[0]
-                return (
-                  <View 
-                    key={subCat.id} 
-                    className='all-products-banner'
-                    onClick={() => handleItemClick(item, subCat.id)}
-                  >
-                    <View className='banner-info'>
-                      <View className='banner-title'>全部商品</View>
-                      <View className='banner-subtitle'>浏览所有商品列表</View>
-                    </View>
-                    {item.logo ? (
-                      <Image
-                        className='banner-icon'
-                        src={resolveLocalMediaUrl(item.logo)}
-                        mode='aspectFit'
-                      />
-                    ) : (
-                      <View className='banner-icon banner-icon-placeholder'>
-                        <AppIcon name='package' tone='primary' />
-                      </View>
-                    )}
-                  </View>
-                )
-              }
-
               return (
                 <View key={subCat.id} className='sub-category-section'>
                   <View className='section-title'>{subCat.name}</View>

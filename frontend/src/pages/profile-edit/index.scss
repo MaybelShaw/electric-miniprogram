@@ -75,6 +75,18 @@
             color: $text-color-placeholder;
           }
         }
+
+        .avatar-button {
+          margin: 0;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          line-height: 1;
+
+          &::after {
+            border: 0;
+          }
+        }
       }
 
       .item-label {

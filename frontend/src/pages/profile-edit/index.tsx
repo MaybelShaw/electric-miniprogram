@@ -2,10 +2,19 @@ import { useState, useEffect } from 'react'
 import { View, Input, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '../../services/auth'
+import { uploadService } from '../../services/upload'
 import { User } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import AppIcon from '../../components/AppIcon'
 import './index.scss'
+
+const isLocalAvatarFile = (url: string) => (
+  url.startsWith('wxfile://') ||
+  url.startsWith('blob:') ||
+  url.startsWith('http://tmp/') ||
+  url.startsWith('https://tmp/') ||
+  (!/^https?:\/\//.test(url) && !url.startsWith('/'))
+)
 
 export default function ProfileEdit() {
   const [user, setUser] = useState<User | null>(null)
@@ -43,9 +52,9 @@ export default function ProfileEdit() {
       sourceType: ['album', 'camera'],
       success: (res) => {
         const tempFilePath = res.tempFilePaths[0]
-        setAvatarUrl(tempFilePath)
-        // TODO: 上传图片到服务器
-        // uploadImage(tempFilePath)
+        if (tempFilePath) {
+          setAvatarUrl(tempFilePath)
+        }
       }
     })
   }
@@ -73,7 +82,17 @@ export default function ProfileEdit() {
       }
 
       if (avatarUrl && avatarUrl !== user?.avatar_url) {
-        updateData.avatar_url = avatarUrl
+        let nextAvatarUrl = avatarUrl
+        if (isLocalAvatarFile(avatarUrl)) {
+          Taro.showLoading({ title: '上传头像...' })
+          try {
+            nextAvatarUrl = await uploadService.uploadImage(avatarUrl)
+            setAvatarUrl(nextAvatarUrl)
+          } finally {
+            Taro.hideLoading()
+          }
+        }
+        updateData.avatar_url = nextAvatarUrl
       }
 
       await authService.updateUserProfile(updateData)
@@ -109,14 +128,17 @@ export default function ProfileEdit() {
       <View className='form-section'>
         <View className='form-item avatar-item'>
           <View className='item-label'>头像</View>
-          <View className='item-content' onClick={handleChooseAvatar}>
+          <Button
+            className='item-content avatar-button'
+            onClick={handleChooseAvatar}
+          >
             {resolvedAvatarUrl ? (
               <Image className='avatar' src={resolvedAvatarUrl} />
             ) : (
               <View className='avatar avatar-placeholder'><AppIcon name='profile' tone='muted' /></View>
             )}
             <View className='arrow-icon'>›</View>
-          </View>
+          </Button>
         </View>
       </View>
 

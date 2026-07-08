@@ -242,11 +242,6 @@ function Home() {
               <View className='hero-fallback-line' />
             </View>
           )}
-          <View className='hero-copy'>
-            <Text className='hero-kicker'>QINGXUN HOME</Text>
-            <View className='hero-title'>庆勋愉悦家</View>
-            <View className='hero-subtitle'>精选品牌家电与生活方式方案</View>
-          </View>
         </View>
 
         <View className='home-actions'>

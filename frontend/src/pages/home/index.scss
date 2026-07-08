@@ -58,35 +58,6 @@
     background: rgba($secondary-color, 0.56);
   }
 
-  .hero-copy {
-    position: absolute;
-    left: 34px;
-    right: 34px;
-    bottom: 36px;
-    color: $brand-paper;
-  }
-
-  .hero-kicker {
-    display: block;
-    margin-bottom: 14px;
-    font-size: 20px;
-    color: rgba($brand-paper, 0.7);
-    letter-spacing: 2px;
-  }
-
-  .hero-title {
-    font-size: 46px;
-    line-height: 1.1;
-    font-weight: 600;
-  }
-
-  .hero-subtitle {
-    margin-top: 12px;
-    font-size: 26px;
-    line-height: 1.45;
-    color: rgba($brand-paper, 0.84);
-  }
-
   .home-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
