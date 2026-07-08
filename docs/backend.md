@@ -314,7 +314,7 @@
       - idle_contact 计算基于用户上次进入会话时间（`last_user_entered_at`），为空时回退到最近的用户消息/会话更新时间
       - 统计字段：`usage_count`、`last_used_at`
       - 自动回复消息会写入为略晚于触发用户消息的时间，避免增量拉取遗漏
-    - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（仅客服/管理员）
+    - `POST /support/conversations/{id}/auto-reply/` 手动触发自动回复（平台客服/管理员或可访问该店铺会话的店铺管理员）
       - 默认返回 `debug` 字段，包含触发判定信息
     - `content_payload` 用途：
       - `card`：`{ title, description, image_url, link_type, link_value }`

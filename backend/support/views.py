@@ -644,12 +644,12 @@ class SupportConversationAutoReplyView(APIView):
 
     def post(self, request, conversation_id):
         user = request.user
-        if not _is_support_backend_user(user):
-            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         try:
             conversation = SupportConversation.objects.select_related('user').get(id=conversation_id)
         except SupportConversation.DoesNotExist:
             return Response({'detail': 'conversation not found'}, status=status.HTTP_404_NOT_FOUND)
+        if not _can_access_conversation(user, conversation):
+            return Response({'detail': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
         had_user_messages = SupportMessage.objects.filter(conversation=conversation, role='user').exists()
         base_entered_at = conversation.last_user_entered_at or conversation.last_user_message_at or conversation.updated_at or conversation.created_at
         msg, debug_info = _maybe_send_auto_reply_with_debug(conversation, had_user_messages, base_entered_at)

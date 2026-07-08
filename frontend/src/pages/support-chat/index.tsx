@@ -89,7 +89,7 @@ export default function SupportChat() {
   useEffect(() => {
     startPolling()
     return () => stopPolling()
-  }, [lastFetchedAt])
+  }, [chatCacheKey])
 
   useDidShow(() => {
     const triggerAndFetch = async () => {
@@ -150,7 +150,7 @@ export default function SupportChat() {
     if (!TokenManager.getAccessToken()) return
     stopPolling()
     pollingRef.current = setInterval(() => {
-      fetchMessages(lastFetchedAt)
+      fetchMessages(lastFetchedAtRef.current)
     }, 3000)
   }
 
@@ -189,11 +189,16 @@ export default function SupportChat() {
       if (res && Array.isArray(res) && res.length > 0) {
         setMessages(prev => {
           const newMsgs = [...prev]
+          let hasNewMessages = false
           res.forEach((msg: SupportMessage) => {
             if (!newMsgs.some(m => m.id === msg.id)) {
               newMsgs.push({ ...msg, status: 'sent' })
+              hasNewMessages = true
             }
           })
+          if (!hasNewMessages) {
+            return prev
+          }
           
           newMsgs.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
           
@@ -211,7 +216,7 @@ export default function SupportChat() {
             }
           }
           
-          if (isInitial || res.length > 0) {
+          if (isInitial || hasNewMessages) {
             scrollToBottom(newMsgs)
           }
           

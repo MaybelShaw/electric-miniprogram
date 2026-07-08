@@ -42,6 +42,27 @@ class StoreSupportChatTests(TestCase):
         self.assertEqual(reply_response.data["role"], "support")
         self.assertEqual(forbidden_response.status_code, 403)
 
+    def test_store_admin_can_trigger_auto_reply_only_own_store_conversation(self):
+        own = SupportConversation.objects.create(user=self.user, store=self.store)
+        other = SupportConversation.objects.create(user=self.user, store=self.other_store)
+        SupportReplyTemplate.objects.create(
+            store=self.store,
+            template_type=SupportReplyTemplate.TYPE_AUTO,
+            title="store reply",
+            content="本店自动回复",
+            trigger_event=SupportReplyTemplate.TRIGGER_FIRST,
+            enabled=True,
+        )
+
+        self.client.force_authenticate(self.admin)
+        own_response = self.client.post(f"/api/support/conversations/{own.id}/auto-reply/")
+        forbidden_response = self.client.post(f"/api/support/conversations/{other.id}/auto-reply/")
+
+        self.assertEqual(own_response.status_code, 201, own_response.content)
+        self.assertTrue(own_response.data["triggered"])
+        self.assertEqual(own_response.data["message"]["content"], "本店自动回复")
+        self.assertEqual(forbidden_response.status_code, 403)
+
     def test_user_has_separate_conversation_per_store(self):
         self.client.force_authenticate(self.user)
 
