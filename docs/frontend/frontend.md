@@ -44,14 +44,15 @@
 - 后端 API 基址通过环境变量控制：`frontend/src/utils/request.ts:3`
   - 开发默认 `http://127.0.0.1:8000/api`，生产默认 `https://www.qxelectric.cn/api`
 - 生产小程序构建默认使用 `https://www.qxelectric.cn/api`，仍可通过 `TARO_APP_API_BASE_URL` 覆盖到其他 HTTPS API 地址。
-- 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:61`
+- 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:117`
 
 ## 请求封装详解
-- Token 管理：`frontend/src/utils/request.ts:19`
-  - 读取/设置/清理 Access/Refresh Token `frontend/src/utils/request.ts:21`
-  - 自动刷新 401：`frontend/src/utils/request.ts:93`
-- 错误处理：统一 Toast 提示与限流 429 提示 `frontend/src/utils/request.ts:108`
-- GET 查询串构造：`frontend/src/utils/request.ts:137`
+- Token 管理：`frontend/src/utils/request.ts:64`
+  - 读取/设置/清理 Access/Refresh Token `frontend/src/utils/request.ts:66`
+  - 自动刷新 401：`frontend/src/utils/request.ts:143`
+- 请求超时与 Loading：普通请求和刷新 Token 请求统一设置 30 秒超时；并发请求共享全局 Loading 计数器，避免 `showLoading`/`hideLoading` 不配对警告。
+- 错误处理：统一 Toast 提示与限流 429 提示 `frontend/src/utils/request.ts:160`
+- GET 查询串构造：`frontend/src/utils/request.ts:223`
 
 ## 服务层接口清单
 - 商品服务：`frontend/src/services/product.ts:4`
@@ -62,7 +63,7 @@
   - `getProductsByCategory`/`getProductsByBrand` 分类/品牌筛选 `frontend/src/services/product.ts:31`
   - `getCategories`/`getBrands` 列表 `frontend/src/services/product.ts:51`
     - 分类层级：`level=major|minor|item`（品类/子品类/品项）
-    - 列表接口默认分页（常见为 20 条）；需要全量数据时通过 `fetchAllPaginated` 自动拉取全部分页：`frontend/src/utils/request.ts:229`
+    - 列表接口默认分页（常见为 20 条）；需要全量数据时通过 `fetchAllPaginated` 自动拉取全部分页：`frontend/src/utils/request.ts:281`
   - `getRecommendations`/`getRelatedProducts` 推荐/相关 `frontend/src/services/product.ts:62`
 - 订单服务：`frontend/src/services/order.ts:4`
   - `createOrder` 创建订单 `frontend/src/services/order.ts:6`
@@ -185,7 +186,7 @@
 ## 页面交互流程
 - 登录与鉴权：
   - 调用微信登录获取 `code`，后端交换为 JWT（开发支持模拟）
-  - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:93`
+  - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:143`
 - 购物车结算：
   - 购物车读取 `/api/cart/my_cart/` 的 `store_groups`/`items` 契约，页面按店铺展示；店铺顺序由购物车项加入顺序决定。
   - 选中商品并导航至确认页，跳转参数会携带 `product_id`、`sku_id`、`quantity` 以及展示用店铺信息。
@@ -199,10 +200,10 @@
   - 展示额度、欠款与账期统计；查看对账单与交易 `frontend/src/services/credit.ts:71`
 
 ## API 与认证
-- 统一请求封装：`frontend/src/utils/request.ts:61`
+- 统一请求封装：`frontend/src/utils/request.ts:107`
   - 自动携带 `Authorization: Bearer <access_token>`
-  - 401 自动刷新：`frontend/src/utils/request.ts:93`
-- 错误与限流提示：`frontend/src/utils/request.ts:108`
+  - 401 自动刷新：`frontend/src/utils/request.ts:143`
+- 错误与限流提示：`frontend/src/utils/request.ts:160`
 
 ## 数据与缓存
 - 分类与品牌本地缓存，减少重复请求：`frontend/src/pages/home/index.tsx:33`

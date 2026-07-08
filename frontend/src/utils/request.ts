@@ -1,8 +1,26 @@
 import Taro from '@tarojs/taro'
 
 const DEFAULT_LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api'
+const REQUEST_TIMEOUT = 30000
 
 export const BASE_URL = process.env.TARO_APP_API_BASE_URL || DEFAULT_LOCAL_API_BASE_URL
+
+let activeLoadingCount = 0
+
+function showRequestLoading() {
+  if (activeLoadingCount === 0) {
+    Taro.showLoading({ title: '加载中...', mask: true })
+  }
+  activeLoadingCount += 1
+}
+
+function hideRequestLoading() {
+  if (activeLoadingCount === 0) return
+  activeLoadingCount -= 1
+  if (activeLoadingCount === 0) {
+    Taro.hideLoading()
+  }
+}
 
 interface RequestOptions {
   url: string
@@ -70,7 +88,8 @@ export const TokenManager = {
       const res = await Taro.request({
         url: `${BASE_URL}/token/refresh/`,
         method: 'POST',
-        data: { refresh: refreshToken }
+        data: { refresh: refreshToken },
+        timeout: REQUEST_TIMEOUT,
       })
       
       if (res.statusCode === 200 && res.data.access) {
@@ -87,7 +106,7 @@ export const TokenManager = {
 // 统一请求方法
 export async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, needAuth = true, showError = true } = options
-  let loadingHidden = false
+  let loadingShown = false
 
   const header: any = {}
   
@@ -103,7 +122,8 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
   // Don't manually set it as it might cause issues
   
   try {
-    Taro.showLoading({ title: '加载中...', mask: true })
+    showRequestLoading()
+    loadingShown = true
     
     const fullUrl = `${BASE_URL}${url}`
     
@@ -112,11 +132,12 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       method,
       data,
       header,
-      dataType: 'json'  // Explicitly set dataType
+      dataType: 'json',  // Explicitly set dataType
+      timeout: REQUEST_TIMEOUT,
     })
 
-    Taro.hideLoading()
-    loadingHidden = true
+    hideRequestLoading()
+    loadingShown = false
 
     // 处理 401 错误 - Token 过期
     if (res.statusCode === 401 && needAuth) {
@@ -159,9 +180,9 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
     
     return res.data as T
   } catch (error: any) {
-    if (!loadingHidden) {
-      Taro.hideLoading()
-      loadingHidden = true
+    if (loadingShown) {
+      hideRequestLoading()
+      loadingShown = false
     }
 
     if (error.message === 'UNAUTHORIZED') {

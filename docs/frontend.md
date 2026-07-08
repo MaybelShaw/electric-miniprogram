@@ -44,14 +44,15 @@
 - 后端 API 基址通过环境变量控制：`frontend/src/utils/request.ts:3`
   - 开发默认 `http://127.0.0.1:8000/api`，生产默认 `https://www.qxelectric.cn/api`
 - 生产小程序构建默认使用 `https://www.qxelectric.cn/api`，仍可通过 `TARO_APP_API_BASE_URL` 覆盖到其他 HTTPS API 地址。
-- 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:61`
+- 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:117`
 
 ## 请求封装详解
-- Token 管理：`frontend/src/utils/request.ts:19`
-  - 读取/设置/清理 Access/Refresh Token `frontend/src/utils/request.ts:21`
-  - 自动刷新 401：`frontend/src/utils/request.ts:93`
-- 错误处理：统一 Toast 提示与限流 429 提示 `frontend/src/utils/request.ts:108`
-- GET 查询串构造：`frontend/src/utils/request.ts:137`
+- Token 管理：`frontend/src/utils/request.ts:64`
+  - 读取/设置/清理 Access/Refresh Token `frontend/src/utils/request.ts:66`
+  - 自动刷新 401：`frontend/src/utils/request.ts:143`
+- 请求超时与 Loading：普通请求和刷新 Token 请求统一设置 30 秒超时；并发请求共享全局 Loading 计数器，避免 `showLoading`/`hideLoading` 不配对警告。
+- 错误处理：统一 Toast 提示与限流 429 提示 `frontend/src/utils/request.ts:160`
+- GET 查询串构造：`frontend/src/utils/request.ts:223`
 
 ## 服务层接口清单
 - 商品服务：`frontend/src/services/product.ts:4`
@@ -61,7 +62,7 @@
   - `getProductsByCategory`/`getProductsByBrand` 分类/品牌筛选 `frontend/src/services/product.ts:21`
   - `getCategories`/`getBrands` 列表 `frontend/src/services/product.ts:36`
     - 分类层级：`level=major|minor|item`（品类/子品类/品项）
-    - 列表接口默认分页（常见为 20 条）；需要全量数据时通过 `fetchAllPaginated` 自动拉取全部分页：`frontend/src/utils/request.ts:229`
+    - 列表接口默认分页（常见为 20 条）；需要全量数据时通过 `fetchAllPaginated` 自动拉取全部分页：`frontend/src/utils/request.ts:281`
   - `getRecommendations`/`getRelatedProducts` 推荐/相关 `frontend/src/services/product.ts:49`
 - 订单服务：`frontend/src/services/order.ts:4`
   - `createOrder` 创建订单 `frontend/src/services/order.ts:6`
@@ -171,7 +172,7 @@
   - 首次登录必须授权手机号；普通商品浏览不触发登录，也不会隐式创建账号。
   - 如果后端微信凭证未配置，显式登录会返回 `503`，前端不再兜底生成模拟手机号账号。
   - 商品详情页的购买/加购动作通过 `frontend/src/utils/auth-guard.ts` 守卫；未登录时保存当前路径和 `buy/cart` 动作，切到个人中心授权登录，成功后回到原商品详情并携带 `auth_action` 恢复原动作。
-  - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:93`
+  - 请求自动带 `Authorization` Header；401 时自动刷新并重试 `frontend/src/utils/request.ts:143`
 - 购物车结算：
   - 购物车读取 `/api/cart/my_cart/` 的 `store_groups`/`items` 契约，页面按店铺展示；店铺顺序由购物车项加入顺序决定。
   - 选中商品并导航至确认页，跳转参数会携带 `product_id`、`sku_id`、`quantity` 以及展示用店铺信息。
@@ -185,10 +186,10 @@
   - 展示额度、欠款与账期统计；查看对账单与交易 `frontend/src/services/credit.ts:71`
 
 ## API 与认证
-- 统一请求封装：`frontend/src/utils/request.ts:61`
+- 统一请求封装：`frontend/src/utils/request.ts:107`
   - 自动携带 `Authorization: Bearer <access_token>`
-  - 401 自动刷新：`frontend/src/utils/request.ts:93`
-- 错误与限流提示：`frontend/src/utils/request.ts:108`
+  - 401 自动刷新：`frontend/src/utils/request.ts:143`
+- 错误与限流提示：`frontend/src/utils/request.ts:160`
 - 本地/Docker 开发默认请求 `http://127.0.0.1:8000/api`，不回退到线上域名；需要连接其他环境时显式设置 `TARO_APP_API_BASE_URL`。
 - 生产构建默认请求 `https://www.qxelectric.cn/api`；发布到其他域名时显式设置 `TARO_APP_API_BASE_URL`。
 - 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 处理；默认允许远程媒体以展示 CDN/OSS 商品图，若环境需要收紧，可显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=false`。
