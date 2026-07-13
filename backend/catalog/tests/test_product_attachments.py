@@ -61,6 +61,7 @@ class ProductAttachmentTests(TestCase):
 
         self.assertEqual(pdf_response.status_code, 201, pdf_response.content)
         self.assertEqual(pdf_response.data['name'], 'manual.pdf')
+        self.assertEqual(pdf_response.data['original_name'], 'manual.pdf')
         self.assertEqual(pdf_response.data['file_type'], 'pdf')
         self.assertTrue(pdf_response.data['url'].startswith('/media/product_attachments/'))
 

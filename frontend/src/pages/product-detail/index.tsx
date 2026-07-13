@@ -250,6 +250,8 @@ export default function ProductDetail() {
   const getAttachmentName = (attachment: NonNullable<Product['product_attachments']>[number]) => {
     const explicitName = attachment.name?.trim()
     if (explicitName) return explicitName
+    const originalName = attachment.original_name?.trim()
+    if (originalName) return originalName
     const rawName = (attachment.url || '').split('?')[0].split('/').pop()
     if (!rawName) return 'PDF附件'
     try {

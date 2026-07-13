@@ -80,6 +80,7 @@ export interface Product {
 
 export interface ProductAttachment {
   name?: string
+  original_name?: string
   url: string
   file_type?: 'pdf'
   size?: number

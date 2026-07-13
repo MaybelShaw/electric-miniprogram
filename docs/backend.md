@@ -175,7 +175,7 @@
       - 图片与拉页：
         - `main_images`：主图列表，优先使用本地上传的图片；如为空且存在海尔主图 `product_image_url`，则使用该 URL 作为主图。
         - `detail_images`：详情图列表，优先使用海尔拉页 `product_page_urls`；若海尔拉页为空，则回退到本地上传的详情图（最多 50 张）。
-        - `product_attachments`：PDF 附件列表，结构为 `[{ name, url, file_type, size }]`；附件必须通过 `POST /api/catalog/products/upload-attachment/` 上传，单文件最大 20MB、每个商品最多 10 个，移除商品引用后会清理未被其他商品引用的服务器文件。
+        - `product_attachments`：PDF 附件列表，结构为 `[{ name, original_name, url, file_type, size }]`；附件必须通过 `POST /api/catalog/products/upload-attachment/` 上传，单文件最大 20MB、每个商品最多 10 个，移除商品引用后会清理未被其他商品引用的服务器文件。
       - SKU 聚合：
         - 当商品存在启用的 `skus` 时，响应中会附带 `skus` 与 `spec_options`，并自动聚合库存与价格：`stock` 为启用 SKU 库存之和，`price/display_price/discounted_price` 为对应最小值，便于前端直接展示区间内最低价格。
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`

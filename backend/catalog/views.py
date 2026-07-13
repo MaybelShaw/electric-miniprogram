@@ -311,6 +311,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         return Response(
             {
                 'name': original_name,
+                'original_name': original_name,
                 'url': url,
                 'file_type': 'pdf',
                 'size': default_storage.size(saved_name),

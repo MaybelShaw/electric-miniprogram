@@ -46,11 +46,21 @@ const itemsToSpecifications = (items?: SpecificationItem[]): Record<string, stri
   return result;
 };
 
+const getAttachmentFilename = (url?: string) => {
+  const rawName = (url || '').split('?')[0].split('/').pop() || '';
+  try {
+    return rawName ? decodeURIComponent(rawName) : '';
+  } catch (error) {
+    return rawName;
+  }
+};
+
 const normalizeProductAttachments = (attachments?: ProductAttachment[]): ProductAttachment[] => {
   return (attachments || [])
     .filter(item => item?.url)
     .map(item => ({
       name: (item.name || '').trim(),
+      original_name: item.original_name || item.name || getAttachmentFilename(item.url),
       url: item.url,
       file_type: 'pdf',
       ...(item.size ? { size: item.size } : {}),
@@ -1019,22 +1029,31 @@ export default function Products() {
             <Form.List name="product_attachments">
               {(fields, { add, remove }) => (
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  {fields.length > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '260px minmax(240px, 1fr) 90px', gap: 12, color: '#666' }}>
+                      <span>原始文件名</span>
+                      <span>显示文件名</span>
+                      <span>操作</span>
+                    </div>
+                  )}
                   {fields.map(({ key, name, ...restField }) => (
-                    <Space key={key} align="baseline" style={{ width: '100%' }}>
+                    <div key={key} style={{ display: 'grid', gridTemplateColumns: '260px minmax(240px, 1fr) 90px', gap: 12, alignItems: 'center' }}>
                       <Form.Item
                         {...restField}
-                        name={[name, 'name']}
-                        style={{ width: 220, marginBottom: 0 }}
+                        name={[name, 'original_name']}
+                        style={{ marginBottom: 0 }}
                       >
-                        <Input placeholder="附件名称" />
+                        <Input disabled placeholder="原始文件名" />
                       </Form.Item>
                       <Form.Item
                         {...restField}
-                        name={[name, 'url']}
-                        rules={[{ required: true, message: '请上传PDF附件' }]}
-                        style={{ flex: 1, marginBottom: 0 }}
+                        style={{ marginBottom: 0 }}
+                        name={[name, 'name']}
                       >
-                        <Input disabled placeholder="PDF文件地址" />
+                        <Input placeholder="显示文件名" />
+                      </Form.Item>
+                      <Form.Item {...restField} name={[name, 'url']} rules={[{ required: true, message: '请上传PDF附件' }]} hidden>
+                        <Input />
                       </Form.Item>
                       <Form.Item {...restField} name={[name, 'file_type']} hidden>
                         <Input />
@@ -1045,7 +1064,7 @@ export default function Products() {
                       <Button danger icon={<DeleteOutlined />} onClick={() => remove(name)}>
                         删除
                       </Button>
-                    </Space>
+                    </div>
                   ))}
                   <Upload
                     accept=".pdf,application/pdf"

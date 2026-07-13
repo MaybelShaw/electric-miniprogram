@@ -430,6 +430,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
             attachment = {
                 'name': str(item.get('name') or '').strip(),
+                'original_name': str(item.get('original_name') or '').strip(),
                 'url': path,
                 'file_type': 'pdf',
             }

@@ -130,14 +130,14 @@ Authorization: Bearer <access_token>
   - 用途：获取商品详情
   - 权限：AllowAny
   - 响应：在基础商品字段外包含 `main_images`, `detail_images`, `product_attachments`, `specifications`, `skus`, `spec_options`, `display_price`, `discounted_price`, `originalPrice`
-  - `product_attachments`：PDF 附件数组 `[{ name, url, file_type, size }]`；无附件时为空数组。
+  - `product_attachments`：PDF 附件数组 `[{ name, original_name, url, file_type, size }]`；无附件时为空数组。
 
 - `POST /products/upload-attachment/`
   - 用途：上传商品 PDF 附件
   - 权限：后台用户
   - 请求：`multipart/form-data`，字段 `file`
   - 限制：仅 PDF，单文件最大 20MB
-  - 响应：`{ "name": string, "url": string, "file_type": "pdf", "size": number }`
+  - 响应：`{ "name": string, "original_name": string, "url": string, "file_type": "pdf", "size": number }`
 
 - `GET /products/by_category/?category=名称`
   - 用途：按分类获取商品
