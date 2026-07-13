@@ -21,7 +21,7 @@ export default function StoreShowcaseCard({
   const description = store.description || (
     isChuangyi
       ? '创艺精选生活馆，按空间灵感组织家电方案'
-      : '精选合作品牌，浏览家电与生活方式方案'
+      : '优选供应链伙伴，浏览家居与生活方式方案'
   )
 
   return (
@@ -38,7 +38,7 @@ export default function StoreShowcaseCard({
           </View>
         )}
         <View className='store-showcase-shade' />
-        <View className='store-showcase-badge'>{isChuangyi ? '创艺精选' : '品牌馆'}</View>
+        <View className='store-showcase-badge'>{isChuangyi ? '创艺精选' : '战略合作'}</View>
       </View>
       <View className='store-showcase-body'>
         <View className='store-showcase-head'>

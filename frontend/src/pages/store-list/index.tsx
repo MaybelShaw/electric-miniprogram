@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { storeService } from '../../services/store'
-import { Store } from '../../types'
+import { PartnerEntryConfig, Store } from '../../types'
 import StoreShowcaseCard from '../../components/StoreShowcaseCard'
 import './index.scss'
 
@@ -11,11 +11,26 @@ export default function StoreListPage() {
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [partnerEntryConfig, setPartnerEntryConfig] = useState<PartnerEntryConfig | null>(null)
 
   useEffect(() => {
-    Taro.setNavigationBarTitle({ title: '品牌专区' })
+    Taro.setNavigationBarTitle({ title: '供应链战略合作伙伴' })
+    loadPartnerEntryConfig()
     loadStores(1)
   }, [])
+
+  const loadPartnerEntryConfig = async () => {
+    try {
+      const data = await storeService.getPartnerEntryConfig()
+      const title = data.section_title?.trim()
+      setPartnerEntryConfig(data)
+      if (title) {
+        Taro.setNavigationBarTitle({ title })
+      }
+    } catch (error) {
+      // 保留默认标题
+    }
+  }
 
   const loadStores = async (pageNum: number) => {
     if (loading) return
@@ -55,7 +70,12 @@ export default function StoreListPage() {
       >
         <View className='store-list'>
           {stores.map(store => (
-            <StoreShowcaseCard key={store.id} store={store} className='store-list-card' onClick={() => goToStore(store)} />
+            <StoreShowcaseCard
+              key={store.id}
+              store={store}
+              className='store-list-card'
+              onClick={() => goToStore(store)}
+            />
           ))}
 
           {loading && <View className='status-text'>加载中...</View>}

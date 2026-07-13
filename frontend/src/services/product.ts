@@ -1,6 +1,8 @@
 import { fetchAllPaginated, http } from '../utils/request'
 import { Product, ProductListResponse, Category, Brand, HomeBanner, HomeBannerPosition } from '../types/index'
 
+type RequestOptions = boolean | { needAuth?: boolean; showError?: boolean; showLoading?: boolean }
+
 interface HomeBannerParams {
   position?: HomeBannerPosition
   special_zone?: number
@@ -12,7 +14,11 @@ export const productService = {
   // 获取轮播图列表
   async getHomeBanners(params?: HomeBannerPosition | HomeBannerParams): Promise<HomeBanner[]> {
     const query = typeof params === 'string' ? { position: params } : params
-    const response = await http.get<{ count: number; results: HomeBanner[] }>('/catalog/home-banners/', query, false)
+    const response = await http.get<{ count: number; results: HomeBanner[] }>(
+      '/catalog/home-banners/',
+      query,
+      { needAuth: false, showLoading: false }
+    )
     return response.results || []
   },
 
@@ -31,8 +37,8 @@ export const productService = {
     special_zone?: number
     store?: number | string
     store_id?: number | string
-  }): Promise<ProductListResponse> {
-    return http.get<ProductListResponse>('/catalog/products/', params)
+  }, options: RequestOptions = true): Promise<ProductListResponse> {
+    return http.get<ProductListResponse>('/catalog/products/', params, options)
   },
   
   // 获取商品详情

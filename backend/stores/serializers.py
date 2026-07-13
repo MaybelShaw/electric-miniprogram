@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
+    PartnerEntryConfig,
     Store,
     StoreCustomerGroup,
     StoreCustomerGroupMember,
@@ -56,6 +57,12 @@ class PublicStoreSerializer(serializers.ModelSerializer):
             "address",
             "home_order",
         ]
+
+
+class PartnerEntryConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PartnerEntryConfig
+        fields = ["entry_title", "entry_subtitle", "section_title"]
 
 
 class StoreMemberSerializer(serializers.ModelSerializer):

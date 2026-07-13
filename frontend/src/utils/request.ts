@@ -1,9 +1,9 @@
 import Taro from '@tarojs/taro'
 
-const DEFAULT_LOCAL_API_BASE_URL = 'http://127.0.0.1:8000/api'
+const DEFAULT_API_BASE_URL = 'https://www.qxelectric.cn/api'
 const REQUEST_TIMEOUT = 30000
 
-export const BASE_URL = process.env.TARO_APP_API_BASE_URL || DEFAULT_LOCAL_API_BASE_URL
+export const BASE_URL = process.env.TARO_APP_API_BASE_URL || DEFAULT_API_BASE_URL
 
 let activeLoadingCount = 0
 
@@ -28,6 +28,21 @@ interface RequestOptions {
   data?: any
   needAuth?: boolean
   showError?: boolean
+  showLoading?: boolean
+}
+
+type HttpOptions = boolean | { needAuth?: boolean, showError?: boolean, showLoading?: boolean }
+
+function parseHttpOptions(options: HttpOptions) {
+  if (typeof options === 'boolean') {
+    return { needAuth: options, showError: true, showLoading: true }
+  }
+
+  return {
+    needAuth: options.needAuth ?? true,
+    showError: options.showError ?? true,
+    showLoading: options.showLoading ?? true,
+  }
 }
 
 interface ApiResponse<T = any> {
@@ -105,7 +120,7 @@ export const TokenManager = {
 
 // 统一请求方法
 export async function request<T = any>(options: RequestOptions): Promise<T> {
-  const { url, method = 'GET', data, needAuth = true, showError = true } = options
+  const { url, method = 'GET', data, needAuth = true, showError = true, showLoading = true } = options
   let loadingShown = false
 
   const header: any = {}
@@ -122,8 +137,10 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
   // Don't manually set it as it might cause issues
   
   try {
-    showRequestLoading()
-    loadingShown = true
+    if (showLoading) {
+      showRequestLoading()
+      loadingShown = true
+    }
     
     const fullUrl = `${BASE_URL}${url}`
     
@@ -205,17 +222,8 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
 
 // 便捷方法
 export const http = {
-  get: <T = any>(url: string, params?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
-    // 处理 options 参数
-    let needAuth = true
-    let showError = true
-    
-    if (typeof options === 'boolean') {
-      needAuth = options
-    } else {
-      if (options.needAuth !== undefined) needAuth = options.needAuth
-      if (options.showError !== undefined) showError = options.showError
-    }
+  get: <T = any>(url: string, params?: any, options: HttpOptions = true) => {
+    const { needAuth, showError, showLoading } = parseHttpOptions(options)
 
     // GET 请求需要将参数转换为查询字符串
     let fullUrl = url
@@ -226,55 +234,27 @@ export const http = {
         .join('&')
       fullUrl = `${url}${url.includes('?') ? '&' : '?'}${queryString}`
     }
-    return request<T>({ url: fullUrl, method: 'GET', needAuth, showError })
+    return request<T>({ url: fullUrl, method: 'GET', needAuth, showError, showLoading })
   },
-  
-  post: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
-    let needAuth = true
-    let showError = true
-    if (typeof options === 'boolean') {
-      needAuth = options
-    } else {
-      if (options.needAuth !== undefined) needAuth = options.needAuth
-      if (options.showError !== undefined) showError = options.showError
-    }
-    return request<T>({ url, method: 'POST', data, needAuth, showError })
+
+  post: <T = any>(url: string, data?: any, options: HttpOptions = true) => {
+    const { needAuth, showError, showLoading } = parseHttpOptions(options)
+    return request<T>({ url, method: 'POST', data, needAuth, showError, showLoading })
   },
-  
-  put: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
-    let needAuth = true
-    let showError = true
-    if (typeof options === 'boolean') {
-      needAuth = options
-    } else {
-      if (options.needAuth !== undefined) needAuth = options.needAuth
-      if (options.showError !== undefined) showError = options.showError
-    }
-    return request<T>({ url, method: 'PUT', data, needAuth, showError })
+
+  put: <T = any>(url: string, data?: any, options: HttpOptions = true) => {
+    const { needAuth, showError, showLoading } = parseHttpOptions(options)
+    return request<T>({ url, method: 'PUT', data, needAuth, showError, showLoading })
   },
-  
-  patch: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
-    let needAuth = true
-    let showError = true
-    if (typeof options === 'boolean') {
-      needAuth = options
-    } else {
-      if (options.needAuth !== undefined) needAuth = options.needAuth
-      if (options.showError !== undefined) showError = options.showError
-    }
-    return request<T>({ url, method: 'PATCH', data, needAuth, showError })
+
+  patch: <T = any>(url: string, data?: any, options: HttpOptions = true) => {
+    const { needAuth, showError, showLoading } = parseHttpOptions(options)
+    return request<T>({ url, method: 'PATCH', data, needAuth, showError, showLoading })
   },
-  
-  delete: <T = any>(url: string, data?: any, options: boolean | { needAuth?: boolean, showError?: boolean } = true) => {
-    let needAuth = true
-    let showError = true
-    if (typeof options === 'boolean') {
-      needAuth = options
-    } else {
-      if (options.needAuth !== undefined) needAuth = options.needAuth
-      if (options.showError !== undefined) showError = options.showError
-    }
-    return request<T>({ url, method: 'DELETE', data, needAuth, showError })
+
+  delete: <T = any>(url: string, data?: any, options: HttpOptions = true) => {
+    const { needAuth, showError, showLoading } = parseHttpOptions(options)
+    return request<T>({ url, method: 'DELETE', data, needAuth, showError, showLoading })
   }
 }
 
@@ -282,7 +262,7 @@ export async function fetchAllPaginated<T>(
   url: string,
   params?: Record<string, any>,
   pageSize = 100,
-  options: boolean | { needAuth?: boolean; showError?: boolean } = false,
+  options: HttpOptions = false,
 ): Promise<T[]> {
   const first: any = await http.get<any>(url, { ...(params || {}), page: 1, page_size: pageSize }, options)
   if (Array.isArray(first)) return first as T[]

@@ -7,13 +7,13 @@ export const specialZoneService = {
     const response = await http.get<{ count: number; results: SpecialZone[] }>(
       '/catalog/special-zones/',
       params,
-      false
+      { needAuth: false, showLoading: false }
     )
     return response.results || []
   },
 
   async getZone(id: number): Promise<SpecialZone> {
-    return http.get<SpecialZone>(`/catalog/special-zones/${id}/`, undefined, false)
+    return http.get<SpecialZone>(`/catalog/special-zones/${id}/`, undefined, { needAuth: false, showLoading: false })
   },
 
   async getZoneProducts(
@@ -23,7 +23,7 @@ export const specialZoneService = {
     return http.get<ProductListResponse>(
       '/catalog/products/',
       { ...(params || {}), special_zone: zoneId },
-      false
+      { needAuth: false, showLoading: false }
     )
   },
 
@@ -31,7 +31,7 @@ export const specialZoneService = {
     const response = await http.get<{ count: number; results: HomeStoreCard[] }>(
       '/catalog/home-store-cards/',
       params,
-      false
+      { needAuth: false, showLoading: false }
     )
     return response.results || []
   },

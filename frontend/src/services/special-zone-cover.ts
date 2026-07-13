@@ -6,7 +6,7 @@ export const specialZoneCoverService = {
     const response = await http.get<{ count: number; results: SpecialZoneCover[] }>(
       '/catalog/special-zone-covers/',
       params,
-      false
+      { needAuth: false, showLoading: false }
     )
     return response.results || []
   },

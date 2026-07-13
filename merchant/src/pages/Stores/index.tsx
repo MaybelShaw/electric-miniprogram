@@ -2,16 +2,18 @@ import { useRef, useState } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormSwitch } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Form, message } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import ImageUrlUpload from '@/components/ImageUrlUpload';
-import { createStore, getStores, updateStore } from '@/services/api';
+import { createStore, getPartnerEntryConfig, getStores, updatePartnerEntryConfig, updateStore } from '@/services/api';
 import type { Store } from '@/services/types';
 
 export default function Stores() {
   const actionRef = useRef<ActionType>();
   const [modalVisible, setModalVisible] = useState(false);
+  const [entryConfigVisible, setEntryConfigVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Store | null>(null);
   const [form] = Form.useForm();
+  const [entryForm] = Form.useForm();
 
   const openCreate = () => {
     setEditingRecord(null);
@@ -32,6 +34,12 @@ export default function Stores() {
     setEditingRecord(record);
     form.setFieldsValue(record);
     setModalVisible(true);
+  };
+
+  const openEntryConfig = async () => {
+    const config = await getPartnerEntryConfig();
+    entryForm.setFieldsValue(config);
+    setEntryConfigVisible(true);
   };
 
   const columns: ProColumns<Store>[] = [
@@ -86,6 +94,9 @@ export default function Stores() {
           return { data, success: true, total: res.count || data.length };
         }}
         toolBarRender={() => [
+          <Button key="entry-copy" icon={<SettingOutlined />} onClick={openEntryConfig}>
+            首页配置
+          </Button>,
           <Button key="add" type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             新增店铺
           </Button>,
@@ -145,6 +156,40 @@ export default function Stores() {
         <ProFormSwitch name="show_on_home" label="首页展示" />
         <ProFormSwitch name="allow_haier" label="启用海尔能力" />
         <ProFormSwitch name="is_main" label="主店" disabled={Boolean(editingRecord)} />
+      </ModalForm>
+
+      <ModalForm
+        title="配置合作方入口"
+        open={entryConfigVisible}
+        form={entryForm}
+        width={560}
+        modalProps={{ destroyOnClose: true }}
+        onOpenChange={setEntryConfigVisible}
+        onFinish={async (values) => {
+          await updatePartnerEntryConfig(values);
+          message.success('配置成功');
+          setEntryConfigVisible(false);
+          return true;
+        }}
+      >
+        <ProFormText
+          name="entry_title"
+          label="首页入口标题"
+          placeholder="例如：战略伙伴"
+          tooltip="对应首页上方入口卡片标题"
+        />
+        <ProFormText
+          name="entry_subtitle"
+          label="首页入口副标题"
+          placeholder="例如：供应链优选"
+          tooltip="对应首页上方入口卡片副标题"
+        />
+        <ProFormText
+          name="section_title"
+          label="首页板块标题"
+          placeholder="例如：供应链伙伴"
+          tooltip="对应首页下方合作店铺板块标题"
+        />
       </ModalForm>
     </>
   );

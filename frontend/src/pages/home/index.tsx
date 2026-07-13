@@ -5,7 +5,7 @@ import { productService } from '../../services/product'
 import { specialZoneCoverService } from '../../services/special-zone-cover'
 import { specialZoneService } from '../../services/special-zone'
 import { storeService } from '../../services/store'
-import { Product, HomeBanner, HomeStoreCard, SpecialZoneCover, Store } from '../../types'
+import { Product, HomeBanner, HomeStoreCard, PartnerEntryConfig, SpecialZoneCover, Store } from '../../types'
 import { resolveLocalMediaUrl } from '../../utils/media'
 import AppIcon from '../../components/AppIcon'
 import EmptyState from '../../components/EmptyState'
@@ -21,6 +21,7 @@ function Home() {
   const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
   const [partnerStores, setPartnerStores] = useState<Store[]>([])
+  const [partnerEntryConfig, setPartnerEntryConfig] = useState<PartnerEntryConfig | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [homeStoreCards, setHomeStoreCards] = useState<HomeStoreCard[]>([])
   const [banners, setBanners] = useState<HomeBanner[]>([])
@@ -36,6 +37,7 @@ function Home() {
     const storeId = router.params?.store_id || router.params?.store
     loadBanners(storeId)
     loadSpecialZoneCovers(storeId)
+    loadPartnerEntryConfig()
     loadPartnerStores()
     loadHomeStoreCards(storeId)
     loadProducts(1, storeId)
@@ -96,6 +98,15 @@ function Home() {
     }
   }
 
+  const loadPartnerEntryConfig = async () => {
+    try {
+      const data = await storeService.getPartnerEntryConfig()
+      setPartnerEntryConfig(data)
+    } catch (error) {
+      setPartnerEntryConfig(null)
+    }
+  }
+
   const loadHomeStoreCards = async (storeId?: string) => {
     try {
       const data = await specialZoneService.getHomeStoreCards(storeId ? { store: storeId } : undefined)
@@ -110,11 +121,14 @@ function Home() {
 
     setLoading(true)
     try {
-      const res = await productService.getProducts({
-        page: pageNum,
-        page_size: 20,
-        ...(storeId ? { store: storeId } : {}),
-      })
+      const res = await productService.getProducts(
+        {
+          page: pageNum,
+          page_size: 20,
+          ...(storeId ? { store: storeId } : {}),
+        },
+        { showLoading: false }
+      )
 
       setProducts(prev => (pageNum === 1 ? res.results : [...prev, ...res.results]))
       setHasMore(res.has_next || false)
@@ -130,6 +144,7 @@ function Home() {
     const storeId = router.params?.store_id || router.params?.store
     loadBanners(storeId, true)
     loadSpecialZoneCovers(storeId)
+    loadPartnerEntryConfig()
     loadHomeStoreCards(storeId)
     loadProducts(1, storeId)
   }
@@ -210,6 +225,10 @@ function Home() {
     Taro.navigateTo({ url: '/pages/store-list/index' })
   }
 
+  const partnerActionTitle = partnerEntryConfig?.entry_title?.trim() || '战略伙伴'
+  const partnerActionDesc = partnerEntryConfig?.entry_subtitle?.trim() || '供应链优选'
+  const partnerSectionTitle = partnerEntryConfig?.section_title?.trim() || '供应链伙伴'
+
   return (
     <View className='home'>
       <View className='home-topbar'>
@@ -221,7 +240,7 @@ function Home() {
       </View>
 
       <ScrollView
-        className='content'
+        className='home-scroll'
         scrollY
         refresherEnabled
         refresherTriggered={refreshing || (loading && page === 1)}
@@ -252,8 +271,8 @@ function Home() {
           </View>
           <View className='home-action' onClick={goToBrandZone}>
             <AppIcon name='store' tone='gold' className='action-icon' />
-            <View className='action-title'>品牌馆</View>
-            <View className='action-desc'>合作品牌精选</View>
+            <View className='action-title'>{partnerActionTitle}</View>
+            <View className='action-desc'>{partnerActionDesc}</View>
           </View>
           <View className='home-action' onClick={goToAllCategories}>
             <AppIcon name='search' tone='muted' className='action-icon' />
@@ -349,7 +368,7 @@ function Home() {
         {partnerStores.length > 0 && (
           <View className='brand-section'>
             <View className='section-header-row'>
-              <SectionHeader title='品牌专区' actionText='更多' onAction={goToAllBrands} />
+              <SectionHeader title={partnerSectionTitle} actionText='更多' onAction={goToAllBrands} />
             </View>
             <ScrollView className='brand-showcase-scroll' scrollX>
               <View className='brand-showcase-row'>

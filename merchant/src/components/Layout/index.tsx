@@ -67,7 +67,7 @@ export const adminMenuItems = [
     children: [
       { key: '/admin/sales-stats', icon: <RiseOutlined />, label: '销售统计' },
       { key: '/admin/home-banners', icon: <PictureOutlined />, label: '轮播图管理' },
-      { key: '/admin/special-zones', icon: <PartitionOutlined />, label: '活动管理' },
+      { key: '/admin/special-zones', icon: <PartitionOutlined />, label: '专区配置' },
       { key: '/admin/home-store-cards', icon: <AppstoreAddOutlined />, label: '首页卡片管理' },
       { key: '/admin/cases', icon: <BookOutlined />, label: '案例管理' },
       { key: '/admin/brands', icon: <TagOutlined />, label: '品牌管理' },

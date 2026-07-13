@@ -438,6 +438,12 @@ export interface Store {
   show_customer_group_name?: boolean
 }
 
+export interface PartnerEntryConfig {
+  entry_title: string
+  entry_subtitle: string
+  section_title: string
+}
+
 export interface PublicStoreDetail {
   store: Store
   banners: HomeBanner[]

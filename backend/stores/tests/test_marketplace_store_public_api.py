@@ -5,7 +5,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from catalog.models import Brand, Category, HomeBanner, MediaImage, Product, SpecialZone, SpecialZoneProduct
-from stores.models import Store
+from stores.models import PartnerEntryConfig, Store, StoreMember
+from users.models import User
 
 
 class MarketplaceStorePublicAPITest(TestCase):
@@ -66,6 +67,39 @@ class MarketplaceStorePublicAPITest(TestCase):
 
         self.assertEqual(Store.objects.filter(is_main=True).count(), 1)
         self.assertEqual(Store.objects.filter(store_type=Store.TYPE_PARTNER).count(), 2)
+
+    def test_public_partner_entry_config_uses_independent_config(self):
+        PartnerEntryConfig.objects.update_or_create(
+            pk=1,
+            defaults={
+                "entry_title": "战略伙伴",
+                "entry_subtitle": "供应链优选",
+                "section_title": "供应链伙伴",
+            },
+        )
+
+        response = self.client.get("/api/stores/public/partner-entry-config/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["entry_title"], "战略伙伴")
+        self.assertEqual(response.data["entry_subtitle"], "供应链优选")
+        self.assertEqual(response.data["section_title"], "供应链伙伴")
+
+    def test_platform_admin_can_update_partner_entry_config(self):
+        platform = Store.objects.get(code=Store.MAIN_STORE_CODE)
+        admin = User.objects.create_user(username="platform-admin", password="password", is_staff=True, role="admin")
+        StoreMember.objects.create(user=admin, store=platform, role=StoreMember.ROLE_STORE_ADMIN)
+        self.client.force_authenticate(admin)
+
+        response = self.client.patch(
+            "/api/stores/partner-entry-config/",
+            {"entry_title": "战略伙伴", "section_title": "供应链伙伴"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["entry_title"], "战略伙伴")
+        self.assertEqual(response.data["section_title"], "供应链伙伴")
 
     def test_partner_store_cannot_enable_haier_capability(self):
         partner = Store(

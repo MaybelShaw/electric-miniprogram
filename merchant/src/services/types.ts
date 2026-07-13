@@ -43,6 +43,12 @@ export interface Store {
   updated_at: string;
 }
 
+export interface PartnerEntryConfig {
+  entry_title?: string;
+  entry_subtitle?: string;
+  section_title?: string;
+}
+
 export interface StoreMember {
   id: number;
   user: number;

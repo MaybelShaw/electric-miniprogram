@@ -42,8 +42,8 @@
 
 ## 环境配置
 - 后端 API 基址通过环境变量控制：`frontend/src/utils/request.ts:3`
-  - 开发默认 `http://127.0.0.1:8000/api`，生产默认 `https://www.qxelectric.cn/api`
-- 生产小程序构建默认使用 `https://www.qxelectric.cn/api`，仍可通过 `TARO_APP_API_BASE_URL` 覆盖到其他 HTTPS API 地址。
+  - 默认 `https://www.qxelectric.cn/api`
+- 本地/Docker 联调需要显式设置 `TARO_APP_API_BASE_URL=http://127.0.0.1:8000/api`；发布到其他域名时也通过该变量覆盖。
 - 认证 Header 由请求工具自动添加与刷新：`frontend/src/utils/request.ts:117`
 
 ## 请求封装详解
@@ -191,8 +191,7 @@
   - 自动携带 `Authorization: Bearer <access_token>`
   - 401 自动刷新：`frontend/src/utils/request.ts:143`
 - 错误与限流提示：`frontend/src/utils/request.ts:160`
-- 本地/Docker 开发默认请求 `http://127.0.0.1:8000/api`，不回退到线上域名；需要连接其他环境时显式设置 `TARO_APP_API_BASE_URL`。
-- 生产构建默认请求 `https://www.qxelectric.cn/api`；发布到其他域名时显式设置 `TARO_APP_API_BASE_URL`。
+- 默认请求 `https://www.qxelectric.cn/api`；本地/Docker 联调或发布到其他域名时显式设置 `TARO_APP_API_BASE_URL` 覆盖。
 - 小程序运行时图片、视频与分享图统一经过 `resolveLocalMediaUrl` 处理；默认允许远程媒体以展示 CDN/OSS 商品图，若环境需要收紧，可显式设置 `TARO_APP_ALLOW_REMOTE_MEDIA=false`。
 
 ## 数据与缓存
@@ -223,8 +222,8 @@
 - 微信小程序不支持 SVG，请统一使用 `png/jpg/jpeg` 格式的图片资源（如聊天动作面板图标 `camera.png`、`picture.png`）。
 
 ## 入驻合作方店铺入口
-- 首页继续作为庆勋愉悦家平台默认浏览入口，同时新增“合作方专区”入口聚合，数据来自 `frontend/src/services/store.ts` 的公开店铺接口。
-- `kind='brand'` 的品牌店铺专区入口跳转到 `/pages/store-list/index`，不再用商品卡片模拟店铺入口。
+- 首页继续作为庆勋愉悦家平台默认浏览入口，同时新增合作方店铺入口聚合，数据来自 `frontend/src/services/store.ts` 的公开店铺接口。
+- 合作方店铺入口本身不是动态专区；文案通过 `GET /api/stores/public/partner-entry-config/` 读取独立合作方入口配置。在商家后台“平台管理 -> 店铺管理 -> 首页配置”配置；未配置时回退到“战略伙伴/供应链伙伴/供应链战略合作伙伴”等默认文案。
 - 入驻店铺列表页 `/pages/store-list/index` 展示当前平台下 `is_visible=true`、`show_on_home=true` 且启用中的合作方店铺；`is_visible=false` 的合作店铺在小程序公开侧同时隐藏店铺详情、商品、分类、品牌、轮播和专区信息，`show_on_home=false` 仅隐藏首页/列表入口。
 - 店铺详情页 `/pages/store-detail/index?id=<store_id>` 是多店铺共用模板，展示该真实经营店铺的公司名称、Logo、封面、图片轮播、产品类别入口、产品大图、价格、库存、动态专区和商品摘要；店铺名称与 Logo 在品牌信息卡内居中对齐，长名称最多展示两行；品牌分类不在首页默认堆叠展示。
 - 店铺列表、店铺首页、店铺分类、分类商品页和店铺我的页统一使用主平台首页延展出的高端家居展厅风格：冷白背景、深色照片叠层、悬浮品牌信息卡、大幅商品陈列、浅雾面卡片、细边框和灰蓝/金属感强调色；仅调整视觉呈现，不改变接口、路由或业务流程。

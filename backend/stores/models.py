@@ -105,6 +105,26 @@ class Store(models.Model):
         return self.name
 
 
+class PartnerEntryConfig(models.Model):
+    entry_title = models.CharField(max_length=40, blank=True, default="", verbose_name="首页入口标题")
+    entry_subtitle = models.CharField(max_length=80, blank=True, default="", verbose_name="首页入口副标题")
+    section_title = models.CharField(max_length=40, blank=True, default="", verbose_name="首页板块标题")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        verbose_name = "合作方入口配置"
+        verbose_name_plural = "合作方入口配置"
+
+    @classmethod
+    def get_solo(cls):
+        config, _ = cls.objects.get_or_create(pk=1)
+        return config
+
+    def __str__(self):
+        return "合作方入口配置"
+
+
 class StoreMember(models.Model):
     ROLE_PLATFORM_ADMIN = "platform_admin"
     ROLE_STORE_ADMIN = "store_admin"

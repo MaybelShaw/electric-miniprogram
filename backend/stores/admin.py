@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    PartnerEntryConfig,
     Store,
     StoreCustomerGroup,
     StoreCustomerGroupMember,
@@ -9,6 +10,12 @@ from .models import (
     StorePaymentConfig,
     StoreSettlementRule,
 )
+
+
+@admin.register(PartnerEntryConfig)
+class PartnerEntryConfigAdmin(admin.ModelAdmin):
+    list_display = ("id", "entry_title", "entry_subtitle", "section_title", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
 
 
 class StoreMemberInline(admin.TabularInline):

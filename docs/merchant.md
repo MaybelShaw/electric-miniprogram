@@ -144,7 +144,7 @@
   - 功能：列表查看、新增、编辑、删除、启用/禁用
   - 接口：`GET/POST/PATCH/DELETE /api/catalog/home-banners/`，`POST /api/catalog/home-banners/upload/`
 - 动态运营专区：
-  - 页面位置：`merchant/src/pages/SpecialZones/index.tsx`，菜单入口 `/admin/special-zones`
+  - 页面位置：`merchant/src/pages/SpecialZones/index.tsx`，菜单入口“运营管理 -> 专区配置” `/admin/special-zones`
   - 平台管理员可在专区表单选择店铺，为任意店铺创建、编辑、删除活动、优惠、品类、品牌或自定义专区
   - 店铺管理员只看到并维护本店 `store_activity`；请求会随当前店铺上下文带上 `store` 参数
   - 配置字段：标题、标识、类型、副标题、封面、首页排序、首页显示、启停、开始时间、结束时间
@@ -154,6 +154,7 @@
   - 页面位置：`merchant/src/pages/HomeStoreCards/index.tsx`，菜单入口 `/admin/home-store-cards`
   - 用于平台/主店首页橱窗卡片：选择店铺、1 个主推商品、4 个副推商品和至少 3 个一级分类。
   - 仅平台管理员可新增、编辑、删除；店铺管理员通过轮播图和动态运营专区配置本店首页内容。
+- 合作方入口文案：在“平台管理 -> 店铺管理 -> 首页配置”中配置 `首页入口标题`、`首页入口副标题`、`首页板块标题`；店铺卡片角标和描述归属具体店铺，不做统一配置。
 - 案例管理：
 - 折扣管理：创建/更新/删除、批量设置目标（平台管理员） `backend/orders/views.py:1047`
 - 公司认证：审核通过/拒绝、详情弹窗操作 `merchant/src/pages/CompanyCertification/index.tsx:262`

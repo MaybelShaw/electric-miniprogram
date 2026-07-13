@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import generics, permissions, status, views, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 
 from .models import (
+    PartnerEntryConfig,
     Store,
     StoreCustomerGroup,
     StoreCustomerGroupMember,
@@ -23,6 +24,7 @@ from .permissions import (
     is_platform_admin,
 )
 from .serializers import (
+    PartnerEntryConfigSerializer,
     PublicStoreSerializer,
     StoreCustomerGroupMemberSerializer,
     StoreCustomerGroupPriceSerializer,
@@ -51,6 +53,28 @@ class PublicPartnerStoreListAPIView(generics.ListAPIView):
             show_on_home=True,
         )
         return qs.order_by("home_order", "id")
+
+
+class PublicPartnerEntryConfigAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        config = PartnerEntryConfig.objects.filter(pk=1).first()
+        return Response(PartnerEntryConfigSerializer(config or PartnerEntryConfig()).data)
+
+
+class PartnerEntryConfigAPIView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsPlatformAdmin]
+
+    def get(self, request):
+        return Response(PartnerEntryConfigSerializer(PartnerEntryConfig.get_solo()).data)
+
+    def patch(self, request):
+        config = PartnerEntryConfig.get_solo()
+        serializer = PartnerEntryConfigSerializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class PublicStoreDetailAPIView(generics.RetrieveAPIView):

@@ -1,5 +1,5 @@
 import request from '@/utils/request';
-import type { CurrentStoreContext, ProductAttachment, StoreProfitSharingEntry } from './types';
+import type { CurrentStoreContext, PartnerEntryConfig, ProductAttachment, StoreProfitSharingEntry } from './types';
 import { withSelectedStoreId } from '@/utils/storeScope';
 
 // 登录
@@ -19,6 +19,10 @@ export const getCurrentStoreContext = (): Promise<CurrentStoreContext> =>
 export const getStores = (params?: any) => request.get('/stores/', { params });
 export const createStore = (data: any) => request.post('/stores/', data);
 export const updateStore = (id: number, data: any) => request.patch(`/stores/${id}/`, data);
+export const getPartnerEntryConfig = (): Promise<PartnerEntryConfig> =>
+  request.get('/stores/partner-entry-config/');
+export const updatePartnerEntryConfig = (data: PartnerEntryConfig): Promise<PartnerEntryConfig> =>
+  request.patch('/stores/partner-entry-config/', data);
 export const getStoreMembers = (params?: any) => request.get('/stores/members/', { params });
 export const getStoreMemberCandidates = (params?: any) => request.get('/stores/members/available_users/', { params });
 export const createStoreMember = (data: any) => request.post('/stores/members/', data);
