@@ -175,6 +175,7 @@
       - 图片与拉页：
         - `main_images`：主图列表，优先使用本地上传的图片；如为空且存在海尔主图 `product_image_url`，则使用该 URL 作为主图。
         - `detail_images`：详情图列表，优先使用海尔拉页 `product_page_urls`；若海尔拉页为空，则回退到本地上传的详情图（最多 50 张）。
+        - `product_attachments`：PDF 附件列表，结构为 `[{ name, url, file_type, size }]`；附件必须通过 `POST /api/catalog/products/upload-attachment/` 上传，单文件最大 20MB、每个商品最多 10 个，移除商品引用后会清理未被其他商品引用的服务器文件。
       - SKU 聚合：
         - 当商品存在启用的 `skus` 时，响应中会附带 `skus` 与 `spec_options`，并自动聚合库存与价格：`stock` 为启用 SKU 库存之和，`price/display_price/discounted_price` 为对应最小值，便于前端直接展示区间内最低价格。
   - `GET /products/by_category/` 按分类筛选 `backend/catalog/views.py`
@@ -185,6 +186,7 @@
     - 返回的 `logo` 会自动补全为当前请求域名下的绝对 URL；提交 `/media/...` 或完整地址均可，后端会在保存时规范化路径。
     - 若历史数据存有其他域名的媒体 URL（如旧 CDN 域名），响应时会剥离相同资源的域名并按当前请求域名重建绝对地址；外部/CDN 域名的完全外链则保持不变。
   - `POST /media-images/` 图片上传 `backend/catalog/urls.py:8`
+  - `POST /products/upload-attachment/` 商品 PDF 附件上传，表单字段 `file`，返回 `{ name, url, file_type, size }`；仅允许后台用户上传 PDF。
   - `GET/POST/... /home-banners/` 首页轮播图管理 `backend/catalog/urls.py:8`
     - GET（公开）：返回启用的轮播图列表，按 `order` 升序。
     - 查询参数：`position` 继续支持固定专区轮播；`special_zone=<id>` 返回指定动态运营专区轮播。

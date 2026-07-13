@@ -247,6 +247,44 @@ export default function ProductDetail() {
     })
   }
 
+  const getAttachmentName = (attachment: NonNullable<Product['product_attachments']>[number]) => {
+    const explicitName = attachment.name?.trim()
+    if (explicitName) return explicitName
+    const rawName = (attachment.url || '').split('?')[0].split('/').pop()
+    if (!rawName) return 'PDF附件'
+    try {
+      return decodeURIComponent(rawName)
+    } catch (error) {
+      return rawName
+    }
+  }
+
+  const handleOpenAttachment = async (attachment: NonNullable<Product['product_attachments']>[number]) => {
+    const url = resolveLocalMediaUrl(attachment.url)
+    if (!url) {
+      Taro.showToast({ title: '附件地址无效', icon: 'none' })
+      return
+    }
+
+    Taro.showLoading({ title: '下载中...' })
+    try {
+      const res = await Taro.downloadFile({ url })
+      Taro.hideLoading()
+      if (res.statusCode !== 200) {
+        Taro.showToast({ title: '下载失败', icon: 'none' })
+        return
+      }
+      Taro.openDocument({
+        filePath: res.tempFilePath,
+        fileType: 'pdf',
+        fail: () => Taro.showToast({ title: '无法打开PDF', icon: 'none' }),
+      })
+    } catch (error) {
+      Taro.hideLoading()
+      Taro.showToast({ title: '下载失败', icon: 'none' })
+    }
+  }
+
   const handleSwiperChange = (e: any) => {
     setCurrentImageIndex(e.detail.current)
   }
@@ -455,6 +493,25 @@ export default function ProductDetail() {
                 <View key={key} className='spec-item'>
                   <Text className='spec-label'>{key}</Text>
                   <Text className='spec-value'>{String(value)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {product.product_attachments && product.product_attachments.length > 0 && (
+          <View className='attachments-section'>
+            <View className='section-title'>资料下载</View>
+            <View className='attachment-list'>
+              {product.product_attachments.map((attachment, index) => (
+                <View
+                  key={`${attachment.url}-${index}`}
+                  className='attachment-item'
+                  onClick={() => handleOpenAttachment(attachment)}
+                >
+                  <View className='attachment-badge'>PDF</View>
+                  <Text className='attachment-name'>{getAttachmentName(attachment)}</Text>
+                  <Text className='attachment-action'>下载</Text>
                 </View>
               ))}
             </View>

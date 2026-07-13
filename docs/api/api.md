@@ -129,8 +129,15 @@ Authorization: Bearer <access_token>
 - `GET /products/{id}/`
   - 用途：获取商品详情
   - 权限：AllowAny
-  - 响应：`{ "id": number, "name": string, "category": string, "brand": string, "category_id": number, "brand_id": number, "price": decimal, "stock": number, "description": string, "is_active": boolean, "sales_count": number, "view_count": number, "created_at": string(ISO), "updated_at": string(ISO) }`
-  - 说明：当前版本不包含图片字段和规格字段
+  - 响应：在基础商品字段外包含 `main_images`, `detail_images`, `product_attachments`, `specifications`, `skus`, `spec_options`, `display_price`, `discounted_price`, `originalPrice`
+  - `product_attachments`：PDF 附件数组 `[{ name, url, file_type, size }]`；无附件时为空数组。
+
+- `POST /products/upload-attachment/`
+  - 用途：上传商品 PDF 附件
+  - 权限：后台用户
+  - 请求：`multipart/form-data`，字段 `file`
+  - 限制：仅 PDF，单文件最大 20MB
+  - 响应：`{ "name": string, "url": string, "file_type": "pdf", "size": number }`
 
 - `GET /products/by_category/?category=名称`
   - 用途：按分类获取商品
@@ -1189,6 +1196,7 @@ fetch('/api/token/refresh/', {
 - ✅ category, brand, category_id, brand_id
 - ✅ price, stock
 - ✅ main_images, detail_images（JSONField数组）
+- ✅ product_attachments（PDF附件 JSONField 数组）
 - ✅ is_active, sales_count, view_count
 - ✅ created_at, updated_at
 - ✅ discounted_price（计算字段，考虑用户折扣）
@@ -1236,7 +1244,7 @@ fetch('/api/token/refresh/', {
 **总计**: 100+ 个API端点
 - 用户认证: 6个
 - 店铺与商家权限: 11个
-- 商品管理: 12个
+- 商品管理: 13个
 - 分类管理: 5个
 - 品牌管理: 5个
 - 媒体管理: 4个

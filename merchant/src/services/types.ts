@@ -131,6 +131,7 @@ export interface Product {
   stock: number;
   main_images?: string[];
   detail_images?: string[];
+  product_attachments?: ProductAttachment[];
   specifications?: Record<string, string | number | boolean>;
   is_active: boolean;
   sales_count?: number;
@@ -161,6 +162,13 @@ export interface Product {
   customer_group_id?: number | null;
   customer_group_name?: string;
   show_customer_group_name?: boolean;
+}
+
+export interface ProductAttachment {
+  name?: string;
+  url: string;
+  file_type?: 'pdf';
+  size?: number;
 }
 
 export interface ProductSKU {

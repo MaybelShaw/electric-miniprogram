@@ -1,15 +1,15 @@
 ﻿import { useRef, useState, useEffect } from 'react';
 import { ProTable, ModalForm, ProFormText, ProFormDigit, ProFormSelect, ProFormSwitch, ProFormTextArea, ProFormGroup, ProFormField, ProFormDependency } from '@ant-design/pro-components';
-import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions, Space } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, MinusCircleOutlined, DatabaseOutlined } from '@ant-design/icons';
-import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getProductActivities, updateProductActivities, getHaierProducts, getHaierStock, getHaierPrices, exportProducts, getCurrentStoreContext } from '@/services/api';
+import { Tag, Image, Button, Popconfirm, message, Form, Alert, Input, Descriptions, Space, Upload } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, DownloadOutlined, MinusCircleOutlined, DatabaseOutlined, UploadOutlined } from '@ant-design/icons';
+import { getProducts, getBrands, getCategories, createProduct, updateProduct, deleteProduct, getProduct, getProductActivities, updateProductActivities, getHaierProducts, getHaierStock, getHaierPrices, exportProducts, getCurrentStoreContext, uploadProductAttachment } from '@/services/api';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import ImageUpload from '@/components/ImageUpload';
 import { normalizeImageList } from '@/utils/image';
 import { fetchAllPaginated } from '@/utils/request';
 import { downloadBlob } from '@/utils/download';
 import ExportLoadingModal from '@/components/ExportLoadingModal';
-import type { Product, Brand, Category, SpecialZone, CurrentStoreContext } from '@/services/types';
+import type { Product, ProductAttachment, Brand, Category, SpecialZone, CurrentStoreContext } from '@/services/types';
 import { getSelectedStoreId } from '@/utils/store';
 
 type SpecificationItem = {
@@ -44,6 +44,17 @@ const itemsToSpecifications = (items?: SpecificationItem[]): Record<string, stri
     result[key] = (item.value || '').trim();
   });
   return result;
+};
+
+const normalizeProductAttachments = (attachments?: ProductAttachment[]): ProductAttachment[] => {
+  return (attachments || [])
+    .filter(item => item?.url)
+    .map(item => ({
+      name: (item.name || '').trim(),
+      url: item.url,
+      file_type: 'pdf',
+      ...(item.size ? { size: item.size } : {}),
+    }));
 };
 
 export default function Products() {
@@ -377,6 +388,7 @@ export default function Products() {
           specification_items: specificationsToItems(res.specifications),
           main_images: res.main_images || [],
           detail_images: res.detail_images || [],
+          product_attachments: normalizeProductAttachments(res.product_attachments),
           is_active: res.is_active,
           show_in_gift_zone: res.show_in_gift_zone,
           show_in_designer_zone: res.show_in_designer_zone,
@@ -416,6 +428,7 @@ export default function Products() {
       stock: 0,
       main_images: [],
       detail_images: [],
+      product_attachments: [],
       specification_items: [],
       source: 'local',
       show_in_gift_zone: false,
@@ -446,6 +459,31 @@ export default function Products() {
       } catch (error) {
         // 不抛出错误，避免影响用户体验
       }
+    }
+  };
+
+  const beforeAttachmentUpload = (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      message.error('仅支持上传PDF文件');
+      return Upload.LIST_IGNORE;
+    }
+    if (file.size / 1024 / 1024 > 20) {
+      message.error('PDF附件不能超过20MB');
+      return Upload.LIST_IGNORE;
+    }
+    return true;
+  };
+
+  const handleAttachmentUpload = async (options: any, add: (value: ProductAttachment) => void) => {
+    const { file, onSuccess, onError } = options;
+    try {
+      const attachment = await uploadProductAttachment(file as File);
+      add(attachment);
+      message.success('附件上传成功');
+      onSuccess?.(attachment);
+    } catch (error) {
+      message.error('附件上传失败');
+      onError?.(error);
     }
   };
 
@@ -695,6 +733,7 @@ export default function Products() {
               specifications: itemsToSpecifications(specification_items),
               main_images: normalizeImageList(finalData.main_images),
               detail_images: normalizeImageList(finalData.detail_images),
+              product_attachments: normalizeProductAttachments(finalData.product_attachments),
             };
             
             if (editingRecord) {
@@ -974,6 +1013,54 @@ export default function Products() {
               fieldName="detail_images"
               onImageUpdate={editingRecord ? handleImageUpdate : undefined}
             />
+          </Form.Item>
+
+          <Form.Item label="PDF附件" tooltip="最多10个，每个不超过20MB；附件名称为空时小程序会使用文件名" style={{ width: '100%' }}>
+            <Form.List name="product_attachments">
+              {(fields, { add, remove }) => (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Space key={key} align="baseline" style={{ width: '100%' }}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'name']}
+                        style={{ width: 220, marginBottom: 0 }}
+                      >
+                        <Input placeholder="附件名称" />
+                      </Form.Item>
+                      <Form.Item
+                        {...restField}
+                        name={[name, 'url']}
+                        rules={[{ required: true, message: '请上传PDF附件' }]}
+                        style={{ flex: 1, marginBottom: 0 }}
+                      >
+                        <Input disabled placeholder="PDF文件地址" />
+                      </Form.Item>
+                      <Form.Item {...restField} name={[name, 'file_type']} hidden>
+                        <Input />
+                      </Form.Item>
+                      <Form.Item {...restField} name={[name, 'size']} hidden>
+                        <Input />
+                      </Form.Item>
+                      <Button danger icon={<DeleteOutlined />} onClick={() => remove(name)}>
+                        删除
+                      </Button>
+                    </Space>
+                  ))}
+                  <Upload
+                    accept=".pdf,application/pdf"
+                    showUploadList={false}
+                    beforeUpload={beforeAttachmentUpload}
+                    customRequest={(options) => handleAttachmentUpload(options, add)}
+                    disabled={fields.length >= 10}
+                  >
+                    <Button icon={<UploadOutlined />} disabled={fields.length >= 10}>
+                      上传PDF
+                    </Button>
+                  </Upload>
+                </Space>
+              )}
+            </Form.List>
           </Form.Item>
         </ProFormGroup>
         

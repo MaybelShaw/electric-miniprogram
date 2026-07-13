@@ -60,6 +60,7 @@ export interface Product {
   total_stock?: number
   main_images: string[]
   detail_images: string[]
+  product_attachments?: ProductAttachment[]
   specifications?: Record<string, any>  // 商品规格
   spec_options?: Record<string, string[]>
   skus?: ProductSKU[]
@@ -75,6 +76,13 @@ export interface Product {
   show_in_promotion_zone?: boolean
   created_at: string
   updated_at: string
+}
+
+export interface ProductAttachment {
+  name?: string
+  url: string
+  file_type?: 'pdf'
+  size?: number
 }
 
 export interface ProductSKU {

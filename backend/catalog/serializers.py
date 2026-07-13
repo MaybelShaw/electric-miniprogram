@@ -407,6 +407,43 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("详情图最多上传50张")
         return normalized
 
+    def validate_product_attachments(self, value):
+        if value in (None, ''):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("商品附件必须是列表")
+        if len(value) > 10:
+            raise serializers.ValidationError("商品附件最多上传10个")
+
+        normalized = []
+        media_base_path = urlparse(settings.MEDIA_URL).path or settings.MEDIA_URL
+        media_prefix = media_base_path.rstrip('/') + '/'
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("商品附件格式不正确")
+            url = str(item.get('url') or '').strip()
+            path = urlparse(url).path or url
+            if not url or not path.lower().endswith('.pdf'):
+                raise serializers.ValidationError("商品附件仅支持PDF文件")
+            if not path.startswith(media_prefix) or not path[len(media_prefix):].startswith('product_attachments/'):
+                raise serializers.ValidationError("商品附件必须通过后台上传")
+
+            attachment = {
+                'name': str(item.get('name') or '').strip(),
+                'url': path,
+                'file_type': 'pdf',
+            }
+            size = item.get('size')
+            if size not in (None, ''):
+                try:
+                    attachment['size'] = int(size)
+                except (TypeError, ValueError):
+                    raise serializers.ValidationError("商品附件大小格式不正确")
+                if attachment['size'] > 20 * 1024 * 1024:
+                    raise serializers.ValidationError("PDF附件不能超过20MB")
+            normalized.append(attachment)
+        return normalized
+
     def validate_specifications(self, value):
         if value in (None, ''):
             return {}

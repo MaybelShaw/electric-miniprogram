@@ -1,5 +1,5 @@
 import request from '@/utils/request';
-import type { CurrentStoreContext, StoreProfitSharingEntry } from './types';
+import type { CurrentStoreContext, ProductAttachment, StoreProfitSharingEntry } from './types';
 import { withSelectedStoreId } from '@/utils/storeScope';
 
 // 登录
@@ -73,6 +73,13 @@ export const createProduct = (data: any) => request.post('/catalog/products/', w
 export const updateProduct = (id: number, data: any) => request.patch(`/catalog/products/${id}/`, data);
 export const deleteProduct = (id: number) => request.delete(`/catalog/products/${id}/`);
 export const exportProducts = (params?: any) => request.get('/catalog/products/export/', { params, responseType: 'blob' });
+export const uploadProductAttachment = (file: File): Promise<ProductAttachment> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request.post('/catalog/products/upload-attachment/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 export const getProductActivities = (id: number) => request.get(`/catalog/products/${id}/activities/`);
 export const updateProductActivities = (id: number, activityIds: number[]) =>
   request.put(`/catalog/products/${id}/activities/`, { activity_ids: activityIds });

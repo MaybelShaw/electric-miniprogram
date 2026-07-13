@@ -5,6 +5,7 @@ from rest_framework.decorators import action, throttle_classes
 from rest_framework.response import Response
 from django.db.models import Q, Count, Max, F
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from django.core.files.uploadedfile import UploadedFile
@@ -33,7 +34,7 @@ from .search import ProductSearchService
 from decimal import Decimal
 import uuid
 import io
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 from drf_spectacular.utils import extend_schema, extend_schema_field, OpenApiParameter, OpenApiTypes
 from drf_spectacular.types import OpenApiTypes as OT
 
@@ -89,6 +90,36 @@ class StoreScopedCreateMixin:
         if store is not None:
             self._check_store_permission(store)
         instance.delete()
+
+
+PRODUCT_ATTACHMENT_DIR = 'product_attachments'
+PRODUCT_ATTACHMENT_MAX_SIZE = 20 * 1024 * 1024
+
+
+def _safe_upload_name(filename: str) -> str:
+    return (filename or '').replace('\\', '/').split('/')[-1]
+
+
+def _product_attachment_urls(attachments) -> set[str]:
+    if not isinstance(attachments, list):
+        return set()
+    return {
+        str(item.get('url') or '').strip()
+        for item in attachments
+        if isinstance(item, dict) and item.get('url')
+    }
+
+
+def _attachment_storage_name(url: str) -> str:
+    path = urlparse(url).path or url
+    media_base_path = urlparse(settings.MEDIA_URL).path or settings.MEDIA_URL
+    media_prefix = media_base_path.rstrip('/') + '/'
+    if not path.startswith(media_prefix):
+        return ''
+    name = unquote(path[len(media_prefix):]).lstrip('/')
+    if not name.startswith(f'{PRODUCT_ATTACHMENT_DIR}/'):
+        return ''
+    return name
 
 
 def _is_backoffice_catalog_user(request):
@@ -219,6 +250,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
 
     def perform_update(self, serializer):
         instance = self.get_object()
+        old_attachment_urls = _product_attachment_urls(instance.product_attachments)
         store = getattr(instance, 'store', None)
         if store is not None:
             self._check_store_permission(store)
@@ -228,7 +260,63 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
         source = serializer.validated_data.get('source', instance.source)
         if target_store is not None:
             self._validate_source_for_store(target_store, source)
-        serializer.save()
+        updated = serializer.save()
+        new_attachment_urls = _product_attachment_urls(updated.product_attachments)
+        for url in old_attachment_urls - new_attachment_urls:
+            self._delete_unreferenced_attachment(url, exclude_product_id=updated.id)
+
+    def _delete_unreferenced_attachment(self, url: str, exclude_product_id: int | None = None):
+        storage_name = _attachment_storage_name(url)
+        if not storage_name:
+            return
+
+        qs = Product.objects.only('id', 'product_attachments')
+        if exclude_product_id is not None:
+            qs = qs.exclude(id=exclude_product_id)
+        for product in qs:
+            if url in _product_attachment_urls(product.product_attachments):
+                return
+        if default_storage.exists(storage_name):
+            default_storage.delete(storage_name)
+
+    @extend_schema(
+        operation_id='products_upload_attachment',
+        description='上传商品PDF附件，返回可写入 product_attachments 的附件对象。',
+    )
+    @action(detail=False, methods=['post'], url_path='upload-attachment')
+    def upload_attachment(self, request):
+        file: UploadedFile | None = request.FILES.get('file')
+        if not file:
+            raise DRFValidationError({'file': '缺少文件: file'})
+
+        original_name = _safe_upload_name(getattr(file, 'name', ''))
+        if not original_name.lower().endswith('.pdf'):
+            raise DRFValidationError({'file': '商品附件仅支持PDF文件'})
+        if getattr(file, 'size', 0) > PRODUCT_ATTACHMENT_MAX_SIZE:
+            raise DRFValidationError({'file': 'PDF附件不能超过20MB'})
+
+        file.seek(0)
+        if file.read(5) != b'%PDF-':
+            raise DRFValidationError({'file': 'PDF文件格式不正确'})
+        file.seek(0)
+
+        now = timezone.now()
+        storage_name = (
+            f"{PRODUCT_ATTACHMENT_DIR}/{now.year:04}/{now.month:02}/{now.day:02}/"
+            f"{uuid.uuid4().hex}.pdf"
+        )
+        saved_name = default_storage.save(storage_name, file)
+        saved_path = saved_name.replace('\\', '/')
+        url = f"{settings.MEDIA_URL.rstrip('/')}/{saved_path}"
+        return Response(
+            {
+                'name': original_name,
+                'url': url,
+                'file_type': 'pdf',
+                'size': default_storage.size(saved_name),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     def _can_view_inactive_products(self):
         user = getattr(self.request, 'user', None)
@@ -314,6 +402,7 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
     )
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        attachment_urls = _product_attachment_urls(instance.product_attachments)
         orders_count = instance.orders.count()
         cart_items_count = instance.cart_items.count()
         inventory_logs_count = instance.inventory_logs.count()
@@ -334,7 +423,10 @@ class ProductViewSet(StoreScopedCreateMixin, BrowseThrottleMixin, viewsets.Model
                 status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            return super().destroy(request, *args, **kwargs)
+            response = super().destroy(request, *args, **kwargs)
+            for url in attachment_urls:
+                self._delete_unreferenced_attachment(url, exclude_product_id=instance.id)
+            return response
         except Exception as e:
             from django.db.models.deletion import ProtectedError
             if isinstance(e, ProtectedError):

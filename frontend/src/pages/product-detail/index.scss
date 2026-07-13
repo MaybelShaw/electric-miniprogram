@@ -121,6 +121,7 @@
   .product-info,
   .service-strip,
   .specs-section,
+  .attachments-section,
   .detail-section,
   .recommend-section {
     margin-left: 24px;
@@ -367,6 +368,65 @@
       color: $text-color-secondary;
       font-size: $font-size-sm;
     }
+  }
+
+  .attachments-section {
+    margin-bottom: 24px;
+    padding: 30px 28px;
+
+    .section-title {
+      margin-bottom: 24px;
+      color: $text-color-base;
+      font-size: 30px;
+      font-weight: 600;
+    }
+  }
+
+  .attachment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .attachment-item {
+    min-height: 78px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    border: 1px solid $border-color-light;
+    border-radius: $border-radius-sm;
+    background: $showroom-surface-warm;
+  }
+
+  .attachment-badge {
+    width: 64px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: $border-radius-sm;
+    background: $brand-ink;
+    color: $brand-paper;
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  .attachment-name {
+    flex: 1;
+    min-width: 0;
+    color: $text-color-base;
+    font-size: $font-size-md;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .attachment-action {
+    flex-shrink: 0;
+    color: $primary-color;
+    font-size: $font-size-sm;
   }
 
   .detail-section {

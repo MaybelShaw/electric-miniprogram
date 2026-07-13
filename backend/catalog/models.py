@@ -172,6 +172,7 @@ class Product(models.Model):
     # 图片字段 - 存储图片URL列表
     main_images = models.JSONField(default=list, blank=True, verbose_name='主图列表')
     detail_images = models.JSONField(default=list, blank=True, verbose_name='详情图列表')
+    product_attachments = models.JSONField(default=list, blank=True, verbose_name='PDF附件')
     specifications = models.JSONField(default=dict, blank=True, verbose_name='商品参数')
     product_image_url = models.URLField(max_length=500, blank=True, default='', verbose_name='海尔主图URL')
     product_page_urls = models.JSONField(default=list, blank=True, verbose_name='海尔拉页URL列表')
