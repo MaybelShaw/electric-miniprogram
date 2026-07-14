@@ -456,7 +456,7 @@ export default function SpecialZones() {
         <ProFormDateTimePicker name="start_at" label="开始时间" colProps={{ span: 12 }} />
         <ProFormDateTimePicker name="end_at" label="结束时间" colProps={{ span: 12 }} />
         <ProFormText name="cover_image" hidden />
-        <Form.Item label="专区封面" style={{ width: '100%' }}>
+        <Form.Item label="专区封面" style={{ width: '100%' }} extra="建议比例 2:1，推荐 1000x500；首页活动卡片会按比例裁切">
           <Upload listType="picture-card" showUploadList={false} customRequest={handleUpload} accept="image/*">
             {coverUrl ? (
               <img src={coverUrl} alt="cover" style={{ width: '100%' }} />

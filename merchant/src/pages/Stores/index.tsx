@@ -142,10 +142,10 @@ export default function Stores() {
             { label: '供应商', value: 'supplier' },
           ]}
         />
-        <Form.Item name="logo" label="店铺Logo">
+        <Form.Item name="logo" label="店铺Logo" extra="建议比例 1:1，推荐 400x400；透明 PNG 或留白方图更稳">
           <ImageUrlUpload buttonText="上传Logo" previewWidth={72} previewHeight={72} objectFit="contain" />
         </Form.Item>
-        <Form.Item name="cover_image" label="封面图">
+        <Form.Item name="cover_image" label="封面图" extra="建议比例 16:9，推荐 1200x675；用于店铺封面展示">
           <ImageUrlUpload buttonText="上传封面图" previewWidth={160} previewHeight={90} />
         </Form.Item>
         <ProFormTextArea name="description" label="店铺简介" />

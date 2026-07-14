@@ -188,7 +188,7 @@ export default function MajorCategories() {
       >
         <ProFormText name="name" label="品类名称" rules={[{ required: true, message: '请输入品类名称' }]} />
         
-        <Form.Item label="品类Logo">
+        <Form.Item label="品类Logo" extra="建议比例 1:1，推荐 400x400；图标主体居中">
             <Upload
                 listType="picture-card"
                 maxCount={1}

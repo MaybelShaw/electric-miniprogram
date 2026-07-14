@@ -309,7 +309,7 @@ export default function HomeBanners() {
           }
         }}
       >
-        <Form.Item label="轮播图片" required>
+        <Form.Item label="轮播图片" required extra="建议尺寸 750x456，约 5:3；重要内容居中，避免边缘被裁切">
           <Upload
             listType="picture-card"
             showUploadList={false}

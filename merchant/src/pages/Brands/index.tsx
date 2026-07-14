@@ -211,7 +211,7 @@ export default function Brands() {
         }}
       >
         <ProFormText name="name" label="品牌名称" rules={[{ required: true, message: '请输入品牌名称' }]} />
-        <Form.Item label="品牌Logo">
+        <Form.Item label="品牌Logo" extra="建议比例 1:1，推荐 400x400；透明 PNG 或留白方图更稳">
           <Form.Item name="logo" noStyle hidden>
             <Input />
           </Form.Item>

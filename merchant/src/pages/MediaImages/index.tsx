@@ -79,7 +79,9 @@ export default function MediaImages() {
             }
           }}
         >
-          <Button type="primary" icon={<UploadOutlined />}>上传图片</Button>
+          <Button type="primary" icon={<UploadOutlined />} title="媒体库不限定比例；按最终使用场景裁剪，建议上传清晰原图">
+            上传图片
+          </Button>
         </Upload>,
       ]}
     />

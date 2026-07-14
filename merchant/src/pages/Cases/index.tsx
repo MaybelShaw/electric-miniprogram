@@ -254,7 +254,12 @@ export default function Cases() {
         {/* 封面图上传 */}
         <ProFormDependency name={['cover_image_url']}>
           {({ cover_image_url }) => (
-            <Form.Item name="cover_image_id" label="展示图" rules={[{ required: true, message: '请上传展示图' }]}>
+            <Form.Item
+              name="cover_image_id"
+              label="展示图"
+              rules={[{ required: true, message: '请上传展示图' }]}
+              extra="建议比例 3:2，推荐 900x600；用于案例列表卡片"
+            >
                <SingleImageUpload defaultUrl={cover_image_url} buttonText="上传展示图" />
             </Form.Item>
           )}
@@ -329,6 +334,7 @@ export default function Cases() {
                         name="image_id" 
                         label="图片" 
                         rules={[{ required: true, message: '请上传图片' }]}
+                        extra="详情图按原比例展示，建议宽度不小于 750px"
                       >
                          <SingleImageUpload defaultUrl={image_url} />
                       </ProFormField>

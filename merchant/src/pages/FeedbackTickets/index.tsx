@@ -239,7 +239,7 @@ export default function FeedbackTickets() {
                   <Form.Item label="回复内容" required>
                     <Input.TextArea rows={4} value={replyContent} onChange={(event) => setReplyContent(event.target.value)} />
                   </Form.Item>
-                  <Form.Item label="图片附件">
+                  <Form.Item label="图片附件" extra="无固定比例，建议上传清晰原图；最多 9 张">
                     <Upload
                       beforeUpload={() => false}
                       accept="image/*"

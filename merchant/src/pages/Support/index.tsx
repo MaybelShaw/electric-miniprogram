@@ -665,7 +665,7 @@ export default function Support() {
                     <>
                       <ProFormText name={['card_payload', 'title']} label="卡片标题" rules={[{ required: true, message: '请输入卡片标题' }]} />
                       <ProFormTextArea name={['card_payload', 'description']} label="卡片描述" />
-                      <Form.Item name={['card_payload', 'image_url']} label="卡片图片">
+                      <Form.Item name={['card_payload', 'image_url']} label="卡片图片" extra="建议比例 3:2，推荐 900x600；用于客服图文卡片">
                         <ImageUrlUpload buttonText="上传卡片图片" previewWidth={120} previewHeight={80} />
                       </Form.Item>
                       <ProFormSelect
@@ -805,7 +805,7 @@ export default function Support() {
                       showUploadList={false} 
                       accept="image/*,video/*"
                     >
-                      <Button icon={<PaperClipOutlined />} size="small">上传图片/视频</Button>
+                      <Button icon={<PaperClipOutlined />} size="small" title="图片无固定比例，建议上传清晰原图；视频不受图片尺寸限制">上传图片/视频</Button>
                     </Upload>
                     <Button size="small" onClick={() => setTemplateModalVisible(true)}>快捷回复</Button>
                     <Button icon={<ShoppingOutlined />} size="small" onClick={() => setProductModalVisible(true)}>推荐商品</Button>

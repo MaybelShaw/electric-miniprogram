@@ -211,7 +211,7 @@ export default function MinorCategories() {
             options={majorCategories}
         />
         
-        <Form.Item label="子品类Logo">
+        <Form.Item label="子品类Logo" extra="建议比例 1:1，推荐 400x400；图标主体居中">
             <Upload
                 listType="picture-card"
                 maxCount={1}
